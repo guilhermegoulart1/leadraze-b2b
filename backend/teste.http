@@ -1,0 +1,61 @@
+### ===============================
+### CAMPAIGNS
+### ===============================
+
+@token = SEU_TOKEN_AQUI
+@linkedinAccountId = 
+@campaignId = 
+
+### Criar Campanha
+POST http://localhost:3001/api/campaigns
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Campanha de Desenvolvedores SP",
+  "linkedin_account_id": "{{linkedinAccountId}}",
+  "industry": "Tecnologia",
+  "location": "São Paulo, Brasil",
+  "target_titles": ["Software Developer", "Full Stack Developer", "Backend Developer"],
+  "target_keywords": ["JavaScript", "Node.js", "React"],
+  "template_message": "Olá {name}! Vi seu perfil e gostaria de me conectar. Estou recrutando desenvolvedores talentosos.",
+  "daily_limit": 50
+}
+
+### Listar Campanhas
+GET http://localhost:3001/api/campaigns
+Authorization: Bearer {{token}}
+
+### Listar Campanhas Ativas
+GET http://localhost:3001/api/campaigns?status=active
+Authorization: Bearer {{token}}
+
+### Obter Campanha Específica
+GET http://localhost:3001/api/campaigns/{{campaignId}}
+Authorization: Bearer {{token}}
+
+### Atualizar Campanha
+PUT http://localhost:3001/api/campaigns/{{campaignId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Campanha Atualizada",
+  "daily_limit": 100
+}
+
+### Iniciar Campanha
+POST http://localhost:3001/api/campaigns/{{campaignId}}/start
+Authorization: Bearer {{token}}
+
+### Pausar Campanha
+POST http://localhost:3001/api/campaigns/{{campaignId}}/pause
+Authorization: Bearer {{token}}
+
+### Obter Estatísticas
+GET http://localhost:3001/api/campaigns/{{campaignId}}/stats
+Authorization: Bearer {{token}}
+
+### Deletar Campanha
+DELETE http://localhost:3001/api/campaigns/{{campaignId}}
+Authorization: Bearer {{token}}
