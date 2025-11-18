@@ -135,6 +135,16 @@ class ApiService {
     return this.request(`/campaigns/${id}/stats`);
   }
 
+  async startCollection(id) {
+    return this.request(`/campaigns/${id}/start-collection`, {
+      method: 'POST',
+    });
+  }
+
+  async getCollectionStatus(id) {
+    return this.request(`/campaigns/${id}/collection-status`);
+  }
+
   // ================================
   // LEADS
   // ================================
@@ -280,6 +290,63 @@ class ApiService {
     return this.request(`/ai-agents/${id}/stats`);
   }
 
+  async testAIAgentInitialMessage(agentId, data) {
+    return this.request(`/ai-agents/${agentId}/test/initial-message`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async testAIAgentResponse(agentId, data) {
+    return this.request(`/ai-agents/${agentId}/test/response`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ================================
+  // KNOWLEDGE BASE
+  // ================================
+
+  async getAgentKnowledge(agentId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/ai-agents/${agentId}/knowledge?${query}`);
+  }
+
+  async addAgentKnowledge(agentId, data) {
+    return this.request(`/ai-agents/${agentId}/knowledge`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addAgentKnowledgeBatch(agentId, knowledgeItems) {
+    return this.request(`/ai-agents/${agentId}/knowledge/batch`, {
+      method: 'POST',
+      body: JSON.stringify({ knowledgeItems }),
+    });
+  }
+
+  async updateAgentKnowledge(agentId, knowledgeId, data) {
+    return this.request(`/ai-agents/${agentId}/knowledge/${knowledgeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAgentKnowledge(agentId, knowledgeId) {
+    return this.request(`/ai-agents/${agentId}/knowledge/${knowledgeId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async searchAgentKnowledge(agentId, query, options = {}) {
+    return this.request(`/ai-agents/${agentId}/knowledge/search`, {
+      method: 'POST',
+      body: JSON.stringify({ query, ...options }),
+    });
+  }
+
   // ================================
   // ANALYTICS
   // ================================
@@ -338,6 +405,42 @@ class ApiService {
         message,
       }),
     });
+  }
+
+  async getInviteStats(accountId) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/invite-stats`);
+  }
+
+  async updateInviteLimit(accountId, dailyLimit) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/daily-limit`, {
+      method: 'PATCH',
+      body: JSON.stringify({ daily_limit: dailyLimit }),
+    });
+  }
+
+  async refreshLinkedInAccount(accountId) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/refresh`, {
+      method: 'POST',
+    });
+  }
+
+  async getAccountHealth(accountId) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/health`);
+  }
+
+  async getRecommendedLimit(accountId, strategy = 'moderate') {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/recommended-limit?strategy=${strategy}`);
+  }
+
+  async overrideLimit(accountId, newLimit, reason) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/override-limit`, {
+      method: 'POST',
+      body: JSON.stringify({ new_limit: newLimit, reason }),
+    });
+  }
+
+  async getLimitHistory(accountId, limit = 20) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/limit-history?limit=${limit}`);
   }
 
   // ================================
@@ -413,7 +516,50 @@ class ApiService {
       method: 'POST',
     });
   }
-  
+
+  // ================================
+  // AI AGENTS
+  // ================================
+
+  async getBehavioralProfiles() {
+    return this.request('/ai-agents/behavioral-profiles');
+  }
+
+  async generateSearchFilters(description) {
+    return this.request('/ai-agents/generate-filters', {
+      method: 'POST',
+      body: JSON.stringify({ description }),
+    });
+  }
+
+  async getAIAgents() {
+    return this.request('/ai-agents');
+  }
+
+  async getAIAgent(id) {
+    return this.request(`/ai-agents/${id}`);
+  }
+
+  async createAIAgent(data) {
+    return this.request('/ai-agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAIAgent(id, data) {
+    return this.request(`/ai-agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAIAgent(id) {
+    return this.request(`/ai-agents/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
 }
 
 export default new ApiService();

@@ -25,7 +25,7 @@ const authLimiter = rateLimit({
 
 const campaignLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 30, // max 30 campaign requests per minute
+  max: 60, // ✅ Aumentado para 60 requests/minuto (suporta polling de múltiplas campanhas)
   message: {
     success: false,
     message: 'Too many campaign requests, please slow down.'

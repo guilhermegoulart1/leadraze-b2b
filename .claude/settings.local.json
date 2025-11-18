@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nul)",
+      "Bash(node scripts/migrate.js:*)",
+      "Bash(node scripts/update-schema.js:*)",
+      "Bash(node scripts/seed.js:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)",
+      "Bash(node scripts/fix-leads-data.js:*)",
+      "Bash(node scripts/update-schema-ai.js:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node scripts/check-columns.js:*)",
+      "Bash(node scripts/check-tables.js:*)",
+      "Bash(node scripts/check-bulk-jobs-table.js:*)",
+      "Bash(node scripts/check-campaigns-columns.js:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(wmic process:*)",
+      "Bash(node scripts/fix-failed-job.js:*)",
+      "Bash(node scripts/check-leads-status.js:*)",
+      "Bash(node scripts/delete-campaigns.js:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(node backend/scripts/check-campaigns-state.js:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(backend/src/server.js)",
+      "Bash(exit 0)",
+      "Bash(node backend/scripts/check-campaign-leads.js:*)",
+      "Bash(node check-leads-direct.js:*)",
+      "Bash(move check-leads-direct.js backend )",
+      "Bash(node:*)",
+      "Bash(psql:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

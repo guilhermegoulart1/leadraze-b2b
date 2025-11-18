@@ -30,6 +30,27 @@ router.put('/linkedin-accounts/:id', profileController.updateLinkedInAccount);
 // Deletar conta
 router.delete('/linkedin-accounts/:id', profileController.deleteLinkedInAccount);
 
+// Atualizar dados da conta (refresh)
+router.post('/linkedin-accounts/:id/refresh', profileController.refreshLinkedInAccount);
+
+// Obter estatísticas de convites
+router.get('/linkedin-accounts/:id/invite-stats', profileController.getInviteStats);
+
+// Atualizar limite diário de convites
+router.patch('/linkedin-accounts/:id/daily-limit', profileController.updateInviteLimit);
+
+// Obter health score da conta
+router.get('/linkedin-accounts/:id/health', profileController.getAccountHealth);
+
+// Obter limite recomendado
+router.get('/linkedin-accounts/:id/recommended-limit', profileController.getRecommendedLimit);
+
+// Override manual de limite (com motivo)
+router.post('/linkedin-accounts/:id/override-limit', profileController.overrideLimit);
+
+// Histórico de alterações de limite
+router.get('/linkedin-accounts/:id/limit-history', profileController.getLimitHistory);
+
 // ================================
 // LINKEDIN SEARCH & ACTIONS
 // ================================

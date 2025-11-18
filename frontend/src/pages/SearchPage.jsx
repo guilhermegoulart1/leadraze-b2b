@@ -343,152 +343,119 @@ const SearchPage = () => {
     });
   };
 
-  // ✅ COMPONENTE DE CARD DE PERFIL MELHORADO
+  // ✅ COMPONENTE DE CARD DE PERFIL MELHORADO E COMPACTO
   const ProfileCard = ({ profile }) => {
     const isSelected = selectedProfiles.find(p => p.id === profile.id);
-    
-    // ✅ Buscar foto em múltiplos campos (baseado na base de conhecimento)
-    const profilePicture = profile.profile_picture || 
+
+    // ✅ Buscar foto em múltiplos campos
+    const profilePicture = profile.profile_picture ||
                           profile.profile_picture_url ||
                           profile.profile_picture_url_large ||
                           profile.picture ||
-                          profile.profilePicture ||
+                          profile.photo ||
+                          profile.image ||
+                          profile.avatar ||
+                          profile.photoUrl ||
                           null;
-    
+
     // ✅ URL do LinkedIn
-    const linkedinUrl = profile.profile_url || 
-                       profile.url || 
+    const linkedinUrl = profile.profile_url ||
+                       profile.url ||
                        profile.public_profile_url ||
                        (profile.provider_id ? `https://linkedin.com/in/${profile.provider_id}` : null);
-    
+
     return (
       <div
-        className={`bg-white rounded-xl shadow-sm p-6 border-2 transition-all cursor-pointer hover:shadow-md ${
+        className={`bg-white rounded-lg shadow-sm p-3 border-2 transition-all cursor-pointer hover:shadow-md ${
           isSelected
             ? 'border-blue-500 bg-blue-50'
             : 'border-gray-100 hover:border-gray-300'
         }`}
         onClick={() => toggleProfileSelection(profile)}
       >
-        <div className="flex items-start space-x-4">
-          {/* ✅ AVATAR COM FOTO OU FALLBACK */}
+        <div className="flex items-center space-x-3">
+          {/* ✅ AVATAR COMPACTO */}
           <div className="relative flex-shrink-0">
             {profilePicture ? (
-              <img 
+              <img
                 src={profilePicture}
                 alt={profile.name}
-                className="w-20 h-20 rounded-full object-cover border-2 border-blue-200"
+                className="w-14 h-14 rounded-full object-cover border-2 border-blue-200"
                 onError={(e) => {
                   e.target.style.display = 'none';
                   e.target.nextSibling.style.display = 'flex';
                 }}
               />
             ) : null}
-            <div 
-              className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold"
+            <div
+              className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold"
               style={{ display: profilePicture ? 'none' : 'flex' }}
             >
               {profile.name?.charAt(0) || '?'}
             </div>
-            
+
             {/* Badge se já é lead */}
             {profile.already_lead && (
-              <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                Lead
+              <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                ✓
               </div>
             )}
           </div>
 
-          {/* ✅ INFO DO PERFIL */}
+          {/* ✅ INFO DO PERFIL COMPACTA */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 truncate">
                   {profile.name}
                 </h3>
-                
+
                 {/* Título */}
                 {profile.title && (
-                  <p className="text-gray-700 font-medium flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-gray-400" />
+                  <p className="text-sm text-gray-600 truncate">
                     {profile.title}
                   </p>
                 )}
+
+                {/* Empresa e Localização */}
+                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                  {profile.company && (
+                    <span className="flex items-center gap-1 truncate">
+                      <Building className="w-3 h-3 flex-shrink-0" />
+                      {profile.company}
+                    </span>
+                  )}
+
+                  {profile.location && (
+                    <span className="flex items-center gap-1 truncate">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {profile.location}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* ✅ CHECKBOX DE SELEÇÃO */}
-              <div className="flex items-center ml-4">
+              {/* ✅ CHECKBOX E AÇÕES */}
+              <div className="flex items-center gap-2 ml-3">
+                {linkedinUrl && (
+                  <a
+                    href={linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Ver perfil no LinkedIn"
+                  >
+                    <Linkedin className="w-4 h-4 text-blue-600" />
+                  </a>
+                )}
+
                 {isSelected ? (
-                  <CheckCircle className="w-7 h-7 text-blue-600" />
+                  <CheckCircle className="w-6 h-6 text-blue-600" />
                 ) : (
-                  <div className="w-7 h-7 border-2 border-gray-300 rounded-full" />
+                  <div className="w-6 h-6 border-2 border-gray-300 rounded-full" />
                 )}
               </div>
-            </div>
-
-            {/* ✅ INFORMAÇÕES SECUNDÁRIAS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-              {/* Empresa */}
-              {profile.company && (
-                <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{profile.company}</span>
-                </div>
-              )}
-              
-              {/* Localização */}
-              {profile.location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{profile.location}</span>
-                </div>
-              )}
-              
-              {/* Conexões */}
-              {profile.connections && (
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span>{profile.connections} conexões</span>
-                </div>
-              )}
-              
-              {/* Indústria */}
-              {profile.industry && (
-                <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{profile.industry}</span>
-                </div>
-              )}
-            </div>
-
-            {/* ✅ RESUMO (se tiver) */}
-            {profile.summary && (
-              <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                {profile.summary}
-              </p>
-            )}
-
-            {/* ✅ AÇÕES */}
-            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-              {linkedinUrl && (
-                <a
-                  href={linkedinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Linkedin className="w-4 h-4" />
-                  <span>Ver Perfil</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-              
-              {profile.already_lead && (
-                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                  ✓ Já é lead
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -497,8 +464,8 @@ const SearchPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-full bg-gray-50 overflow-y-auto">
+      <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">

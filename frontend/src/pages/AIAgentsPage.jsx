@@ -1,11 +1,19 @@
+// frontend/src/pages/AIAgentsPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Bot, Edit, Trash2, Copy, TestTube, BarChart3 } from 'lucide-react';
+import { Plus, Bot, Edit, Trash2, Sparkles, Target, Zap, BookOpen, Smile, Calendar, MessageSquare, Database } from 'lucide-react';
 import api from '../services/api';
+import AIAgentModal from '../components/AIAgentModal';
+import AIAgentTestModal from '../components/AIAgentTestModal';
+import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 
 const AIAgentsPage = () => {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState(null);
 
   useEffect(() => {
     loadAgents();
@@ -15,26 +23,19 @@ const AIAgentsPage = () => {
     try {
       setLoading(true);
       const response = await api.getAIAgents();
-      if (response.success) {
-        setAgents(response.data.agents);
-      }
+      setAgents(response.data || []);
     } catch (error) {
       console.error('Erro ao carregar agentes:', error);
+      setAgents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloneAgent = async (id, name) => {
-    try {
-      const newName = prompt('Nome do novo agente:', `${name} (Cópia)`);
-      if (newName) {
-        await api.cloneAIAgent(id, newName);
-        loadAgents();
-      }
-    } catch (error) {
-      alert('Erro ao clonar agente');
-    }
+  const handleAgentCreated = () => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    loadAgents();
   };
 
   const handleDeleteAgent = async (id) => {
@@ -43,23 +44,53 @@ const AIAgentsPage = () => {
         await api.deleteAIAgent(id);
         loadAgents();
       } catch (error) {
-        alert('Erro ao excluir agente');
+        alert(error.message || 'Erro ao excluir agente');
       }
     }
   };
 
-  const toneColors = {
-    professional: { bg: 'bg-blue-100', text: 'text-blue-700', icon: '💼' },
-    friendly: { bg: 'bg-green-100', text: 'text-green-700', icon: '😊' },
-    casual: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '👋' },
-    formal: { bg: 'bg-purple-100', text: 'text-purple-700', icon: '🎩' },
+  const handleEditAgent = (agent) => {
+    setSelectedAgent(agent);
+    setShowEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setSelectedAgent(null);
+  };
+
+  const handleTestAgent = (agent) => {
+    setSelectedAgent(agent);
+    setShowTestModal(true);
+  };
+
+  const handleCloseTestModal = () => {
+    setShowTestModal(false);
+    setSelectedAgent(null);
+  };
+
+  const handleManageKnowledge = (agent) => {
+    setSelectedAgent(agent);
+    setShowKnowledgeModal(true);
+  };
+
+  const handleCloseKnowledgeModal = () => {
+    setShowKnowledgeModal(false);
+    setSelectedAgent(null);
+  };
+
+  const profileIcons = {
+    consultivo: { Icon: Target, color: 'text-blue-600', bg: 'bg-blue-100', emoji: '🎯' },
+    direto: { Icon: Zap, color: 'text-orange-600', bg: 'bg-orange-100', emoji: '⚡' },
+    educativo: { Icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-100', emoji: '📚' },
+    amigavel: { Icon: Smile, color: 'text-green-600', bg: 'bg-green-100', emoji: '😊' }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Carregando agentes de IA...</p>
         </div>
       </div>
@@ -67,166 +98,212 @@ const AIAgentsPage = () => {
   }
 
   return (
-    <div className="p-6">
-      
+    <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Agentes de IA</h2>
-          <p className="text-gray-500 mt-1">Configure agentes inteligentes para suas conversas</p>
-        </div>
-        <button 
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-lg hover:opacity-90 font-semibold"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Novo Agente</span>
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Total de Agentes</p>
-          <p className="text-3xl font-bold text-gray-900">{agents.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Agentes Ativos</p>
-          <p className="text-3xl font-bold text-green-600">
-            {agents.filter(a => a.is_active).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Em Uso</p>
-          <p className="text-3xl font-bold text-purple-600">
-            {agents.filter(a => a.campaigns_count > 0).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Total de Conversas</p>
-          <p className="text-3xl font-bold text-blue-600">
-            {agents.reduce((sum, a) => sum + (a.usage_count || 0), 0)}
-          </p>
-        </div>
-      </div>
-
-      {/* Agents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {agents.map((agent) => {
-          const toneConfig = toneColors[agent.personality_tone] || toneColors.professional;
-          
-          return (
-            <div key={agent.id} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-              
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl flex items-center justify-center">
-                    <Bot className="w-7 h-7 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">{agent.name}</h3>
-                    <p className="text-xs text-gray-500">{agent.ai_model}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  {agent.is_active ? (
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                      Ativo
-                    </span>
-                  ) : (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full">
-                      Inativo
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Description */}
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                {agent.description || 'Sem descrição'}
-              </p>
-
-              {/* Personality Badge */}
-              <div className="mb-4">
-                <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${toneConfig.bg} ${toneConfig.text}`}>
-                  <span>{toneConfig.icon}</span>
-                  <span className="capitalize">{agent.personality_tone}</span>
-                </span>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-4 pb-4 border-b border-gray-200">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Campanhas</p>
-                  <p className="text-lg font-bold text-gray-900">{agent.campaigns_count || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Conversas</p>
-                  <p className="text-lg font-bold text-purple-600">{agent.usage_count || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Temp.</p>
-                  <p className="text-lg font-bold text-blue-600">{agent.temperature}</p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between space-x-2">
-                <div className="flex items-center space-x-2">
-                  <button 
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Editar"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleCloneAgent(agent.id, agent.name)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Clonar"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button 
-                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="Testar"
-                  >
-                    <TestTube className="w-4 h-4" />
-                  </button>
-                  <button 
-                    className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                    title="Estatísticas"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                  </button>
-                </div>
-                <button 
-                  onClick={() => handleDeleteAgent(agent.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Excluir"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-
-            </div>
-          );
-        })}
-      </div>
-
-      {agents.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500 mb-4">Nenhum agente de IA criado ainda</p>
-          <button 
+      <div className="flex-shrink-0 bg-white border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Agentes de IA</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Configure agentes inteligentes para conduzir suas conversas
+            </p>
+          </div>
+          <button
             onClick={() => setShowCreateModal(true)}
-            className="text-purple-600 hover:text-purple-700 font-semibold"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Criar primeiro agente
+            <Plus className="w-5 h-5" />
+            Novo Agente
           </button>
         </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {agents.length === 0 ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum agente criado</h3>
+              <p className="text-gray-600 mb-4">
+                Crie seu primeiro agente de IA para começar a automatizar conversas
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="w-5 h-5" />
+                Criar Primeiro Agente
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {agents.map((agent) => {
+              const profileConfig = profileIcons[agent.behavioral_profile] || profileIcons.consultivo;
+              const Icon = profileConfig.Icon;
+
+              return (
+                <div
+                  key={agent.id}
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                >
+                  <div className="p-5">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 ${profileConfig.bg} rounded-xl flex items-center justify-center`}>
+                          <Icon className={`w-6 h-6 ${profileConfig.color}`} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{agent.name}</h3>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-lg">{profileConfig.emoji}</span>
+                            <span className="text-xs text-gray-500 capitalize">
+                              {agent.behavioral_profile}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {agent.is_active ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
+                          Inativo
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {agent.description && (
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {agent.description}
+                      </p>
+                    )}
+
+                    {/* Products/Services */}
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs font-medium text-gray-500 mb-1">Produtos/Serviços</p>
+                      <p className="text-sm text-gray-700 line-clamp-2">
+                        {agent.products_services}
+                      </p>
+                    </div>
+
+                    {/* Features */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {agent.auto_schedule && (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
+                          <Calendar className="w-3 h-3" />
+                          Auto-agendamento
+                        </span>
+                      )}
+                      {agent.intent_detection_enabled && (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+                          <Sparkles className="w-3 h-3" />
+                          Detecção de intenção
+                        </span>
+                      )}
+                    </div>
+
+                    {/* LinkedIn Variables */}
+                    {agent.linkedin_variables?.used?.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-gray-500 mb-2">Variáveis usadas</p>
+                        <div className="flex flex-wrap gap-1">
+                          {agent.linkedin_variables.used.slice(0, 3).map((variable) => (
+                            <span
+                              key={variable}
+                              className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-mono"
+                            >
+                              {variable}
+                            </span>
+                          ))}
+                          {agent.linkedin_variables.used.length > 3 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs">
+                              +{agent.linkedin_variables.used.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2 pt-4 border-t">
+                      <button
+                        onClick={() => handleTestAgent(agent)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Testar Agente
+                      </button>
+                      <button
+                        onClick={() => handleManageKnowledge(agent)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200"
+                      >
+                        <Database className="w-4 h-4" />
+                        Base de Conhecimento
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEditAgent(agent)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAgent(agent.id)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Create Agent Modal */}
+      <AIAgentModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onAgentCreated={handleAgentCreated}
+      />
+
+      {/* Edit Agent Modal */}
+      {selectedAgent && (
+        <AIAgentModal
+          isOpen={showEditModal}
+          onClose={handleCloseEditModal}
+          onAgentCreated={handleAgentCreated}
+          agent={selectedAgent}
+        />
       )}
 
+      {/* Test Agent Modal */}
+      {selectedAgent && (
+        <AIAgentTestModal
+          isOpen={showTestModal}
+          onClose={handleCloseTestModal}
+          agent={selectedAgent}
+        />
+      )}
+
+      {/* Knowledge Base Modal */}
+      {selectedAgent && (
+        <KnowledgeBaseModal
+          isOpen={showKnowledgeModal}
+          onClose={handleCloseKnowledgeModal}
+          agent={selectedAgent}
+        />
+      )}
     </div>
   );
 };

@@ -122,6 +122,13 @@ try {
 }
 
 try {
+  app.use('/api', require('./routes/knowledge'));
+  console.log('✅ Knowledge Base routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Knowledge Base routes:', error.message);
+}
+
+try {
   app.use('/api/analytics', require('./routes/analytics'));
   console.log('✅ Analytics routes loaded');
 } catch (error) {

@@ -33,18 +33,29 @@ const getCampaigns = async (req, res) => {
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
 
-    // Query com JOIN para pegar dados da conta LinkedIn
+    // Query com JOIN para pegar dados da conta LinkedIn e contagens de leads
     const query = `
-      SELECT 
+      SELECT
         c.*,
         la.linkedin_username,
         la.profile_name as linkedin_profile_name,
+        la.profile_name as linkedin_account_name,
         la.status as linkedin_account_status,
-        aa.name as ai_agent_name
+        aa.name as ai_agent_name,
+        COALESCE(COUNT(l.id), 0) as total_leads,
+        COALESCE(SUM(CASE WHEN l.status = 'leads' THEN 1 ELSE 0 END), 0) as leads_count,
+        COALESCE(SUM(CASE WHEN l.status = 'qualifying' THEN 1 ELSE 0 END), 0) as leads_qualifying,
+        COALESCE(SUM(CASE WHEN l.status = 'invite_sent' THEN 1 ELSE 0 END), 0) as leads_invited,
+        COALESCE(SUM(CASE WHEN l.status = 'accepted' THEN 1 ELSE 0 END), 0) as leads_accepted,
+        COALESCE(SUM(CASE WHEN l.status = 'qualified' THEN 1 ELSE 0 END), 0) as leads_won,
+        COALESCE(SUM(CASE WHEN l.status = 'discarded' THEN 1 ELSE 0 END), 0) as leads_lost,
+        0 as leads_scheduled
       FROM campaigns c
       LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
+      LEFT JOIN leads l ON c.id = l.campaign_id
       WHERE ${whereClause}
+      GROUP BY c.id, la.linkedin_username, la.profile_name, la.status, aa.name
       ORDER BY c.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -52,6 +63,46 @@ const getCampaigns = async (req, res) => {
     queryParams.push(limit, offset);
 
     const campaigns = await db.query(query, queryParams);
+
+    // Buscar contas vinculadas para cada campanha
+    if (campaigns.rows.length > 0) {
+      const campaignIds = campaigns.rows.map(c => c.id);
+
+      const accountsQuery = await db.query(
+        `SELECT
+          cla.campaign_id,
+          la.id,
+          la.profile_name,
+          la.linkedin_username,
+          la.daily_limit,
+          la.status,
+          cla.priority,
+          cla.is_active,
+          cla.invites_sent as campaign_invites_sent
+         FROM campaign_linkedin_accounts cla
+         JOIN linkedin_accounts la ON cla.linkedin_account_id = la.id
+         WHERE cla.campaign_id = ANY($1)
+         ORDER BY cla.campaign_id, cla.priority`,
+        [campaignIds]
+      );
+
+      // Agrupar contas por campanha
+      const accountsByCampaign = {};
+      accountsQuery.rows.forEach(acc => {
+        if (!accountsByCampaign[acc.campaign_id]) {
+          accountsByCampaign[acc.campaign_id] = [];
+        }
+        accountsByCampaign[acc.campaign_id].push(acc);
+      });
+
+      // Adicionar contas vinculadas e limite total a cada campanha
+      campaigns.rows.forEach(campaign => {
+        const linkedAccounts = accountsByCampaign[campaign.id] || [];
+        campaign.linked_accounts = linkedAccounts;
+        campaign.linked_accounts_count = linkedAccounts.length;
+        campaign.total_daily_limit = linkedAccounts.reduce((sum, acc) => sum + (acc.daily_limit || 0), 0);
+      });
+    }
 
     // Contar total
     const countQuery = `
@@ -115,7 +166,33 @@ const getCampaign = async (req, res) => {
 
     const campaign = result.rows[0];
 
-    console.log(`✅ Campanha encontrada: ${campaign.name}`);
+    // Buscar contas vinculadas
+    const accountsQuery = await db.query(
+      `SELECT
+        cla.campaign_id,
+        la.id,
+        la.profile_name,
+        la.linkedin_username,
+        la.daily_limit,
+        la.today_sent,
+        la.status,
+        cla.priority,
+        cla.is_active,
+        cla.invites_sent as campaign_invites_sent,
+        cla.invites_accepted as campaign_invites_accepted
+       FROM campaign_linkedin_accounts cla
+       JOIN linkedin_accounts la ON cla.linkedin_account_id = la.id
+       WHERE cla.campaign_id = $1
+       ORDER BY cla.priority`,
+      [id]
+    );
+
+    campaign.linked_accounts = accountsQuery.rows;
+    campaign.linked_accounts_count = accountsQuery.rows.length;
+    campaign.total_daily_limit = accountsQuery.rows.reduce((sum, acc) => sum + (acc.daily_limit || 0), 0);
+    campaign.total_today_sent = accountsQuery.rows.reduce((sum, acc) => sum + (acc.today_sent || 0), 0);
+
+    console.log(`✅ Campanha encontrada: ${campaign.name} (${campaign.linked_accounts_count} contas vinculadas)`);
 
     sendSuccess(res, campaign);
 
@@ -132,8 +209,17 @@ const createCampaign = async (req, res) => {
     const userId = req.user.id;
     const {
       name,
-      linkedin_account_id,
+      description,
+      type,
+      linkedin_account_id,      // Single account (legacy)
+      linkedin_account_ids,      // Multiple accounts (new)
       ai_agent_id,
+      search_filters,
+      ai_search_prompt,
+      target_profiles_count,
+      current_step,
+      status,
+      // Campos legados (manter compatibilidade)
       industry,
       location,
       target_titles,
@@ -143,25 +229,43 @@ const createCampaign = async (req, res) => {
     } = req.body;
 
     console.log(`📝 Criando nova campanha: ${name}`);
+    console.log(`📊 Tipo: ${type}, Filtros:`, search_filters);
 
     // Validações básicas
     if (!name) {
       throw new ValidationError('Campaign name is required');
     }
 
-    if (!linkedin_account_id) {
-      throw new ValidationError('LinkedIn account is required');
+    // Determinar quais contas usar (suporta single e múltiplas)
+    let accountIds = [];
+
+    if (linkedin_account_ids && Array.isArray(linkedin_account_ids) && linkedin_account_ids.length > 0) {
+      // Novo formato: múltiplas contas
+      accountIds = linkedin_account_ids;
+      console.log(`📱 Múltiplas contas selecionadas: ${accountIds.length}`);
+    } else if (linkedin_account_id) {
+      // Formato legado: uma conta
+      accountIds = [linkedin_account_id];
+      console.log(`📱 Conta única (legado): ${linkedin_account_id}`);
+    } else {
+      throw new ValidationError('At least one LinkedIn account is required');
     }
 
-    // Verificar se a conta LinkedIn pertence ao usuário
-    const linkedinAccount = await db.findOne('linkedin_accounts', {
-      id: linkedin_account_id,
-      user_id: userId
-    });
+    // Verificar se todas as contas pertencem ao usuário
+    const linkedinAccounts = await db.query(
+      `SELECT id, profile_name, daily_limit
+       FROM linkedin_accounts
+       WHERE id = ANY($1) AND user_id = $2`,
+      [accountIds, userId]
+    );
 
-    if (!linkedinAccount) {
-      throw new NotFoundError('LinkedIn account not found');
+    if (linkedinAccounts.rows.length !== accountIds.length) {
+      throw new NotFoundError('One or more LinkedIn accounts not found or do not belong to you');
     }
+
+    // Calcular limite total disponível
+    const totalDailyLimit = linkedinAccounts.rows.reduce((sum, acc) => sum + (acc.daily_limit || 0), 0);
+    console.log(`📊 Limite total disponível: ${totalDailyLimit} convites/dia`);
 
     // Se AI agent foi especificado, verificar se pertence ao usuário
     if (ai_agent_id) {
@@ -175,27 +279,57 @@ const createCampaign = async (req, res) => {
       }
     }
 
-    // Criar campanha
+    // Criar campanha (manter linkedin_account_id para compatibilidade)
     const campaignData = {
       user_id: userId,
       name,
-      linkedin_account_id,
+      description: description || null,
+      type: type || 'manual',
+      linkedin_account_id: accountIds[0], // Primeira conta (compatibilidade)
       ai_agent_id: ai_agent_id || null,
-      status: CAMPAIGN_STATUS.DRAFT,
+      status: status || CAMPAIGN_STATUS.DRAFT,
       automation_active: false,
+      search_filters: search_filters ? JSON.stringify(search_filters) : null,
+      ai_search_prompt: ai_search_prompt || null,
+      target_profiles_count: target_profiles_count || 100,
+      current_step: current_step || 1,
+      // Campos legados
       industry: industry || null,
       location: location || null,
       target_titles: target_titles ? JSON.stringify(target_titles) : null,
       target_keywords: target_keywords ? JSON.stringify(target_keywords) : null,
       template_message: template_message || null,
-      daily_limit: daily_limit || 50
+      daily_limit: daily_limit || totalDailyLimit
     };
 
     const campaign = await db.insert('campaigns', campaignData);
 
-    console.log(`✅ Campanha criada: ${campaign.id}`);
+    // Inserir relacionamentos na tabela campaign_linkedin_accounts
+    const accountRelations = accountIds.map((accountId, index) => ({
+      campaign_id: campaign.id,
+      linkedin_account_id: accountId,
+      priority: index + 1, // Ordem de seleção
+      is_active: true
+    }));
 
-    sendSuccess(res, campaign, 'Campaign created successfully', 201);
+    await db.query(
+      `INSERT INTO campaign_linkedin_accounts (campaign_id, linkedin_account_id, priority, is_active)
+       VALUES ${accountRelations.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(', ')}`,
+      accountRelations.flatMap(r => [r.campaign_id, r.linkedin_account_id, r.priority, r.is_active])
+    );
+
+    console.log(`✅ Campanha criada: ${campaign.id}`);
+    console.log(`📋 ${accountIds.length} conta(s) vinculada(s)`);
+    console.log(`📊 Limite total: ${totalDailyLimit} convites/dia`);
+
+    // Retornar campanha com informações das contas
+    const responseData = {
+      ...campaign,
+      linked_accounts: linkedinAccounts.rows,
+      total_daily_limit: totalDailyLimit
+    };
+
+    sendSuccess(res, responseData, 'Campaign created successfully', 201);
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -276,12 +410,38 @@ const deleteCampaign = async (req, res) => {
       throw new NotFoundError('Campaign not found');
     }
 
-    // Não permitir deletar campanhas ativas
-    if (campaign.automation_active) {
-      throw new ForbiddenError('Cannot delete active campaign. Pause it first.');
+    // Verificar se há coleta em andamento
+    const collectionJobCheck = await db.query(
+      'SELECT id FROM bulk_collection_jobs WHERE campaign_id = $1 AND status IN ($2, $3)',
+      [id, 'pending', 'processing']
+    );
+
+    if (collectionJobCheck.rows.length > 0) {
+      throw new ForbiddenError('Cannot delete campaign with collection in progress. Please wait for collection to complete.');
     }
 
-    // Deletar (CASCADE vai deletar leads automaticamente)
+    // Não permitir deletar campanhas com automação ativa E que tenham leads
+    if (campaign.automation_active) {
+      // Verificar se tem leads
+      const leadsCheck = await db.query(
+        'SELECT COUNT(*) FROM leads WHERE campaign_id = $1',
+        [id]
+      );
+      const leadsCount = parseInt(leadsCheck.rows[0].count);
+
+      if (leadsCount > 0) {
+        throw new ForbiddenError('Cannot delete active campaign with leads. Pause it first.');
+      }
+
+      // Se não tem leads, pode deletar mesmo estando com automação ativa
+      console.log('⚠️ Deletando campanha ativa sem leads');
+    }
+
+    // Deletar dados relacionados
+    await db.query('DELETE FROM bulk_collection_jobs WHERE campaign_id = $1', [id]);
+    await db.query('DELETE FROM leads WHERE campaign_id = $1', [id]);
+
+    // Deletar campanha
     await db.delete('campaigns', { id });
 
     console.log(`✅ Campanha deletada`);
@@ -454,6 +614,50 @@ const getCampaignStats = async (req, res) => {
   }
 };
 
+// ================================
+// 9. INICIAR COLETA DE PERFIS
+// ================================
+const campaignCollectionService = require('../services/campaignCollectionService');
+
+const startCollection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🚀 Iniciando coleta para campanha ${id}`);
+
+    // Criar job de coleta
+    const job = await campaignCollectionService.createCollectionJob(id, userId);
+
+    sendSuccess(res, job, 'Coleta iniciada com sucesso');
+
+  } catch (error) {
+    console.error('❌ Erro ao iniciar coleta:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 10. OBTER STATUS DA COLETA
+// ================================
+const getCollectionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const status = await campaignCollectionService.getCollectionStatus(id, userId);
+
+    if (!status) {
+      sendSuccess(res, null, 'Nenhuma coleta iniciada para esta campanha');
+    } else {
+      sendSuccess(res, status);
+    }
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getCampaigns,
   getCampaign,
@@ -462,5 +666,7 @@ module.exports = {
   deleteCampaign,
   startCampaign,
   pauseCampaign,
-  getCampaignStats
+  getCampaignStats,
+  startCollection,
+  getCollectionStatus
 };

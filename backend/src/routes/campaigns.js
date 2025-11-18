@@ -47,4 +47,14 @@ router.post('/:id/pause', campaignController.pauseCampaign);
 // Obter estatísticas da campanha
 router.get('/:id/stats', campaignController.getCampaignStats);
 
+// ================================
+// COLETA DE PERFIS
+// ================================
+
+// Iniciar coleta de perfis
+router.post('/:id/start-collection', campaignController.startCollection);
+
+// Obter status da coleta
+router.get('/:id/collection-status', campaignController.getCollectionStatus);
+
 module.exports = router;

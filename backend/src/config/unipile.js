@@ -29,7 +29,7 @@ const unipileClient = {
   account: {
     connectLinkedin: async (credentials) => {
       const url = `https://${dsn}/api/v1/accounts`;
-      
+
       const response = await axios.post(url, {
         provider: 'LINKEDIN',
         type: 'LINKEDIN',
@@ -40,6 +40,21 @@ const unipileClient = {
           'Content-Type': 'application/json'
         },
         timeout: 30000
+      });
+
+      return response.data;
+    },
+
+    // Buscar dados atualizados da conta
+    getAccountById: async (accountId) => {
+      const url = `https://${dsn}/api/v1/accounts/${accountId}`;
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
       });
 
       return response.data;
@@ -156,7 +171,7 @@ const unipileClient = {
           },
           timeout: 30000 // ✅ TIMEOUT de 30 segundos
         });
-        
+
         if (!response || !response.data) {
           throw new Error('Unipile search failed: no response data');
         }
@@ -168,7 +183,7 @@ const unipileClient = {
         console.log('📄 Paging info:', JSON.stringify(response.data.paging, null, 2));
 
         return response.data;
-        
+
       } catch (error) {
         console.error('❌ === UNIPILE SEARCH ERROR ===');
         console.error('❌ Message:', error.message);
@@ -176,9 +191,37 @@ const unipileClient = {
         console.error('❌ Error type:', error.response?.data?.type);
         console.error('❌ Error detail:', error.response?.data?.detail);
         console.error('❌ Response data:', JSON.stringify(error.response?.data, null, 2));
-        
+
         throw error;
       }
+    }
+  },
+
+  // ================================
+  // 💬 MESSAGING
+  // ================================
+  messaging: {
+    send: async (params) => {
+      const { account_id, user_id, text } = params;
+
+      if (!account_id || !user_id || !text) {
+        throw new Error('account_id, user_id, and text are required');
+      }
+
+      const url = `https://${dsn}/api/v1/messaging/send?account_id=${account_id}`;
+
+      const response = await axios.post(url, {
+        attendees_ids: [user_id],
+        text: text
+      }, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      return response.data;
     }
   }
 };

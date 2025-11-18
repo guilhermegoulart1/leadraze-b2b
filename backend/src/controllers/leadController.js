@@ -357,7 +357,9 @@ const updateLead = async (req, res) => {
       title,
       company,
       location,
-      discard_reason
+      discard_reason,
+      email,
+      phone
     } = req.body;
 
     console.log(`📝 Atualizando lead ${id}`);
@@ -380,13 +382,29 @@ const updateLead = async (req, res) => {
 
     // Preparar dados para atualização
     const updateData = {};
-    
+
     if (status !== undefined) updateData.status = status;
     if (score !== undefined) updateData.score = score;
     if (title !== undefined) updateData.title = title;
     if (company !== undefined) updateData.company = company;
     if (location !== undefined) updateData.location = location;
     if (discard_reason !== undefined) updateData.discard_reason = discard_reason;
+
+    // 📧📞 Atualizar dados de contato
+    if (email !== undefined) {
+      updateData.email = email;
+      if (email && !lead.email) {
+        updateData.email_captured_at = new Date();
+        updateData.email_source = 'manual';
+      }
+    }
+    if (phone !== undefined) {
+      updateData.phone = phone;
+      if (phone && !lead.phone) {
+        updateData.phone_captured_at = new Date();
+        updateData.phone_source = 'manual';
+      }
+    }
 
     // Adicionar timestamps baseado no status
     if (status) {

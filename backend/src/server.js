@@ -2,6 +2,7 @@
 require('dotenv').config();
 const app = require('./app');
 const db = require('./config/database');
+const bulkCollectionProcessor = require('./services/bulkCollectionProcessor');
 
 const PORT = process.env.PORT || 3001;
 
@@ -11,6 +12,10 @@ async function startServer() {
     // Test database connection
     await db.query('SELECT NOW()');
     console.log('✅ Database connected successfully');
+
+    // Start bulk collection processor
+    bulkCollectionProcessor.startProcessor();
+    console.log('✅ Bulk collection processor started');
 
     // Start server
     app.listen(PORT, () => {
@@ -45,3 +50,4 @@ process.on('SIGINT', () => {
 });
 
 startServer();
+ 

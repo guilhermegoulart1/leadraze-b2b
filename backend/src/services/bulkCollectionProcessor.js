@@ -58,7 +58,10 @@ async function processJob(job) {
       [job.id]
     );
 
-    const searchFilters = JSON.parse(job.search_filters || '{}');
+    // PostgreSQL retorna JSONB como objeto, não como string
+    const searchFilters = typeof job.search_filters === 'string'
+      ? JSON.parse(job.search_filters)
+      : (job.search_filters || {});
     let currentCursor = job.current_cursor;
     let totalCollected = job.collected_count;
     let searchCount = 0;
@@ -140,8 +143,8 @@ async function processJob(job) {
         break;
       }
 
-      // Delay entre requests
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Delay entre requests (900ms = 1000 requests a cada 15 minutos)
+      await new Promise(resolve => setTimeout(resolve, 900));
     }
 
     // Marcar como concluído
@@ -198,27 +201,64 @@ async function saveProfiles(profiles, job) {
         continue;
       }
 
+      // ✅ Buscar foto em múltiplos campos possíveis da API Unipile
+      const profilePicture = profile.profile_picture ||
+                            profile.profile_picture_url ||
+                            profile.profile_picture_url_large ||
+                            profile.picture ||
+                            profile.photo ||
+                            profile.image ||
+                            profile.avatar ||
+                            profile.photoUrl ||
+                            null;
+
+      // 📧📞 Extrair email e telefone do perfil (se disponível)
+      const email = profile.email ||
+                    profile.email_address ||
+                    profile.contact_email ||
+                    (profile.contact_info && profile.contact_info.email) ||
+                    null;
+
+      const phone = profile.phone ||
+                    profile.phone_number ||
+                    profile.contact_phone ||
+                    (profile.contact_info && profile.contact_info.phone) ||
+                    null;
+
       // Inserir lead
-      await db.query(
-        `INSERT INTO leads 
-         (campaign_id, linkedin_profile_id, provider_id, name, title, company, 
-          location, profile_url, profile_picture, headline, status, score)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [
-          job.campaign_id,
-          profileId,
-          profile.provider_id || profile.id,
-          profile.name || profile.full_name || 'Sem nome',
-          profile.title || profile.headline || null,
-          profile.company || profile.current_company || null,
-          profile.location || profile.geo_location || null,
-          profile.profile_url || profile.url || null,
-          profile.profile_picture || profile.picture || null,
-          profile.summary || profile.description || null,
-          'leads',
-          calculateProfileScore(profile)
-        ]
-      );
+      const insertQuery = `INSERT INTO leads
+         (campaign_id, linkedin_profile_id, provider_id, name, title, company,
+          location, profile_url, profile_picture, headline, status, score,
+          email, phone, email_captured_at, phone_captured_at, email_source, phone_source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`;
+
+      const insertValues = [
+        job.campaign_id,
+        profileId,
+        profile.provider_id || profile.id,
+        profile.name || profile.full_name || 'Sem nome',
+        profile.title || profile.headline || null,
+        profile.company || profile.current_company || null,
+        profile.location || profile.geo_location || null,
+        profile.profile_url || profile.url || null,
+        profilePicture,
+        profile.summary || profile.description || null,
+        'leads', // Status correto (plural) conforme LEAD_STATUS.LEADS
+        calculateProfileScore(profile),
+        email,
+        phone,
+        email ? new Date() : null, // email_captured_at
+        phone ? new Date() : null, // phone_captured_at
+        email ? 'profile' : null,  // email_source
+        phone ? 'profile' : null   // phone_source
+      ];
+
+      await db.query(insertQuery, insertValues);
+
+      // Log de contatos capturados
+      if (email || phone) {
+        console.log(`📧📞 Contatos capturados do perfil ${profileId}:`, { email, phone });
+      }
 
       savedCount++;
 
@@ -237,7 +277,9 @@ function calculateProfileScore(profile) {
   if (profile.title || profile.headline) score += 15;
   if (profile.company || profile.current_company) score += 15;
   if (profile.location) score += 10;
-  if (profile.profile_picture || profile.picture) score += 10;
+  // Check all possible photo fields
+  if (profile.profile_picture || profile.profile_picture_url || profile.profile_picture_url_large ||
+      profile.picture || profile.photo || profile.image || profile.avatar || profile.photoUrl) score += 10;
   if (profile.profile_url || profile.url) score += 5;
   if (profile.summary || profile.description) score += 10;
   if (profile.connections && profile.connections > 0) score += 10;

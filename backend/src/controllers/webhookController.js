@@ -2,6 +2,7 @@
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { LEAD_STATUS } = require('../utils/helpers');
+const conversationAutomationService = require('../services/conversationAutomationService');
 
 // ================================
 // 1. RECEBER WEBHOOK DO UNIPILE
@@ -197,16 +198,31 @@ async function handleMessageReceived(payload) {
 
     console.log('✅ Mensagem salva');
 
-    // TODO: Se IA estiver ativa, gerar resposta automática
+    // Se IA estiver ativa, processar resposta automática
+    let aiResponse = null;
     if (conversation.ai_active && !conversation.manual_control_taken) {
-      console.log('🤖 IA ativa - resposta automática seria gerada aqui');
-      // await generateAIResponse(conversation.id, message.text);
+      console.log('🤖 Processando resposta automática com IA...');
+
+      try {
+        aiResponse = await conversationAutomationService.processIncomingMessage({
+          conversation_id: conversation.id,
+          message_content: message.text || '',
+          sender_id: message.sender_id,
+          unipile_message_id: message.id || `unipile_${Date.now()}`
+        });
+
+        console.log('✅ Resposta automática processada:', aiResponse);
+      } catch (aiError) {
+        console.error('❌ Erro ao gerar resposta automática:', aiError);
+        // Não falhar o webhook se IA der erro
+      }
     }
 
-    return { 
-      handled: true, 
+    return {
+      handled: true,
       conversation_id: conversation.id,
-      message_saved: true 
+      message_saved: true,
+      ai_response: aiResponse
     };
 
   } catch (error) {
@@ -267,9 +283,26 @@ async function handleInvitationAccepted(payload) {
       accepted_at: new Date()
     }, { id: lead.id });
 
+    // 🆕 ATUALIZAR LOG DE CONVITE PARA 'ACCEPTED'
+    try {
+      await db.query(
+        `UPDATE linkedin_invite_logs
+         SET status = 'accepted',
+             accepted_at = NOW()
+         WHERE lead_id = $1
+           AND linkedin_account_id = $2
+           AND status = 'sent'`,
+        [lead.id, linkedinAccount.id]
+      );
+      console.log('✅ Log de convite atualizado para "accepted"');
+    } catch (logError) {
+      console.warn('⚠️ Erro ao atualizar log de convite:', logError.message);
+      // Não falhar se der erro no log
+    }
+
     // Atualizar contadores da campanha
     await db.query(
-      `UPDATE campaigns 
+      `UPDATE campaigns
        SET leads_sent = GREATEST(0, leads_sent - 1),
            leads_accepted = leads_accepted + 1
        WHERE id = $1`,
@@ -293,11 +326,35 @@ async function handleInvitationAccepted(payload) {
 
     console.log('✅ Lead atualizado para "accepted" e conversa criada');
 
-    return { 
-      handled: true, 
+    // Processar envio de mensagem inicial automática se campanha tiver automação ativa
+    let initialMessageResult = null;
+    try {
+      // Buscar campaign_id do lead
+      const leadCampaign = await db.findOne('campaigns', { id: lead.campaign_id });
+
+      if (leadCampaign && leadCampaign.automation_active) {
+        console.log('🤖 Processando mensagem inicial automática...');
+
+        initialMessageResult = await conversationAutomationService.processInviteAccepted({
+          lead_id: lead.id,
+          campaign_id: lead.campaign_id,
+          linkedin_account_id: linkedinAccount.id,
+          lead_unipile_id: invitation.profile_id
+        });
+
+        console.log('✅ Mensagem inicial processada:', initialMessageResult);
+      }
+    } catch (automationError) {
+      console.error('❌ Erro ao processar automação de convite aceito:', automationError);
+      // Não falhar o webhook se automação der erro
+    }
+
+    return {
+      handled: true,
       lead_id: lead.id,
       conversation_id: conversation.id,
-      lead_status: LEAD_STATUS.ACCEPTED
+      lead_status: LEAD_STATUS.ACCEPTED,
+      initial_message_sent: initialMessageResult?.initial_message_sent || false
     };
 
   } catch (error) {

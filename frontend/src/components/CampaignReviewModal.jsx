@@ -1,0 +1,349 @@
+// frontend/src/components/CampaignReviewModal.jsx
+import React, { useState, useEffect } from 'react';
+import {
+  X, CheckCircle, Users, Sparkles, MessageSquare, Play,
+  ArrowLeft, Loader, AlertCircle, Trash2
+} from 'lucide-react';
+import api from '../services/api';
+
+const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
+  const [leads, setLeads] = useState([]);
+  const [aiAgent, setAiAgent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isActivating, setIsActivating] = useState(false);
+  const [selectedLeads, setSelectedLeads] = useState(new Set());
+
+  useEffect(() => {
+    if (isOpen && campaign) {
+      loadData();
+    }
+  }, [isOpen, campaign]);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+
+      // Load leads (with high limit to get all leads)
+      const leadsResponse = await api.getCampaignLeads(campaign.id, { limit: 1000 });
+      const campaignLeads = leadsResponse.data?.leads || [];
+      setLeads(campaignLeads);
+
+      // Load AI agent if exists
+      if (campaign.ai_agent_id) {
+        const agentResponse = await api.getAIAgent(campaign.ai_agent_id);
+        setAiAgent(agentResponse.data);
+      }
+
+      // Start with no leads selected
+      setSelectedLeads(new Set());
+
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleActivate = async () => {
+    try {
+      setIsActivating(true);
+      await onActivate(campaign.id);
+      onClose();
+    } catch (error) {
+      console.error('Erro ao ativar campanha:', error);
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  const toggleLead = (leadId) => {
+    const newSelected = new Set(selectedLeads);
+    if (newSelected.has(leadId)) {
+      newSelected.delete(leadId);
+    } else {
+      newSelected.add(leadId);
+    }
+    setSelectedLeads(newSelected);
+  };
+
+  const toggleAll = () => {
+    if (selectedLeads.size === leads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(leads.map(lead => lead.id)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedLeads.size === 0) return;
+
+    if (!confirm(`Tem certeza que deseja excluir ${selectedLeads.size} lead(s)?`)) {
+      return;
+    }
+
+    try {
+      // Delete leads in parallel
+      const deletePromises = Array.from(selectedLeads).map(leadId =>
+        api.deleteLead(leadId)
+      );
+
+      await Promise.all(deletePromises);
+
+      // Remove deleted leads from state
+      setLeads(leads.filter(lead => !selectedLeads.has(lead.id)));
+      setSelectedLeads(new Set());
+    } catch (error) {
+      console.error('Erro ao excluir leads:', error);
+      alert('Erro ao excluir alguns leads. Por favor, tente novamente.');
+    }
+  };
+
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{campaign?.name}</h2>
+                <p className="text-sm text-gray-600">Revisão de campanha e leads coletados</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content - Layout de 2 colunas */}
+        <div className="flex-1 overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">Carregando dados da campanha...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full">
+              {/* Coluna Esquerda - Informações da Campanha */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Stats Overview - Apenas 3 cards */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">Total de Leads</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-600">{leads.length}</p>
+                  </div>
+
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-medium text-green-900">Selecionados</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-600">{selectedLeads.size}</p>
+                  </div>
+
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-5 h-5 text-purple-600" />
+                      <span className="text-sm font-medium text-purple-900">Meta</span>
+                    </div>
+                    <p className="text-2xl font-bold text-purple-600">{campaign?.target_profiles_count || 0}</p>
+                  </div>
+                </div>
+
+              {/* AI Agent Section */}
+              {aiAgent && (
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 border border-purple-200">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{aiAgent.name}</h3>
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                          Agente IA
+                        </span>
+                      </div>
+                      {aiAgent.description && (
+                        <p className="text-sm text-gray-600 mb-4">{aiAgent.description}</p>
+                      )}
+
+                      {/* Message Template */}
+                      {aiAgent.system_prompt && (
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="w-4 h-4 text-purple-600" />
+                            <span className="text-sm font-medium text-gray-700">Mensagem que será enviada:</span>
+                          </div>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {aiAgent.system_prompt}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              </div>
+
+              {/* Coluna Direita - Lista de Leads */}
+              <div className="w-96 border-l border-gray-200 flex flex-col bg-white min-h-0">
+                {/* Header da lista */}
+                <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-gray-900">Leads Coletados</h3>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                        {leads.length}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={toggleAll}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      {selectedLeads.size === leads.length ? 'Desmarcar' : 'Selecionar'} todos
+                    </button>
+                    {selectedLeads.size > 0 && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <button
+                          onClick={handleDeleteSelected}
+                          className="text-xs text-red-600 hover:text-red-700 font-medium"
+                        >
+                          Excluir {selectedLeads.size}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista scrollável */}
+                <div className="h-[500px] overflow-y-scroll">
+                  {leads.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <AlertCircle className="w-12 h-12 text-gray-400 mb-3" />
+                      <p className="text-gray-600">Nenhum lead coletado ainda</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {leads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className={`px-4 py-2 hover:bg-gray-50 transition-colors cursor-pointer ${
+                            selectedLeads.has(lead.id) ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => toggleLead(lead.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedLeads.has(lead.id)}
+                              onChange={() => toggleLead(lead.id)}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+
+                            {lead.profile_picture ? (
+                              <img
+                                src={lead.profile_picture}
+                                alt={lead.name}
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                <span className="text-white font-semibold text-base">
+                                  {lead.name?.charAt(0) || '?'}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="font-medium text-gray-900 truncate text-sm">{lead.name}</h4>
+                                {lead.profile_url && (
+                                  <a
+                                    href={lead.profile_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-shrink-0 p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                    title="Ver perfil no LinkedIn"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-0.5 truncate">
+                                {[lead.title, lead.company].filter(Boolean).join(' • ')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{selectedLeads.size}</span> de {leads.length} leads selecionados
+              </div>
+              <button
+                onClick={handleActivate}
+                disabled={isActivating || selectedLeads.size === 0 || isLoading}
+                className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+              >
+                {isActivating ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Ativando...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Ativar Campanha
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CampaignReviewModal;

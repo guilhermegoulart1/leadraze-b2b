@@ -2,12 +2,14 @@
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const { sendSuccess, sendError } = require('../utils/responses');
-const { 
-  NotFoundError, 
+const {
+  NotFoundError,
   ValidationError,
   UnipileError,
-  ForbiddenError 
+  ForbiddenError
 } = require('../utils/errors');
+const inviteService = require('../services/inviteService');
+const accountHealthService = require('../services/accountHealthService');
 
 // ================================
 // 1. CONECTAR CONTA LINKEDIN
@@ -52,20 +54,52 @@ const connectLinkedInAccount = async (req, res) => {
         console.log('👤 Buscando dados do perfil...');
         profileData = await unipileClient.users.getOwnProfile(accountId);
         console.log('✅ Perfil obtido:', profileData?.name || 'Nome não disponível');
+        console.log('📊 DADOS DO PERFIL NA CONEXÃO:', JSON.stringify(profileData, null, 2));
+        console.log('🔍 Premium:', profileData?.premium);
+        console.log('🔍 Sales Navigator:', profileData?.sales_navigator);
+        console.log('🔍 Recruiter:', profileData?.recruiter);
       } catch (profileError) {
         console.warn('⚠️ Erro ao buscar perfil:', profileError.message);
       }
+
+      // Criar objeto estruturado com informações do tipo de conta
+      const accountTypeInfo = profileData ? {
+        premium: profileData.premium || false,
+        sales_navigator: profileData.sales_navigator || null,
+        recruiter: profileData.recruiter || null
+      } : null;
+
+      // 🆕 AUTO-DETECTAR TIPO DE CONTA
+      let detectedAccountType = 'free';
+      if (profileData) {
+        if (profileData.recruiter !== null && profileData.recruiter !== undefined) {
+          detectedAccountType = 'recruiter';
+        } else if (profileData.sales_navigator !== null && profileData.sales_navigator !== undefined) {
+          detectedAccountType = 'sales_navigator';
+        } else if (profileData.premium === true) {
+          detectedAccountType = 'premium';
+        }
+      }
+
+      console.log(`🔍 Tipo de conta detectado: ${detectedAccountType}`);
+
+      // 🆕 DEFINIR LIMITE SEGURO INICIAL
+      const initialLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType].safe;
+      console.log(`💡 Limite inicial sugerido: ${initialLimit}/dia`);
 
       const accountData = {
         user_id: userId,
         unipile_account_id: accountId,
         linkedin_username: username,
-        profile_name: profileData?.name || username,
+        profile_name: profileData?.name || `${profileData?.first_name} ${profileData?.last_name}`.trim() || username,
         profile_url: profileData?.url || null,
-        profile_picture: profileData?.profile_picture || null,
+        profile_picture: profileData?.profile_picture || profileData?.profile_picture_url || null,
+        public_identifier: profileData?.public_identifier || null,
         status: 'active',
+        account_type: detectedAccountType,
+        daily_limit: initialLimit,
         organizations: profileData?.organizations ? JSON.stringify(profileData.organizations) : null,
-        premium_features: profileData?.premium_features ? JSON.stringify(profileData.premium_features) : null
+        premium_features: accountTypeInfo ? JSON.stringify(accountTypeInfo) : null
       };
 
       const savedAccount = await db.insert('linkedin_accounts', accountData);
@@ -219,6 +253,120 @@ const deleteLinkedInAccount = async (req, res) => {
     sendSuccess(res, null, 'LinkedIn account deleted successfully');
 
   } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 5B. ATUALIZAR DADOS DA CONTA LINKEDIN (REFRESH)
+// ================================
+const refreshLinkedInAccount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🔄 Atualizando dados da conta LinkedIn ${id}`);
+
+    // Buscar conta no banco
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    if (!account.unipile_account_id) {
+      throw new ValidationError('Account does not have unipile_account_id');
+    }
+
+    if (!unipileClient.isInitialized()) {
+      throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
+    }
+
+    console.log(`📡 Buscando dados atualizados da Unipile para account_id: ${account.unipile_account_id}`);
+
+    try {
+      // Buscar dados da conta na Unipile
+      const accountData = await unipileClient.account.getAccountById(account.unipile_account_id);
+      console.log('✅ Dados da conta obtidos da Unipile');
+
+      // Buscar perfil atualizado
+      const profileData = await unipileClient.users.getOwnProfile(account.unipile_account_id);
+      console.log('✅ Perfil atualizado obtido:', profileData?.name || 'Nome não disponível');
+      console.log('📊 DADOS COMPLETOS DO PERFIL:', JSON.stringify(profileData, null, 2));
+      console.log('📊 DADOS COMPLETOS DA CONTA:', JSON.stringify(accountData, null, 2));
+      console.log('🔍 Premium:', profileData?.premium);
+      console.log('🔍 Sales Navigator:', profileData?.sales_navigator);
+      console.log('🔍 Recruiter:', profileData?.recruiter);
+
+      // Criar objeto estruturado com informações do tipo de conta
+      const accountTypeInfo = {
+        premium: profileData?.premium || false,
+        sales_navigator: profileData?.sales_navigator || null,
+        recruiter: profileData?.recruiter || null
+      };
+
+      console.log('✅ Tipo de conta estruturado:', accountTypeInfo);
+
+      // Preparar dados para atualização
+      const updateData = {
+        profile_name: profileData?.name || `${profileData?.first_name} ${profileData?.last_name}`.trim() || account.profile_name,
+        profile_url: profileData?.url || account.profile_url,
+        profile_picture: profileData?.profile_picture || profileData?.profile_picture_url || account.profile_picture,
+        public_identifier: profileData?.public_identifier || account.public_identifier,
+        organizations: profileData?.organizations ? JSON.stringify(profileData.organizations) : account.organizations,
+        premium_features: JSON.stringify(accountTypeInfo),
+        status: accountData?.status === 'active' ? 'active' : account.status
+      };
+
+      // 🆕 AUTO-DETECTAR TIPO DE CONTA
+      let detectedAccountType = 'free';
+      if (accountTypeInfo.recruiter !== null && accountTypeInfo.recruiter !== undefined) {
+        detectedAccountType = 'recruiter';
+      } else if (accountTypeInfo.sales_navigator !== null && accountTypeInfo.sales_navigator !== undefined) {
+        detectedAccountType = 'sales_navigator';
+      } else if (accountTypeInfo.premium === true) {
+        detectedAccountType = 'premium';
+      }
+
+      updateData.account_type = detectedAccountType;
+      console.log(`🔍 Tipo de conta detectado: ${detectedAccountType}`);
+
+      // 🆕 SUGERIR LIMITE SE NÃO ESTIVER CONFIGURADO
+      if (!account.daily_limit || account.daily_limit === 0) {
+        const suggestedLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType].safe;
+        updateData.daily_limit = suggestedLimit;
+        console.log(`💡 Limite sugerido automaticamente: ${suggestedLimit}/dia`);
+      }
+
+      console.log('💾 Salvando dados atualizados no banco de dados');
+
+      // Atualizar no banco de dados
+      const updatedAccount = await db.update('linkedin_accounts', updateData, { id });
+
+      console.log('✅ Conta LinkedIn atualizada com sucesso');
+
+      sendSuccess(res, {
+        ...updatedAccount,
+        profile_data: profileData,
+        account_data: accountData
+      }, 'LinkedIn account refreshed successfully');
+
+    } catch (unipileError) {
+      console.error('❌ Erro ao buscar dados da Unipile:', unipileError);
+
+      let errorMessage = 'Failed to refresh LinkedIn account data';
+
+      if (unipileError.response?.status === 404) {
+        errorMessage = 'LinkedIn account not found in Unipile';
+      } else if (unipileError.response?.status === 401) {
+        errorMessage = 'Invalid Unipile credentials';
+      }
+
+      throw new UnipileError(errorMessage, unipileError);
+    }
+
+  } catch (error) {
+    console.error('💥 Erro ao atualizar conta:', error);
     sendError(res, error, error.statusCode || 500);
   }
 };
@@ -394,6 +542,17 @@ const searchProfilesAdvanced = async (req, res) => {
           }
         }
 
+        // Map multiple possible photo fields from Unipile API
+        const profilePicture = profile.profile_picture ||
+                              profile.profile_picture_url ||
+                              profile.profile_picture_url_large ||
+                              profile.picture ||
+                              profile.photo ||
+                              profile.image ||
+                              profile.avatar ||
+                              profile.photoUrl ||
+                              null;
+
         return {
           id: profileId || `temp_${index}`,
           provider_id: profile.provider_id || profile.id,
@@ -402,7 +561,7 @@ const searchProfilesAdvanced = async (req, res) => {
           company: profile.company || profile.current_company || profile.companyName || null,
           location: profile.location || profile.geo_location || null,
           profile_url: profile.profile_url || profile.url || profile.public_profile_url || null,
-          profile_picture: profile.profile_picture || profile.picture || profile.photo || null,
+          profile_picture: profilePicture,
           summary: profile.summary || profile.description || null,
           industry: profile.industry || null,
           connections: profile.connections || profile.connection_count || null,
@@ -446,7 +605,9 @@ function calculateProfileScore(profile) {
   if (profile.title || profile.headline) score += 15;
   if (profile.company || profile.current_company) score += 15;
   if (profile.location) score += 10;
-  if (profile.profile_picture || profile.picture) score += 10;
+  // Check all possible photo fields
+  if (profile.profile_picture || profile.profile_picture_url || profile.profile_picture_url_large ||
+      profile.picture || profile.photo || profile.image || profile.avatar || profile.photoUrl) score += 10;
   if (profile.profile_url || profile.url) score += 5;
   if (profile.summary || profile.description) score += 10;
   if (profile.connections && profile.connections > 0) score += 10;
@@ -459,7 +620,7 @@ function calculateProfileScore(profile) {
 // ================================
 const sendInvitation = async (req, res) => {
   try {
-    const { account_id, provider_id, message } = req.body;
+    const { account_id, provider_id, message, campaign_id, lead_id } = req.body;
     const userId = req.user.id;
 
     console.log(`📨 Enviando convite de conexão`);
@@ -468,18 +629,27 @@ const sendInvitation = async (req, res) => {
       throw new ValidationError('account_id and provider_id are required');
     }
 
-    const account = await db.findOne('linkedin_accounts', { 
-      id: account_id, 
-      user_id: userId 
+    const account = await db.findOne('linkedin_accounts', {
+      id: account_id,
+      user_id: userId
     });
 
     if (!account) {
       throw new NotFoundError('LinkedIn account not found');
     }
 
-    if (account.today_sent >= account.daily_limit) {
-      throw new ForbiddenError('Daily invitation limit reached');
+    // ✅ Verificar limite diário usando o novo serviço
+    const limitCheck = await inviteService.canSendInvite(account_id);
+
+    if (!limitCheck.canSend) {
+      console.log(`⚠️ Limite diário atingido: ${limitCheck.sent}/${limitCheck.limit}`);
+      throw new ForbiddenError(
+        `Daily invitation limit reached (${limitCheck.sent}/${limitCheck.limit}). ` +
+        `${limitCheck.remaining} invites remaining today.`
+      );
     }
+
+    console.log(`✅ Pode enviar: ${limitCheck.remaining} convites restantes`);
 
     const inviteParams = {
       account_id: account.unipile_account_id,
@@ -492,18 +662,327 @@ const sendInvitation = async (req, res) => {
 
     console.log('📡 Enviando via Unipile:', inviteParams);
 
-    const result = await unipileClient.users.sendConnectionRequest(inviteParams);
+    let inviteStatus = 'sent';
+    try {
+      const result = await unipileClient.users.sendConnectionRequest(inviteParams);
 
-    await db.update('linkedin_accounts', {
-      today_sent: account.today_sent + 1
-    }, { id: account_id });
+      // ✅ Registrar envio bem-sucedido
+      await inviteService.logInviteSent({
+        linkedinAccountId: account_id,
+        campaignId: campaign_id,
+        leadId: lead_id,
+        status: 'sent'
+      });
 
-    console.log('✅ Convite enviado com sucesso');
+      console.log('✅ Convite enviado com sucesso');
 
-    sendSuccess(res, result, 'Invitation sent successfully');
+      sendSuccess(res, {
+        ...result,
+        invites_remaining: limitCheck.remaining - 1,
+        daily_limit: limitCheck.limit
+      }, 'Invitation sent successfully');
+
+    } catch (unipileError) {
+      inviteStatus = 'failed';
+
+      // ✅ Registrar falha no envio
+      await inviteService.logInviteSent({
+        linkedinAccountId: account_id,
+        campaignId: campaign_id,
+        leadId: lead_id,
+        status: 'failed'
+      });
+
+      throw unipileError;
+    }
 
   } catch (error) {
     console.error('❌ Erro ao enviar convite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 8. ESTATÍSTICAS DE CONVITES
+// ================================
+const getInviteStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`📊 Buscando estatísticas de convites para conta ${id}`);
+
+    // Verificar se conta pertence ao usuário
+    const account = await db.findOne('linkedin_accounts', {
+      id,
+      user_id: userId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    const stats = await inviteService.getInviteStats(id);
+
+    console.log(`✅ Estatísticas obtidas:`, {
+      sent: stats.sent_today,
+      remaining: stats.remaining,
+      limit: stats.daily_limit
+    });
+
+    sendSuccess(res, stats, 'Invite stats retrieved successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar estatísticas:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 9. ATUALIZAR LIMITE DIÁRIO
+// ================================
+const updateInviteLimit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { daily_limit } = req.body;
+    const userId = req.user.id;
+
+    console.log(`⚙️ Atualizando limite diário da conta ${id} para ${daily_limit}`);
+
+    if (daily_limit === undefined || daily_limit === null) {
+      throw new ValidationError('daily_limit is required');
+    }
+
+    // Verificar se conta pertence ao usuário
+    const account = await db.findOne('linkedin_accounts', {
+      id,
+      user_id: userId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    const updatedAccount = await inviteService.updateDailyLimit(id, parseInt(daily_limit));
+
+    console.log('✅ Limite atualizado com sucesso');
+
+    sendSuccess(res, updatedAccount, 'Daily limit updated successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao atualizar limite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 10. OBTER HEALTH SCORE DA CONTA
+// ================================
+const getAccountHealth = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🏥 Buscando health score da conta ${id}`);
+
+    // Verificar se conta pertence ao usuário
+    const account = await db.findOne('linkedin_accounts', {
+      id,
+      user_id: userId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    // Calcular métricas de saúde
+    const healthData = await accountHealthService.calculateHealthScore(id);
+    const acceptance7d = await accountHealthService.getAcceptanceRate(id, 7);
+    const acceptance30d = await accountHealthService.getAcceptanceRate(id, 30);
+    const avgResponseTime = await accountHealthService.getAverageResponseTime(id);
+    const accountAge = accountHealthService.getAccountAge(account.connected_at);
+    const risks = await accountHealthService.checkRiskPatterns(id);
+
+    console.log(`✅ Health Score: ${healthData.score}/100 (${healthData.level})`);
+
+    sendSuccess(res, {
+      health_score: healthData.score,
+      risk_level: healthData.level,
+      account_age_days: accountAge,
+      metrics: {
+        acceptance_rate_7d: acceptance7d.rate,
+        acceptance_rate_30d: acceptance30d.rate,
+        invites_sent_7d: acceptance7d.sent,
+        invites_sent_30d: acceptance30d.sent,
+        invites_accepted_7d: acceptance7d.accepted,
+        invites_accepted_30d: acceptance30d.accepted,
+        avg_response_time_hours: avgResponseTime
+      },
+      factors: healthData.factors,
+      risks: risks,
+      account_type: account.account_type || 'free'
+    }, 'Account health retrieved successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar health:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 11. OBTER LIMITE RECOMENDADO
+// ================================
+const getRecommendedLimit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { strategy = 'moderate' } = req.query;
+    const userId = req.user.id;
+
+    console.log(`💡 Calculando limite recomendado para conta ${id} (estratégia: ${strategy})`);
+
+    // Verificar se conta pertence ao usuário
+    const account = await db.findOne('linkedin_accounts', {
+      id,
+      user_id: userId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    // Calcular limite recomendado
+    const recommended = await accountHealthService.getRecommendedLimit(id, strategy);
+
+    console.log(`✅ Limite recomendado: ${recommended.recommended}/dia`);
+
+    sendSuccess(res, {
+      ...recommended,
+      current_limit: account.daily_limit || 0
+    }, 'Recommended limit calculated successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao calcular limite recomendado:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 12. OVERRIDE MANUAL DE LIMITE
+// ================================
+const overrideLimit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_limit, reason } = req.body;
+    const userId = req.user.id;
+
+    console.log(`⚠️ Override manual de limite para conta ${id}: ${new_limit}`);
+
+    if (new_limit === undefined || new_limit === null) {
+      throw new ValidationError('new_limit is required');
+    }
+
+    if (new_limit < 0 || new_limit > 200) {
+      throw new ValidationError('Limit must be between 0 and 200');
+    }
+
+    // Verificar se conta pertence ao usuário
+    const account = await db.findOne('linkedin_accounts', {
+      id,
+      user_id: userId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    const oldLimit = account.daily_limit || 0;
+
+    // Log de alteração
+    await accountHealthService.logLimitChange({
+      linkedinAccountId: id,
+      oldLimit,
+      newLimit: new_limit,
+      userId,
+      isManualOverride: true,
+      reason: reason || 'Manual override via API'
+    });
+
+    // Atualizar limite
+    const updatedAccount = await db.update('linkedin_accounts', {
+      daily_limit: new_limit
+    }, { id });
+
+    console.log(`✅ Limite atualizado: ${oldLimit} → ${new_limit}`);
+
+    // Calcular limite recomendado para comparação
+    const recommended = await accountHealthService.getRecommendedLimit(id);
+
+    sendSuccess(res, {
+      ...updatedAccount,
+      old_limit: oldLimit,
+      new_limit: new_limit,
+      recommended_limit: recommended.recommended,
+      is_above_recommended: new_limit > recommended.recommended,
+      risk_level: new_limit > recommended.max ? 'high' :
+                   new_limit > recommended.recommended * 1.2 ? 'medium' : 'low'
+    }, 'Limit updated successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao atualizar limite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 13. HISTÓRICO DE ALTERAÇÕES DE LIMITE
+// ================================
+const getLimitHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 20 } = req.query;
+    const userId = req.user.id;
+
+    console.log(`📜 Buscando histórico de limites da conta ${id}`);
+
+    // Verificar se conta pertence ao usuário
+    const account = await db.findOne('linkedin_accounts', {
+      id,
+      user_id: userId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    // Buscar histórico
+    const history = await db.query(
+      `SELECT
+        id,
+        old_limit,
+        new_limit,
+        recommended_limit,
+        is_manual_override,
+        reason,
+        risk_level,
+        account_health_score,
+        acceptance_rate,
+        created_at
+       FROM linkedin_account_limit_changes
+       WHERE linkedin_account_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [id, limit]
+    );
+
+    console.log(`✅ Encontrados ${history.rows.length} registros`);
+
+    sendSuccess(res, {
+      history: history.rows,
+      current_limit: account.daily_limit || 0
+    }, 'Limit history retrieved successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar histórico:', error);
     sendError(res, error, error.statusCode || 500);
   }
 };
@@ -514,7 +993,14 @@ module.exports = {
   getLinkedInAccount,
   updateLinkedInAccount,
   deleteLinkedInAccount,
+  refreshLinkedInAccount,
   searchProfiles,
   searchProfilesAdvanced,
-  sendInvitation
+  sendInvitation,
+  getInviteStats,
+  updateInviteLimit,
+  getAccountHealth,
+  getRecommendedLimit,
+  overrideLimit,
+  getLimitHistory
 };
