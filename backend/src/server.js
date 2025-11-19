@@ -3,6 +3,7 @@ require('dotenv').config();
 const app = require('./app');
 const db = require('./config/database');
 const bulkCollectionProcessor = require('./services/bulkCollectionProcessor');
+const conversationSyncWorker = require('./workers/conversationSyncWorker');
 
 const PORT = process.env.PORT || 3001;
 
@@ -16,6 +17,10 @@ async function startServer() {
     // Start bulk collection processor
     bulkCollectionProcessor.startProcessor();
     console.log('✅ Bulk collection processor started');
+
+    // Start conversation sync worker
+    conversationSyncWorker.start();
+    console.log('✅ Conversation sync worker started');
 
     // Start server
     app.listen(PORT, () => {
@@ -41,11 +46,13 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
   console.log('👋 SIGTERM received. Shutting down gracefully...');
+  conversationSyncWorker.stop();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('👋 SIGINT received. Shutting down gracefully...');
+  conversationSyncWorker.stop();
   process.exit(0);
 });
 

@@ -31,6 +31,9 @@ router.delete('/:id', conversationController.deleteConversation);
 // MENSAGENS
 // ================================
 
+// Obter mensagens (proxy para Unipile)
+router.get('/:id/messages', conversationController.getMessages);
+
 // Enviar mensagem
 router.post('/:id/messages', conversationController.sendMessage);
 
@@ -48,8 +51,8 @@ router.post('/:id/release-control', conversationController.releaseControl);
 // STATUS
 // ================================
 
-// Atualizar status da conversa (hot/warm/cold)
-router.put('/:id/status', conversationController.updateConversationStatus);
+// Atualizar status da conversa (ai_active/manual)
+router.patch('/:id/status', conversationController.updateStatus);
 
 // Marcar como lida
 router.post('/:id/mark-read', conversationController.markAsRead);

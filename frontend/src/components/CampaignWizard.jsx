@@ -174,6 +174,20 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
         status: 'draft'
       });
 
+      console.log('✅ Campaign created successfully:', campaign);
+
+      // Iniciar coleta automaticamente após criar a campanha
+      if (formData.type === 'automatic' && formData.search_filters) {
+        console.log('🚀 Iniciando coleta automática de leads...');
+        try {
+          await api.startBulkCollection(campaign.data.id);
+          console.log('✅ Coleta iniciada com sucesso!');
+        } catch (collectionError) {
+          console.error('⚠️ Erro ao iniciar coleta, mas campanha foi criada:', collectionError);
+          // Não bloqueia o fluxo, apenas avisa
+        }
+      }
+
       onCampaignCreated(campaign);
       handleClose();
     } catch (err) {
@@ -684,7 +698,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={isLoading || !formData.linkedin_account_id || !formData.ai_agent_id}
+                disabled={isLoading || formData.linkedin_account_ids.length === 0 || !formData.ai_agent_id}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isLoading ? (

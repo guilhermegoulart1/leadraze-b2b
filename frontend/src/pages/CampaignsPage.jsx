@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Play, Pause, BarChart3, Users, Target, Calendar, Trophy, XCircle,
   Sparkles, Edit, Trash2, Rocket, RefreshCw, CheckCircle, Clock, Loader,
-  Eye, ChevronDown, ChevronRight, TrendingUp, Activity,
+  Eye, TrendingUp, Activity,
   Send, UserCheck, Zap, FolderOpen
 } from 'lucide-react';
 import api from '../services/api';
@@ -17,7 +17,6 @@ const CampaignsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [loadingActions, setLoadingActions] = useState({});
-  const [expandedRows, setExpandedRows] = useState({});
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
   const [reviewCampaign, setReviewCampaign] = useState(null);
   const [linkedinAccountId, setLinkedinAccountId] = useState(null);
@@ -43,21 +42,29 @@ const CampaignsPage = () => {
 
   useEffect(() => {
     loadCampaigns();
+    checkCollectionStatus();
+
     const interval = setInterval(() => {
       loadCampaigns();
       checkCollectionStatus();
-    }, 5000);
-    return () => clearInterval(interval);
+    }, 10000); // Aumentado para 10 segundos
+
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   const loadCampaigns = async () => {
     try {
+      console.log('📥 Loading campaigns...');
       const response = await api.getCampaigns();
+      console.log('📊 Campaigns API response:', response);
       if (response.success) {
+        console.log('✅ Setting campaigns:', response.data.campaigns?.length || 0, 'campaigns');
         setCampaigns(response.data.campaigns || []);
       }
     } catch (error) {
-      console.error('Erro ao carregar campanhas:', error);
+      console.error('❌ Erro ao carregar campanhas:', error);
     } finally {
       setIsLoading(false);
     }
@@ -167,12 +174,6 @@ const CampaignsPage = () => {
     }
   };
 
-  const toggleRow = (campaignId) => {
-    setExpandedRows({
-      ...expandedRows,
-      [campaignId]: !expandedRows[campaignId]
-    });
-  };
 
   const getStatusBadge = (campaign) => {
     const collectionStatus = collectionStatuses[campaign.id];
@@ -336,263 +337,247 @@ const CampaignsPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            {campaigns.map((campaign) => {
-              const collectionStatus = collectionStatuses[campaign.id];
-              const isExpanded = expandedRows[campaign.id];
-              const statusBadge = getStatusBadge(campaign);
-              const isActionLoading = loadingActions[campaign.id];
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nome da Campanha
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Qualif.
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Agend.
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ganhos
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Perdidos
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Conv. %
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {campaigns.map((campaign) => {
+                  const collectionStatus = collectionStatuses[campaign.id];
+                  const statusBadge = getStatusBadge(campaign);
+                  const isActionLoading = loadingActions[campaign.id];
 
-              const isReadyToReview =
-                collectionStatus?.status === 'completed' &&
-                campaign.status === 'draft' &&
-                collectionStatus.collected_count > 0;
+                  const isReadyToReview =
+                    collectionStatus?.status === 'completed' &&
+                    campaign.status === 'draft' &&
+                    collectionStatus.collected_count > 0;
 
-              return (
-                <div key={campaign.id} className="border-b border-gray-100 last:border-b-0 group">
-                  <div className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Campaign Info */}
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <button
-                          onClick={() => toggleRow(campaign.id)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="w-5 h-5 text-gray-400" />
-                          ) : (
-                            <ChevronRight className="w-5 h-5 text-gray-400" />
-                          )}
-                        </button>
+                  // Calcular taxa de conversão
+                  const conversionRate = campaign.total_leads > 0
+                    ? ((campaign.leads_won / campaign.total_leads) * 100).toFixed(1)
+                    : '0.0';
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-semibold text-gray-900 truncate">{campaign.name}</h3>
-                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${statusBadge.bgColor} ${statusBadge.textColor} ${statusBadge.borderColor}`}>
-                              <statusBadge.icon className={`w-3.5 h-3.5 ${statusBadge.iconClass}`} />
-                              {statusBadge.label}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Users className="w-4 h-4" />
-                              {campaign.total_leads || 0} leads
+                  return (
+                    <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
+                      {/* Nome da Campanha */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{campaign.name}</h3>
+                          {campaign.ai_agent_name && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium border border-purple-200">
+                              <Sparkles className="w-3 h-3" />
+                              IA
                             </span>
-                            {campaign.ai_agent_name && (
-                              <span className="flex items-center gap-1">
-                                <Sparkles className="w-4 h-4" />
-                                {campaign.ai_agent_name}
-                              </span>
-                            )}
-                            {campaign.linked_accounts_count > 0 && (
-                              <span className="flex items-center gap-1">
-                                <UserCheck className="w-4 h-4" />
-                                {campaign.linked_accounts_count} conta(s)
-                              </span>
-                            )}
-                          </div>
+                          )}
                         </div>
-                      </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          {campaign.ai_agent_name && (
+                            <span>Agente: {campaign.ai_agent_name}</span>
+                          )}
+                          {campaign.linked_accounts_count > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>Conta: {campaign.linked_accounts?.[0]?.profile_name || 'N/A'}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {campaign.status === 'draft' && !collectionStatus && (
-                          <button
-                            onClick={() => handleStartBulkCollection(campaign.id)}
-                            disabled={isActionLoading === 'starting'}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-xs font-medium"
-                          >
-                            {isActionLoading === 'starting' ? (
-                              <Loader className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Rocket className="w-3.5 h-3.5" />
-                            )}
-                            Iniciar
-                          </button>
+                      {/* Status */}
+                      <td className="px-6 py-4">
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border w-fit ${statusBadge.bgColor} ${statusBadge.textColor} ${statusBadge.borderColor}`}>
+                          <statusBadge.icon className={`w-3.5 h-3.5 ${statusBadge.iconClass}`} />
+                          {statusBadge.label}
+                        </div>
+                      </td>
+
+                      {/* Total */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="text-sm font-medium text-gray-900">
+                          {campaign.total_leads || 0} <span className="text-gray-500">de {collectionStatus?.target_count || campaign.total_leads || 0}</span>
+                        </div>
+                        {collectionStatus?.status === 'processing' && (
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                            <div
+                              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.min(100, ((collectionStatus.collected_count || 0) / (collectionStatus.target_count || 1)) * 100)}%`
+                              }}
+                            />
+                          </div>
                         )}
+                      </td>
 
-                        {isReadyToReview && (
-                          <div className="flex items-center gap-1">
+                      {/* Qualificados */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-sm font-medium text-purple-600">
+                          {campaign.leads_won || 0}
+                        </span>
+                      </td>
+
+                      {/* Agendados */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-sm font-medium text-blue-600">
+                          {campaign.leads_scheduled || 0}
+                        </span>
+                      </td>
+
+                      {/* Ganhos */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-sm font-medium text-green-600">
+                          {campaign.leads_won || 0}
+                        </span>
+                      </td>
+
+                      {/* Perdidos */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-sm font-medium text-red-600">
+                          {campaign.leads_lost || 0}
+                        </span>
+                      </td>
+
+                      {/* Conversão % */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-sm font-medium text-gray-900">
+                          {conversionRate}%
+                        </span>
+                      </td>
+
+                      {/* Ações */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {campaign.status === 'draft' && !collectionStatus && (
                             <button
-                              onClick={() => setReviewCampaign(campaign)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
+                              onClick={() => handleStartBulkCollection(campaign.id)}
+                              disabled={isActionLoading === 'starting'}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-xs font-medium"
                             >
-                              <Eye className="w-3.5 h-3.5" />
-                              Revisar
-                            </button>
-                            <button
-                              onClick={() => handleActivateCampaign(campaign.id)}
-                              disabled={isActionLoading === 'activating'}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors text-xs font-medium"
-                            >
-                              {isActionLoading === 'activating' ? (
+                              {isActionLoading === 'starting' ? (
                                 <Loader className="w-3.5 h-3.5 animate-spin" />
                               ) : (
-                                <Play className="w-3.5 h-3.5" />
+                                <Rocket className="w-3.5 h-3.5" />
                               )}
-                              Ativar
+                              Iniciar
                             </button>
-                            <button
-                              onClick={() => setDeleteConfirmation(campaign)}
-                              disabled={isActionLoading === 'deleting'}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors text-xs font-medium"
-                              title="Excluir campanha"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
+                          )}
 
-                        {campaign.status === 'active' && (
-                          <>
-                            <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                              <BarChart3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handlePauseCampaign(campaign.id)}
-                              disabled={isActionLoading === 'pausing'}
-                              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Pausar campanha"
-                            >
-                              {isActionLoading === 'pausing' ? (
-                                <Loader className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Pause className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmation(campaign)}
-                              disabled={isActionLoading === 'deleting'}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Excluir campanha"
-                            >
-                              {isActionLoading === 'deleting' ? (
-                                <Loader className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-4 h-4" />
-                              )}
-                            </button>
-                          </>
-                        )}
-
-                        {campaign.status === 'paused' && (
-                          <>
-                            <button
-                              onClick={() => handleResumeCampaign(campaign.id)}
-                              disabled={isActionLoading === 'resuming'}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Retomar campanha"
-                            >
-                              {isActionLoading === 'resuming' ? (
-                                <Loader className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Play className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleStopCampaign(campaign.id)}
-                              disabled={isActionLoading === 'stopping'}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Parar campanha"
-                            >
-                              {isActionLoading === 'stopping' ? (
-                                <Loader className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <XCircle className="w-4 h-4" />
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Expanded Details */}
-                  {isExpanded && (
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                      <div className="grid grid-cols-3 gap-6">
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Informações</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Tipo:</span>
-                              <span className="font-medium text-gray-900">
-                                {campaign.type === 'automatic' ? 'Automática' : 'Manual'}
-                              </span>
-                            </div>
-                            {campaign.description && (
-                              <div>
-                                <span className="text-gray-500">Descrição:</span>
-                                <p className="text-gray-900 mt-1">{campaign.description}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Estatísticas</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Enviados:</span>
-                              <span className="font-medium text-blue-600">{campaign.leads_sent || 0}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Aceitos:</span>
-                              <span className="font-medium text-green-600">{campaign.leads_accepted || 0}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Qualificados:</span>
-                              <span className="font-medium text-purple-600">{campaign.leads_won || 0}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {collectionStatus && (
-                          <div>
-                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Coleta</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Progresso:</span>
-                                <span className="font-medium text-gray-900">
-                                  {collectionStatus.collected_count || 0} / {collectionStatus.target_count || 0}
-                                </span>
-                              </div>
-                              {collectionStatus.status === 'processing' && (
-                                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                                  <div
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                    style={{
-                                      width: `${((collectionStatus.collected_count || 0) / (collectionStatus.target_count || 1)) * 100}%`
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {campaign.linked_accounts && campaign.linked_accounts.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Contas LinkedIn</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {campaign.linked_accounts.map((account) => (
-                              <div
-                                key={account.id}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm"
+                          {isReadyToReview && (
+                            <>
+                              <button
+                                onClick={() => setReviewCampaign(campaign)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
                               >
-                                <UserCheck className="w-4 h-4 text-purple-500" />
-                                <span className="font-medium">{account.profile_name}</span>
-                                <span className="text-gray-500">({account.daily_limit || 0}/dia)</span>
-                              </div>
-                            ))}
-                          </div>
+                                <Eye className="w-3.5 h-3.5" />
+                                Revisar
+                              </button>
+                              <button
+                                onClick={() => handleActivateCampaign(campaign.id)}
+                                disabled={isActionLoading === 'activating'}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors text-xs font-medium"
+                              >
+                                {isActionLoading === 'activating' ? (
+                                  <Loader className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Play className="w-3.5 h-3.5" />
+                                )}
+                                Ativar
+                              </button>
+                            </>
+                          )}
+
+                          {campaign.status === 'active' && (
+                            <>
+                              <button
+                                onClick={() => handlePauseCampaign(campaign.id)}
+                                disabled={isActionLoading === 'pausing'}
+                                className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Pausar campanha"
+                              >
+                                {isActionLoading === 'pausing' ? (
+                                  <Loader className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Pause className="w-4 h-4" />
+                                )}
+                              </button>
+                            </>
+                          )}
+
+                          {campaign.status === 'paused' && (
+                            <>
+                              <button
+                                onClick={() => handleResumeCampaign(campaign.id)}
+                                disabled={isActionLoading === 'resuming'}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Retomar campanha"
+                              >
+                                {isActionLoading === 'resuming' ? (
+                                  <Loader className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Play className="w-4 h-4" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleStopCampaign(campaign.id)}
+                                disabled={isActionLoading === 'stopping'}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Parar campanha"
+                              >
+                                {isActionLoading === 'stopping' ? (
+                                  <Loader className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <XCircle className="w-4 h-4" />
+                                )}
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            onClick={() => setDeleteConfirmation(campaign)}
+                            disabled={isActionLoading === 'deleting'}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Excluir campanha"
+                          >
+                            {isActionLoading === 'deleting' ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -603,6 +588,7 @@ const CampaignsPage = () => {
           isOpen={showWizard}
           onClose={() => setShowWizard(false)}
           onCampaignCreated={() => {
+            console.log('🎯 onCampaignCreated callback triggered!');
             setShowWizard(false);
             loadCampaigns();
           }}

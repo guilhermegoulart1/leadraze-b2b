@@ -92,7 +92,7 @@ class ApiService {
   
   async getCampaigns(params = {}) {
     const query = new URLSearchParams(params).toString();
-    return this.request(`/campaigns?${query}`);
+    return this.request(query ? `/campaigns?${query}` : '/campaigns');
   }
 
   async getCampaign(id) {
@@ -131,6 +131,18 @@ class ApiService {
     });
   }
 
+  async resumeCampaign(id) {
+    return this.request(`/campaigns/${id}/resume`, {
+      method: 'POST',
+    });
+  }
+
+  async stopCampaign(id) {
+    return this.request(`/campaigns/${id}/stop`, {
+      method: 'POST',
+    });
+  }
+
   async getCampaignStats(id) {
     return this.request(`/campaigns/${id}/stats`);
   }
@@ -143,6 +155,15 @@ class ApiService {
 
   async getCollectionStatus(id) {
     return this.request(`/campaigns/${id}/collection-status`);
+  }
+
+  // Aliases para compatibilidade
+  async startBulkCollection(id) {
+    return this.startCollection(id);
+  }
+
+  async getBulkCollectionStatus(id) {
+    return this.getCollectionStatus(id);
   }
 
   // ================================
@@ -190,6 +211,13 @@ class ApiService {
     return this.request(`/leads/campaign/${campaignId}?${query}`);
   }
 
+  async updateLeadStatus(leadId, status) {
+    return this.request(`/leads/${leadId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // ================================
   // CONVERSATIONS
   // ================================
@@ -201,6 +229,11 @@ class ApiService {
 
   async getConversation(id) {
     return this.request(`/conversations/${id}`);
+  }
+
+  async getMessages(conversationId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/conversations/${conversationId}/messages${query ? `?${query}` : ''}`);
   }
 
   async sendMessage(conversationId, content) {
@@ -224,7 +257,7 @@ class ApiService {
 
   async updateConversationStatus(conversationId, status) {
     return this.request(`/conversations/${conversationId}/status`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify({ status }),
     });
   }
@@ -232,6 +265,12 @@ class ApiService {
   async markAsRead(conversationId) {
     return this.request(`/conversations/${conversationId}/mark-read`, {
       method: 'POST',
+    });
+  }
+
+  async deleteConversation(conversationId) {
+    return this.request(`/conversations/${conversationId}`, {
+      method: 'DELETE',
     });
   }
 

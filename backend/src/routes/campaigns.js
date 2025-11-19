@@ -40,6 +40,12 @@ router.post('/:id/start', campaignController.startCampaign);
 // Pausar campanha
 router.post('/:id/pause', campaignController.pauseCampaign);
 
+// Retomar campanha pausada
+router.post('/:id/resume', campaignController.resumeCampaign);
+
+// Parar campanha definitivamente
+router.post('/:id/stop', campaignController.stopCampaign);
+
 // ================================
 // ESTATÍSTICAS
 // ================================

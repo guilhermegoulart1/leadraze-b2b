@@ -233,6 +233,20 @@ async function sendAutomatedInvite(params) {
   const { campaign, lead, linkedinAccountId, unipileAccountId, aiAgent } = params;
 
   try {
+    // 🔍 ENRIQUECIMENTO: Buscar perfil completo antes de enviar convite
+    // Isso garante que temos dados atualizados (conexões, seguidores, etc)
+    // e que a IA pode usar essas informações para personalizar a mensagem
+    console.log(`   🔍 Enriquecendo perfil do lead antes de enviar convite...`);
+    try {
+      const { enrichLead } = require('./leadEnrichmentService');
+      const enrichedLead = await enrichLead(lead.id);
+      // Atualizar objeto lead com dados enriquecidos
+      Object.assign(lead, enrichedLead);
+      console.log(`   ✅ Lead enriquecido: ${enrichedLead.connections_count} conexões, ${enrichedLead.follower_count} seguidores`);
+    } catch (enrichError) {
+      console.warn(`   ⚠️ Não foi possível enriquecer lead, continuando com dados básicos:`, enrichError.message);
+    }
+
     // Processar template da mensagem inicial (se houver)
     let inviteMessage = null;
 

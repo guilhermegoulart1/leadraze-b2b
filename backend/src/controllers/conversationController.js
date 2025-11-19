@@ -2,13 +2,12 @@
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const { sendSuccess, sendError } = require('../utils/responses');
-const { 
+const {
   ValidationError,
   NotFoundError,
   ForbiddenError,
-  UnipileError 
+  UnipileError
 } = require('../utils/errors');
-const { CONVERSATION_STATUS } = require('../utils/helpers');
 
 // ================================
 // 1. LISTAR CONVERSAS
@@ -16,33 +15,33 @@ const { CONVERSATION_STATUS } = require('../utils/helpers');
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { 
-      status, 
-      ai_active,
+    const {
+      status,
+      campaign_id,
       linkedin_account_id,
       search,
-      page = 1, 
-      limit = 20 
+      page = 1,
+      limit = 50
     } = req.query;
 
     console.log(`📋 Listando conversas do usuário ${userId}`);
 
     // Construir query
-    let whereConditions = ['conv.user_id = $1'];
+    let whereConditions = ['camp.user_id = $1'];
     let queryParams = [userId];
     let paramIndex = 2;
 
-    // Filtro por status
+    // Filtro por status (ai_active ou manual)
     if (status) {
       whereConditions.push(`conv.status = $${paramIndex}`);
       queryParams.push(status);
       paramIndex++;
     }
 
-    // Filtro por IA ativa/inativa
-    if (ai_active !== undefined) {
-      whereConditions.push(`conv.ai_active = $${paramIndex}`);
-      queryParams.push(ai_active === 'true');
+    // Filtro por campanha
+    if (campaign_id) {
+      whereConditions.push(`conv.campaign_id = $${paramIndex}`);
+      queryParams.push(campaign_id);
       paramIndex++;
     }
 
@@ -65,21 +64,23 @@ const getConversations = async (req, res) => {
 
     // Query principal
     const query = `
-      SELECT 
+      SELECT
         conv.*,
         l.name as lead_name,
         l.title as lead_title,
         l.company as lead_company,
         l.profile_picture as lead_picture,
+        l.profile_url as lead_profile_url,
         l.status as lead_status,
-        c.name as campaign_name,
+        camp.name as campaign_name,
         la.linkedin_username,
-        aa.name as ai_agent_name
+        la.profile_name as account_name,
+        ai.name as ai_agent_name
       FROM conversations conv
-      JOIN leads l ON conv.lead_id = l.id
-      JOIN campaigns c ON l.campaign_id = c.id
-      JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      LEFT JOIN ai_agents aa ON conv.ai_agent_id = aa.id
+      INNER JOIN leads l ON conv.lead_id = l.id
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
       WHERE ${whereClause}
       ORDER BY conv.last_message_at DESC NULLS LAST, conv.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -93,7 +94,8 @@ const getConversations = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*)
       FROM conversations conv
-      JOIN leads l ON conv.lead_id = l.id
+      INNER JOIN leads l ON conv.lead_id = l.id
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE ${whereClause}
     `;
 
@@ -118,38 +120,40 @@ const getConversations = async (req, res) => {
 };
 
 // ================================
-// 2. OBTER CONVERSA COM MENSAGENS
+// 2. OBTER CONVERSA INDIVIDUAL
 // ================================
 const getConversation = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const { limit = 50 } = req.query;
 
     console.log(`🔍 Buscando conversa ${id}`);
 
     // Buscar conversa
     const convQuery = `
-      SELECT 
+      SELECT
         conv.*,
         l.name as lead_name,
         l.title as lead_title,
         l.company as lead_company,
+        l.location as lead_location,
+        l.email as lead_email,
+        l.phone as lead_phone,
         l.profile_picture as lead_picture,
         l.profile_url as lead_profile_url,
         l.status as lead_status,
         l.score as lead_score,
-        c.name as campaign_name,
-        c.id as campaign_id,
+        camp.name as campaign_name,
+        camp.id as campaign_id,
         la.linkedin_username,
-        aa.name as ai_agent_name,
-        aa.personality_tone
+        la.unipile_account_id,
+        ai.name as ai_agent_name
       FROM conversations conv
-      JOIN leads l ON conv.lead_id = l.id
-      JOIN campaigns c ON l.campaign_id = c.id
-      JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      LEFT JOIN ai_agents aa ON conv.ai_agent_id = aa.id
-      WHERE conv.id = $1 AND conv.user_id = $2
+      INNER JOIN leads l ON conv.lead_id = l.id
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
+      WHERE conv.id = $1 AND camp.user_id = $2
     `;
 
     const convResult = await db.query(convQuery, [id, userId]);
@@ -160,26 +164,9 @@ const getConversation = async (req, res) => {
 
     const conversation = convResult.rows[0];
 
-    // Buscar mensagens
-    const messagesQuery = `
-      SELECT *
-      FROM messages
-      WHERE conversation_id = $1
-      ORDER BY sent_at DESC
-      LIMIT $2
-    `;
+    console.log(`✅ Conversa encontrada`);
 
-    const messagesResult = await db.query(messagesQuery, [id, limit]);
-
-    // Inverter ordem para mostrar mais antigas primeiro
-    const messages = messagesResult.rows.reverse();
-
-    console.log(`✅ Conversa encontrada com ${messages.length} mensagens`);
-
-    sendSuccess(res, {
-      ...conversation,
-      messages
-    });
+    sendSuccess(res, conversation);
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -187,7 +174,138 @@ const getConversation = async (req, res) => {
 };
 
 // ================================
-// 3. ENVIAR MENSAGEM
+// 3. OBTER MENSAGENS (DA API UNIPILE)
+// ================================
+const getMessages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { limit = 100 } = req.query;
+
+    console.log(`📬 Buscando mensagens da conversa ${id} via Unipile API`);
+
+    // Buscar conversa, conta LinkedIn e lead
+    const convQuery = `
+      SELECT
+        conv.*,
+        camp.user_id,
+        la.unipile_account_id,
+        l.provider_id as lead_provider_id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      LEFT JOIN leads l ON conv.lead_id = l.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
+
+    const convResult = await db.query(convQuery, [id, userId]);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    const conversation = convResult.rows[0];
+
+    if (!conversation.unipile_chat_id) {
+      throw new ValidationError('Conversation does not have a Unipile chat ID');
+    }
+
+    // ✅ Buscar mensagens da API UNIPILE (fonte da verdade)
+    console.log(`📡 Buscando mensagens da Unipile...`);
+    console.log(`   Account ID: ${conversation.unipile_account_id}`);
+    console.log(`   Chat ID: ${conversation.unipile_chat_id}`);
+
+    try {
+      const unipileMessages = await unipileClient.messaging.getMessages({
+        account_id: conversation.unipile_account_id,
+        chat_id: conversation.unipile_chat_id,
+        limit: parseInt(limit)
+      });
+
+      console.log(`✅ ${unipileMessages.items?.length || 0} mensagens obtidas da Unipile`);
+
+      // Log para debug
+      console.log(`🔍 Lead provider_id da conversa: ${conversation.lead_provider_id}`);
+
+      // Processar mensagens para formato esperado pelo frontend
+      const messages = (unipileMessages.items || []).map((msg) => {
+        // ✅ Usar is_sender para determinar quem enviou
+        // is_sender === 1 → mensagem do usuário
+        // is_sender === 0 → mensagem do lead
+        const senderType = msg.is_sender === 1 ? 'user' : 'lead';
+
+        return {
+          id: msg.id,
+          conversation_id: id,
+          unipile_message_id: msg.id,
+          sender_type: senderType,
+          content: msg.text || '',
+          message_type: msg.message_type || 'text',
+          sent_at: msg.timestamp || msg.date || msg.created_at,
+          created_at: msg.created_at || msg.timestamp
+        };
+      });
+
+      // Ordenar por data (mais antiga primeiro para exibição correta)
+      messages.sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
+
+      console.log(`✅ ${messages.length} mensagens processadas`);
+
+      sendSuccess(res, {
+        messages,
+        pagination: {
+          page: 1,
+          limit: parseInt(limit),
+          total: messages.length,
+          pages: 1
+        }
+      });
+
+    } catch (unipileError) {
+      console.error('❌ Erro ao buscar mensagens da Unipile:', unipileError);
+
+      // Fallback: buscar do cache local se Unipile falhar
+      console.log('⚠️ Usando cache local como fallback...');
+
+      const messagesQuery = `
+        SELECT
+          id,
+          conversation_id,
+          unipile_message_id,
+          sender_type,
+          content,
+          message_type,
+          sent_at,
+          created_at
+        FROM messages
+        WHERE conversation_id = $1
+        ORDER BY sent_at ASC, created_at ASC
+        LIMIT $2
+      `;
+
+      const messagesResult = await db.query(messagesQuery, [id, limit]);
+
+      console.log(`✅ ${messagesResult.rows.length} mensagens encontradas no cache local`);
+
+      sendSuccess(res, {
+        messages: messagesResult.rows,
+        fromCache: true,
+        pagination: {
+          page: 1,
+          limit: parseInt(limit),
+          total: messagesResult.rows.length,
+          pages: 1
+        }
+      });
+    }
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 4. ENVIAR MENSAGEM (VIA UNIPILE)
 // ================================
 const sendMessage = async (req, res) => {
   try {
@@ -204,10 +322,11 @@ const sendMessage = async (req, res) => {
 
     // Verificar se conversa pertence ao usuário
     const convQuery = `
-      SELECT conv.*, la.unipile_account_id
+      SELECT conv.*, la.unipile_account_id, camp.user_id
       FROM conversations conv
-      JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      WHERE conv.id = $1 AND conv.user_id = $2
+      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
     `;
 
     const convResult = await db.query(convQuery, [id, userId]);
@@ -218,52 +337,38 @@ const sendMessage = async (req, res) => {
 
     const conversation = convResult.rows[0];
 
-    // Enviar mensagem via Unipile
-    let unipileMessageId = null;
-
-    try {
-      if (unipileClient.isInitialized() && conversation.unipile_chat_id) {
-        console.log('📡 Enviando via Unipile...');
-        
-        const unipileResponse = await unipileClient.messaging.sendMessage({
-          account_id: conversation.unipile_account_id,
-          chat_id: conversation.unipile_chat_id,
-          text: content
-        });
-
-        unipileMessageId = unipileResponse.id || unipileResponse.message_id;
-        console.log('✅ Mensagem enviada via Unipile:', unipileMessageId);
-      } else {
-        console.warn('⚠️ Unipile não disponível, salvando apenas localmente');
-      }
-    } catch (unipileError) {
-      console.error('❌ Erro ao enviar via Unipile:', unipileError.message);
-      // Continuar mesmo se Unipile falhar
+    if (!conversation.unipile_chat_id) {
+      throw new ValidationError('Conversation does not have a Unipile chat ID');
     }
 
-    // Salvar mensagem no banco
-    const messageData = {
-      conversation_id: id,
-      unipile_message_id: unipileMessageId || `local_${Date.now()}`,
-      sender_type: 'user',
-      content: content.trim(),
-      message_type: 'text',
-      sent_at: new Date()
-    };
+    // Enviar mensagem via Unipile
+    try {
+      console.log('📡 Enviando via Unipile...');
 
-    const message = await db.insert('messages', messageData);
+      const sentMessage = await unipileClient.messaging.sendMessage({
+        account_id: conversation.unipile_account_id,
+        chat_id: conversation.unipile_chat_id,
+        text: content.trim()
+      });
 
-    // Atualizar conversa
-    await db.update('conversations', {
-      last_message_preview: content.substring(0, 100),
-      last_message_at: new Date(),
-      manual_control_taken: true,
-      ai_active: false // Desativar IA quando usuário envia mensagem
-    }, { id });
+      console.log('✅ Mensagem enviada via Unipile');
 
-    console.log('✅ Mensagem salva no banco');
+      // Atualizar cache da conversa
+      await db.query(`
+        UPDATE conversations
+        SET
+          last_message_preview = $1,
+          last_message_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $2
+      `, [content.substring(0, 200), id]);
 
-    sendSuccess(res, message, 'Message sent successfully', 201);
+      sendSuccess(res, sentMessage, 'Message sent successfully', 201);
+
+    } catch (unipileError) {
+      console.error('❌ Erro ao enviar via Unipile:', unipileError.message);
+      throw new UnipileError('Failed to send message via Unipile');
+    }
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -271,7 +376,7 @@ const sendMessage = async (req, res) => {
 };
 
 // ================================
-// 4. ASSUMIR CONTROLE MANUAL
+// 5. ASSUMIR CONTROLE MANUAL
 // ================================
 const takeControl = async (req, res) => {
   try {
@@ -280,25 +385,33 @@ const takeControl = async (req, res) => {
 
     console.log(`👤 Assumindo controle manual da conversa ${id}`);
 
-    // Verificar se conversa pertence ao usuário
-    const conversation = await db.query(
-      'SELECT * FROM conversations WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
 
-    if (conversation.rows.length === 0) {
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar
-    const updated = await db.update('conversations', {
-      manual_control_taken: true,
-      ai_active: false
-    }, { id });
+    // Atualizar para modo manual
+    const updateQuery = `
+      UPDATE conversations
+      SET status = 'manual', ai_paused_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
 
-    console.log('✅ Controle manual ativado, IA desativada');
+    const result = await db.query(updateQuery, [id]);
 
-    sendSuccess(res, updated, 'Manual control activated. AI disabled.');
+    console.log('✅ Controle manual ativado, IA pausada');
+
+    sendSuccess(res, result.rows[0], 'Manual control activated. AI paused.');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -306,7 +419,7 @@ const takeControl = async (req, res) => {
 };
 
 // ================================
-// 5. LIBERAR PARA IA
+// 6. LIBERAR PARA IA
 // ================================
 const releaseControl = async (req, res) => {
   try {
@@ -315,25 +428,33 @@ const releaseControl = async (req, res) => {
 
     console.log(`🤖 Liberando conversa ${id} para IA`);
 
-    // Verificar se conversa pertence ao usuário
-    const conversation = await db.query(
-      'SELECT * FROM conversations WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
 
-    if (conversation.rows.length === 0) {
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar
-    const updated = await db.update('conversations', {
-      manual_control_taken: false,
-      ai_active: true
-    }, { id });
+    // Atualizar para modo IA
+    const updateQuery = `
+      UPDATE conversations
+      SET status = 'ai_active', ai_paused_at = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const result = await db.query(updateQuery, [id]);
 
     console.log('✅ IA reativada, controle liberado');
 
-    sendSuccess(res, updated, 'AI control activated. Manual control released.');
+    sendSuccess(res, result.rows[0], 'AI control activated. Manual control released.');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -341,9 +462,9 @@ const releaseControl = async (req, res) => {
 };
 
 // ================================
-// 6. ATUALIZAR STATUS DA CONVERSA
+// 7. ATUALIZAR STATUS DA CONVERSA
 // ================================
-const updateConversationStatus = async (req, res) => {
+const updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -352,27 +473,42 @@ const updateConversationStatus = async (req, res) => {
     console.log(`📝 Atualizando status da conversa ${id} para ${status}`);
 
     // Validar status
-    const validStatuses = Object.values(CONVERSATION_STATUS);
-    if (!validStatuses.includes(status)) {
-      throw new ValidationError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    if (!status || !['ai_active', 'manual'].includes(status)) {
+      throw new ValidationError('Invalid status. Must be "ai_active" or "manual"');
     }
 
-    // Verificar se conversa pertence ao usuário
-    const conversation = await db.query(
-      'SELECT * FROM conversations WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
 
-    if (conversation.rows.length === 0) {
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar
-    const updated = await db.update('conversations', { status }, { id });
+    // Atualizar status
+    const updateQuery = status === 'manual'
+      ? `UPDATE conversations
+         SET status = $1, ai_paused_at = NOW(), updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`
+      : `UPDATE conversations
+         SET status = $1, ai_paused_at = NULL, updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`;
+
+    const result = await db.query(updateQuery, [status, id]);
 
     console.log('✅ Status atualizado');
 
-    sendSuccess(res, updated, 'Conversation status updated');
+    sendSuccess(res, result.rows[0], status === 'manual'
+      ? 'AI paused. Manual mode activated.'
+      : 'AI activated. Manual mode disabled.');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -380,7 +516,7 @@ const updateConversationStatus = async (req, res) => {
 };
 
 // ================================
-// 7. MARCAR COMO LIDA
+// 8. MARCAR COMO LIDA
 // ================================
 const markAsRead = async (req, res) => {
   try {
@@ -389,24 +525,33 @@ const markAsRead = async (req, res) => {
 
     console.log(`👁️ Marcando conversa ${id} como lida`);
 
-    // Verificar se conversa pertence ao usuário
-    const conversation = await db.query(
-      'SELECT * FROM conversations WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
 
-    if (conversation.rows.length === 0) {
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
     // Atualizar
-    const updated = await db.update('conversations', {
-      unread_count: 0
-    }, { id });
+    const updateQuery = `
+      UPDATE conversations
+      SET unread_count = 0, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const result = await db.query(updateQuery, [id]);
 
     console.log('✅ Conversa marcada como lida');
 
-    sendSuccess(res, updated, 'Conversation marked as read');
+    sendSuccess(res, result.rows[0], 'Conversation marked as read');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -414,7 +559,7 @@ const markAsRead = async (req, res) => {
 };
 
 // ================================
-// 8. OBTER ESTATÍSTICAS
+// 9. OBTER ESTATÍSTICAS
 // ================================
 const getConversationStats = async (req, res) => {
   try {
@@ -424,72 +569,49 @@ const getConversationStats = async (req, res) => {
 
     // Stats por status
     const statusStatsQuery = `
-      SELECT 
-        status,
+      SELECT
+        conv.status,
         COUNT(*) as count
-      FROM conversations
-      WHERE user_id = $1
-      GROUP BY status
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE camp.user_id = $1
+      GROUP BY conv.status
     `;
 
     const statusStats = await db.query(statusStatsQuery, [userId]);
 
-    // Stats de IA
-    const aiStatsQuery = `
-      SELECT 
-        ai_active,
-        COUNT(*) as count
-      FROM conversations
-      WHERE user_id = $1
-      GROUP BY ai_active
+    // Total de conversas
+    const totalQuery = `
+      SELECT COUNT(*) as total
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE camp.user_id = $1
     `;
 
-    const aiStats = await db.query(aiStatsQuery, [userId]);
-
-    // Total de mensagens
-    const messagesQuery = `
-      SELECT COUNT(*) as total_messages
-      FROM messages m
-      JOIN conversations c ON m.conversation_id = c.id
-      WHERE c.user_id = $1
-    `;
-
-    const messagesResult = await db.query(messagesQuery, [userId]);
+    const totalResult = await db.query(totalQuery, [userId]);
 
     // Conversas com mensagens não lidas
     const unreadQuery = `
       SELECT COUNT(*) as unread_conversations
-      FROM conversations
-      WHERE user_id = $1 AND unread_count > 0
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE camp.user_id = $1 AND conv.unread_count > 0
     `;
 
     const unreadResult = await db.query(unreadQuery, [userId]);
 
     // Organizar dados
     const stats = {
+      total: parseInt(totalResult.rows[0].total),
       by_status: {
-        hot: 0,
-        warm: 0,
-        cold: 0
-      },
-      by_ai: {
         ai_active: 0,
-        manual_control: 0
+        manual: 0
       },
-      total_messages: parseInt(messagesResult.rows[0].total_messages),
       unread_conversations: parseInt(unreadResult.rows[0].unread_conversations)
     };
 
     statusStats.rows.forEach(row => {
       stats.by_status[row.status] = parseInt(row.count);
-    });
-
-    aiStats.rows.forEach(row => {
-      if (row.ai_active) {
-        stats.by_ai.ai_active = parseInt(row.count);
-      } else {
-        stats.by_ai.manual_control = parseInt(row.count);
-      }
     });
 
     console.log('✅ Estatísticas calculadas');
@@ -502,7 +624,7 @@ const getConversationStats = async (req, res) => {
 };
 
 // ================================
-// 9. DELETAR CONVERSA
+// 10. DELETAR CONVERSA
 // ================================
 const deleteConversation = async (req, res) => {
   try {
@@ -511,18 +633,22 @@ const deleteConversation = async (req, res) => {
 
     console.log(`🗑️ Deletando conversa ${id}`);
 
-    // Verificar se conversa pertence ao usuário
-    const conversation = await db.query(
-      'SELECT * FROM conversations WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
 
-    if (conversation.rows.length === 0) {
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Deletar (CASCADE vai deletar mensagens)
-    await db.delete('conversations', { id });
+    // Deletar
+    await db.query('DELETE FROM conversations WHERE id = $1', [id]);
 
     console.log('✅ Conversa deletada');
 
@@ -536,10 +662,11 @@ const deleteConversation = async (req, res) => {
 module.exports = {
   getConversations,
   getConversation,
+  getMessages,
   sendMessage,
   takeControl,
   releaseControl,
-  updateConversationStatus,
+  updateStatus,
   markAsRead,
   getConversationStats,
   deleteConversation

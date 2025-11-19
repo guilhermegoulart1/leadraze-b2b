@@ -19,7 +19,7 @@ const getCampaigns = async (req, res) => {
     console.log(`📋 Listando campanhas do usuário ${userId}`);
 
     // Construir query
-    let whereConditions = ['c.user_id = $1'];
+    let whereConditions = ['c.user_id = $1', '(c.is_system = false OR c.is_system IS NULL)'];
     let queryParams = [userId];
     let paramIndex = 2;
 
@@ -543,6 +543,90 @@ const pauseCampaign = async (req, res) => {
 };
 
 // ================================
+// 7.1 RETOMAR CAMPANHA PAUSADA
+// ================================
+const resumeCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`▶️ Retomando campanha ${id}`);
+
+    // Verificar se campanha pertence ao usuário
+    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Verificar se está pausada
+    if (campaign.status !== CAMPAIGN_STATUS.PAUSED) {
+      throw new ValidationError('Campaign is not paused');
+    }
+
+    // Verificar se tem leads pendentes
+    const leadsCount = await db.query(
+      'SELECT COUNT(*) FROM leads WHERE campaign_id = $1 AND status = $2',
+      [id, 'leads']
+    );
+
+    const pendingLeads = parseInt(leadsCount.rows[0].count);
+
+    if (pendingLeads === 0) {
+      throw new ValidationError('Campaign has no pending leads');
+    }
+
+    // Atualizar campanha
+    const updatedCampaign = await db.update('campaigns', {
+      automation_active: true,
+      status: CAMPAIGN_STATUS.ACTIVE
+    }, { id });
+
+    console.log(`✅ Campanha retomada - ${pendingLeads} leads pendentes`);
+
+    sendSuccess(res, {
+      ...updatedCampaign,
+      pending_leads: pendingLeads
+    }, 'Campaign resumed successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 7.2 PARAR CAMPANHA DEFINITIVAMENTE
+// ================================
+const stopCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`⏹️ Parando campanha ${id}`);
+
+    // Verificar se campanha pertence ao usuário
+    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Atualizar campanha (parar = voltar para draft)
+    const updatedCampaign = await db.update('campaigns', {
+      automation_active: false,
+      status: CAMPAIGN_STATUS.DRAFT
+    }, { id });
+
+    console.log(`✅ Campanha parada`);
+
+    sendSuccess(res, updatedCampaign, 'Campaign stopped successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
 // 8. OBTER ESTATÍSTICAS DA CAMPANHA
 // ================================
 const getCampaignStats = async (req, res) => {
@@ -666,6 +750,8 @@ module.exports = {
   deleteCampaign,
   startCampaign,
   pauseCampaign,
+  resumeCampaign,
+  stopCampaign,
   getCampaignStats,
   startCollection,
   getCollectionStatus

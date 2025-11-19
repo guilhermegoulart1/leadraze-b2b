@@ -143,25 +143,29 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                     <div className="flex items-center gap-2 mb-2">
                       <Users className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-900">Total de Leads</span>
+                      <span className="text-sm font-medium text-blue-900">Leads Coletados</span>
                     </div>
                     <p className="text-2xl font-bold text-blue-600">{leads.length}</p>
-                  </div>
-
-                  <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="text-sm font-medium text-green-900">Selecionados</span>
-                    </div>
-                    <p className="text-2xl font-bold text-green-600">{selectedLeads.size}</p>
                   </div>
 
                   <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
                     <div className="flex items-center gap-2 mb-2">
                       <Sparkles className="w-5 h-5 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-900">Meta</span>
+                      <span className="text-sm font-medium text-purple-900">Meta Inicial</span>
                     </div>
                     <p className="text-2xl font-bold text-purple-600">{campaign?.target_profiles_count || 0}</p>
+                  </div>
+
+                  <div className={`rounded-lg p-4 border ${selectedLeads.size > 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Trash2 className={`w-5 h-5 ${selectedLeads.size > 0 ? 'text-red-600' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-medium ${selectedLeads.size > 0 ? 'text-red-900' : 'text-gray-500'}`}>
+                        Para Excluir
+                      </span>
+                    </div>
+                    <p className={`text-2xl font-bold ${selectedLeads.size > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                      {selectedLeads.size}
+                    </p>
                   </div>
                 </div>
 
@@ -213,6 +217,9 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                       </span>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Selecione leads para excluir antes de ativar a campanha
+                  </p>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={toggleAll}
@@ -225,8 +232,9 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                         <span className="text-gray-300">•</span>
                         <button
                           onClick={handleDeleteSelected}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium"
+                          className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                         >
+                          <Trash2 className="w-3 h-3" />
                           Excluir {selectedLeads.size}
                         </button>
                       </>
@@ -319,11 +327,19 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-600">
-                <span className="font-medium">{selectedLeads.size}</span> de {leads.length} leads selecionados
+                {selectedLeads.size > 0 ? (
+                  <>
+                    <span className="font-medium text-red-600">{selectedLeads.size}</span> lead(s) selecionado(s) para exclusão
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium text-blue-600">{leads.length}</span> lead(s) serão ativados
+                  </>
+                )}
               </div>
               <button
                 onClick={handleActivate}
-                disabled={isActivating || selectedLeads.size === 0 || isLoading}
+                disabled={isActivating || isLoading || leads.length === 0}
                 className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
               >
                 {isActivating ? (

@@ -1,0 +1,522 @@
+// frontend/src/components/DetailsPanel.jsx
+import React, { useState, useEffect } from 'react';
+import {
+  User, Building2, Briefcase, MapPin, Linkedin,
+  Mail, Phone, Calendar, Tag, FileText, Bot,
+  ChevronDown, ChevronUp, ExternalLink, Edit2, X, Plus
+} from 'lucide-react';
+import api from '../services/api';
+
+const LEAD_STATUS_OPTIONS = [
+  { value: 'leads', label: 'Lead', color: 'gray' },
+  { value: 'invite_sent', label: 'Convite Enviado', color: 'blue' },
+  { value: 'qualifying', label: 'Qualificando', color: 'yellow' },
+  { value: 'qualified', label: 'Qualificado', color: 'green' },
+  { value: 'discarded', label: 'Descartado', color: 'red' }
+];
+
+const getStatusColorClasses = (color, isActive = false) => {
+  if (isActive) {
+    const activeColors = {
+      gray: 'bg-gray-100 text-gray-900 border-gray-300',
+      blue: 'bg-blue-100 text-blue-900 border-blue-300',
+      yellow: 'bg-yellow-100 text-yellow-900 border-yellow-300',
+      green: 'bg-green-100 text-green-900 border-green-300',
+      red: 'bg-red-100 text-red-900 border-red-300'
+    };
+    return activeColors[color] || activeColors.gray;
+  }
+  return 'bg-white text-gray-600 border-gray-200 hover:border-gray-300';
+};
+
+const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
+  const [conversation, setConversation] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    timeline: false,
+    notes: false
+  });
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [tags, setTags] = useState([]);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('blue');
+
+  const TAG_COLORS = [
+    { name: 'blue', class: 'bg-blue-100 text-blue-700' },
+    { name: 'green', class: 'bg-green-100 text-green-700' },
+    { name: 'yellow', class: 'bg-yellow-100 text-yellow-700' },
+    { name: 'red', class: 'bg-red-100 text-red-700' },
+    { name: 'purple', class: 'bg-purple-100 text-purple-700' },
+    { name: 'pink', class: 'bg-pink-100 text-pink-700' },
+    { name: 'indigo', class: 'bg-indigo-100 text-indigo-700' },
+    { name: 'orange', class: 'bg-orange-100 text-orange-700' }
+  ];
+
+  useEffect(() => {
+    if (conversationId && isVisible) {
+      loadConversation();
+    }
+  }, [conversationId, isVisible]);
+
+  const loadConversation = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getConversation(conversationId);
+      if (response.success) {
+        console.log('📊 Dados da conversa carregados:', {
+          conversation_id: conversationId,
+          lead_id: response.data.lead_id,
+          lead_status: response.data.lead_status,
+          lead_name: response.data.lead_name
+        });
+
+        setConversation(response.data);
+        setSelectedStatus(response.data.lead_status || 'leads');
+        setNotes(response.data.notes || '');
+        // TODO: Carregar tags do lead
+        setTags([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar detalhes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSections({
+      ...expandedSections,
+      [section]: !expandedSections[section]
+    });
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    try {
+      console.log('📋 Atualizando status do lead:', {
+        lead_id: conversation.lead_id,
+        current_status: selectedStatus,
+        new_status: newStatus
+      });
+
+      const response = await api.updateLeadStatus(conversation.lead_id, newStatus);
+
+      console.log('✅ Status atualizado com sucesso:', response);
+
+      setConversation({ ...conversation, lead_status: newStatus });
+      setSelectedStatus(newStatus);
+      setEditingStatus(false);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar status:', error);
+      alert(`Erro ao atualizar etapa do lead: ${error.message || 'Erro desconhecido'}`);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    try {
+      setSavingNotes(true);
+      // TODO: Implementar endpoint para salvar notas
+      console.log('Salvando notas:', notes);
+    } catch (error) {
+      console.error('Erro ao salvar notas:', error);
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const handleAddTag = () => {
+    if (newTagName.trim()) {
+      const newTag = {
+        id: Date.now(),
+        name: newTagName.trim(),
+        color: newTagColor,
+        colorClass: TAG_COLORS.find(c => c.name === newTagColor)?.class
+      };
+      const updatedTags = [...tags, newTag];
+      setTags(updatedTags);
+      setNewTagName('');
+      setNewTagColor('blue');
+      setShowTagInput(false);
+
+      // Atualizar tags na lista de conversas
+      if (onTagsUpdated && conversationId) {
+        onTagsUpdated(conversationId, updatedTags);
+      }
+
+      // TODO: Salvar tag no backend
+    }
+  };
+
+  const handleRemoveTag = (tagId) => {
+    const updatedTags = tags.filter(t => t.id !== tagId);
+    setTags(updatedTags);
+
+    // Atualizar tags na lista de conversas
+    if (onTagsUpdated && conversationId) {
+      onTagsUpdated(conversationId, updatedTags);
+    }
+
+    // TODO: Remover tag no backend
+  };
+
+  if (!isVisible) return null;
+
+  if (!conversationId) {
+    return (
+      <div className="w-80 bg-white border-l border-gray-200 flex items-center justify-center p-6">
+        <div className="text-center">
+          <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-600">Selecione uma conversa</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentStatus = LEAD_STATUS_OPTIONS.find(opt => opt.value === selectedStatus);
+
+  return (
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto">
+      {loading ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+        </div>
+      ) : (
+        <div className="flex flex-col h-full">
+          {/* Header - Informações */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Informações</h3>
+            </div>
+
+            {/* Profile Picture & Name */}
+            <div className="text-center mb-4">
+              {conversation?.lead_picture ? (
+                <img
+                  src={conversation.lead_picture}
+                  alt={conversation.lead_name}
+                  className="w-20 h-20 rounded-full object-cover mx-auto mb-3"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mx-auto mb-3">
+                  <span className="text-white font-semibold text-2xl">
+                    {conversation?.lead_name?.charAt(0) || '?'}
+                  </span>
+                </div>
+              )}
+              <h3 className="font-semibold text-gray-900 text-lg mb-1">
+                {conversation?.lead_name}
+              </h3>
+              <p className="text-sm text-gray-500">
+                Cliente desde {conversation?.created_at ? new Date(conversation.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : 'N/A'}
+              </p>
+            </div>
+
+            {/* Info Grid */}
+            <div className="space-y-3 mb-4">
+              {/* Campanha */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Campanha</p>
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-900">
+                    {conversation?.campaign_name || 'Não atribuído'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Email */}
+              {conversation?.lead_email && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Email</p>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-900">{conversation.lead_email}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Telefone */}
+              {conversation?.lead_phone && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Telefone</p>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-900">{conversation.lead_phone}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Empresa */}
+              {conversation?.lead_company && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Empresa</p>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-900">{conversation.lead_company}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Localização */}
+              {conversation?.lead_location && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Localização</p>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-900">{conversation.lead_location}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* LinkedIn */}
+            {conversation?.lead_profile_url && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Perfil LinkedIn</p>
+                <a
+                  href={conversation.lead_profile_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
+                >
+                  <Linkedin className="w-4 h-4" />
+                  <span>Ver perfil</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Modo de Atendimento */}
+          <div className="p-6 border-b border-gray-200">
+            <p className="text-xs text-gray-500 mb-2">Modo de Atendimento</p>
+            <div className="flex items-center gap-2">
+              {conversation?.status === 'ai_active' ? (
+                <div className="flex items-center gap-2 text-purple-600">
+                  <Bot className="w-4 h-4" />
+                  <span className="text-sm font-medium">IA Ativa</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-medium">Manual</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Etapa do CRM */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gray-500">Etapa do Pipeline</p>
+              {!editingStatus && (
+                <button
+                  onClick={() => setEditingStatus(true)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {editingStatus ? (
+              <div className="space-y-1.5">
+                {LEAD_STATUS_OPTIONS.map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleStatusChange(option.value)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                      getStatusColorClasses(option.color, selectedStatus === option.value)
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setEditingStatus(false)}
+                  className="w-full px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <div className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                getStatusColorClasses(currentStatus?.color, true)
+              }`}>
+                {currentStatus?.label || 'Lead'}
+              </div>
+            )}
+          </div>
+
+          {/* Tags Personalizadas */}
+          <div className="p-6 border-b border-gray-200">
+            <p className="text-xs text-gray-500 mb-3">Etiquetas</p>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              {tags.map(tag => (
+                <span
+                  key={tag.id}
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                    TAG_COLORS.find(c => c.name === tag.color)?.class || 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {tag.name}
+                  <button
+                    onClick={() => handleRemoveTag(tag.id)}
+                    className="hover:opacity-70"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            {showTagInput ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="Nome da etiqueta..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddTag();
+                    if (e.key === 'Escape') setShowTagInput(false);
+                  }}
+                  autoFocus
+                />
+                <div className="flex gap-1">
+                  {TAG_COLORS.map(color => (
+                    <button
+                      key={color.name}
+                      onClick={() => setNewTagColor(color.name)}
+                      className={`w-6 h-6 rounded-full ${color.class} ${
+                        newTagColor === color.name ? 'ring-2 ring-offset-1 ring-purple-500' : ''
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddTag}
+                    className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+                  >
+                    Adicionar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowTagInput(false);
+                      setNewTagName('');
+                      setNewTagColor('blue');
+                    }}
+                    className="px-3 py-2 text-gray-600 hover:text-gray-800 text-sm"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowTagInput(true)}
+                className="flex items-center gap-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Nova etiqueta
+              </button>
+            )}
+          </div>
+
+          {/* Linha do Tempo - Collapsible */}
+          <div className="border-b border-gray-200">
+            <button
+              onClick={() => toggleSection('timeline')}
+              className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                <span className="font-semibold text-sm text-gray-900">
+                  Linha do Tempo
+                </span>
+              </div>
+              {expandedSections.timeline ? (
+                <ChevronUp className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
+
+            {expandedSections.timeline && (
+              <div className="px-6 pb-6 space-y-3">
+                {conversation?.created_at && (
+                  <div className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5" />
+                    <div>
+                      <p className="text-xs text-gray-500">Conversa iniciada</p>
+                      <p className="text-sm text-gray-900">
+                        {new Date(conversation.created_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {conversation?.last_message_at && (
+                  <div className="flex items-start gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5" />
+                    <div>
+                      <p className="text-xs text-gray-500">Última mensagem</p>
+                      <p className="text-sm text-gray-900">
+                        {new Date(conversation.last_message_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Notas Internas - Expandable */}
+          <div className="flex-1">
+            <button
+              onClick={() => toggleSection('notes')}
+              className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors border-b border-gray-200"
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-400" />
+                <span className="font-semibold text-sm text-gray-900">Notas Internas</span>
+              </div>
+              {expandedSections.notes ? (
+                <ChevronUp className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
+
+            {expandedSections.notes && (
+              <div className="p-6">
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Adicione notas privadas sobre este lead..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none mb-3"
+                  rows="6"
+                />
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {savingNotes ? 'Salvando...' : 'Salvar Notas'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DetailsPanel;

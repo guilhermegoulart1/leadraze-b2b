@@ -30,6 +30,9 @@ router.post('/bulk', leadController.createLeadsBulk);
 // Atualizar lead
 router.put('/:id', leadController.updateLead);
 
+// Atualizar apenas status do lead
+router.patch('/:id/status', leadController.updateLead);
+
 // Deletar lead
 router.delete('/:id', leadController.deleteLead);
 

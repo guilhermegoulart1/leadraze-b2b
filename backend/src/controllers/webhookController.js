@@ -3,17 +3,80 @@ const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { LEAD_STATUS } = require('../utils/helpers');
 const conversationAutomationService = require('../services/conversationAutomationService');
+const axios = require('axios');
+
+// ================================
+// HELPER: BUSCAR DADOS DO PERFIL VIA UNIPILE API
+// ================================
+async function fetchUserProfileFromUnipile(accountId, userProviderId) {
+  const dsn = process.env.UNIPILE_DSN;
+  const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
+
+  if (!dsn || !token) {
+    console.warn('⚠️ Unipile não configurado, usando dados básicos do webhook');
+    return null;
+  }
+
+  try {
+    console.log(`🔍 Buscando perfil completo via Unipile API...`);
+    console.log(`   Account ID: ${accountId}`);
+    console.log(`   User Provider ID: ${userProviderId}`);
+
+    const url = `https://${dsn}/api/v1/users/${userProviderId}`;
+
+    const response = await axios({
+      method: 'GET',
+      url,
+      headers: {
+        'X-API-KEY': token,
+        'Accept': 'application/json'
+      },
+      params: {
+        account_id: accountId
+      },
+      timeout: 10000
+    });
+
+    console.log('✅ Perfil obtido via API Unipile');
+    return response.data;
+
+  } catch (error) {
+    console.warn('⚠️ Erro ao buscar perfil via API:', error.message);
+    // Não falhar o webhook, apenas retornar null e usar dados básicos
+    return null;
+  }
+}
 
 // ================================
 // 1. RECEBER WEBHOOK DO UNIPILE
 // ================================
 const receiveWebhook = async (req, res) => {
+  // ✅ LOGS DETALHADOS PARA DEBUG
+  console.log('\n🔔 ======================================');
+  console.log('📨 WEBHOOK RECEBIDO');
+  console.log('======================================');
+  console.log('⏰ Timestamp:', new Date().toISOString());
+  console.log('🌐 Method:', req.method);
+  console.log('🔗 URL:', req.originalUrl);
+  console.log('📍 IP:', req.ip || req.connection.remoteAddress);
+  console.log('📋 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+  console.log('======================================\n');
+
   try {
+    // O payload já vem parseado pelo middleware do app.js
     const payload = req.body;
     const signature = req.headers['x-unipile-signature'];
 
-    console.log('📨 Webhook recebido do Unipile');
-    console.log('Event type:', payload.type);
+    // ✅ UNIPILE ENVIA EVENTO EM payload.event (não payload.type)
+    const eventType = payload.event || payload.type; // Fallback para retrocompatibilidade
+
+    console.log('📨 Processando webhook do Unipile');
+    console.log('Event type:', eventType);
+    console.log('Webhook name:', payload.webhook_name);
+    console.log('Account type:', payload.account_type);
+    console.log('Account ID:', payload.account_id);
+    console.log('Chat ID:', payload.chat_id);
 
     // Validar signature (se configurado)
     if (process.env.WEBHOOK_SECRET && signature) {
@@ -26,44 +89,60 @@ const receiveWebhook = async (req, res) => {
 
     // Salvar log do webhook
     await db.insert('webhook_logs', {
-      event_type: payload.type || 'unknown',
+      event_type: eventType || 'unknown',
       account_id: payload.account_id || null,
       payload: JSON.stringify(payload),
       processed: false
     });
 
     // Processar webhook de acordo com o tipo
+    // ✅ EVENTOS CORRETOS SEGUNDO DOCUMENTAÇÃO UNIPILE
     let result;
-    switch (payload.type) {
-      case 'message.received':
+    switch (eventType) {
+      case 'message_received':
         result = await handleMessageReceived(payload);
         break;
-      
-      case 'invitation.accepted':
-        result = await handleInvitationAccepted(payload);
+
+      case 'new_relation':
+        result = await handleNewRelation(payload);
         break;
-      
-      case 'invitation.sent':
-        result = await handleInvitationSent(payload);
+
+      case 'message_reaction':
+        result = await handleMessageReaction(payload);
         break;
-      
-      case 'connection.created':
-        result = await handleConnectionCreated(payload);
+
+      case 'message_read':
+        result = await handleMessageRead(payload);
         break;
-      
-      case 'message.sent':
-        result = await handleMessageSent(payload);
+
+      case 'message_edited':
+        result = await handleMessageEdited(payload);
         break;
-      
+
+      case 'message_deleted':
+        result = await handleMessageDeleted(payload);
+        break;
+
+      case 'message_delivered':
+        result = await handleMessageDelivered(payload);
+        break;
+
       default:
-        console.log(`⚠️ Tipo de evento não tratado: ${payload.type}`);
+        console.log(`⚠️ Tipo de evento não tratado: ${eventType}`);
         result = { handled: false, reason: 'Event type not handled' };
     }
 
-    // Marcar webhook como processado
+    // Marcar webhook como processado (usando subconsulta para PostgreSQL)
     await db.query(
-      'UPDATE webhook_logs SET processed = true WHERE event_type = $1 AND account_id = $2 ORDER BY created_at DESC LIMIT 1',
-      [payload.type, payload.account_id]
+      `UPDATE webhook_logs
+       SET processed = true
+       WHERE id = (
+         SELECT id FROM webhook_logs
+         WHERE event_type = $1 AND account_id = $2
+         ORDER BY created_at DESC
+         LIMIT 1
+       )`,
+      [eventType, payload.account_id]
     );
 
     console.log('✅ Webhook processado:', result);
@@ -80,9 +159,17 @@ const receiveWebhook = async (req, res) => {
 
     // Salvar erro no log
     try {
+      const eventType = req.body.event || req.body.type;
       await db.query(
-        'UPDATE webhook_logs SET error = $1 WHERE event_type = $2 ORDER BY created_at DESC LIMIT 1',
-        [error.message, req.body.type]
+        `UPDATE webhook_logs
+         SET error = $1
+         WHERE id = (
+           SELECT id FROM webhook_logs
+           WHERE event_type = $2
+           ORDER BY created_at DESC
+           LIMIT 1
+         )`,
+        [error.message, eventType]
       );
     } catch (logError) {
       console.error('Erro ao salvar log:', logError);
@@ -102,12 +189,20 @@ const receiveWebhook = async (req, res) => {
 // ================================
 async function handleMessageReceived(payload) {
   console.log('💬 Processando mensagem recebida');
+  console.log('📋 Payload keys:', Object.keys(payload));
 
-  const { account_id, chat_id, message } = payload;
+  const { account_id, chat_id, message, sender, account_info, message_id, timestamp } = payload;
 
-  if (!account_id || !chat_id || !message) {
-    return { handled: false, reason: 'Missing required fields' };
+  if (!account_id || !chat_id) {
+    return { handled: false, reason: 'Missing required fields (account_id or chat_id)' };
   }
+
+  // Message pode vir como string diretamente no payload
+  const messageContent = typeof message === 'string' ? message : (message?.text || message?.content || '');
+
+  console.log('📨 Message content:', messageContent);
+  console.log('👤 Sender:', sender);
+  console.log('👤 Account info:', account_info);
 
   try {
     // Buscar conta LinkedIn
@@ -120,6 +215,24 @@ async function handleMessageReceived(payload) {
       return { handled: false, reason: 'LinkedIn account not found' };
     }
 
+    // ✅ DETECTAR SE É MENSAGEM PRÓPRIA OU DO LEAD
+    // Mensagens enviadas pelo próprio usuário (de outro dispositivo) também vêm em message_received
+    const isOwnMessage = sender && account_info &&
+                        (sender.attendee_provider_id === account_info.user_id);
+
+    if (isOwnMessage) {
+      console.log('📤 Mensagem própria detectada (enviada de outro dispositivo)');
+      console.log('   Apenas logando, não processando IA');
+
+      // Salvar mensagem mas marcar como 'user' ao invés de 'lead'
+      // Não processar IA para mensagens próprias
+      const isSelfMessage = true;
+      var skipAI = true;
+    } else {
+      console.log('📨 Mensagem do lead detectada');
+      var skipAI = false;
+    }
+
     // Buscar ou criar conversa
     let conversation = await db.findOne('conversations', {
       unipile_chat_id: chat_id
@@ -128,31 +241,143 @@ async function handleMessageReceived(payload) {
     if (!conversation) {
       console.log('🆕 Criando nova conversa');
 
-      // Tentar encontrar lead pelo chat_id ou provider_id
-      const lead = await db.query(
-        `SELECT l.* FROM leads l 
-         JOIN campaigns c ON l.campaign_id = c.id 
-         WHERE c.linkedin_account_id = $1 
-         AND l.provider_id IS NOT NULL
-         LIMIT 1`,
-        [linkedinAccount.id]
-      );
+      // ✅ Encontrar o lead correto baseado no attendee que NÃO é o sender
+      // Se eu enviei a mensagem, o lead é o outro participante
+      // Se o lead enviou, o lead é o sender
+      let leadProviderId = null;
 
-      if (lead.rows.length === 0) {
-        console.log('⚠️ Lead não encontrado para esta conversa');
-        return { handled: false, reason: 'Lead not found' };
+      if (payload.attendees && payload.attendees.length > 0) {
+        // Se é mensagem própria, o lead é o attendee que não é o sender
+        if (isOwnMessage) {
+          const otherAttendee = payload.attendees.find(
+            att => att.attendee_provider_id !== sender?.attendee_provider_id
+          );
+          leadProviderId = otherAttendee?.attendee_provider_id;
+          console.log('📤 Mensagem própria - Lead é o outro participante:', leadProviderId);
+        } else {
+          // Se o lead enviou, o lead é o sender
+          leadProviderId = sender?.attendee_provider_id;
+          console.log('📨 Mensagem do lead - Lead é o sender:', leadProviderId);
+        }
       }
 
-      const leadData = lead.rows[0];
+      if (!leadProviderId) {
+        console.log('⚠️ Não foi possível identificar o lead provider_id');
+        return { handled: false, reason: 'Lead provider_id not found' };
+      }
+
+      // Buscar lead pelo provider_id
+      const leadQuery = await db.query(
+        `SELECT l.*, c.automation_active, c.ai_agent_id as campaign_ai_agent_id
+         FROM leads l
+         JOIN campaigns c ON l.campaign_id = c.id
+         WHERE c.linkedin_account_id = $1
+         AND l.provider_id = $2
+         LIMIT 1`,
+        [linkedinAccount.id, leadProviderId]
+      );
+
+      let leadData;
+      let shouldActivateAI = false;
+
+      if (leadQuery.rows.length === 0) {
+        console.log('⚠️ Lead não encontrado - criando automaticamente (conversa orgânica)');
+        console.log('   Provider ID:', leadProviderId);
+
+        // ✅ CRIAR LEAD AUTOMATICAMENTE para conversas orgânicas
+        // Primeiro, buscar dados completos do perfil via API Unipile
+        const profileData = await fetchUserProfileFromUnipile(account_id, leadProviderId);
+
+        // Dados do attendee como fallback
+        const attendeeData = isOwnMessage
+          ? payload.attendees.find(att => att.attendee_provider_id === leadProviderId)
+          : sender;
+
+        // Extrair dados do perfil completo (preferência) ou attendee (fallback)
+        const leadName = profileData?.display_name
+          || profileData?.name
+          || profileData?.full_name
+          || attendeeData?.attendee_name
+          || 'Unknown';
+
+        const profileUrl = profileData?.profile_url
+          || attendeeData?.attendee_profile_url
+          || '';
+
+        const profilePicture = profileData?.picture_url
+          || profileData?.profile_picture_url
+          || attendeeData?.attendee_picture_url
+          || '';
+
+        const headline = profileData?.headline || '';
+        const location = profileData?.location || '';
+
+        console.log('📋 Dados do perfil coletados:');
+        console.log(`   Nome: ${leadName}`);
+        console.log(`   URL: ${profileUrl}`);
+        console.log(`   Headline: ${headline}`);
+        console.log(`   Location: ${location}`);
+
+        // Criar ou buscar campanha "Organic"
+        let organicCampaign = await db.findOne('campaigns', {
+          user_id: linkedinAccount.user_id,
+          name: 'Organic Conversations'
+        });
+
+        if (!organicCampaign) {
+          console.log('🆕 Criando campanha "Organic Conversations"');
+          organicCampaign = await db.insert('campaigns', {
+            user_id: linkedinAccount.user_id,
+            linkedin_account_id: linkedinAccount.id,
+            name: 'Organic Conversations',
+            description: 'Conversas orgânicas recebidas no LinkedIn',
+            status: 'active',
+            automation_active: false,
+            is_system: true
+          });
+        }
+
+        // Criar lead com dados completos da API
+        leadData = await db.insert('leads', {
+          campaign_id: organicCampaign.id,
+          linkedin_profile_id: leadProviderId,
+          name: leadName,
+          profile_url: profileUrl,
+          profile_picture: profilePicture,
+          headline: headline || null,
+          location: location || null,
+          provider_id: leadProviderId,
+          status: 'accepted',
+          accepted_at: new Date()
+        });
+
+        leadData.automation_active = false;
+        leadData.campaign_ai_agent_id = null;
+        leadData.campaign_id = organicCampaign.id;
+
+        console.log('✅ Lead criado automaticamente com dados completos:', leadData.name);
+        shouldActivateAI = false; // Orgânico nunca tem IA
+      } else {
+        leadData = leadQuery.rows[0];
+        console.log('✅ Lead encontrado:', leadData.name);
+
+        // ✅ IA ATIVA SOMENTE SE CAMPANHA TEM AUTOMAÇÃO ATIVA
+        shouldActivateAI = leadData.automation_active === true;
+      }
+
+      console.log(`🤖 Automação da campanha: ${leadData.automation_active ? 'ATIVA' : 'INATIVA'}`);
+      console.log(`🤖 IA será ${shouldActivateAI ? 'ATIVADA' : 'DESATIVADA'} para esta conversa`);
 
       // Criar conversa
       conversation = await db.insert('conversations', {
         user_id: linkedinAccount.user_id,
         linkedin_account_id: linkedinAccount.id,
         lead_id: leadData.id,
+        campaign_id: leadData.campaign_id,
         unipile_chat_id: chat_id,
-        status: 'warm',
-        ai_active: true,
+        status: shouldActivateAI ? 'ai_active' : 'manual',
+        ai_active: shouldActivateAI,
+        ai_agent_id: leadData.campaign_ai_agent_id || null,
         is_connection: true,
         unread_count: 1
       });
@@ -175,47 +400,76 @@ async function handleMessageReceived(payload) {
       }
     } else {
       console.log('📝 Conversa existente encontrada');
-      
+
       // Atualizar conversa
       await db.update('conversations', {
-        last_message_preview: message.text?.substring(0, 100) || '',
+        last_message_preview: messageContent?.substring(0, 100) || '',
         last_message_at: new Date(),
         unread_count: conversation.unread_count + 1
       }, { id: conversation.id });
     }
 
     // Salvar mensagem
+    // ✅ Usar sender_type correto: 'user' se for mensagem própria, 'lead' se for do lead
     const messageData = {
       conversation_id: conversation.id,
-      unipile_message_id: message.id || `unipile_${Date.now()}`,
-      sender_type: 'lead',
-      content: message.text || '',
-      message_type: message.type || 'text',
-      sent_at: message.timestamp ? new Date(message.timestamp) : new Date()
+      unipile_message_id: message_id || payload.provider_message_id || `unipile_${Date.now()}`,
+      sender_type: isOwnMessage ? 'user' : 'lead',
+      content: messageContent || '',
+      message_type: payload.message_type || 'text',
+      sent_at: timestamp ? new Date(timestamp) : new Date()
     };
 
     await db.insert('messages', messageData);
 
-    console.log('✅ Mensagem salva');
+    console.log(`✅ Mensagem salva:`);
+    console.log(`   - Sender type: ${messageData.sender_type}`);
+    console.log(`   - Content: ${messageData.content}`);
+    console.log(`   - Sent at: ${messageData.sent_at}`);
 
     // Se IA estiver ativa, processar resposta automática
+    // ✅ NÃO PROCESSAR IA PARA MENSAGENS PRÓPRIAS
+    // ✅ VERIFICAR SE CAMPANHA TEM AUTOMAÇÃO ATIVA
     let aiResponse = null;
-    if (conversation.ai_active && !conversation.manual_control_taken) {
-      console.log('🤖 Processando resposta automática com IA...');
+    if (!skipAI && conversation.ai_active && !conversation.manual_control_taken) {
+      // Verificar se a campanha ainda tem automação ativa
+      let campaignAutomationActive = true;
 
-      try {
-        aiResponse = await conversationAutomationService.processIncomingMessage({
-          conversation_id: conversation.id,
-          message_content: message.text || '',
-          sender_id: message.sender_id,
-          unipile_message_id: message.id || `unipile_${Date.now()}`
-        });
+      if (conversation.campaign_id) {
+        const campaign = await db.findOne('campaigns', { id: conversation.campaign_id });
+        campaignAutomationActive = campaign?.automation_active === true;
 
-        console.log('✅ Resposta automática processada:', aiResponse);
-      } catch (aiError) {
-        console.error('❌ Erro ao gerar resposta automática:', aiError);
-        // Não falhar o webhook se IA der erro
+        if (!campaignAutomationActive) {
+          console.log('⚠️ Automação da campanha está DESATIVADA - pulando IA');
+        }
+      } else {
+        console.log('⚠️ Conversa sem campanha associada - pulando IA');
+        campaignAutomationActive = false;
       }
+
+      if (campaignAutomationActive) {
+        console.log('🤖 Processando resposta automática com IA...');
+
+        try {
+          aiResponse = await conversationAutomationService.processIncomingMessage({
+            conversation_id: conversation.id,
+            message_content: messageContent || '',
+            sender_id: sender?.attendee_provider_id,
+            unipile_message_id: message_id || payload.provider_message_id || `unipile_${Date.now()}`
+          });
+
+          console.log('✅ Resposta automática processada:', aiResponse);
+        } catch (aiError) {
+          console.error('❌ Erro ao gerar resposta automática:', aiError);
+          // Não falhar o webhook se IA der erro
+        }
+      }
+    } else if (skipAI) {
+      console.log('⏭️ Pulando processamento IA (mensagem própria)');
+    } else if (!conversation.ai_active) {
+      console.log('⏭️ Pulando processamento IA (IA desativada na conversa)');
+    } else if (conversation.manual_control_taken) {
+      console.log('⏭️ Pulando processamento IA (controle manual ativado)');
     }
 
     return {
@@ -232,15 +486,25 @@ async function handleMessageReceived(payload) {
 }
 
 // ================================
-// 3. CONVITE ACEITO
+// 3. NOVA RELAÇÃO (new_relation) - CONVITE ACEITO
 // ================================
-async function handleInvitationAccepted(payload) {
-  console.log('✅ Processando convite aceito');
+// ⚠️ IMPORTANTE: Este webhook pode demorar até 8 horas (polling do Unipile)
+async function handleNewRelation(payload) {
+  console.log('✅ Processando nova relação (convite aceito)');
+  console.log('⏰ Nota: Este evento pode ter delay de até 8h (polling do LinkedIn)');
 
-  const { account_id, invitation } = payload;
+  // ✅ CAMPOS CORRETOS SEGUNDO DOCUMENTAÇÃO UNIPILE
+  const {
+    account_id,
+    user_provider_id, // ID do usuário no LinkedIn
+    user_public_identifier, // Vanity URL (ex: "john-doe")
+    user_profile_url, // URL completa do perfil
+    user_full_name,
+    user_picture_url
+  } = payload;
 
-  if (!account_id || !invitation) {
-    return { handled: false, reason: 'Missing required fields' };
+  if (!account_id || !user_provider_id) {
+    return { handled: false, reason: 'Missing required fields (account_id or user_provider_id)' };
   }
 
   try {
@@ -253,21 +517,26 @@ async function handleInvitationAccepted(payload) {
       return { handled: false, reason: 'LinkedIn account not found' };
     }
 
-    // Buscar lead pelo provider_id ou linkedin_profile_id
+    // Buscar lead pelo provider_id ou linkedin_profile_id ou public_identifier
     const leadQuery = `
-      SELECT l.*, c.user_id, c.ai_agent_id
+      SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active
       FROM leads l
       JOIN campaigns c ON l.campaign_id = c.id
       WHERE c.linkedin_account_id = $1
-      AND (l.provider_id = $2 OR l.linkedin_profile_id = $3)
+      AND (
+        l.provider_id = $2
+        OR l.linkedin_profile_id = $3
+        OR l.profile_url LIKE $4
+      )
       AND l.status = 'invite_sent'
       LIMIT 1
     `;
 
     const leadResult = await db.query(leadQuery, [
       linkedinAccount.id,
-      invitation.profile_id,
-      invitation.profile_id
+      user_provider_id,
+      user_public_identifier,
+      `%${user_public_identifier}%`
     ]);
 
     if (leadResult.rows.length === 0) {
@@ -309,14 +578,22 @@ async function handleInvitationAccepted(payload) {
       [lead.campaign_id]
     );
 
+    // ✅ IA ATIVA SOMENTE SE CAMPANHA TEM AUTOMAÇÃO ATIVA
+    const shouldActivateAI = lead.automation_active === true;
+
+    console.log(`🤖 Automação da campanha: ${lead.automation_active ? 'ATIVA' : 'INATIVA'}`);
+    console.log(`🤖 IA será ${shouldActivateAI ? 'ATIVADA' : 'DESATIVADA'} para esta conversa`);
+
     // Criar conversa automaticamente
+    // ⚠️ NOTA: new_relation NÃO inclui chat_id, será criado quando primeira mensagem chegar
     const conversationData = {
       user_id: lead.user_id,
       linkedin_account_id: linkedinAccount.id,
       lead_id: lead.id,
-      unipile_chat_id: invitation.chat_id || `chat_${lead.id}`,
-      status: 'warm',
-      ai_active: true,
+      campaign_id: lead.campaign_id,
+      unipile_chat_id: `temp_chat_${lead.id}`, // Temporário, atualizado em message_received
+      status: shouldActivateAI ? 'ai_active' : 'manual',
+      ai_active: shouldActivateAI,
       ai_agent_id: lead.ai_agent_id || null,
       is_connection: true,
       unread_count: 0
@@ -329,17 +606,14 @@ async function handleInvitationAccepted(payload) {
     // Processar envio de mensagem inicial automática se campanha tiver automação ativa
     let initialMessageResult = null;
     try {
-      // Buscar campaign_id do lead
-      const leadCampaign = await db.findOne('campaigns', { id: lead.campaign_id });
-
-      if (leadCampaign && leadCampaign.automation_active) {
+      if (shouldActivateAI) {
         console.log('🤖 Processando mensagem inicial automática...');
 
         initialMessageResult = await conversationAutomationService.processInviteAccepted({
           lead_id: lead.id,
           campaign_id: lead.campaign_id,
           linkedin_account_id: linkedinAccount.id,
-          lead_unipile_id: invitation.profile_id
+          lead_unipile_id: user_provider_id // ✅ Usar campo correto
         });
 
         console.log('✅ Mensagem inicial processada:', initialMessageResult);
@@ -364,97 +638,138 @@ async function handleInvitationAccepted(payload) {
 }
 
 // ================================
-// 4. CONVITE ENVIADO
+// 4. REAÇÃO A MENSAGEM
 // ================================
-async function handleInvitationSent(payload) {
-  console.log('📤 Processando convite enviado');
+async function handleMessageReaction(payload) {
+  console.log('👍 Processando reação a mensagem');
 
-  const { account_id, invitation } = payload;
+  const { account_id, message_id, reaction } = payload;
 
-  if (!account_id || !invitation) {
+  if (!account_id || !message_id) {
     return { handled: false, reason: 'Missing required fields' };
   }
 
   try {
-    // Buscar conta LinkedIn
-    const linkedinAccount = await db.findOne('linkedin_accounts', {
-      unipile_account_id: account_id
+    // TODO: Implementar salvamento de reações em tabela message_reactions
+    console.log('⚠️ Reação recebida mas não implementado salvamento ainda');
+    console.log('Reaction data:', reaction);
+
+    return { handled: true, message: 'Reaction logged but not persisted yet' };
+  } catch (error) {
+    console.error('❌ Erro ao processar reação:', error);
+    return { handled: false, reason: error.message };
+  }
+}
+
+// ================================
+// 5. MENSAGEM LIDA
+// ================================
+async function handleMessageRead(payload) {
+  console.log('👁️ Processando mensagem lida');
+
+  const { account_id, message_id, chat_id } = payload;
+
+  if (!account_id || !chat_id) {
+    return { handled: false, reason: 'Missing required fields' };
+  }
+
+  try {
+    // Buscar conversa
+    const conversation = await db.findOne('conversations', {
+      unipile_chat_id: chat_id
     });
 
-    if (!linkedinAccount) {
-      return { handled: false, reason: 'LinkedIn account not found' };
+    if (conversation) {
+      // Marcar conversa como lida
+      await db.update('conversations', {
+        unread_count: 0
+      }, { id: conversation.id });
+
+      console.log('✅ Conversa marcada como lida');
     }
 
-    // Atualizar contador de envios
-    await db.update('linkedin_accounts', {
-      today_sent: linkedinAccount.today_sent + 1
-    }, { id: linkedinAccount.id });
-
-    console.log('✅ Contador de envios atualizado');
-
-    return { 
-      handled: true, 
-      account_id: linkedinAccount.id,
-      today_sent: linkedinAccount.today_sent + 1
-    };
-
+    return { handled: true, conversation_id: conversation?.id };
   } catch (error) {
-    console.error('❌ Erro ao processar convite enviado:', error);
+    console.error('❌ Erro ao processar mensagem lida:', error);
     return { handled: false, reason: error.message };
   }
 }
 
 // ================================
-// 5. CONEXÃO CRIADA
+// 6. MENSAGEM EDITADA
 // ================================
-async function handleConnectionCreated(payload) {
-  console.log('🤝 Processando conexão criada');
+async function handleMessageEdited(payload) {
+  console.log('✏️ Processando mensagem editada');
 
-  const { account_id, connection } = payload;
+  const { account_id, message_id, message } = payload;
 
-  if (!account_id || !connection) {
+  if (!account_id || !message_id) {
     return { handled: false, reason: 'Missing required fields' };
   }
 
   try {
-    // Similar ao handleInvitationAccepted
-    // Apenas logando por enquanto
-    console.log('✅ Conexão criada registrada');
+    // Atualizar mensagem no banco
+    const result = await db.query(
+      'UPDATE messages SET content = $1, updated_at = NOW() WHERE unipile_message_id = $2',
+      [message?.text || '', message_id]
+    );
 
-    return { 
-      handled: true,
-      connection_id: connection.id
-    };
+    console.log('✅ Mensagem atualizada');
 
+    return { handled: true, updated: result.rowCount > 0 };
   } catch (error) {
-    console.error('❌ Erro ao processar conexão:', error);
+    console.error('❌ Erro ao processar mensagem editada:', error);
     return { handled: false, reason: error.message };
   }
 }
 
 // ================================
-// 6. MENSAGEM ENVIADA
+// 7. MENSAGEM DELETADA
 // ================================
-async function handleMessageSent(payload) {
-  console.log('📨 Processando mensagem enviada');
+async function handleMessageDeleted(payload) {
+  console.log('🗑️ Processando mensagem deletada');
 
-  const { account_id, message } = payload;
+  const { account_id, message_id } = payload;
 
-  if (!account_id || !message) {
+  if (!account_id || !message_id) {
     return { handled: false, reason: 'Missing required fields' };
   }
 
   try {
-    // Apenas logar - mensagens enviadas já são salvas no sendMessage
-    console.log('✅ Mensagem enviada registrada');
+    // Soft delete - marcar como deletada sem remover do banco
+    const result = await db.query(
+      'UPDATE messages SET content = \'[Mensagem deletada]\', deleted_at = NOW() WHERE unipile_message_id = $1',
+      [message_id]
+    );
 
-    return { 
-      handled: true,
-      message_id: message.id
-    };
+    console.log('✅ Mensagem marcada como deletada (soft delete)');
 
+    return { handled: true, deleted: result.rowCount > 0 };
   } catch (error) {
-    console.error('❌ Erro ao processar mensagem enviada:', error);
+    console.error('❌ Erro ao processar mensagem deletada:', error);
+    return { handled: false, reason: error.message };
+  }
+}
+
+// ================================
+// 8. MENSAGEM ENTREGUE
+// ================================
+async function handleMessageDelivered(payload) {
+  console.log('✉️ Processando mensagem entregue');
+
+  const { account_id, message_id } = payload;
+
+  if (!account_id || !message_id) {
+    return { handled: false, reason: 'Missing required fields' };
+  }
+
+  try {
+    // TODO: Adicionar coluna delivered_at na tabela messages
+    console.log('⚠️ Mensagem entregue mas não implementado salvamento ainda');
+
+    return { handled: true, message: 'Delivery status logged but not persisted yet' };
+  } catch (error) {
+    console.error('❌ Erro ao processar mensagem entregue:', error);
     return { handled: false, reason: error.message };
   }
 }

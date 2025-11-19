@@ -10,6 +10,7 @@ import CampaignsPage from './pages/CampaignsPage';
 import LeadsPage from './pages/LeadsPage';
 import ConversationsPage from './pages/ConversationsPage';
 import AIAgentsPage from './pages/AIAgentsPage';
+import InsightsPage from './pages/InsightsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import LinkedInAccountsPage from './pages/LinkedInAccountsPage';
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="leads" element={<LeadsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
         <Route path="ai-agents" element={<AIAgentsPage />} />
+        <Route path="insights" element={<InsightsPage />} />
         <Route path="linkedin-accounts" element={<LinkedInAccountsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="settings" element={<SettingsPage />} />

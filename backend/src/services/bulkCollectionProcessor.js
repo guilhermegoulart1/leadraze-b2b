@@ -111,6 +111,15 @@ async function processJob(job) {
 
       console.log(`📥 Recebidos: ${profiles.length} perfis`);
 
+      // 🔍 LOG DETALHADO - Mostrar estrutura do primeiro perfil
+      if (profiles.length > 0) {
+        console.log('\n📊 === EXEMPLO DE PERFIL DA API UNIPILE ===');
+        console.log('Campos disponíveis:', Object.keys(profiles[0]));
+        console.log('\n📋 Dados completos do primeiro perfil:');
+        console.log(JSON.stringify(profiles[0], null, 2));
+        console.log('===========================================\n');
+      }
+
       if (profiles.length === 0) {
         console.log('🏁 Sem mais perfis');
         break;
@@ -212,6 +221,15 @@ async function saveProfiles(profiles, job) {
                             profile.photoUrl ||
                             null;
 
+      // 🏢 Extrair empresa (MÚLTIPLOS CAMPOS POSSÍVEIS)
+      const company = profile.company ||
+                     profile.current_company ||
+                     profile.organization ||
+                     profile.company_name ||
+                     (profile.experience && profile.experience[0] && profile.experience[0].company_name) ||
+                     (profile.positions && profile.positions[0] && profile.positions[0].company_name) ||
+                     null;
+
       // 📧📞 Extrair email e telefone do perfil (se disponível)
       const email = profile.email ||
                     profile.email_address ||
@@ -225,12 +243,34 @@ async function saveProfiles(profiles, job) {
                     (profile.contact_info && profile.contact_info.phone) ||
                     null;
 
-      // Inserir lead
+      // 🔍 LOG DETALHADO - Campos extraídos para este perfil
+      console.log(`\n👤 Perfil ${savedCount + 1}:`, {
+        id: profileId,
+        name: profile.name || profile.full_name,
+        title: profile.title || profile.headline,
+        company: company,
+        location: profile.location || profile.geo_location,
+        email: email,
+        phone: phone,
+        raw_company_fields: {
+          company: profile.company,
+          current_company: profile.current_company,
+          organization: profile.organization,
+          company_name: profile.company_name,
+          experience_first: profile.experience && profile.experience[0],
+          positions_first: profile.positions && profile.positions[0]
+        }
+      });
+
+      // Inserir lead com campos expandidos
       const insertQuery = `INSERT INTO leads
          (campaign_id, linkedin_profile_id, provider_id, name, title, company,
           location, profile_url, profile_picture, headline, status, score,
-          email, phone, email_captured_at, phone_captured_at, email_source, phone_source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`;
+          email, phone, email_captured_at, phone_captured_at, email_source, phone_source,
+          public_identifier, network_distance, profile_picture_large,
+          connections_count, follower_count, is_premium, member_urn)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+                 $19, $20, $21, $22, $23, $24, $25)`;
 
       const insertValues = [
         job.campaign_id,
@@ -238,7 +278,7 @@ async function saveProfiles(profiles, job) {
         profile.provider_id || profile.id,
         profile.name || profile.full_name || 'Sem nome',
         profile.title || profile.headline || null,
-        profile.company || profile.current_company || null,
+        company, // ✅ Usando a variável extraída com múltiplas tentativas
         profile.location || profile.geo_location || null,
         profile.profile_url || profile.url || null,
         profilePicture,
@@ -250,7 +290,15 @@ async function saveProfiles(profiles, job) {
         email ? new Date() : null, // email_captured_at
         phone ? new Date() : null, // phone_captured_at
         email ? 'profile' : null,  // email_source
-        phone ? 'profile' : null   // phone_source
+        phone ? 'profile' : null,   // phone_source
+        // Novos campos da busca básica
+        profile.public_identifier || null,
+        profile.network_distance || null,
+        profile.profile_picture_url_large || null,
+        profile.shared_connections_count || 0,
+        0, // follower_count (não vem na busca básica)
+        profile.premium || false, // is_premium
+        profile.member_urn || null
       ];
 
       await db.query(insertQuery, insertValues);
@@ -275,7 +323,16 @@ function calculateProfileScore(profile) {
   let score = 0;
   if (profile.name || profile.full_name) score += 20;
   if (profile.title || profile.headline) score += 15;
-  if (profile.company || profile.current_company) score += 15;
+
+  // ✅ Verificar empresa em múltiplos campos
+  const hasCompany = profile.company ||
+                     profile.current_company ||
+                     profile.organization ||
+                     profile.company_name ||
+                     (profile.experience && profile.experience[0] && profile.experience[0].company_name) ||
+                     (profile.positions && profile.positions[0] && profile.positions[0].company_name);
+  if (hasCompany) score += 15;
+
   if (profile.location) score += 10;
   // Check all possible photo fields
   if (profile.profile_picture || profile.profile_picture_url || profile.profile_picture_url_large ||

@@ -3,7 +3,7 @@ const axios = require('axios');
 
 // Configuração do Unipile
 const dsn = process.env.UNIPILE_DSN;
-const unipileToken = (process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN || '').trim();
+const unipileToken = (process.env.UNIPILE_ACCESS_TOKEN || process.env.UNIPILE_API_KEY || '').trim();
 
 let initError = null;
 
@@ -217,6 +217,100 @@ const unipileClient = {
         headers: {
           'X-API-KEY': unipileToken,
           'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      return response.data;
+    },
+
+    // Get messages from a chat
+    getMessages: async (params) => {
+      const { account_id, chat_id, limit = 50, before_id } = params;
+
+      if (!account_id || !chat_id) {
+        throw new Error('account_id and chat_id are required');
+      }
+
+      let url = `https://${dsn}/api/v1/chats/${chat_id}/messages?account_id=${account_id}&limit=${limit}`;
+
+      if (before_id) {
+        url += `&before_id=${before_id}`;
+      }
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      return response.data;
+    },
+
+    // Send message to existing chat
+    sendMessage: async (params) => {
+      const { account_id, chat_id, text } = params;
+
+      if (!account_id || !chat_id || !text) {
+        throw new Error('account_id, chat_id, and text are required');
+      }
+
+      const url = `https://${dsn}/api/v1/chats/${chat_id}/messages?account_id=${account_id}`;
+
+      const response = await axios.post(url, {
+        text: text
+      }, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      return response.data;
+    },
+
+    // Get all chats
+    getChats: async (params) => {
+      const { account_id, limit = 50, cursor } = params;
+
+      if (!account_id) {
+        throw new Error('account_id is required');
+      }
+
+      let url = `https://${dsn}/api/v1/chats?account_id=${account_id}&limit=${limit}`;
+
+      if (cursor) {
+        url += `&cursor=${cursor}`;
+      }
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      return response.data;
+    },
+
+    // Get single chat details
+    getChat: async (params) => {
+      const { account_id, chat_id } = params;
+
+      if (!account_id || !chat_id) {
+        throw new Error('account_id and chat_id are required');
+      }
+
+      const url = `https://${dsn}/api/v1/chats/${chat_id}?account_id=${account_id}`;
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
         },
         timeout: 15000
       });

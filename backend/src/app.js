@@ -22,7 +22,38 @@ app.use(cors({
   credentials: true
 }));
 
-// Body parsing
+// ✅ Middleware especial para capturar raw body do webhook Unipile
+// DEVE vir ANTES do express.json/urlencoded
+app.use('/api/webhooks/unipile', express.raw({ type: '*/*', limit: '10mb' }), (req, res, next) => {
+  try {
+    if (req.body && Buffer.isBuffer(req.body)) {
+      const rawBody = req.body.toString('utf8');
+      console.log('📦 Raw body capturado:', rawBody);
+
+      // Tentar parsear como JSON
+      try {
+        req.body = JSON.parse(rawBody);
+        console.log('✅ Parseado como JSON');
+      } catch (e) {
+        // Se não for JSON puro, pode ser form-urlencoded
+        // Tentar decodificar URL e parsear
+        try {
+          const decoded = decodeURIComponent(rawBody);
+          req.body = JSON.parse(decoded);
+          console.log('✅ Parseado como form-urlencoded + JSON');
+        } catch (e2) {
+          console.log('⚠️ Não foi possível parsear, passando raw body');
+          req.body = { raw: rawBody };
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao processar raw body:', error);
+  }
+  next();
+});
+
+// Body parsing (para outras rotas)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -74,6 +105,27 @@ app.get('/api', (req, res) => {
     }
   });
 });
+
+// ================================
+// WEBHOOK ROUTES (BEFORE AUTH)
+// ================================
+
+// Middleware especial para webhooks do Unipile - permitir CORS de qualquer origem
+app.options('/api/webhooks/unipile', cors()); // Preflight
+app.use('/api/webhooks/unipile', cors({
+  origin: '*', // Permitir qualquer origem para webhooks
+  methods: ['POST', 'GET', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-Unipile-Signature']
+}));
+
+// Webhook do Unipile deve estar ANTES de qualquer autenticação
+// para garantir que não seja bloqueado
+try {
+  app.use('/api/webhooks', require('./routes/webhooks'));
+  console.log('✅ Webhook routes loaded (public)');
+} catch (error) {
+  console.error('❌ Error loading webhook routes:', error.message);
+}
 
 // ================================
 // ROUTES
@@ -133,13 +185,6 @@ try {
   console.log('✅ Analytics routes loaded');
 } catch (error) {
   console.error('❌ Error loading analytics routes:', error.message);
-}
-
-try {
-  app.use('/api/webhooks', require('./routes/webhooks'));
-  console.log('✅ Webhook routes loaded');
-} catch (error) {
-  console.error('❌ Error loading webhook routes:', error.message);
 }
 
 try {
