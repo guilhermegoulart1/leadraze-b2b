@@ -1,7 +1,7 @@
 // frontend/src/components/ConversationSidebar.jsx
 import React from 'react';
 import {
-  Search, Bot, User, Clock, Circle, MessageSquare, Trash2
+  Search, Bot, User, Clock, Circle, MessageSquare, Trash2, CheckCircle
 } from 'lucide-react';
 
 const ConversationSidebar = ({
@@ -13,7 +13,8 @@ const ConversationSidebar = ({
   statusFilter,
   onStatusFilterChange,
   stats,
-  onDeleteConversation
+  onDeleteConversation,
+  onCloseConversation
 }) => {
   const formatLastMessageTime = (timestamp) => {
     if (!timestamp) return 'Nunca';
@@ -52,10 +53,10 @@ const ConversationSidebar = ({
         </div>
 
         {/* Status Filter */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => onStatusFilterChange('all')}
-            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
               statusFilter === 'all'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -65,7 +66,7 @@ const ConversationSidebar = ({
           </button>
           <button
             onClick={() => onStatusFilterChange('ai_active')}
-            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
               statusFilter === 'ai_active'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -75,7 +76,7 @@ const ConversationSidebar = ({
           </button>
           <button
             onClick={() => onStatusFilterChange('manual')}
-            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
               statusFilter === 'manual'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -83,13 +84,23 @@ const ConversationSidebar = ({
           >
             Manual
           </button>
+          <button
+            onClick={() => onStatusFilterChange('closed')}
+            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              statusFilter === 'closed'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Fechadas
+          </button>
         </div>
       </div>
 
       {/* Stats Mini */}
       {stats && (
         <div className="px-4 py-3 bg-white border-b border-gray-200">
-          <div className="flex items-center justify-between text-xs">
+          <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="flex items-center gap-1">
               <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-gray-600">Total:</span>
@@ -97,14 +108,22 @@ const ConversationSidebar = ({
             </div>
             <div className="flex items-center gap-1">
               <Bot className="w-3.5 h-3.5 text-purple-600" />
+              <span className="text-gray-600">IA:</span>
               <span className="font-semibold text-gray-900">{stats.by_status?.ai_active || 0}</span>
             </div>
             <div className="flex items-center gap-1">
               <User className="w-3.5 h-3.5 text-orange-600" />
+              <span className="text-gray-600">Manual:</span>
               <span className="font-semibold text-gray-900">{stats.by_status?.manual || 0}</span>
             </div>
             <div className="flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+              <span className="text-gray-600">Fechadas:</span>
+              <span className="font-semibold text-gray-900">{stats.by_status?.closed || 0}</span>
+            </div>
+            <div className="flex items-center gap-1 col-span-2">
               <Circle className="w-3.5 h-3.5 text-red-600 fill-red-600" />
+              <span className="text-gray-600">Não lidas:</span>
               <span className="font-semibold text-gray-900">{stats.unread_conversations || 0}</span>
             </div>
           </div>
@@ -232,6 +251,18 @@ const ConversationSidebar = ({
 
                       {/* Actions (visible on hover) */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {conversation.status !== 'closed' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCloseConversation(conversation.id);
+                            }}
+                            className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                            title="Fechar conversa"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

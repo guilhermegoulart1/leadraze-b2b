@@ -2,19 +2,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Bot, User, Loader, AlertCircle, Linkedin,
-  ToggleLeft, ToggleRight, SidebarOpen, SidebarClose
+  ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw
 } from 'lucide-react';
 import api from '../services/api';
 
-const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead }) => {
+const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed }) => {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const optionsMenuRef = useRef(null);
 
   useEffect(() => {
     if (conversationId) {
@@ -30,6 +32,18 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
+        setShowOptionsMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -81,6 +95,40 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     } catch (error) {
       console.error('Erro ao marcar como lida:', error);
       // Não mostrar erro ao usuário, apenas logar
+    }
+  };
+
+  const handleCloseConversation = async () => {
+    try {
+      const response = await api.closeConversation(conversationId);
+      if (response.success) {
+        setConversation({ ...conversation, status: 'closed', closed_at: new Date().toISOString() });
+        setShowOptionsMenu(false);
+        // Notificar o componente pai para atualizar a lista
+        if (onConversationClosed) {
+          onConversationClosed(conversationId);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao fechar conversa:', error);
+      setError('Falha ao fechar conversa');
+    }
+  };
+
+  const handleReopenConversation = async () => {
+    try {
+      const response = await api.reopenConversation(conversationId, 'ai_active');
+      if (response.success) {
+        setConversation({ ...conversation, status: 'ai_active', closed_at: null });
+        setShowOptionsMenu(false);
+        // Notificar o componente pai para atualizar a lista
+        if (onConversationClosed) {
+          onConversationClosed(conversationId);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao reabrir conversa:', error);
+      setError('Falha ao reabrir conversa');
     }
   };
 
@@ -327,6 +375,39 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               <Linkedin className="w-5 h-5" />
             </a>
           )}
+
+          {/* Options Menu */}
+          <div className="relative" ref={optionsMenuRef}>
+            <button
+              onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Mais opções"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+
+            {showOptionsMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                {conversation?.status === 'closed' ? (
+                  <button
+                    onClick={handleReopenConversation}
+                    className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Reabrir conversa
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCloseConversation}
+                    className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Fechar conversa
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Toggle Details Panel */}
           <button

@@ -1,6 +1,7 @@
 // backend/src/services/bulkCollectionProcessor.js
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
+const { getCountryFromLocationId, translateSearchTerms } = require('./locationLanguageService');
 
 const BATCH_SIZE = 25; // Perfis por busca
 const MAX_SEARCHES = 50; // Máximo de buscas por job
@@ -68,6 +69,32 @@ async function processJob(job) {
 
     console.log('🔍 Filtros de busca:', searchFilters);
 
+    // ===== TRADUÇÃO AUTOMÁTICA BASEADA NO PAÍS =====
+    let translatedFilters = searchFilters;
+
+    // Detectar país a partir do location ID
+    if (searchFilters.location && Array.isArray(searchFilters.location) && searchFilters.location.length > 0) {
+      const firstLocationId = searchFilters.location[0];
+
+      console.log(`\n🌍 === DETECTANDO PAÍS ===`);
+      const locationInfo = await getCountryFromLocationId(firstLocationId, job.unipile_account_id);
+
+      if (locationInfo && locationInfo.country) {
+        console.log(`📍 País detectado: ${locationInfo.country}`);
+        console.log(`📌 Localização completa: ${locationInfo.locationName}`);
+
+        // Traduzir termos para a língua do país
+        translatedFilters = await translateSearchTerms(searchFilters, locationInfo.country);
+
+        console.log(`\n✅ Filtros traduzidos para ${locationInfo.country}:`);
+        console.log('  Keywords:', translatedFilters.keywords);
+        console.log('  Industries:', translatedFilters.industries);
+        console.log('  Job Titles:', translatedFilters.job_titles?.slice(0, 5), '...');
+      } else {
+        console.log('⚠️ Não foi possível detectar o país, usando filtros originais');
+      }
+    }
+
     // Loop de coleta
     while (totalCollected < job.target_count && searchCount < MAX_SEARCHES) {
       searchCount++;
@@ -85,21 +112,21 @@ async function processJob(job) {
       if (currentCursor) {
         searchParams.cursor = currentCursor;
       } else {
-        // Nova busca - adicionar filtros
-        if (searchFilters.keywords) {
-          searchParams.keywords = searchFilters.keywords;
+        // Nova busca - adicionar filtros TRADUZIDOS
+        if (translatedFilters.keywords) {
+          searchParams.keywords = translatedFilters.keywords;
         }
-        if (searchFilters.location && Array.isArray(searchFilters.location)) {
-          searchParams.location = searchFilters.location;
+        if (translatedFilters.location && Array.isArray(translatedFilters.location)) {
+          searchParams.location = translatedFilters.location;
         }
-        if (searchFilters.industries && Array.isArray(searchFilters.industries)) {
-          searchParams.industries = searchFilters.industries;
+        if (translatedFilters.industries && Array.isArray(translatedFilters.industries)) {
+          searchParams.industries = translatedFilters.industries;
         }
-        if (searchFilters.job_titles && Array.isArray(searchFilters.job_titles)) {
-          searchParams.job_titles = searchFilters.job_titles;
+        if (translatedFilters.job_titles && Array.isArray(translatedFilters.job_titles)) {
+          searchParams.job_titles = translatedFilters.job_titles;
         }
-        if (searchFilters.companies && Array.isArray(searchFilters.companies)) {
-          searchParams.companies = searchFilters.companies;
+        if (translatedFilters.companies && Array.isArray(translatedFilters.companies)) {
+          searchParams.companies = translatedFilters.companies;
         }
       }
 

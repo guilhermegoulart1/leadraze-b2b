@@ -12,20 +12,42 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
+  const [token, setTokenState] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Verificar se há usuário salvo
     const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('authToken');
+    const savedToken = localStorage.getItem('authToken');
 
-    if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
+    if (savedUser && savedToken) {
+      setUserState(JSON.parse(savedUser));
+      setTokenState(savedToken);
     }
-    
+
     setLoading(false);
   }, []);
+
+  // Função para atualizar usuário
+  const setUser = (userData) => {
+    setUserState(userData);
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+      localStorage.removeItem('user');
+    }
+  };
+
+  // Função para atualizar token
+  const setToken = (newToken) => {
+    setTokenState(newToken);
+    if (newToken) {
+      localStorage.setItem('authToken', newToken);
+    } else {
+      localStorage.removeItem('authToken');
+    }
+  };
 
   const login = async (email, password) => {
     const response = await api.login(email, password);
@@ -52,15 +74,18 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     api.logout();
     setUser(null);
-    localStorage.removeItem('user');
+    setToken(null);
   };
 
   const value = {
     user,
+    token,
     loading,
     login,
     register,
     logout,
+    setUser,
+    setToken,
     isAuthenticated: !!user,
   };
 

@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Páginas
 import LoginPage from './pages/LoginPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
+import AuthErrorPage from './pages/AuthErrorPage';
 import Dashboard from './pages/Dashboard';
 import SearchPage from './pages/SearchPage';
 import CampaignsPage from './pages/CampaignsPage';
@@ -45,11 +47,13 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Rota pública */}
-      <Route 
-        path="/login" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} 
+      {/* Rotas públicas */}
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/auth/error" element={<AuthErrorPage />} />
 
       {/* Rotas protegidas */}
       <Route

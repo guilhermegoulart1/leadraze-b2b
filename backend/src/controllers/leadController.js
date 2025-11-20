@@ -14,12 +14,12 @@ const { LEAD_STATUS } = require('../utils/helpers');
 const getLeads = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { 
-      campaign_id, 
-      status, 
+    const {
+      campaign_id,
+      status,
       search,
-      page = 1, 
-      limit = 50 
+      page = 1,
+      limit = 1000 // Aumentado de 50 para 1000 para mostrar todos os leads
     } = req.query;
 
     console.log(`📋 Listando leads do usuário ${userId}`);
@@ -505,7 +505,7 @@ const getCampaignLeads = async (req, res) => {
   try {
     const { campaignId } = req.params;
     const userId = req.user.id;
-    const { status, page = 1, limit = 50 } = req.query;
+    const { status, page = 1, limit = 1000 } = req.query; // Aumentado de 50 para 1000
 
     console.log(`📋 Buscando leads da campanha ${campaignId}`);
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Search, Award, BarChart3, MessageCircle,
-  Bot, Lightbulb, Settings, Zap, LogOut,
+  Bot, Lightbulb, Settings, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users
 } from 'lucide-react';
@@ -69,27 +69,27 @@ const Layout = () => {
           {isCollapsed ? (
             <button
               onClick={() => setIsCollapsed(false)}
-              className="w-full flex items-center justify-center hover:bg-gray-50 rounded transition-colors"
+              className="w-full flex items-center justify-center hover:bg-gray-50 rounded transition-colors p-2"
               title="Expandir menu"
             >
-              <div className="bg-gradient-to-br from-purple-600 to-purple-800 w-8 h-8 rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/logo/getraze-square-purple.svg"
+                alt="GetRaze"
+                className="w-8 h-8"
+              />
             </button>
           ) : (
             <>
-              <div className="flex items-center space-x-2">
-                <div className="bg-gradient-to-br from-purple-600 to-purple-800 w-8 h-8 rounded-lg flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h1 className="text-sm font-bold text-gray-900">LeadRaze</h1>
-                  <p className="text-[10px] text-gray-500">B2B Platform</p>
-                </div>
+              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                <img
+                  src="/logo/getraze-purple.svg"
+                  alt="GetRaze"
+                  className="h-8 w-auto"
+                />
               </div>
               <button
                 onClick={() => setIsCollapsed(true)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
                 title="Recolher menu"
               >
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -233,13 +233,7 @@ const Layout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-14 bg-[#7229f7] border-b border-purple-800 flex items-center justify-between px-6">
-          <div className="flex items-center space-x-4">
-            <h2 className="text-white font-semibold text-sm">
-              {navItems.find(item => item.path === location.pathname)?.label || 'LeadRaze'}
-            </h2>
-          </div>
-
+        <header className="h-14 bg-[#7229f7] border-b border-purple-800 flex items-center justify-end px-6">
           {/* Notification Icons */}
           <div className="flex items-center space-x-3">
             {/* Conversations Notification */}

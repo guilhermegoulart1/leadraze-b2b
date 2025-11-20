@@ -268,6 +268,19 @@ class ApiService {
     });
   }
 
+  async closeConversation(conversationId) {
+    return this.request(`/conversations/${conversationId}/close`, {
+      method: 'POST',
+    });
+  }
+
+  async reopenConversation(conversationId, status = 'ai_active') {
+    return this.request(`/conversations/${conversationId}/reopen`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   async deleteConversation(conversationId) {
     return this.request(`/conversations/${conversationId}`, {
       method: 'DELETE',

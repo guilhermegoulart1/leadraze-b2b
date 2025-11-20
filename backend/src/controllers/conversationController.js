@@ -473,8 +473,8 @@ const updateStatus = async (req, res) => {
     console.log(`📝 Atualizando status da conversa ${id} para ${status}`);
 
     // Validar status
-    if (!status || !['ai_active', 'manual'].includes(status)) {
-      throw new ValidationError('Invalid status. Must be "ai_active" or "manual"');
+    if (!status || !['ai_active', 'manual', 'closed'].includes(status)) {
+      throw new ValidationError('Invalid status. Must be "ai_active", "manual", or "closed"');
     }
 
     // Verificar ownership
@@ -492,23 +492,34 @@ const updateStatus = async (req, res) => {
     }
 
     // Atualizar status
-    const updateQuery = status === 'manual'
-      ? `UPDATE conversations
-         SET status = $1, ai_paused_at = NOW(), updated_at = NOW()
-         WHERE id = $2
-         RETURNING *`
-      : `UPDATE conversations
-         SET status = $1, ai_paused_at = NULL, updated_at = NOW()
+    let updateQuery;
+    let message;
+
+    if (status === 'manual') {
+      updateQuery = `UPDATE conversations
+         SET status = $1, ai_paused_at = NOW(), closed_at = NULL, updated_at = NOW()
          WHERE id = $2
          RETURNING *`;
+      message = 'AI paused. Manual mode activated.';
+    } else if (status === 'closed') {
+      updateQuery = `UPDATE conversations
+         SET status = $1, closed_at = NOW(), updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`;
+      message = 'Conversation closed successfully.';
+    } else {
+      updateQuery = `UPDATE conversations
+         SET status = $1, ai_paused_at = NULL, closed_at = NULL, updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`;
+      message = 'AI activated. Manual mode disabled.';
+    }
 
     const result = await db.query(updateQuery, [status, id]);
 
     console.log('✅ Status atualizado');
 
-    sendSuccess(res, result.rows[0], status === 'manual'
-      ? 'AI paused. Manual mode activated.'
-      : 'AI activated. Manual mode disabled.');
+    sendSuccess(res, result.rows[0], message);
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -605,7 +616,8 @@ const getConversationStats = async (req, res) => {
       total: parseInt(totalResult.rows[0].total),
       by_status: {
         ai_active: 0,
-        manual: 0
+        manual: 0,
+        closed: 0
       },
       unread_conversations: parseInt(unreadResult.rows[0].unread_conversations)
     };
@@ -624,7 +636,102 @@ const getConversationStats = async (req, res) => {
 };
 
 // ================================
-// 10. DELETAR CONVERSA
+// 10. FECHAR CONVERSA
+// ================================
+const closeConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🔒 Fechando conversa ${id}`);
+
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
+
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    // Atualizar para status 'closed'
+    const updateQuery = `
+      UPDATE conversations
+      SET status = 'closed', closed_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const result = await db.query(updateQuery, [id]);
+
+    console.log('✅ Conversa fechada');
+
+    sendSuccess(res, result.rows[0], 'Conversation closed successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 11. REABRIR CONVERSA
+// ================================
+const reopenConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { status = 'ai_active' } = req.body;
+
+    console.log(`🔓 Reabrindo conversa ${id} com status ${status}`);
+
+    // Validar status
+    if (!['ai_active', 'manual'].includes(status)) {
+      throw new ValidationError('Invalid status. Must be "ai_active" or "manual"');
+    }
+
+    // Verificar ownership
+    const checkQuery = `
+      SELECT conv.id
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.user_id = $2
+    `;
+
+    const checkResult = await db.query(checkQuery, [id, userId]);
+
+    if (checkResult.rows.length === 0) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    // Atualizar status e limpar closed_at
+    const updateQuery = status === 'manual'
+      ? `UPDATE conversations
+         SET status = $1, closed_at = NULL, ai_paused_at = NOW(), updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`
+      : `UPDATE conversations
+         SET status = $1, closed_at = NULL, ai_paused_at = NULL, updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`;
+
+    const result = await db.query(updateQuery, [status, id]);
+
+    console.log('✅ Conversa reaberta');
+
+    sendSuccess(res, result.rows[0], 'Conversation reopened successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 12. DELETAR CONVERSA
 // ================================
 const deleteConversation = async (req, res) => {
   try {
@@ -669,5 +776,7 @@ module.exports = {
   updateStatus,
   markAsRead,
   getConversationStats,
+  closeConversation,
+  reopenConversation,
   deleteConversation
 };

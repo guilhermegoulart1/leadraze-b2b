@@ -1,9 +1,10 @@
 // frontend/src/components/CampaignWizard.jsx
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Hand, Bot, Users, MapPin } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Hand, Bot, Users, MapPin, Briefcase } from 'lucide-react';
 import AsyncSelect from 'react-select/async';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import TagsInput from './TagsInput';
 
 const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const navigate = useNavigate();
@@ -16,9 +17,11 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const [formData, setFormData] = useState({
     // Step 1: Busca
     type: '', // 'manual' | 'automatic'
-    ai_search_prompt: '',
     selected_location: null, // Location selecionada pelo usuário
     search_filters: null,
+
+    // Campos estruturados para busca automática (simplificado)
+    manual_job_titles: [], // Apenas cargos
 
     // Step 2: Coleta
     name: '',
@@ -75,8 +78,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       return;
     }
 
-    if (!formData.ai_search_prompt || formData.ai_search_prompt.trim().length < 20) {
-      setError('Descreva o perfil desejado com mais detalhes (mínimo 20 caracteres)');
+    // Validar se os cargos foram preenchidos
+    if (formData.manual_job_titles.length === 0) {
+      setError('Preencha pelo menos um cargo que deseja buscar');
       return;
     }
 
@@ -88,7 +92,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     setError('');
 
     try {
-      const result = await api.generateSearchFilters(formData.ai_search_prompt);
+      // Construir prompt incluindo localização para a IA adaptar ao idioma/contexto correto
+      const structuredPrompt = `Localização: ${formData.selected_location.label}. Cargos: ${formData.manual_job_titles.join(', ')}`;
+
+      console.log('📝 Prompt estruturado:', structuredPrompt);
+
+      const result = await api.generateSearchFilters(structuredPrompt);
 
       console.log('🤖 Filtros recebidos da IA:', result.data.filters);
 
@@ -136,7 +145,14 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     setError('');
     if (currentStep === 1.5) {
       setCurrentStep(1);
-      setFormData({ ...formData, type: '', ai_search_prompt: '', selected_location: null, search_filters: null });
+      setFormData({
+        ...formData,
+        type: '',
+        ai_search_prompt: '',
+        selected_location: null,
+        search_filters: null,
+        manual_job_titles: []
+      });
     } else if (currentStep === 2) {
       setCurrentStep(1.5);
     } else {
@@ -205,6 +221,10 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       ai_search_prompt: '',
       selected_location: null,
       search_filters: null,
+      manual_job_titles: [],
+      manual_industries: [],
+      manual_companies: [],
+      manual_keywords: [],
       name: '',
       description: '',
       target_profiles_count: 100,
@@ -334,7 +354,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                       Automática (IA)
                     </h4>
                     <p className="text-sm text-gray-600">
-                      Descreva o perfil desejado e a IA cria os filtros
+                      Escolha cidade e cargos, a IA cria os filtros otimizados
                     </p>
                   </div>
                 </button>
@@ -344,14 +364,14 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
           {/* Step 1.5: Descrição para IA */}
           {currentStep === 1.5 && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
                 <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-600" />
                   Configure sua busca automática
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Selecione a localização e descreva o perfil. A IA vai gerar os filtros de cargo e setor.
+                  Simples e direto: escolha a <strong>cidade</strong> e os <strong>cargos</strong>. A IA faz o resto! 🚀
                 </p>
               </div>
 
@@ -388,26 +408,25 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 </p>
               </div>
 
-              {/* AI Prompt */}
+              {/* Cargos */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descrição do perfil desejado *
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  Cargos *
                 </label>
-                <textarea
-                  value={formData.ai_search_prompt}
-                  onChange={(e) => setFormData({ ...formData, ai_search_prompt: e.target.value })}
-                  placeholder="Ex: Quero encontrar CEOs, Diretores e Fundadores de startups de tecnologia que trabalhem com SaaS B2B, especialmente nas áreas de vendas, marketing e automação."
-                  rows={5}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                <TagsInput
+                  tags={formData.manual_job_titles}
+                  onChange={(tags) => setFormData({ ...formData, manual_job_titles: tags })}
+                  placeholder="Ex: CEO, Diretor, Gerente, Fundador..."
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.ai_search_prompt.length} caracteres (mínimo 20)
+                  Digite os cargos que deseja buscar e pressione vírgula ou Enter para adicionar
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Dica:</strong> Seja específico sobre cargos, indústrias e tipo de empresa. A IA vai gerar automaticamente os melhores filtros de busca focando em decisores.
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-sm text-purple-800">
+                  <strong>✨ Como funciona:</strong> Você define a cidade e os cargos, e nossa IA expande e otimiza os filtros automaticamente para encontrar os melhores perfis.
                 </p>
               </div>
             </div>

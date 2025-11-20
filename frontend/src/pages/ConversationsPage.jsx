@@ -127,6 +127,30 @@ const ConversationsPage = () => {
     }
   };
 
+  const handleCloseConversation = async (conversationId) => {
+    try {
+      await api.closeConversation(conversationId);
+
+      // Recarregar conversas e estatísticas após fechar
+      loadConversations();
+      loadStats();
+    } catch (error) {
+      console.error('Erro ao fechar conversa:', error);
+    }
+  };
+
+  const handleReopenConversation = async (conversationId) => {
+    try {
+      await api.reopenConversation(conversationId, 'ai_active');
+
+      // Recarregar conversas e estatísticas após reabrir
+      loadConversations();
+      loadStats();
+    } catch (error) {
+      console.error('Erro ao reabrir conversa:', error);
+    }
+  };
+
   return (
     <div className="flex h-full bg-gray-100">
       {/* Sidebar - Lista de Conversas */}
@@ -140,6 +164,7 @@ const ConversationsPage = () => {
         onStatusFilterChange={setStatusFilter}
         stats={stats}
         onDeleteConversation={handleDeleteConversation}
+        onCloseConversation={handleCloseConversation}
       />
 
       {/* Chat Area - Centro */}
@@ -148,6 +173,10 @@ const ConversationsPage = () => {
         onToggleDetails={handleToggleDetailsPanel}
         showDetailsPanel={showDetailsPanel}
         onConversationRead={handleConversationRead}
+        onConversationClosed={() => {
+          loadConversations();
+          loadStats();
+        }}
       />
 
       {/* Details Panel - Direita (opcional) */}

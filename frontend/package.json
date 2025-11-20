@@ -1,7 +1,7 @@
 {
-  "name": "leadraze-frontend",
+  "name": "getraze-frontend",
   "version": "1.0.0",
-  "description": "LeadRaze - B2B Lead Generation Platform Frontend",
+  "description": "GetRaze - B2B Lead Generation Platform Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

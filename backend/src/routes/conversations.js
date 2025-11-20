@@ -57,4 +57,14 @@ router.patch('/:id/status', conversationController.updateStatus);
 // Marcar como lida
 router.post('/:id/mark-read', conversationController.markAsRead);
 
+// ================================
+// FECHAR/REABRIR CONVERSA
+// ================================
+
+// Fechar conversa
+router.post('/:id/close', conversationController.closeConversation);
+
+// Reabrir conversa
+router.post('/:id/reopen', conversationController.reopenConversation);
+
 module.exports = router;

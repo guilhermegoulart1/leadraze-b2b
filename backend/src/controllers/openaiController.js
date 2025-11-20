@@ -20,6 +20,13 @@ const generateSearchFilters = async (req, res) => {
 DESCRIÇÃO DO PERFIL IDEAL:
 "${description}"
 
+⚠️ IMPORTANTE - ADAPTAÇÃO DE IDIOMA:
+- Se a localização mencionada for de um país de língua ESPANHOLA (ex: Paraguay, Argentina, México, Espanha, etc.), gere TODOS os filtros em ESPANHOL
+- Se for de língua INGLESA (ex: USA, UK, Canada), gere em INGLÊS
+- Se for PORTUGAL, use português de Portugal
+- Caso contrário, use português brasileiro
+- Adapte keywords, industries e job_titles ao idioma e contexto cultural do país
+
 Gere filtros de busca otimizados para LinkedIn Classic (gratuito) no formato JSON.
 
 FILTROS DISPONÍVEIS:
@@ -42,18 +49,25 @@ REGRAS CRÍTICAS PARA PROSPECÇÃO B2B:
 
 2. INDUSTRIES (altamente recomendado):
    - Liste 2-4 indústrias/setores relevantes
-   - Use nomes em PORTUGUÊS
-   - Seja específico: "Tecnologia da Informação", "Saúde", "Serviços Financeiros"
+   - Use nomes no IDIOMA APROPRIADO ao país da localização
+   - Seja específico: "Tecnologia da Informação", "Saúde", "Serviços Financeiros" (PT) ou "Salud", "Servicios Médicos" (ES)
    - Evite setores genéricos demais
 
-3. JOB_TITLES (CRÍTICO - foque em decisores):
-   - SEMPRE incluir 8-15 variações de cargos de DECISÃO
-   - Foque em C-Level, VP, Diretores, Gerentes Seniores
-   - Inclua variações: "CEO", "Chief Executive Officer", "Diretor Executivo"
-   - Inclua por área: "Diretor Comercial", "VP de Vendas", "Gerente de Marketing"
-   - EVITE: júnior, assistente, analista, estagiário, trainee
-   - Priorize quem TEM ORÇAMENTO e PODER DE DECISÃO
-   - Inclua variações em português E inglês (CEO, Chief Executive Officer, Presidente)
+3. JOB_TITLES (CRÍTICO):
+
+   ⚠️ DETECÇÃO DE PROFISSÕES ESPECÍFICAS:
+   - SE o usuário mencionar PROFISSÃO específica (médico, advogado, engenheiro, dentista, arquiteto, veterinário, etc.):
+     * SEMPRE inclua a PROFISSÃO em si em 8-10 variações (idioma, gênero, especialização)
+     * Exemplo "médico" → "Médico", "Doctor", "Médica", "Médico General", "Médico Especialista", "Médico Cirujano"
+     * Exemplo "advogado" → "Advogado", "Abogado", "Lawyer", "Advogada", "Abogada"
+     * DEPOIS adicione 5-8 cargos de LIDERANÇA na área: "Director Médico", "Jefe de Medicina", "Gerente de Salud"
+
+   - SE NÃO mencionar profissão específica (busca B2B genérica):
+     * Foque 100% em DECISORES: CEO, CFO, CTO, VP, Diretores, Gerentes Seniores
+     * Combine termos internacionais (CEO, CFO) com traduções locais
+
+   - SEMPRE adapte ao IDIOMA do país
+   - EVITE: júnior, assistente, analista, estagiário, trainee (exceto se explicitamente solicitado)
 
 4. COMPANIES (raramente usar):
    - Deixe VAZIO [] a menos que empresas específicas sejam explicitamente mencionadas
@@ -66,7 +80,7 @@ ESTRATÉGIA DE DECISORES B2B:
 - Para produtos técnicos: inclua tanto decisores técnicos (CTO, Diretor de TI) quanto de negócio (CEO, CFO)
 - Para serviços: inclua decisores operacionais (COO, Diretor de Operações) e financeiros (CFO)
 
-EXEMPLO DE BOM OUTPUT:
+EXEMPLO DE BOM OUTPUT (para Brasil/PT):
 {
   "keywords": "transformação digital, inovação tecnológica, digitalização",
   "industries": ["Tecnologia da Informação", "Serviços Financeiros"],
@@ -76,6 +90,34 @@ EXEMPLO DE BOM OUTPUT:
     "Diretor de Inovação", "VP de Tecnologia",
     "Gerente de TI", "Head de Tecnologia",
     "Diretor de Transformação Digital", "VP de Inovação"
+  ],
+  "companies": []
+}
+
+EXEMPLO PARA PAÍS HISPANO (ex: Paraguay/ES):
+{
+  "keywords": "transformación digital, innovación tecnológica, digitalización",
+  "industries": ["Tecnología de la Información", "Servicios Financieros"],
+  "job_titles": [
+    "CEO", "Chief Executive Officer", "Presidente",
+    "CTO", "Chief Technology Officer", "Director de Tecnología",
+    "Director de Innovación", "VP de Tecnología",
+    "Gerente de TI", "Head de Tecnología",
+    "Director de Transformación Digital", "VP de Innovación"
+  ],
+  "companies": []
+}
+
+EXEMPLO PARA PROFISSÃO ESPECÍFICA (médicos no Paraguay/ES):
+{
+  "keywords": "salud, medicina, atención médica, servicios de salud",
+  "industries": ["Salud", "Servicios Médicos", "Hospitales"],
+  "job_titles": [
+    "Médico", "Doctor", "Médica", "Doctora",
+    "Médico General", "Médico Especialista", "Médico Cirujano",
+    "Médico Clínico", "Médico de Familia", "Médico Internista",
+    "Director Médico", "Jefe de Medicina", "Gerente de Salud",
+    "Coordinador Médico"
   ],
   "companies": []
 }
