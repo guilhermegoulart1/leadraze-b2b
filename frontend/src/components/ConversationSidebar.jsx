@@ -1,8 +1,11 @@
 // frontend/src/components/ConversationSidebar.jsx
 import React from 'react';
 import {
-  Search, Bot, User, Clock, Circle, MessageSquare, Trash2, CheckCircle
+  Search, Bot, User, Clock, MessageSquare, Trash2, CheckCircle, Filter, ChevronDown, UserCircle
 } from 'lucide-react';
+import QuickViewTabs from './QuickViewTabs';
+import AdvancedFiltersPanel from './AdvancedFiltersPanel';
+import ActiveFilterPills from './ActiveFilterPills';
 
 const ConversationSidebar = ({
   conversations = [],
@@ -14,7 +17,17 @@ const ConversationSidebar = ({
   onStatusFilterChange,
   stats,
   onDeleteConversation,
-  onCloseConversation
+  onCloseConversation,
+  // Novos props para filtros avançados
+  showFilters = false,
+  onToggleFilters,
+  advancedFilters,
+  onAdvancedFiltersChange,
+  campaigns = [],
+  tags = [],
+  activeFilters = [],
+  onRemoveFilter,
+  onClearAllFilters
 }) => {
   const formatLastMessageTime = (timestamp) => {
     if (!timestamp) return 'Nunca';
@@ -23,23 +36,45 @@ const ConversationSidebar = ({
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
+    // Se for hoje, mostrar horário
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) {
+      if (diffMins < 1) return 'Agora';
+      if (diffMins < 60) return `${diffMins}m`;
+      // Se foi hoje mas há mais de 1h, mostrar horário completo
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
 
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    // Se foi ontem
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Ontem';
+    }
+
+    // Se foi esta semana
+    if (diffDays < 7) {
+      return `${diffDays}d`;
+    }
+
+    // Se foi este ano, não mostrar o ano
+    if (date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    }
+
+    // Se foi ano passado ou anterior, mostrar ano
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  return (
-    <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 bg-white border-b border-gray-200">
-        <h2 className="text-lg font-bold text-gray-900 mb-3">Conversas</h2>
+  // Calcular contagem de filtros ativos
+  const activeFiltersCount = activeFilters.length;
 
+  return (
+    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
         {/* Search */}
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -48,100 +83,79 @@ const ConversationSidebar = ({
             placeholder="Buscar conversas..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7229f7] focus:border-transparent"
           />
         </div>
 
-        {/* Status Filter */}
-        <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => onStatusFilterChange('all')}
-            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              statusFilter === 'all'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Todas
-          </button>
-          <button
-            onClick={() => onStatusFilterChange('ai_active')}
-            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              statusFilter === 'ai_active'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            IA
-          </button>
-          <button
-            onClick={() => onStatusFilterChange('manual')}
-            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              statusFilter === 'manual'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Manual
-          </button>
-          <button
-            onClick={() => onStatusFilterChange('closed')}
-            className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              statusFilter === 'closed'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Fechadas
-          </button>
+        {/* Quick Views - Pills Horizontais */}
+        <div className="mb-3">
+          <QuickViewTabs
+            activeView={statusFilter}
+            onChange={onStatusFilterChange}
+            stats={stats}
+          />
         </div>
+
+        {/* Barra de Filtros e Contador */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={onToggleFilters}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Filter className="w-4 h-4" />
+            Filtros
+            {activeFiltersCount > 0 && (
+              <span className="px-1.5 py-0.5 bg-[#7229f7] text-white text-xs font-medium rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          <span className="text-xs text-gray-500">
+            {conversations.length} {conversations.length === 1 ? 'conversa' : 'conversas'}
+          </span>
+        </div>
+
+        {/* Painel de Filtros Expansível */}
+        {showFilters && (
+          <div className="mb-3">
+            <AdvancedFiltersPanel
+              filters={advancedFilters}
+              onChange={onAdvancedFiltersChange}
+              campaigns={campaigns}
+              tags={tags}
+              onClear={onClearAllFilters}
+            />
+          </div>
+        )}
+
+        {/* Active Filter Pills */}
+        {activeFiltersCount > 0 && (
+          <div className="mb-3">
+            <ActiveFilterPills
+              filters={activeFilters}
+              onRemove={onRemoveFilter}
+              onClearAll={onClearAllFilters}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Stats Mini */}
-      {stats && (
-        <div className="px-4 py-3 bg-white border-b border-gray-200">
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-gray-600">Total:</span>
-              <span className="font-semibold text-gray-900">{stats.total}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Bot className="w-3.5 h-3.5 text-purple-600" />
-              <span className="text-gray-600">IA:</span>
-              <span className="font-semibold text-gray-900">{stats.by_status?.ai_active || 0}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <User className="w-3.5 h-3.5 text-orange-600" />
-              <span className="text-gray-600">Manual:</span>
-              <span className="font-semibold text-gray-900">{stats.by_status?.manual || 0}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
-              <span className="text-gray-600">Fechadas:</span>
-              <span className="font-semibold text-gray-900">{stats.by_status?.closed || 0}</span>
-            </div>
-            <div className="flex items-center gap-1 col-span-2">
-              <Circle className="w-3.5 h-3.5 text-red-600 fill-red-600" />
-              <span className="text-gray-600">Não lidas:</span>
-              <span className="font-semibold text-gray-900">{stats.unread_conversations || 0}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
         {conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
             <MessageSquare className="w-12 h-12 text-gray-300 mb-3" />
             <p className="text-sm text-gray-600 font-medium">
-              {searchQuery || statusFilter !== 'all'
+              {searchQuery || activeFiltersCount > 0
                 ? 'Nenhuma conversa encontrada'
                 : 'Nenhuma conversa ainda'}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {searchQuery || statusFilter !== 'all'
+              {searchQuery || activeFiltersCount > 0
                 ? 'Tente ajustar os filtros'
                 : 'Conversas aparecerão aqui'}
             </p>
@@ -155,8 +169,6 @@ const ConversationSidebar = ({
                 className={`group px-4 py-3 cursor-pointer transition-all ${
                   selectedId === conversation.id
                     ? 'bg-purple-50 border-l-4 border-purple-600'
-                    : conversation.unread_count > 0
-                    ? 'bg-blue-50 hover:bg-blue-100'
                     : 'bg-white hover:bg-gray-50'
                 }`}
               >
@@ -184,8 +196,8 @@ const ConversationSidebar = ({
                           {conversation.lead_name}
                         </h3>
                         {conversation.unread_count > 0 && (
-                          <span className="px-1.5 py-0.5 bg-blue-600 text-white text-xs font-medium rounded-full flex-shrink-0">
-                            {conversation.unread_count}
+                          <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex-shrink-0 min-w-[18px] h-[18px] flex items-center justify-center shadow-sm">
+                            {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
                           </span>
                         )}
                         {/* Tags - TODO: buscar do backend */}
@@ -228,25 +240,42 @@ const ConversationSidebar = ({
                     )}
 
                     <div className="flex items-center justify-between">
-                      {/* AI Status Badge */}
-                      <div
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                          conversation.status === 'ai_active'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {conversation.status === 'ai_active' ? (
-                          <>
-                            <Bot className="w-3 h-3" />
-                            IA
-                          </>
-                        ) : (
-                          <>
-                            <User className="w-3 h-3" />
-                            Manual
-                          </>
-                        )}
+                      <div className="flex items-center gap-1.5">
+                        {/* AI Status Badge */}
+                        <div
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                            conversation.status === 'ai_active'
+                              ? 'bg-purple-50 text-[#7229f7]'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {conversation.status === 'ai_active' ? (
+                            <>
+                              <Bot className="w-3 h-3" />
+                              IA
+                            </>
+                          ) : (
+                            <>
+                              <User className="w-3 h-3" />
+                              Manual
+                            </>
+                          )}
+                        </div>
+
+                        {/* Assignment Badge */}
+                        <div
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                            conversation.assigned_user_name
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                          title={conversation.assigned_user_name || 'Não atribuída'}
+                        >
+                          <UserCircle className="w-3 h-3" />
+                          <span className="truncate max-w-[80px]">
+                            {conversation.assigned_user_name || 'Não atribuída'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Actions (visible on hover) */}

@@ -59,6 +59,7 @@ const getBehavioralProfiles = async (req, res) => {
 const createAIAgent = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       name,
       products_services,
@@ -85,8 +86,10 @@ const createAIAgent = async (req, res) => {
       .filter(v => initial_approach && initial_approach.includes(v.variable))
       .map(v => v.variable);
 
+    // MULTI-TENANCY: Include account_id when creating AI agent
     const agent = await db.insert('ai_agents', {
       user_id: userId,
+      account_id: accountId,
       name,
       description: `Agente ${profile.name} para ${products_services}`,
       products_services,
@@ -111,11 +114,15 @@ const createAIAgent = async (req, res) => {
 
 const getAIAgents = async (req, res) => {
   try {
-    const agents = await db.findMany('ai_agents', { user_id: req.user.id }, {
-      orderBy: 'created_at DESC'
-    });
+    const accountId = req.user.account_id;
 
-    const parsed = agents.map(a => ({
+    // MULTI-TENANCY: Filter by account_id
+    const agents = await db.query(
+      'SELECT * FROM ai_agents WHERE account_id = $1 ORDER BY created_at DESC',
+      [accountId]
+    );
+
+    const parsed = agents.rows.map(a => ({
       ...a,
       linkedin_variables: typeof a.linkedin_variables === 'string'
         ? JSON.parse(a.linkedin_variables)
@@ -130,9 +137,19 @@ const getAIAgents = async (req, res) => {
 
 const getAIAgent = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
 
+    // MULTI-TENANCY: Filter by account_id
+    const result = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = result.rows[0];
     agent.linkedin_variables = typeof agent.linkedin_variables === 'string'
       ? JSON.parse(agent.linkedin_variables)
       : agent.linkedin_variables;
@@ -144,8 +161,17 @@ const getAIAgent = async (req, res) => {
 
 const updateAIAgent = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
+
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
 
     const updated = await db.update('ai_agents', req.body, { id: req.params.id });
     updated.linkedin_variables = typeof updated.linkedin_variables === 'string'
@@ -160,12 +186,22 @@ const updateAIAgent = async (req, res) => {
 
 const deleteAIAgent = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
 
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    // Check if agent is in use (within same account)
     const campaigns = await db.query(
-      'SELECT COUNT(*) as count FROM campaigns WHERE ai_agent_id = $1 AND status = $2',
-      [req.params.id, 'active']
+      'SELECT COUNT(*) as count FROM campaigns WHERE ai_agent_id = $1 AND account_id = $2 AND status = $3',
+      [req.params.id, accountId, 'active']
     );
 
     if (campaigns.rows[0].count > 0) {
@@ -181,9 +217,19 @@ const deleteAIAgent = async (req, res) => {
 
 const testAIAgent = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
 
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = agentCheck.rows[0];
     const { message } = req.body;
     if (!message) throw new ValidationError('Mensagem de teste obrigatória');
 
@@ -202,9 +248,19 @@ const testAIAgent = async (req, res) => {
 // Testar mensagem inicial do agente
 const testAIAgentInitialMessage = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
 
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = agentCheck.rows[0];
     const { lead_data } = req.body;
 
     const aiResponseService = require('../services/aiResponseService');
@@ -227,9 +283,19 @@ const testAIAgentInitialMessage = async (req, res) => {
 // Testar resposta do agente
 const testAIAgentResponse = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
 
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = agentCheck.rows[0];
     const { message, conversation_history = [], lead_data = {} } = req.body;
 
     if (!message) {
@@ -263,13 +329,25 @@ const testAIAgentResponse = async (req, res) => {
 
 const cloneAIAgent = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
 
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = agentCheck.rows[0];
     const { id, created_at, updated_at, ...agentData } = agent;
 
+    // MULTI-TENANCY: Ensure account_id is preserved in clone
     const cloned = await db.insert('ai_agents', {
       ...agentData,
+      account_id: accountId,
       name: `${agent.name} (Cópia)`,
       is_active: false
     });
@@ -282,8 +360,19 @@ const cloneAIAgent = async (req, res) => {
 
 const getAIAgentStats = async (req, res) => {
   try {
-    const agent = await db.findOne('ai_agents', { id: req.params.id, user_id: req.user.id });
-    if (!agent) throw new NotFoundError('Agente não encontrado');
+    const accountId = req.user.account_id;
+
+    // MULTI-TENANCY: Filter by account_id
+    const agentCheck = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [req.params.id, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = agentCheck.rows[0];
 
     // TODO: Implementar estatísticas reais
     sendSuccess(res, {

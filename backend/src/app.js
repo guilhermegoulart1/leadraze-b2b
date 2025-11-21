@@ -100,8 +100,12 @@ app.get('/api', (req, res) => {
       profiles: '/api/profiles',
       campaigns: '/api/campaigns',
       leads: '/api/leads',
+      contacts: '/api/contacts',
       conversations: '/api/conversations',
-      analytics: '/api/analytics'
+      analytics: '/api/analytics',
+      users: '/api/users',
+      permissions: '/api/permissions',
+      sectors: '/api/sectors'
     }
   });
 });
@@ -192,6 +196,71 @@ try {
   console.log('✅ Unipile routes loaded');
 } catch (error) {
   console.error('❌ Error loading Unipile routes:', error.message);
+}
+
+try {
+  app.use('/api/users', require('./routes/users'));
+  console.log('✅ User management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading user routes:', error.message);
+}
+
+try {
+  app.use('/api/permissions', require('./routes/permissions'));
+  console.log('✅ Permissions management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading permissions routes:', error.message);
+}
+
+try {
+  app.use('/api/sectors', require('./routes/sectors'));
+  console.log('✅ Sectors management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading sectors routes:', error.message);
+}
+
+try {
+  app.use('/api/contacts', require('./routes/contacts'));
+  console.log('✅ Contacts management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading contacts routes:', error.message);
+}
+
+// ================================
+// BULL BOARD (Queue Monitoring Dashboard)
+// ================================
+
+try {
+  const { createBullBoard } = require('@bull-board/api');
+  const { BullAdapter } = require('@bull-board/api/bullAdapter');
+  const { ExpressAdapter } = require('@bull-board/express');
+  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue } = require('./queues');
+
+  // Create Express adapter for Bull Board
+  const serverAdapter = new ExpressAdapter();
+  serverAdapter.setBasePath('/admin/queues');
+
+  // Create Bull Board with all queues
+  createBullBoard({
+    queues: [
+      new BullAdapter(webhookQueue),
+      new BullAdapter(campaignQueue),
+      new BullAdapter(bulkCollectionQueue),
+      new BullAdapter(conversationSyncQueue)
+    ],
+    serverAdapter
+  });
+
+  // Mount Bull Board (without auth for now - add authenticate middleware later)
+  // TODO: Add authentication: app.use('/admin/queues', authenticate, serverAdapter.getRouter());
+  app.use('/admin/queues', serverAdapter.getRouter());
+
+  console.log('✅ Bull Board dashboard loaded at /admin/queues');
+  console.log('   Monitoring queues: webhooks, campaigns, bulk-collection, conversation-sync');
+  console.log('   ⚠️  Dashboard is currently public - add authentication in production');
+} catch (error) {
+  console.error('❌ Error loading Bull Board:', error.message);
+  console.error('   Queue monitoring dashboard will not be available');
 }
 
 // ================================

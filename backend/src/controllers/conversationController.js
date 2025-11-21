@@ -8,6 +8,26 @@ const {
   ForbiddenError,
   UnipileError
 } = require('../utils/errors');
+const { getAccessibleSectorIds } = require('../middleware/permissions');
+
+// ================================
+// HELPER: Build sector filter for queries
+// ================================
+async function buildSectorFilter(userId, accountId, paramIndex = 4) {
+  const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
+
+  if (accessibleSectorIds.length > 0) {
+    return {
+      filter: `AND (conv.sector_id = ANY($${paramIndex}) OR conv.sector_id IS NULL)`,
+      params: [accessibleSectorIds]
+    };
+  } else {
+    return {
+      filter: 'AND conv.sector_id IS NULL',
+      params: []
+    };
+  }
+}
 
 // ================================
 // 1. LISTAR CONVERSAS
@@ -15,6 +35,7 @@ const {
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       status,
       campaign_id,
@@ -26,10 +47,24 @@ const getConversations = async (req, res) => {
 
     console.log(`📋 Listando conversas do usuário ${userId}`);
 
-    // Construir query
-    let whereConditions = ['camp.user_id = $1'];
-    let queryParams = [userId];
-    let paramIndex = 2;
+    // Get accessible sectors for this user
+    const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
+
+    // Construir query - MULTI-TENANCY: Filter by account_id AND sector access
+    let whereConditions = ['camp.account_id = $1', 'camp.user_id = $2'];
+    let queryParams = [accountId, userId];
+    let paramIndex = 3;
+
+    // SECTOR FILTER: User can only see conversations from their accessible sectors
+    // Include conversations without sector (NULL) for backward compatibility
+    if (accessibleSectorIds.length > 0) {
+      whereConditions.push(`(conv.sector_id = ANY($${paramIndex}) OR conv.sector_id IS NULL)`);
+      queryParams.push(accessibleSectorIds);
+      paramIndex++;
+    } else {
+      // User has no sectors assigned, can only see conversations without sector
+      whereConditions.push('conv.sector_id IS NULL');
+    }
 
     // Filtro por status (ai_active ou manual)
     if (status) {
@@ -75,12 +110,15 @@ const getConversations = async (req, res) => {
         camp.name as campaign_name,
         la.linkedin_username,
         la.profile_name as account_name,
-        ai.name as ai_agent_name
+        ai.name as ai_agent_name,
+        assigned_user.name as assigned_user_name,
+        assigned_user.email as assigned_user_email
       FROM conversations conv
       INNER JOIN leads l ON conv.lead_id = l.id
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
+      LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
       WHERE ${whereClause}
       ORDER BY conv.last_message_at DESC NULLS LAST, conv.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -126,10 +164,14 @@ const getConversation = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔍 Buscando conversa ${id}`);
 
-    // Buscar conversa
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Buscar conversa - MULTI-TENANCY + SECTOR: Filter by account_id and accessible sectors
     const convQuery = `
       SELECT
         conv.*,
@@ -147,16 +189,19 @@ const getConversation = async (req, res) => {
         camp.id as campaign_id,
         la.linkedin_username,
         la.unipile_account_id,
-        ai.name as ai_agent_name
+        ai.name as ai_agent_name,
+        assigned_user.name as assigned_user_name
       FROM conversations conv
       INNER JOIN leads l ON conv.lead_id = l.id
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const convResult = await db.query(convQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const convResult = await db.query(convQuery, queryParams);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -180,25 +225,31 @@ const getMessages = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { limit = 100 } = req.query;
 
     console.log(`📬 Buscando mensagens da conversa ${id} via Unipile API`);
 
-    // Buscar conversa, conta LinkedIn e lead
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Buscar conversa, conta LinkedIn e lead - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const convQuery = `
       SELECT
         conv.*,
         camp.user_id,
+        camp.account_id,
         la.unipile_account_id,
         l.provider_id as lead_provider_id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN leads l ON conv.lead_id = l.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const convResult = await db.query(convQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const convResult = await db.query(convQuery, queryParams);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -311,6 +362,7 @@ const sendMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { content } = req.body;
 
     console.log(`📨 Enviando mensagem na conversa ${id}`);
@@ -320,16 +372,20 @@ const sendMessage = async (req, res) => {
       throw new ValidationError('Message content is required');
     }
 
-    // Verificar se conversa pertence ao usuário
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar se conversa pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const convQuery = `
-      SELECT conv.*, la.unipile_account_id, camp.user_id
+      SELECT conv.*, la.unipile_account_id, camp.user_id, camp.account_id
       FROM conversations conv
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const convResult = await db.query(convQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const convResult = await db.query(convQuery, queryParams);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -382,18 +438,23 @@ const takeControl = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`👤 Assumindo controle manual da conversa ${id}`);
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -425,18 +486,23 @@ const releaseControl = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🤖 Liberando conversa ${id} para IA`);
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -468,6 +534,7 @@ const updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { status } = req.body;
 
     console.log(`📝 Atualizando status da conversa ${id} para ${status}`);
@@ -477,15 +544,19 @@ const updateStatus = async (req, res) => {
       throw new ValidationError('Invalid status. Must be "ai_active", "manual", or "closed"');
     }
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -533,18 +604,23 @@ const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`👁️ Marcando conversa ${id} como lida`);
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -575,62 +651,96 @@ const markAsRead = async (req, res) => {
 const getConversationStats = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`📊 Buscando estatísticas de conversas do usuário ${userId}`);
 
-    // Stats por status
-    const statusStatsQuery = `
-      SELECT
-        conv.status,
-        COUNT(*) as count
-      FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.user_id = $1
-      GROUP BY conv.status
-    `;
+    // Get accessible sectors for this user
+    const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
 
-    const statusStats = await db.query(statusStatsQuery, [userId]);
+    // Build sector filter for aggregate queries
+    let sectorFilter = '';
+    let sectorParams = [];
+    if (accessibleSectorIds.length > 0) {
+      sectorFilter = 'AND (conv.sector_id = ANY($3) OR conv.sector_id IS NULL)';
+      sectorParams = [accessibleSectorIds];
+    } else {
+      sectorFilter = 'AND conv.sector_id IS NULL';
+    }
+
+    const queryParams = [accountId, userId, ...sectorParams];
 
     // Total de conversas
     const totalQuery = `
       SELECT COUNT(*) as total
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.user_id = $1
+      WHERE camp.account_id = $1 AND camp.user_id = $2 ${sectorFilter}
     `;
+    const totalResult = await db.query(totalQuery, queryParams);
 
-    const totalResult = await db.query(totalQuery, [userId]);
+    // Conversas atribuídas ao usuário atual (não fechadas)
+    const mineQuery = `
+      SELECT COUNT(*) as count
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE camp.account_id = $1
+        AND camp.user_id = $2
+        AND conv.assigned_user_id = $2
+        AND conv.status != 'closed'
+        ${sectorFilter}
+    `;
+    const mineResult = await db.query(mineQuery, queryParams);
+
+    // Conversas não atribuídas (não fechadas)
+    const unassignedQuery = `
+      SELECT COUNT(*) as count
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE camp.account_id = $1
+        AND camp.user_id = $2
+        AND conv.assigned_user_id IS NULL
+        AND conv.status != 'closed'
+        ${sectorFilter}
+    `;
+    const unassignedResult = await db.query(unassignedQuery, queryParams);
+
+    // Conversas fechadas
+    const closedQuery = `
+      SELECT COUNT(*) as count
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE camp.account_id = $1
+        AND camp.user_id = $2
+        AND conv.status = 'closed'
+        ${sectorFilter}
+    `;
+    const closedResult = await db.query(closedQuery, queryParams);
 
     // Conversas com mensagens não lidas
     const unreadQuery = `
       SELECT COUNT(*) as unread_conversations
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.user_id = $1 AND conv.unread_count > 0
+      WHERE camp.account_id = $1 AND camp.user_id = $2 AND conv.unread_count > 0 ${sectorFilter}
     `;
-
-    const unreadResult = await db.query(unreadQuery, [userId]);
+    const unreadResult = await db.query(unreadQuery, queryParams);
 
     // Organizar dados
     const stats = {
-      total: parseInt(totalResult.rows[0].total),
-      by_status: {
-        ai_active: 0,
-        manual: 0,
-        closed: 0
-      },
+      mine: parseInt(mineResult.rows[0].count),
+      all: parseInt(totalResult.rows[0].total),
+      unassigned: parseInt(unassignedResult.rows[0].count),
+      closed: parseInt(closedResult.rows[0].count),
       unread_conversations: parseInt(unreadResult.rows[0].unread_conversations)
     };
 
-    statusStats.rows.forEach(row => {
-      stats.by_status[row.status] = parseInt(row.count);
-    });
-
-    console.log('✅ Estatísticas calculadas');
+    console.log('✅ Estatísticas calculadas:', stats);
 
     sendSuccess(res, stats);
 
   } catch (error) {
+    console.error('❌ Erro ao calcular estatísticas:', error);
     sendError(res, error, error.statusCode || 500);
   }
 };
@@ -642,18 +752,23 @@ const closeConversation = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔒 Fechando conversa ${id}`);
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -685,6 +800,7 @@ const reopenConversation = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { status = 'ai_active' } = req.body;
 
     console.log(`🔓 Reabrindo conversa ${id} com status ${status}`);
@@ -694,15 +810,19 @@ const reopenConversation = async (req, res) => {
       throw new ValidationError('Invalid status. Must be "ai_active" or "manual"');
     }
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -737,18 +857,23 @@ const deleteConversation = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🗑️ Deletando conversa ${id}`);
 
-    // Verificar ownership
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.user_id = $2
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
-    const checkResult = await db.query(checkQuery, [id, userId]);
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
@@ -760,6 +885,140 @@ const deleteConversation = async (req, res) => {
     console.log('✅ Conversa deletada');
 
     sendSuccess(res, null, 'Conversation deleted successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 13. ASSIGN CONVERSATION TO USER
+// ================================
+const assignConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    const accountId = req.user.account_id;
+    const requestingUserId = req.user.id;
+
+    if (!user_id) {
+      throw new ValidationError('user_id é obrigatório');
+    }
+
+    console.log(`📌 Atribuindo conversa ${id} ao usuário ${user_id}`);
+
+    // Verify conversation exists and user has access to it
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
+      requestingUserId,
+      accountId,
+      4
+    );
+
+    const convQuery = `
+      SELECT conv.*
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1
+        AND camp.account_id = $2
+        AND camp.user_id = $3
+        ${sectorFilter}
+    `;
+    const convResult = await db.query(convQuery, [id, accountId, requestingUserId, ...sectorParams]);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversa não encontrada');
+    }
+
+    const conversation = convResult.rows[0];
+
+    // Verify target user exists, belongs to same account, and has access to the sector
+    const userQuery = `
+      SELECT u.id, u.name
+      FROM users u
+      WHERE u.id = $1 AND u.account_id = $2
+    `;
+    const userResult = await db.query(userQuery, [user_id, accountId]);
+
+    if (userResult.rows.length === 0) {
+      throw new NotFoundError('Usuário não encontrado');
+    }
+
+    // If conversation has a sector, verify user has access to it
+    if (conversation.sector_id) {
+      const userSectorQuery = `
+        SELECT 1 FROM user_sectors
+        WHERE user_id = $1 AND sector_id = $2
+      `;
+      const userSectorResult = await db.query(userSectorQuery, [user_id, conversation.sector_id]);
+
+      if (userSectorResult.rows.length === 0) {
+        throw new ForbiddenError('Usuário não tem acesso ao setor desta conversa');
+      }
+    }
+
+    // Assign conversation
+    const updateQuery = `
+      UPDATE conversations
+      SET assigned_user_id = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING *
+    `;
+    const result = await db.query(updateQuery, [user_id, id]);
+
+    console.log(`✅ Conversa atribuída ao usuário ${user_id}`);
+
+    sendSuccess(res, result.rows[0], 'Conversa atribuída com sucesso');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 14. UNASSIGN CONVERSATION
+// ================================
+const unassignConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+    const userId = req.user.id;
+
+    console.log(`📌 Desatribuindo conversa ${id}`);
+
+    // Verify conversation exists and user has access to it
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
+      userId,
+      accountId,
+      4
+    );
+
+    const convQuery = `
+      SELECT conv.*
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1
+        AND camp.account_id = $2
+        AND camp.user_id = $3
+        ${sectorFilter}
+    `;
+    const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversa não encontrada');
+    }
+
+    // Unassign conversation
+    const updateQuery = `
+      UPDATE conversations
+      SET assigned_user_id = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await db.query(updateQuery, [id]);
+
+    console.log(`✅ Conversa desatribuída`);
+
+    sendSuccess(res, result.rows[0], 'Conversa desatribuída com sucesso');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -778,5 +1037,7 @@ module.exports = {
   getConversationStats,
   closeConversation,
   reopenConversation,
-  deleteConversation
+  deleteConversation,
+  assignConversation,
+  unassignConversation
 };

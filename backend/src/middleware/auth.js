@@ -1,8 +1,9 @@
 // backend/src/middleware/auth.js
 const { verifyToken } = require('../utils/helpers');
 const { UnauthorizedError } = require('../utils/errors');
+const db = require('../config/database');
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
@@ -12,9 +13,25 @@ const authenticateToken = (req, res, next) => {
     }
 
     const decoded = verifyToken(token);
+
+    // Fetch full user data including account_id and role
+    const userResult = await db.query(
+      'SELECT id, email, name, role, account_id FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      throw new UnauthorizedError('User not found');
+    }
+
+    const user = userResult.rows[0];
+
     req.user = {
-      id: decoded.userId,
-      email: decoded.email
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      account_id: user.account_id
     };
 
     next();
@@ -25,7 +42,7 @@ const authenticateToken = (req, res, next) => {
         message: 'Invalid token'
       });
     }
-    
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,

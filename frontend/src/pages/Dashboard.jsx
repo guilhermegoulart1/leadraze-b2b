@@ -1,7 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { Users, UserPlus, CheckCircle, MessageCircle } from 'lucide-react';
+import {
+  Users,
+  UserPlus,
+  CheckCircle,
+  MessageCircle,
+  TrendingUp,
+  Target,
+  Clock,
+  Zap,
+  Award,
+  Calendar,
+  Mail,
+  BarChart3
+} from 'lucide-react';
 import StatCard from '../components/StatCard';
-import CampaignCard from '../components/CampaignCard';
+import MetricCard from '../components/MetricCard';
+import TopListCard from '../components/TopListCard';
+import ProgressMetric from '../components/ProgressMetric';
+import FunnelChart from '../components/charts/FunnelChart';
+import PerformanceChart from '../components/charts/PerformanceChart';
+import DonutChart from '../components/charts/DonutChart';
+import BarChart from '../components/charts/BarChart';
 import api from '../services/api';
 
 const Dashboard = () => {
@@ -16,7 +35,7 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await api.getDashboard(30);
-      
+
       if (response.success) {
         setDashboardData(response.data);
       }
@@ -31,204 +50,405 @@ const Dashboard = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7229f7] mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const data = dashboardData || {
-    totals: {
-      leads: 1847,
-      qualified_leads: 87,
-      conversations: 45,
-      campaigns: 8
+  // Mock data - substituir com dados reais depois
+  const mockData = {
+    // Main metrics
+    metrics: {
+      totalLeads: 2847,
+      totalLeadsChange: '+12%',
+      invitesSent: 1523,
+      invitesSentChange: '+8%',
+      accepted: 892,
+      acceptedChange: '+15%',
+      qualified: 234,
+      qualifiedChange: '+23%',
+      activeConversations: 156,
+      conversationsChange: '+18%',
+      responseRate: 67.8,
+      responseRateChange: '+5%',
+      avgResponseTime: '2.3h',
+      avgResponseTimeChange: '-12%',
+      conversionRate: 26.2,
+      conversionRateChange: '+8%'
     },
-    pipeline: {
-      leads: 890,
-      invite_sent: 412,
-      accepted: 523,
-      qualifying: 156,
-      qualified: 87,
-      discarded: 0
+
+    // Funnel data
+    funnel: {
+      leads: 2847,
+      invites_sent: 1523,
+      accepted: 892,
+      qualifying: 412,
+      qualified: 234
     },
-    conversion_rates: {
-      invitation_to_acceptance: 28.3,
-      acceptance_to_qualified: 16.6
+
+    // Performance over time
+    performanceData: [
+      { date: '01 Nov', leads: 180, qualified: 42, conversations: 28 },
+      { date: '05 Nov', leads: 245, qualified: 58, conversations: 35 },
+      { date: '10 Nov', leads: 320, qualified: 71, conversations: 48 },
+      { date: '15 Nov', leads: 289, qualified: 65, conversations: 52 },
+      { date: '20 Nov', leads: 412, qualified: 89, conversations: 67 },
+      { date: '25 Nov', leads: 478, qualified: 103, conversations: 78 },
+      { date: 'Hoje', leads: 523, qualified: 124, conversations: 89 }
+    ],
+
+    // Campaign performance
+    topCampaigns: [
+      { name: 'Tech Leaders Q4', value: 89, subtitle: '234 leads • 38% conversão', trend: 12 },
+      { name: 'Healthcare Decision Makers', value: 67, subtitle: '189 leads • 35% conversão', trend: 8 },
+      { name: 'Finance Executives', value: 45, subtitle: '156 leads • 29% conversão', trend: -3 },
+      { name: 'SaaS Founders', value: 33, subtitle: '124 leads • 27% conversão', trend: 15 },
+      { name: 'E-commerce Directors', value: 28, subtitle: '98 leads • 29% conversão', trend: 5 }
+    ],
+
+    // Lead status distribution
+    leadStatusDistribution: [
+      { name: 'Novo', value: 847 },
+      { name: 'Contatado', value: 631 },
+      { name: 'Em Conversa', value: 412 },
+      { name: 'Qualificando', value: 412 },
+      { name: 'Qualificado', value: 234 },
+      { name: 'Perdido', value: 311 }
+    ],
+
+    // Lead profile - Seniority
+    leadBySeniority: [
+      { name: 'C-Level', value: 456 },
+      { name: 'VP/Director', value: 892 },
+      { name: 'Manager', value: 1024 },
+      { name: 'Specialist', value: 475 }
+    ],
+
+    // Lead profile - Industry
+    leadByIndustry: [
+      { name: 'Technology', value: 1248 },
+      { name: 'Healthcare', value: 782 },
+      { name: 'Finance', value: 654 },
+      { name: 'E-commerce', value: 523 },
+      { name: 'Manufacturing', value: 412 },
+      { name: 'Others', value: 228 }
+    ],
+
+    // Conversation metrics
+    conversationMetrics: {
+      totalMessages: 4523,
+      aiMessages: 2847,
+      leadMessages: 1676,
+      avgMessagesPerLead: 5.2,
+      avgResponseTime: '2h 18min',
+      responseRate: 67.8
+    },
+
+    // Most engaged leads
+    mostEngagedLeads: [
+      { name: 'Carlos Mendes', value: 24, subtitle: 'Tech Leader • Respondeu 12x' },
+      { name: 'Ana Silva', value: 21, subtitle: 'Healthcare Director • Respondeu 10x' },
+      { name: 'Roberto Santos', value: 18, subtitle: 'Finance VP • Respondeu 9x' },
+      { name: 'Marina Costa', value: 16, subtitle: 'E-commerce Manager • Respondeu 8x' },
+      { name: 'Felipe Rodrigues', value: 14, subtitle: 'SaaS Founder • Respondeu 7x' }
+    ],
+
+    // Response time distribution
+    responseTimeData: [
+      { name: '< 1h', value: 234 },
+      { name: '1-3h', value: 412 },
+      { name: '3-6h', value: 289 },
+      { name: '6-12h', value: 156 },
+      { name: '12-24h', value: 89 },
+      { name: '> 24h', value: 45 }
+    ],
+
+    // Monthly goals
+    monthlyGoals: {
+      leads: { current: 2847, target: 3000 },
+      qualified: { current: 234, target: 300 },
+      conversations: { current: 156, target: 200 }
     }
   };
 
   return (
-    <div className="p-6">
-      
-      {/* Page Title */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-        <p className="text-gray-500 mt-1">Visão geral da sua operação de vendas</p>
+    <div className="p-6 bg-[#fcfcfc] min-h-screen">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+        <p className="text-gray-600">Visão geral completa da sua operação de vendas B2B</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Main Metrics Grid - 4 columns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <StatCard
           title="Total de Leads"
-          value={data.totals.leads.toLocaleString()}
-          subtitle="+156 esta semana"
+          value={mockData.metrics.totalLeads.toLocaleString()}
+          subtitle="Últimos 30 dias"
           icon={Users}
           iconColor="purple"
           trend="up"
-          trendValue="+12%"
+          trendValue={mockData.metrics.totalLeadsChange}
         />
-        
+
         <StatCard
           title="Convites Aceitos"
-          value={data.pipeline.accepted}
-          subtitle={`Taxa: ${data.conversion_rates.invitation_to_acceptance}%`}
+          value={mockData.metrics.accepted.toLocaleString()}
+          subtitle={`${((mockData.metrics.accepted / mockData.metrics.invitesSent) * 100).toFixed(1)}% taxa de aceitação`}
           icon={UserPlus}
           iconColor="blue"
           trend="up"
-          trendValue="+8%"
+          trendValue={mockData.metrics.acceptedChange}
         />
-        
+
         <StatCard
           title="Leads Qualificados"
-          value={data.totals.qualified_leads}
-          subtitle={`${data.conversion_rates.acceptance_to_qualified}% dos aceitos`}
+          value={mockData.metrics.qualified}
+          subtitle={`${((mockData.metrics.qualified / mockData.metrics.accepted) * 100).toFixed(1)}% dos aceitos`}
           icon={CheckCircle}
           iconColor="green"
           trend="up"
-          trendValue="+15%"
+          trendValue={mockData.metrics.qualifiedChange}
         />
-        
+
         <StatCard
           title="Conversas Ativas"
-          value={data.totals.conversations}
+          value={mockData.metrics.activeConversations}
           subtitle="IA respondendo 24/7"
           icon={MessageCircle}
           iconColor="yellow"
+          trend="up"
+          trendValue={mockData.metrics.conversationsChange}
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        
-        {/* Conversion Funnel */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Funil de Conversão</h3>
-          <div className="space-y-3">
-            {[
-              { label: 'Leads', count: data.pipeline.leads, color: 'gray', percent: 100 },
-              { label: 'Convites Enviados', count: data.pipeline.invite_sent, color: 'blue', percent: 67 },
-              { label: 'Convites Aceitos', count: data.pipeline.accepted, color: 'yellow', percent: 28 },
-              { label: 'Qualificando', count: data.pipeline.qualifying, color: 'purple', percent: 30 },
-              { label: 'Qualificados', count: data.pipeline.qualified, color: 'green', percent: 56 },
-            ].map((stage, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 bg-${stage.color}-500 rounded-full`}></div>
-                    <span className="font-medium text-gray-700">{stage.label}</span>
-                  </div>
-                  <span className="font-bold text-gray-900">{stage.count}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-8 relative overflow-hidden">
-                  <div 
-                    className={`absolute inset-0 bg-gradient-to-r from-${stage.color}-400 to-${stage.color}-600 rounded-full transition-all duration-500`}
-                    style={{ width: `${stage.percent}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Secondary Metrics - 4 columns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <MetricCard
+          title="Taxa de Resposta"
+          value={mockData.metrics.responseRate}
+          suffix="%"
+          icon={TrendingUp}
+          trend="up"
+          trendValue={mockData.metrics.responseRateChange}
+          subtitle="Leads que respondem às mensagens"
+        />
 
-        {/* Performance Chart Placeholder */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Semanal</h3>
-          <div className="flex items-center justify-center h-64 text-gray-400">
-            <p>Gráfico de performance - Integrar Recharts</p>
-          </div>
-        </div>
+        <MetricCard
+          title="Tempo Médio de Resposta"
+          value={mockData.metrics.avgResponseTime}
+          icon={Clock}
+          trend="up"
+          trendValue={mockData.metrics.avgResponseTimeChange}
+          subtitle="Tempo até primeira resposta"
+        />
+
+        <MetricCard
+          title="Taxa de Conversão Geral"
+          value={mockData.metrics.conversionRate}
+          suffix="%"
+          icon={Target}
+          trend="up"
+          trendValue={mockData.metrics.conversionRateChange}
+          subtitle="Leads → Qualificados"
+        />
+
+        <MetricCard
+          title="Convites Enviados"
+          value={mockData.metrics.invitesSent.toLocaleString()}
+          icon={Mail}
+          trend="up"
+          trendValue={mockData.metrics.invitesSentChange}
+          subtitle="LinkedIn connection requests"
+        />
       </div>
 
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Active Campaigns */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
+      {/* Main Charts Row - Funnel + Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Sales Funnel */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900">Campanhas Ativas</h3>
-            <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-lg hover:opacity-90 text-sm font-semibold">
-              + Nova Campanha
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {/* Example Campaign Cards */}
-            <CampaignCard 
-              campaign={{
-                name: 'Campanha SaaS - Tech Leaders',
-                days_ago: 5,
-                linkedin_username: 'João Silva',
-                status: 'active',
-                total_leads: 234,
-                accepted: 89,
-                qualified: 23,
-                ai_agent_name: 'Vendedor B2B Pro'
-              }}
-            />
-            
-            <CampaignCard 
-              campaign={{
-                name: 'Campanha Healthcare - Decision Makers',
-                days_ago: 12,
-                linkedin_username: 'Maria Costa',
-                status: 'active',
-                total_leads: 189,
-                accepted: 67,
-                qualified: 18,
-                ai_agent_name: 'Healthcare Specialist'
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Lead Distribution */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Distribuição de Leads</h3>
-          
-          {/* Donut Chart Placeholder */}
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative w-48 h-48 flex items-center justify-center border-8 border-gray-200 rounded-full">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900">{data.totals.leads}</div>
-                <div className="text-sm text-gray-500">Total</div>
-              </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
+              <p className="text-sm text-gray-500 mt-1">Pipeline completo de vendas</p>
+            </div>
+            <div className="p-2 rounded-lg bg-purple-50">
+              <BarChart3 className="w-5 h-5 text-[#7229f7]" />
             </div>
           </div>
+          <FunnelChart data={mockData.funnel} />
+        </div>
 
-          {/* Legend */}
-          <div className="space-y-3">
-            {[
-              { label: 'Leads', count: data.pipeline.leads, percent: 48, color: 'gray' },
-              { label: 'Convite Enviado', count: data.pipeline.invite_sent, percent: 22, color: 'blue' },
-              { label: 'Qualificando', count: data.pipeline.qualifying, percent: 8, color: 'yellow' },
-              { label: 'Qualificado', count: data.pipeline.qualified, percent: 5, color: 'green' },
-            ].map((item, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-4 h-4 bg-${item.color}-500 rounded`}></div>
-                  <span className="text-sm text-gray-700">{item.label}</span>
-                </div>
-                <span className="text-sm font-bold text-gray-900">
-                  {item.count} ({item.percent}%)
-                </span>
-              </div>
-            ))}
+        {/* Performance Over Time */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Performance ao Longo do Tempo</h3>
+              <p className="text-sm text-gray-500 mt-1">Últimos 30 dias</p>
+            </div>
+            <div className="p-2 rounded-lg bg-purple-50">
+              <TrendingUp className="w-5 h-5 text-[#7229f7]" />
+            </div>
           </div>
+          <PerformanceChart data={mockData.performanceData} type="area" />
         </div>
       </div>
 
+      {/* Distribution Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Lead Status Distribution */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6">Distribuição por Status</h3>
+          <DonutChart
+            data={mockData.leadStatusDistribution}
+            colors={['#7229f7', '#894cf8', '#a06ff9', '#b793fa', '#d4c5fc', '#e8e0fd']}
+          />
+        </div>
+
+        {/* Lead by Seniority */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6">Perfil por Senioridade</h3>
+          <DonutChart
+            data={mockData.leadBySeniority}
+            colors={['#7229f7', '#894cf8', '#a06ff9', '#b793fa']}
+          />
+        </div>
+      </div>
+
+      {/* Campaign Performance + Lead Industry */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Top Campaigns */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Top Campanhas</h3>
+              <p className="text-sm text-gray-500 mt-1">Melhores performers do mês</p>
+            </div>
+            <div className="p-2 rounded-lg bg-purple-50">
+              <Award className="w-5 h-5 text-[#7229f7]" />
+            </div>
+          </div>
+          <TopListCard
+            title=""
+            items={mockData.topCampaigns}
+            valueFormatter={(v) => `${v} qualificados`}
+            showTrend={true}
+          />
+        </div>
+
+        {/* Lead by Industry */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6">Leads por Indústria</h3>
+          <BarChart
+            data={mockData.leadByIndustry}
+            dataKey="value"
+            nameKey="name"
+            color="#7229f7"
+            showValues={true}
+          />
+        </div>
+      </div>
+
+      {/* Conversation Analytics Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Conversation Stats */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-900">Métricas de Conversação</h3>
+            <div className="p-2 rounded-lg bg-purple-50">
+              <MessageCircle className="w-5 h-5 text-[#7229f7]" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+              <span className="text-sm text-gray-600">Total de Mensagens</span>
+              <span className="text-lg font-bold text-gray-900">
+                {mockData.conversationMetrics.totalMessages.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50">
+              <span className="text-sm text-gray-600">Mensagens da IA</span>
+              <span className="text-lg font-bold text-[#7229f7]">
+                {mockData.conversationMetrics.aiMessages.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+              <span className="text-sm text-gray-600">Mensagens de Leads</span>
+              <span className="text-lg font-bold text-gray-900">
+                {mockData.conversationMetrics.leadMessages.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+              <span className="text-sm text-gray-600">Média por Lead</span>
+              <span className="text-lg font-bold text-gray-900">
+                {mockData.conversationMetrics.avgMessagesPerLead} msgs
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Most Engaged Leads */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-900">Leads Mais Engajados</h3>
+            <div className="p-2 rounded-lg bg-purple-50">
+              <Zap className="w-5 h-5 text-[#7229f7]" />
+            </div>
+          </div>
+          <TopListCard
+            title=""
+            items={mockData.mostEngagedLeads}
+            valueFormatter={(v) => `${v} msgs`}
+          />
+        </div>
+
+        {/* Response Time Distribution */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6">Tempo de Resposta</h3>
+          <BarChart
+            data={mockData.responseTimeData}
+            dataKey="value"
+            nameKey="name"
+            color="#894cf8"
+            showValues={true}
+          />
+        </div>
+      </div>
+
+      {/* Monthly Goals */}
+      <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Metas do Mês</h3>
+            <p className="text-sm text-gray-500 mt-1">Progresso em relação aos objetivos mensais</p>
+          </div>
+          <div className="p-2 rounded-lg bg-purple-50">
+            <Calendar className="w-5 h-5 text-[#7229f7]" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ProgressMetric
+            label="Leads Gerados"
+            current={mockData.monthlyGoals.leads.current}
+            target={mockData.monthlyGoals.leads.target}
+            color="#7229f7"
+          />
+          <ProgressMetric
+            label="Leads Qualificados"
+            current={mockData.monthlyGoals.qualified.current}
+            target={mockData.monthlyGoals.qualified.target}
+            color="#894cf8"
+          />
+          <ProgressMetric
+            label="Conversas Ativas"
+            current={mockData.monthlyGoals.conversations.current}
+            target={mockData.monthlyGoals.conversations.target}
+            color="#a06ff9"
+          />
+        </div>
+      </div>
     </div>
   );
 };

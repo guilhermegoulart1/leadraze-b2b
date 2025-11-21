@@ -31,7 +31,19 @@
       "Bash(node check-leads-direct.js:*)",
       "Bash(move check-leads-direct.js backend )",
       "Bash(node:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(timeout 8 npm run dev:*)",
+      "Bash(cmd /c \"taskkill /F /PID 6104 && taskkill /F /PID 7608 && taskkill /F /PID 30384 && taskkill /F /PID 19848 && taskkill /F /PID 34572 && taskkill /F /PID 34996 && taskkill /F /PID 32992 && taskkill /F /PID 28272\")",
+      "Bash(cmd //c \"taskkill /F /PID 26252 & taskkill /F /PID 7608 & taskkill /F /PID 8240 & taskkill /F /PID 19848 & taskkill /F /PID 34888 & taskkill /F /PID 34996 & taskkill /F /PID 16488 & taskkill /F /PID 11420 & taskkill /F /PID 34844\")",
+      "Bash(cmd //c \"taskkill /F /PID 41664\")",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(dir:*)",
+      "Bash(ping:*)",
+      "Bash(cmd /c \"taskkill /F /PID 124156\")",
+      "Bash(cmd /c \"taskkill /F /IM node.exe /T >nul 2>&1 && ping -n 2 127.0.0.1 >nul && cd backend && npm run dev\")",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

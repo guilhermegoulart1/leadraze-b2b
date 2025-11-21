@@ -11,21 +11,34 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const optionsMenuRef = useRef(null);
+  const currentConversationIdRef = useRef(null);
 
   useEffect(() => {
     if (conversationId) {
-      loadConversation();
-      loadMessages();
-      markAsRead(); // Marcar como lida ao abrir
-    } else {
+      // Atualizar ref para rastrear qual conversa deve ser exibida
+      currentConversationIdRef.current = conversationId;
+
+      // Limpar estado anterior ao trocar de conversa
       setConversation(null);
       setMessages([]);
+      setError(null);
+      setLoadingConversation(true);
+
+      loadConversation(conversationId);
+      loadMessages(conversationId);
+      markAsRead(); // Marcar como lida ao abrir
+    } else {
+      currentConversationIdRef.current = null;
+      setConversation(null);
+      setMessages([]);
+      setLoadingConversation(false);
     }
   }, [conversationId]);
 
@@ -49,45 +62,60 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const loadConversation = async () => {
+  const loadConversation = async (id) => {
     try {
-      const response = await api.getConversation(conversationId);
-      if (response.success) {
+      const response = await api.getConversation(id);
+
+      // ✅ Só aplicar resultado se ainda for a conversa selecionada
+      if (response.success && currentConversationIdRef.current === id) {
         setConversation(response.data);
       }
     } catch (error) {
       console.error('Erro ao carregar conversa:', error);
+    } finally {
+      // ✅ Só desativar loading se ainda for a conversa selecionada
+      if (currentConversationIdRef.current === id) {
+        setLoadingConversation(false);
+      }
     }
   };
 
-  const loadMessages = async () => {
+  const loadMessages = async (id) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await api.getMessages(conversationId, { limit: 100 });
+      const response = await api.getMessages(id, { limit: 100 });
 
-      if (response.success) {
-        // ✅ Backend agora busca da Unipile API e retorna já ordenado corretamente
+      // ✅ Só aplicar resultado se ainda for a conversa selecionada
+      if (response.success && currentConversationIdRef.current === id) {
+        // Backend agora busca da Unipile API e retorna já ordenado corretamente
         // (mais antiga primeiro, mais recente embaixo)
         const messagesData = response.data.messages || [];
         setMessages(messagesData);
       }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
-      setError('Falha ao carregar mensagens');
+      // ✅ Só mostrar erro se ainda for a conversa selecionada
+      if (currentConversationIdRef.current === id) {
+        setError('Falha ao carregar mensagens');
+      }
     } finally {
-      setIsLoading(false);
+      // ✅ Só desativar loading se ainda for a conversa selecionada
+      if (currentConversationIdRef.current === id) {
+        setIsLoading(false);
+      }
     }
   };
 
   const markAsRead = async () => {
     try {
       await api.markAsRead(conversationId);
-      // Atualizar conversa local para zerar unread_count
-      if (conversation) {
-        setConversation({ ...conversation, unread_count: 0 });
-      }
+
+      // ✅ NÃO atualizar conversation local aqui para evitar race condition
+      // O loadConversation já traz os dados atualizados
+      // E o onConversationRead notifica o pai para atualizar a lista
+
       // Notificar o componente pai para atualizar a lista
       if (onConversationRead) {
         onConversationRead(conversationId);
@@ -102,7 +130,10 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     try {
       const response = await api.closeConversation(conversationId);
       if (response.success) {
-        setConversation({ ...conversation, status: 'closed', closed_at: new Date().toISOString() });
+        // ✅ Atualizar apenas se ainda for a conversa selecionada
+        if (currentConversationIdRef.current === conversationId && conversation) {
+          setConversation({ ...conversation, status: 'closed', closed_at: new Date().toISOString() });
+        }
         setShowOptionsMenu(false);
         // Notificar o componente pai para atualizar a lista
         if (onConversationClosed) {
@@ -119,7 +150,10 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     try {
       const response = await api.reopenConversation(conversationId, 'ai_active');
       if (response.success) {
-        setConversation({ ...conversation, status: 'ai_active', closed_at: null });
+        // ✅ Atualizar apenas se ainda for a conversa selecionada
+        if (currentConversationIdRef.current === conversationId && conversation) {
+          setConversation({ ...conversation, status: 'ai_active', closed_at: null });
+        }
         setShowOptionsMenu(false);
         // Notificar o componente pai para atualizar a lista
         if (onConversationClosed) {
@@ -179,8 +213,10 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       const newStatus = conversation.status === 'ai_active' ? 'manual' : 'ai_active';
       await api.updateConversationStatus(conversationId, newStatus);
 
-      // Update local state
-      setConversation({ ...conversation, status: newStatus });
+      // ✅ Atualizar apenas se ainda for a conversa selecionada
+      if (currentConversationIdRef.current === conversationId && conversation) {
+        setConversation({ ...conversation, status: newStatus });
+      }
     } catch (error) {
       console.error('Erro ao alternar modo IA:', error);
       setError('Falha ao alternar modo IA');
@@ -198,11 +234,31 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       return '';
     }
 
-    // Formatar hora
-    return date.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+
+    // Se for hoje, mostrar só horário
+    if (isToday) {
+      return date.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Se foi ontem
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return `Ontem às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    // Se foi este ano, mostrar data sem ano
+    if (date.getFullYear() === now.getFullYear()) {
+      return `${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    // Se foi ano passado, mostrar com ano
+    return `${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   const linkifyText = (text) => {
@@ -324,18 +380,27 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
           {/* Info */}
           <div className="min-w-0 flex-1">
-            <h2 className="font-semibold text-gray-900 truncate">
-              {conversation?.lead_name}
-            </h2>
-            <div className="flex items-center gap-1 text-sm text-gray-600">
-              <span className="truncate">{conversation?.lead_title}</span>
-              {conversation?.lead_company && (
-                <>
-                  <span>•</span>
-                  <span className="truncate">{conversation?.lead_company}</span>
-                </>
-              )}
-            </div>
+            {loadingConversation ? (
+              <>
+                <div className="h-5 bg-gray-200 rounded animate-pulse w-32 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-48"></div>
+              </>
+            ) : (
+              <>
+                <h2 className="font-semibold text-gray-900 truncate">
+                  {conversation?.lead_name || 'Carregando...'}
+                </h2>
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <span className="truncate">{conversation?.lead_title}</span>
+                  {conversation?.lead_company && (
+                    <>
+                      <span>•</span>
+                      <span className="truncate">{conversation?.lead_company}</span>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

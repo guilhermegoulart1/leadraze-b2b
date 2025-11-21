@@ -1,24 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Search, Award, BarChart3, MessageCircle,
   Bot, Lightbulb, Settings, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
-  ChevronDown, Users
+  ChevronDown, Users, Shield, Lock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, isSupervisor, hasPermission } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(3); // Mock data
-  const [unreadNotifications, setUnreadNotifications] = useState(2); // Mock data
+  const [unreadMessages, setUnreadMessages] = useState(0); // Real data from API
+  const [unreadNotifications, setUnreadNotifications] = useState(0); // System notifications
 
   const isActive = (path) => location.pathname === path;
+
+  // ✅ Carregar estatísticas de conversas não lidas
+  // Atualiza ao montar o componente e quando navega para /conversations
+  useEffect(() => {
+    loadConversationStats();
+  }, []);
+
+  // Atualizar quando navega para a página de conversas
+  useEffect(() => {
+    if (location.pathname === '/conversations') {
+      loadConversationStats();
+    }
+  }, [location.pathname]);
+
+  const loadConversationStats = async () => {
+    try {
+      const response = await api.getConversationStats();
+      if (response.success) {
+        setUnreadMessages(response.data.unread_conversations || 0);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas de conversas:', error);
+    }
+  };
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home, section: null },
@@ -32,6 +57,7 @@ const Layout = () => {
     { section: 'CRM' },
     { path: '/leads', label: 'Pipeline', icon: BarChart3 },
     { path: '/conversations', label: 'Conversas', icon: MessageCircle, badge: unreadMessages },
+    { path: '/contacts', label: 'Contatos', icon: Users },
 
     // Inteligência Artificial
     { section: 'Inteligência Artificial' },
@@ -138,15 +164,15 @@ const Layout = () => {
                 {!isCollapsed && (
                   <>
                     <span className="text-sm flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 min-w-[18px] text-center">
-                        {item.badge}
+                    {item.badge > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white min-w-[18px] text-center shadow-sm">
+                        {item.badge > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </>
                 )}
-                {isCollapsed && item.badge && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-purple-600 rounded-full" />
+                {isCollapsed && item.badge > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm" />
                 )}
               </Link>
             );
@@ -179,7 +205,9 @@ const Layout = () => {
                   <p className="text-xs font-semibold text-gray-900 truncate">
                     {user?.name || 'Usuário'}
                   </p>
-                  <p className="text-[10px] text-gray-500">Admin</p>
+                  <p className="text-[10px] text-gray-500">
+                    {user?.role === 'admin' ? 'Admin' : user?.role === 'supervisor' ? 'Supervisor' : 'Usuário'}
+                  </p>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </>
@@ -216,6 +244,44 @@ const Layout = () => {
                   <Settings className="w-4 h-4" />
                   <span>Configurações</span>
                 </Link>
+
+                {/* Admin & Supervisor Links */}
+                {(isAdmin || isSupervisor) && (
+                  <>
+                    <div className="border-t border-gray-200 my-1" />
+                    {(hasPermission('users:view:all') || hasPermission('users:view:team')) && (
+                      <Link
+                        to="/users"
+                        className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Shield className="w-4 h-4" />
+                        <span>Usuários</span>
+                      </Link>
+                    )}
+                    {hasPermission('sectors:view') && (
+                      <Link
+                        to="/sectors"
+                        className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>Setores</span>
+                      </Link>
+                    )}
+                    {hasPermission('permissions:manage') && (
+                      <Link
+                        to="/permissions"
+                        className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Lock className="w-4 h-4" />
+                        <span>Permissões</span>
+                      </Link>
+                    )}
+                  </>
+                )}
+
                 <div className="border-t border-gray-200 my-1" />
                 <button
                   onClick={handleLogout}
@@ -240,12 +306,12 @@ const Layout = () => {
             <button
               onClick={() => navigate('/conversations')}
               className="relative p-2 hover:bg-purple-600 rounded-lg transition-colors"
-              title="Novas conversas"
+              title={unreadMessages > 0 ? `${unreadMessages} nova${unreadMessages > 1 ? 's' : ''} conversa${unreadMessages > 1 ? 's' : ''}` : 'Conversas'}
             >
               <MessageCircle className="w-5 h-5 text-white" />
               {unreadMessages > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {unreadMessages}
+                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg border-2 border-purple-700">
+                  {unreadMessages > 99 ? '99+' : unreadMessages}
                 </span>
               )}
             </button>
@@ -255,12 +321,12 @@ const Layout = () => {
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="relative p-2 hover:bg-purple-600 rounded-lg transition-colors"
-                title="Notificações"
+                title={unreadNotifications > 0 ? `${unreadNotifications} notificaç${unreadNotifications > 1 ? 'ões' : 'ão'}` : 'Notificações'}
               >
                 <Bell className="w-5 h-5 text-white" />
                 {unreadNotifications > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {unreadNotifications}
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg border-2 border-purple-700">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
                   </span>
                 )}
               </button>
@@ -300,7 +366,7 @@ const Layout = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto">
-          <Outlet />
+          <Outlet context={{ refreshUnreadCount: loadConversationStats }} />
         </main>
       </div>
     </div>

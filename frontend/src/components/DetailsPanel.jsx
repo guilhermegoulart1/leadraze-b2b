@@ -29,7 +29,7 @@ const getStatusColorClasses = (color, isActive = false) => {
   return 'bg-white text-gray-600 border-gray-200 hover:border-gray-300';
 };
 
-const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
+const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversationUpdated }) => {
   const [conversation, setConversation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -45,6 +45,11 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('blue');
 
+  // Assignment states
+  const [users, setUsers] = useState([]);
+  const [showAssignMenu, setShowAssignMenu] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+
   const TAG_COLORS = [
     { name: 'blue', class: 'bg-blue-100 text-blue-700' },
     { name: 'green', class: 'bg-green-100 text-green-700' },
@@ -58,9 +63,31 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
 
   useEffect(() => {
     if (conversationId && isVisible) {
+      // Limpar estado anterior ao trocar de conversa
+      setConversation(null);
+      setLoading(true);
+
       loadConversation();
+      loadUsers();
+    } else {
+      // Limpar quando não há conversa selecionada
+      setConversation(null);
     }
   }, [conversationId, isVisible]);
+
+  // Close assignment menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showAssignMenu && !event.target.closest('.relative')) {
+        setShowAssignMenu(false);
+      }
+    };
+
+    if (showAssignMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showAssignMenu]);
 
   const loadConversation = async () => {
     try {
@@ -71,7 +98,9 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
           conversation_id: conversationId,
           lead_id: response.data.lead_id,
           lead_status: response.data.lead_status,
-          lead_name: response.data.lead_name
+          lead_name: response.data.lead_name,
+          assigned_user_id: response.data.assigned_user_id,
+          assigned_user_name: response.data.assigned_user_name
         });
 
         setConversation(response.data);
@@ -84,6 +113,62 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
       console.error('Erro ao carregar detalhes:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await api.getUsers();
+      if (response.success) {
+        // A API pode retornar response.data.users ou response.data diretamente
+        const usersList = Array.isArray(response.data) ? response.data : (response.data?.users || []);
+        setUsers(usersList);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      setUsers([]); // Define como array vazio em caso de erro
+    }
+  };
+
+  const handleAssignUser = async (userId) => {
+    try {
+      setAssigning(true);
+      const response = await api.assignConversation(conversationId, userId);
+      if (response.success) {
+        // Reload conversation to get updated assignment
+        await loadConversation();
+        setShowAssignMenu(false);
+        // Notify parent to refresh conversations list
+        if (onConversationUpdated) {
+          onConversationUpdated();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao atribuir conversa:', error);
+      alert('Erro ao atribuir conversa');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    try {
+      setAssigning(true);
+      const response = await api.unassignConversation(conversationId);
+      if (response.success) {
+        // Reload conversation to get updated assignment
+        await loadConversation();
+        setShowAssignMenu(false);
+        // Notify parent to refresh conversations list
+        if (onConversationUpdated) {
+          onConversationUpdated();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao desatribuir conversa:', error);
+      alert('Erro ao desatribuir conversa');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -225,6 +310,52 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated }) => {
                     {conversation?.campaign_name || 'Não atribuído'}
                   </span>
                 </div>
+              </div>
+
+              {/* Atribuição */}
+              <div className="relative">
+                <p className="text-xs text-gray-500 mb-1">Atribuído a</p>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <button
+                    onClick={() => setShowAssignMenu(!showAssignMenu)}
+                    className="text-sm text-gray-900 hover:text-purple-600 transition-colors flex items-center gap-1"
+                    disabled={assigning}
+                  >
+                    {assigning ? 'Atualizando...' : (conversation?.assigned_user_name || 'Não atribuída')}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Dropdown menu */}
+                {showAssignMenu && (
+                  <div className="absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-48 overflow-y-auto">
+                    {conversation?.assigned_user_id && (
+                      <>
+                        <button
+                          onClick={handleUnassign}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          ✕ Desatribuir
+                        </button>
+                        <div className="border-t border-gray-100 my-1"></div>
+                      </>
+                    )}
+                    {users.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => handleAssignUser(user.id)}
+                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                          conversation?.assigned_user_id === user.id
+                            ? 'bg-purple-50 text-purple-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {user.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Email */}

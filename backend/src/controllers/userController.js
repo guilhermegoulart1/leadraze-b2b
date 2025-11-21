@@ -1,0 +1,507 @@
+/**
+ * User Controller
+ * Handles user management, roles, and team assignments
+ * Only accessible by admins
+ */
+
+const db = require('../config/database');
+const bcrypt = require('bcryptjs');
+const { sendSuccess, sendError } = require('../utils/responses');
+const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
+
+/**
+ * GET /users
+ * List all users (admin only)
+ */
+exports.getUsers = async (req, res) => {
+  try {
+    const { role, is_active, search, page = 1, limit = 50 } = req.query;
+    const accountId = req.user.account_id;
+
+    let whereConditions = ['account_id = $1'];
+    let queryParams = [accountId];
+    let paramIndex = 2;
+
+    // Filter by role
+    if (role) {
+      whereConditions.push(`role = $${paramIndex}`);
+      queryParams.push(role);
+      paramIndex++;
+    }
+
+    // Filter by active status
+    if (is_active !== undefined) {
+      whereConditions.push(`is_active = $${paramIndex}`);
+      queryParams.push(is_active === 'true');
+      paramIndex++;
+    }
+
+    // Search by name or email
+    if (search) {
+      whereConditions.push(`(name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const whereClause = 'WHERE ' + whereConditions.join(' AND ');
+
+    const offset = (page - 1) * limit;
+
+    // Get users
+    const query = `
+      SELECT
+        id, email, name, company, role, is_active,
+        avatar_url, profile_picture, subscription_tier,
+        created_at, updated_at
+      FROM users
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    queryParams.push(limit, offset);
+
+    const users = await db.query(query, queryParams);
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) FROM users ${whereClause}`;
+    const countResult = await db.query(countQuery, queryParams.slice(0, -2));
+    const total = parseInt(countResult.rows[0].count);
+
+    sendSuccess(res, {
+      users: users.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * GET /users/:id
+ * Get single user details (admin only)
+ */
+exports.getUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+
+    const user = await db.query(`
+      SELECT
+        id, email, name, company, role, is_active,
+        avatar_url, profile_picture, subscription_tier,
+        google_id, created_at, updated_at
+      FROM users
+      WHERE id = $1 AND account_id = $2
+    `, [id, accountId]);
+
+    if (user.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Get team memberships if supervisor
+    let teamMembers = [];
+    if (user.rows[0].role === 'supervisor') {
+      const members = await db.query(`
+        SELECT
+          u.id, u.name, u.email, u.role,
+          ut.created_at as assigned_at
+        FROM user_teams ut
+        JOIN users u ON ut.member_id = u.id
+        WHERE ut.supervisor_id = $1 AND u.account_id = $2
+        ORDER BY ut.created_at DESC
+      `, [id, accountId]);
+
+      teamMembers = members.rows;
+    }
+
+    // Get supervisor if user is team member
+    let supervisor = null;
+    if (user.rows[0].role === 'user') {
+      const supervisorResult = await db.query(`
+        SELECT
+          u.id, u.name, u.email
+        FROM user_teams ut
+        JOIN users u ON ut.supervisor_id = u.id
+        WHERE ut.member_id = $1 AND u.account_id = $2
+      `, [id, accountId]);
+
+      if (supervisorResult.rows.length > 0) {
+        supervisor = supervisorResult.rows[0];
+      }
+    }
+
+    sendSuccess(res, {
+      user: user.rows[0],
+      team_members: teamMembers,
+      supervisor
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * POST /users
+ * Create new user (admin only)
+ */
+exports.createUser = async (req, res) => {
+  try {
+    const { email, password, name, company, role = 'user' } = req.body;
+    const accountId = req.user.account_id;
+
+    // Validation
+    if (!email || !name) {
+      throw new BadRequestError('Email and name are required');
+    }
+
+    // Check if email already exists in this account
+    const existing = await db.query(
+      'SELECT id FROM users WHERE email = $1 AND account_id = $2',
+      [email, accountId]
+    );
+    if (existing.rows.length > 0) {
+      throw new BadRequestError('User with this email already exists in your account');
+    }
+
+    // Validate role
+    const validRoles = ['user', 'supervisor', 'admin'];
+    if (!validRoles.includes(role)) {
+      throw new BadRequestError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+    }
+
+    // Only ONE admin per account rule - check if trying to create another admin
+    if (role === 'admin') {
+      const adminExists = await db.query(
+        'SELECT id FROM users WHERE role = $1 AND account_id = $2 LIMIT 1',
+        ['admin', accountId]
+      );
+      if (adminExists.rows.length > 0) {
+        throw new ForbiddenError('Only one admin per account is allowed');
+      }
+    }
+
+    // Hash password if provided
+    let password_hash = null;
+    if (password) {
+      password_hash = await bcrypt.hash(password, 12);
+    }
+
+    // Create user with account_id
+    const newUser = await db.query(`
+      INSERT INTO users (email, password_hash, name, company, role, is_active, account_id)
+      VALUES ($1, $2, $3, $4, $5, true, $6)
+      RETURNING id, email, name, company, role, is_active, created_at
+    `, [email, password_hash, name, company, role, accountId]);
+
+    sendSuccess(res, {
+      message: 'User created successfully',
+      user: newUser.rows[0]
+    }, 201);
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * PUT /users/:id
+ * Update user (admin only)
+ */
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, company, role, is_active } = req.body;
+    const accountId = req.user.account_id;
+
+    // Check if user exists in this account
+    const existingUser = await db.query(
+      'SELECT * FROM users WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+    if (existingUser.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    const user = existingUser.rows[0];
+
+    // Prevent changing role to/from admin if it would violate the one-admin rule
+    if (role && role !== user.role) {
+      const validRoles = ['user', 'supervisor', 'admin'];
+      if (!validRoles.includes(role)) {
+        throw new BadRequestError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+      }
+
+      // Check one-admin rule (scoped to account)
+      if (role === 'admin') {
+        const adminExists = await db.query(
+          'SELECT id FROM users WHERE role = $1 AND id != $2 AND account_id = $3 LIMIT 1',
+          ['admin', id, accountId]
+        );
+        if (adminExists.rows.length > 0) {
+          throw new ForbiddenError('Only one admin per account is allowed');
+        }
+      }
+    }
+
+    // Build update query
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex}`);
+      values.push(name);
+      paramIndex++;
+    }
+
+    if (company !== undefined) {
+      updates.push(`company = $${paramIndex}`);
+      values.push(company);
+      paramIndex++;
+    }
+
+    if (role !== undefined) {
+      updates.push(`role = $${paramIndex}`);
+      values.push(role);
+      paramIndex++;
+    }
+
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex}`);
+      values.push(is_active);
+      paramIndex++;
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    values.push(id, accountId);
+
+    const query = `
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex} AND account_id = $${paramIndex + 1}
+      RETURNING id, email, name, company, role, is_active, updated_at
+    `;
+
+    const result = await db.query(query, values);
+
+    sendSuccess(res, {
+      message: 'User updated successfully',
+      user: result.rows[0]
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * DELETE /users/:id
+ * Delete user (admin only)
+ */
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Check if user exists in this account
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+    if (userResult.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    const user = userResult.rows[0];
+
+    // Prevent admin from deleting themselves
+    if (id === adminId) {
+      throw new ForbiddenError('Cannot delete your own account');
+    }
+
+    // Prevent deleting the only admin
+    if (user.role === 'admin') {
+      throw new ForbiddenError('Cannot delete admin account');
+    }
+
+    // Delete user (cascading deletes will handle related records)
+    await db.query('DELETE FROM users WHERE id = $1 AND account_id = $2', [id, accountId]);
+
+    sendSuccess(res, {
+      message: 'User deleted successfully'
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * POST /users/:id/assign-team
+ * Assign users to a supervisor's team (admin only)
+ */
+exports.assignToTeam = async (req, res) => {
+  try {
+    const { id: supervisorId } = req.params;
+    const { member_ids } = req.body; // Array of user IDs to assign
+    const accountId = req.user.account_id;
+
+    // Validate supervisor exists and is a supervisor in this account
+    const supervisorResult = await db.query(
+      'SELECT * FROM users WHERE id = $1 AND account_id = $2',
+      [supervisorId, accountId]
+    );
+    if (supervisorResult.rows.length === 0) {
+      throw new NotFoundError('Supervisor not found');
+    }
+
+    const supervisor = supervisorResult.rows[0];
+
+    if (supervisor.role !== 'supervisor') {
+      throw new BadRequestError('User must have supervisor role');
+    }
+
+    // Validate member_ids
+    if (!Array.isArray(member_ids) || member_ids.length === 0) {
+      throw new BadRequestError('member_ids must be a non-empty array');
+    }
+
+    // Assign each member
+    const assigned = [];
+    const errors = [];
+
+    for (const memberId of member_ids) {
+      try {
+        // Check member exists in this account and is not admin
+        const memberResult = await db.query(
+          'SELECT * FROM users WHERE id = $1 AND account_id = $2',
+          [memberId, accountId]
+        );
+        if (memberResult.rows.length === 0) {
+          errors.push({ member_id: memberId, error: 'User not found' });
+          continue;
+        }
+
+        const member = memberResult.rows[0];
+
+        if (member.role === 'admin') {
+          errors.push({ member_id: memberId, error: 'Cannot assign admin to a team' });
+          continue;
+        }
+
+        if (memberId === supervisorId) {
+          errors.push({ member_id: memberId, error: 'Cannot assign supervisor to their own team' });
+          continue;
+        }
+
+        // Insert team assignment
+        await db.query(`
+          INSERT INTO user_teams (supervisor_id, member_id)
+          VALUES ($1, $2)
+          ON CONFLICT (supervisor_id, member_id) DO NOTHING
+        `, [supervisorId, memberId]);
+
+        assigned.push(memberId);
+      } catch (err) {
+        errors.push({ member_id: memberId, error: err.message });
+      }
+    }
+
+    sendSuccess(res, {
+      message: 'Team assignments updated',
+      assigned,
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * DELETE /users/:supervisorId/team/:memberId
+ * Remove user from supervisor's team (admin only)
+ */
+exports.removeFromTeam = async (req, res) => {
+  try {
+    const { supervisorId, memberId } = req.params;
+
+    // Delete team assignment
+    const result = await db.query(`
+      DELETE FROM user_teams
+      WHERE supervisor_id = $1 AND member_id = $2
+      RETURNING *
+    `, [supervisorId, memberId]);
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('Team assignment not found');
+    }
+
+    sendSuccess(res, {
+      message: 'User removed from team successfully'
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * GET /users/:id/team
+ * Get supervisor's team members
+ */
+exports.getTeamMembers = async (req, res) => {
+  try {
+    const { id: supervisorId } = req.params;
+    const accountId = req.user.account_id;
+
+    // Check if user is supervisor in this account
+    const supervisorResult = await db.query(
+      'SELECT * FROM users WHERE id = $1 AND account_id = $2',
+      [supervisorId, accountId]
+    );
+    if (supervisorResult.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    const supervisor = supervisorResult.rows[0];
+
+    if (supervisor.role !== 'supervisor') {
+      throw new BadRequestError('User is not a supervisor');
+    }
+
+    // Get team members (only from this account)
+    const members = await db.query(`
+      SELECT
+        u.id, u.name, u.email, u.role, u.is_active,
+        u.avatar_url, u.created_at,
+        ut.created_at as assigned_at
+      FROM user_teams ut
+      JOIN users u ON ut.member_id = u.id
+      WHERE ut.supervisor_id = $1 AND u.account_id = $2
+      ORDER BY ut.created_at DESC
+    `, [supervisorId, accountId]);
+
+    sendSuccess(res, {
+      supervisor: {
+        id: supervisor.id,
+        name: supervisor.name,
+        email: supervisor.email
+      },
+      members: members.rows
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};

@@ -10,12 +10,16 @@ import Dashboard from './pages/Dashboard';
 import SearchPage from './pages/SearchPage';
 import CampaignsPage from './pages/CampaignsPage';
 import LeadsPage from './pages/LeadsPage';
+import ContactsPage from './pages/ContactsPage';
 import ConversationsPage from './pages/ConversationsPage';
 import AIAgentsPage from './pages/AIAgentsPage';
 import InsightsPage from './pages/InsightsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import LinkedInAccountsPage from './pages/LinkedInAccountsPage';
+import UsersPage from './pages/UsersPage';
+import PermissionsPage from './pages/PermissionsPage';
+import SectorsPage from './pages/SectorsPage';
 
 // Layout
 import Layout from './components/Layout';
@@ -68,12 +72,16 @@ function AppRoutes() {
         <Route path="search" element={<SearchPage />} />
         <Route path="campaigns" element={<CampaignsPage />} />
         <Route path="leads" element={<LeadsPage />} />
+        <Route path="contacts" element={<ContactsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
         <Route path="ai-agents" element={<AIAgentsPage />} />
         <Route path="insights" element={<InsightsPage />} />
         <Route path="linkedin-accounts" element={<LinkedInAccountsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="permissions" element={<PermissionsPage />} />
+        <Route path="sectors" element={<SectorsPage />} />
       </Route>
 
       {/* 404 */}

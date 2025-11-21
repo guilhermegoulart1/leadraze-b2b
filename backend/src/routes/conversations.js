@@ -67,4 +67,14 @@ router.post('/:id/close', conversationController.closeConversation);
 // Reabrir conversa
 router.post('/:id/reopen', conversationController.reopenConversation);
 
+// ================================
+// ATRIBUIÇÃO DE CONVERSAS
+// ================================
+
+// Atribuir conversa a um usuário
+router.post('/:id/assign', conversationController.assignConversation);
+
+// Desatribuir conversa
+router.post('/:id/unassign', conversationController.unassignConversation);
+
 module.exports = router;

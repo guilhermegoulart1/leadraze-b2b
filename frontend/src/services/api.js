@@ -291,6 +291,19 @@ class ApiService {
     return this.request('/conversations/stats');
   }
 
+  async assignConversation(conversationId, userId) {
+    return this.request(`/conversations/${conversationId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    });
+  }
+
+  async unassignConversation(conversationId) {
+    return this.request(`/conversations/${conversationId}/unassign`, {
+      method: 'POST',
+    });
+  }
+
   // ================================
   // AI AGENTS
   // ================================
@@ -610,6 +623,243 @@ class ApiService {
     return this.request(`/ai-agents/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // ================================
+  // CONTACTS
+  // ================================
+
+  async getContacts(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/contacts${query ? '?' + query : ''}`);
+  }
+
+  async getContact(id) {
+    return this.request(`/contacts/${id}`);
+  }
+
+  async createContact(data) {
+    return this.request('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateContact(id, data) {
+    return this.request(`/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteContact(id) {
+    return this.request(`/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addContactTag(contactId, tagId) {
+    return this.request(`/contacts/${contactId}/tags`, {
+      method: 'POST',
+      body: JSON.stringify({ tag_id: tagId }),
+    });
+  }
+
+  async removeContactTag(contactId, tagId) {
+    return this.request(`/contacts/${contactId}/tags/${tagId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTags(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/contacts/tags${query ? '?' + query : ''}`);
+  }
+
+  async exportContacts(filters = {}) {
+    return this.request('/contacts/export', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  }
+
+  async importContacts(csvData) {
+    return this.request('/contacts/import', {
+      method: 'POST',
+      body: JSON.stringify({ csv_data: csvData }),
+    });
+  }
+
+  // ================================
+  // USERS
+  // ================================
+
+  async getUsers(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/users${query ? '?' + query : ''}`);
+  }
+
+  async getUser(id) {
+    return this.request(`/users/${id}`);
+  }
+
+  async createUser(data) {
+    return this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id, data) {
+    return this.request(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(id) {
+    return this.request(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async assignUserToTeam(userId, supervisorId) {
+    return this.request(`/users/${userId}/team`, {
+      method: 'POST',
+      body: JSON.stringify({ supervisor_id: supervisorId }),
+    });
+  }
+
+  async removeUserFromTeam(userId, supervisorId) {
+    return this.request(`/users/${userId}/team/${supervisorId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTeamMembers(supervisorId) {
+    return this.request(`/users/${supervisorId}/team-members`);
+  }
+
+  // ================================
+  // PERMISSIONS
+  // ================================
+
+  async getAllPermissions() {
+    return this.request('/permissions');
+  }
+
+  async getRolePermissions(role) {
+    return this.request(`/permissions/roles/${role}`);
+  }
+
+  async updateRolePermissions(role, data) {
+    return this.request(`/permissions/roles/${role}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ================================
+  // SECTORS
+  // ================================
+
+  async getSectors(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/sectors${query ? '?' + query : ''}`);
+  }
+
+  async getSector(id) {
+    return this.request(`/sectors/${id}`);
+  }
+
+  async createSector(data) {
+    return this.request('/sectors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSector(id, data) {
+    return this.request(`/sectors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSector(id) {
+    return this.request(`/sectors/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async assignUserToSector(data) {
+    return this.request('/sectors/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeUserFromSector(sectorId, userId) {
+    return this.request(`/sectors/${sectorId}/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async assignSupervisorToSector(data) {
+    return this.request('/sectors/supervisors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeSupervisorFromSector(sectorId, supervisorId) {
+    return this.request(`/sectors/${sectorId}/supervisors/${supervisorId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getUserSectors(userId) {
+    return this.request(`/sectors/users/${userId}/sectors`);
+  }
+
+  async getSupervisorSectors(supervisorId) {
+    return this.request(`/sectors/supervisors/${supervisorId}/sectors`);
+  }
+
+  // ================================
+  // USER PERMISSIONS (CUSTOM)
+  // ================================
+
+  async getUserPermissions(userId) {
+    return this.request(`/permissions/users/${userId}`);
+  }
+
+  async getUserEffectivePermissions(userId) {
+    return this.request(`/permissions/users/${userId}/effective`);
+  }
+
+  async setUserPermission(userId, data) {
+    return this.request(`/permissions/users/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeUserPermission(userId, permissionKey) {
+    return this.request(`/permissions/users/${userId}/${permissionKey}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async bulkSetUserPermissions(userId, permissions) {
+    return this.request(`/permissions/users/${userId}/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ permissions }),
+    });
+  }
+
+  async getAvailablePermissions() {
+    return this.request('/permissions/available');
   }
 
 }

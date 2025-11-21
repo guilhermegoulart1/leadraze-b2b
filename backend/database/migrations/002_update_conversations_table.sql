@@ -36,17 +36,17 @@ CREATE INDEX IF NOT EXISTS idx_conversations_linkedin_account_id ON conversation
 CREATE INDEX IF NOT EXISTS idx_conversations_unipile_chat_id ON conversations(unipile_chat_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
 
--- Add check constraint for status values
+-- Update existing conversations to have default status FIRST
+UPDATE conversations
+SET status = 'ai_active'
+WHERE status NOT IN ('ai_active', 'manual') OR status IS NULL;
+
+-- Then add check constraint for status values
 ALTER TABLE conversations
   DROP CONSTRAINT IF EXISTS check_conversation_status;
 
 ALTER TABLE conversations
   ADD CONSTRAINT check_conversation_status
   CHECK (status IN ('ai_active', 'manual'));
-
--- Update existing conversations to have default status
-UPDATE conversations
-SET status = 'ai_active'
-WHERE status NOT IN ('ai_active', 'manual');
 
 COMMIT;

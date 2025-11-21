@@ -77,6 +77,46 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
   };
 
+  // Role-based access control functions
+  const hasRole = (requiredRole) => {
+    if (!user || !user.role) return false;
+
+    // If requiredRole is an array, check if user has any of them
+    if (Array.isArray(requiredRole)) {
+      return requiredRole.includes(user.role);
+    }
+
+    return user.role === requiredRole;
+  };
+
+  const hasPermission = (permission) => {
+    if (!user) return false;
+
+    // Admin has all permissions
+    if (user.role === 'admin') return true;
+
+    // Check if user has specific permission (from backend)
+    if (user.permissions && Array.isArray(user.permissions)) {
+      return user.permissions.includes(permission);
+    }
+
+    return false;
+  };
+
+  const hasAnyPermission = (permissions) => {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+
+    if (!Array.isArray(permissions)) return false;
+
+    return permissions.some(perm => hasPermission(perm));
+  };
+
+  // Convenience role checks
+  const isAdmin = user?.role === 'admin';
+  const isSupervisor = user?.role === 'supervisor';
+  const isUser = user?.role === 'user';
+
   const value = {
     user,
     token,
@@ -87,6 +127,13 @@ export const AuthProvider = ({ children }) => {
     setUser,
     setToken,
     isAuthenticated: !!user,
+    // Role & Permission checks
+    hasRole,
+    hasPermission,
+    hasAnyPermission,
+    isAdmin,
+    isSupervisor,
+    isUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,12 +1,32 @@
 // backend/src/controllers/leadController.js
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
-const { 
+const {
   ValidationError,
   NotFoundError,
-  ForbiddenError 
+  ForbiddenError
 } = require('../utils/errors');
 const { LEAD_STATUS } = require('../utils/helpers');
+const { getAccessibleSectorIds } = require('../middleware/permissions');
+
+// ================================
+// HELPER: Build sector filter for lead queries
+// ================================
+async function buildLeadSectorFilter(userId, accountId, paramIndex = 3) {
+  const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
+
+  if (accessibleSectorIds.length > 0) {
+    return {
+      filter: `AND (l.sector_id = ANY($${paramIndex}) OR l.sector_id IS NULL)`,
+      params: [accessibleSectorIds]
+    };
+  } else {
+    return {
+      filter: 'AND l.sector_id IS NULL',
+      params: []
+    };
+  }
+}
 
 // ================================
 // 1. LISTAR LEADS
@@ -14,6 +34,7 @@ const { LEAD_STATUS } = require('../utils/helpers');
 const getLeads = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       campaign_id,
       status,
@@ -24,10 +45,20 @@ const getLeads = async (req, res) => {
 
     console.log(`📋 Listando leads do usuário ${userId}`);
 
-    // Construir query
-    let whereConditions = ['c.user_id = $1'];
-    let queryParams = [userId];
-    let paramIndex = 2;
+    // Construir query - MULTI-TENANCY: Filter by account_id
+    let whereConditions = ['c.account_id = $1', 'c.user_id = $2'];
+    let queryParams = [accountId, userId];
+    let paramIndex = 3;
+
+    // SECTOR FILTER: Add sector filtering
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, paramIndex);
+    if (sectorParams.length > 0) {
+      whereConditions.push(sectorFilter.replace(/^AND /, '')); // Remove AND prefix since we're using whereConditions.join
+      queryParams.push(...sectorParams);
+      paramIndex += sectorParams.length;
+    } else if (sectorFilter) {
+      whereConditions.push(sectorFilter.replace(/^AND /, ''));
+    }
 
     // Filtro por campanha
     if (campaign_id) {
@@ -119,26 +150,32 @@ const getLead = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔍 Buscando lead ${id}`);
 
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
     const query = `
-      SELECT 
+      SELECT
         l.*,
         c.name as campaign_name,
         c.status as campaign_status,
         c.user_id as campaign_user_id,
-        CASE 
-          WHEN l.status = 'invite_sent' AND l.sent_at IS NOT NULL 
+        c.account_id as campaign_account_id,
+        CASE
+          WHEN l.status = 'invite_sent' AND l.sent_at IS NOT NULL
           THEN EXTRACT(DAY FROM NOW() - l.sent_at)::INTEGER
           ELSE 0
         END as days_since_invite
       FROM leads l
       JOIN campaigns c ON l.campaign_id = c.id
-      WHERE l.id = $1
+      WHERE l.id = $1 AND c.account_id = $2 ${sectorFilter}
     `;
 
-    const result = await db.query(query, [id]);
+    const queryParams = [id, accountId, ...sectorParams];
+    const result = await db.query(query, queryParams);
 
     if (result.rows.length === 0) {
       throw new NotFoundError('Lead not found');
@@ -166,6 +203,7 @@ const getLead = async (req, res) => {
 const createLead = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       campaign_id,
       linkedin_profile_id,
@@ -186,13 +224,16 @@ const createLead = async (req, res) => {
       throw new ValidationError('campaign_id and name are required');
     }
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { 
-      id: campaign_id, 
-      user_id: userId 
-    });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [campaign_id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaign.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
 
@@ -208,9 +249,10 @@ const createLead = async (req, res) => {
       }
     }
 
-    // Criar lead
+    // Criar lead (inherit sector_id from campaign)
     const leadData = {
       campaign_id,
+      sector_id: campaign.rows[0].sector_id || null,
       linkedin_profile_id: linkedin_profile_id || `manual_${Date.now()}`,
       provider_id: provider_id || null,
       name,
@@ -247,6 +289,7 @@ const createLead = async (req, res) => {
 const createLeadsBulk = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { campaign_id, leads } = req.body;
 
     console.log(`📦 Criando ${leads?.length || 0} leads em lote`);
@@ -260,13 +303,16 @@ const createLeadsBulk = async (req, res) => {
       throw new ValidationError('Maximum 100 leads per batch');
     }
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { 
-      id: campaign_id, 
-      user_id: userId 
-    });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [campaign_id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaign.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
 
@@ -295,9 +341,10 @@ const createLeadsBulk = async (req, res) => {
           }
         }
 
-        // Criar lead
+        // Criar lead (inherit sector_id from campaign)
         const newLead = await db.insert('leads', {
           campaign_id,
+          sector_id: campaign.rows[0].sector_id || null,
           linkedin_profile_id: leadData.linkedin_profile_id || `manual_${Date.now()}_${i}`,
           provider_id: leadData.provider_id || null,
           name: leadData.name,
@@ -351,6 +398,7 @@ const updateLead = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       status,
       score,
@@ -364,10 +412,13 @@ const updateLead = async (req, res) => {
 
     console.log(`📝 Atualizando lead ${id}`);
 
-    // Verificar se lead pertence ao usuário
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
+    // Verificar se lead pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const leadCheck = await db.query(
-      'SELECT l.*, c.user_id FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1',
-      [id]
+      `SELECT l.*, c.user_id, c.account_id FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1 AND c.account_id = $2 ${sectorFilter}`,
+      [id, accountId, ...sectorParams]
     );
 
     if (leadCheck.rows.length === 0) {
@@ -449,13 +500,17 @@ const deleteLead = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🗑️ Deletando lead ${id}`);
 
-    // Verificar se lead pertence ao usuário
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
+    // Verificar se lead pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const leadCheck = await db.query(
-      'SELECT l.*, c.user_id FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1',
-      [id]
+      `SELECT l.*, c.user_id, c.account_id FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1 AND c.account_id = $2 ${sectorFilter}`,
+      [id, accountId, ...sectorParams]
     );
 
     if (leadCheck.rows.length === 0) {
@@ -505,17 +560,21 @@ const getCampaignLeads = async (req, res) => {
   try {
     const { campaignId } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { status, page = 1, limit = 1000 } = req.query; // Aumentado de 50 para 1000
 
     console.log(`📋 Buscando leads da campanha ${campaignId}`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { 
-      id: campaignId, 
-      user_id: userId 
-    });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [campaignId, userId, accountId, ...sectorParams]
+    );
+
+    if (campaign.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
 
@@ -569,7 +628,7 @@ const getCampaignLeads = async (req, res) => {
 
     sendSuccess(res, {
       campaign_id: campaignId,
-      campaign_name: campaign.name,
+      campaign_name: campaign.rows[0].name,
       leads: leads.rows,
       pagination: {
         page: parseInt(page),

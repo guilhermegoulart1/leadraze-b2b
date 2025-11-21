@@ -8,14 +8,34 @@ const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+
+  // ✅ OPTIMIZED: Increased for high-volume webhook processing
+  max: 50, // Increased from 20 to support concurrent webhooks + campaigns
+  min: 10, // Keep minimum 10 connections warm
+
+  // ✅ OPTIMIZED: Increased timeouts
+  idleTimeoutMillis: 30000, // 30s - time to keep idle connections
+  connectionTimeoutMillis: 10000, // 10s - increased from 2s for stability
+
+  // ✅ OPTIMIZED: Statement timeout to prevent stuck queries
+  statement_timeout: 30000, // 30s max per query (kills slow queries)
 });
 
-// Test connection
-pool.on('connect', () => {
-  console.log('✅ Database connected');
+// Track if initial connection was successful
+let connectionLogged = false;
+
+// Test connection - only log first connection, not every pool acquire
+pool.on('connect', (client) => {
+  if (!connectionLogged) {
+    console.log('✅ Database connected successfully');
+    console.log(`   Pool config: max=${pool.options.max}, min=${pool.options.min || 0}`);
+    connectionLogged = true;
+  }
+
+  // Set statement timeout for this client
+  client.query('SET statement_timeout = 30000').catch(err => {
+    console.warn('Failed to set statement_timeout:', err.message);
+  });
 });
 
 pool.on('error', (err) => {

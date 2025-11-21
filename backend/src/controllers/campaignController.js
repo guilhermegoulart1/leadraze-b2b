@@ -1,12 +1,32 @@
 // backend/src/controllers/campaignController.js
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
-const { 
+const {
   ValidationError,
   NotFoundError,
-  ForbiddenError 
+  ForbiddenError
 } = require('../utils/errors');
 const { CAMPAIGN_STATUS } = require('../utils/helpers');
+const { getAccessibleSectorIds } = require('../middleware/permissions');
+
+// ================================
+// HELPER: Build sector filter for campaign queries
+// ================================
+async function buildCampaignSectorFilter(userId, accountId, paramIndex = 3) {
+  const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
+
+  if (accessibleSectorIds.length > 0) {
+    return {
+      filter: `AND (c.sector_id = ANY($${paramIndex}) OR c.sector_id IS NULL)`,
+      params: [accessibleSectorIds]
+    };
+  } else {
+    return {
+      filter: 'AND c.sector_id IS NULL',
+      params: []
+    };
+  }
+}
 
 // ================================
 // 1. LISTAR CAMPANHAS DO USUÁRIO
@@ -14,14 +34,25 @@ const { CAMPAIGN_STATUS } = require('../utils/helpers');
 const getCampaigns = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { status, page = 1, limit = 20 } = req.query;
 
-    console.log(`📋 Listando campanhas do usuário ${userId}`);
+    console.log(`📋 Listando campanhas do usuário ${userId} (conta ${accountId})`);
 
-    // Construir query
-    let whereConditions = ['c.user_id = $1', '(c.is_system = false OR c.is_system IS NULL)'];
-    let queryParams = [userId];
-    let paramIndex = 2;
+    // Construir query - MULTI-TENANCY + SECTOR filtering
+    let whereConditions = ['c.account_id = $1', 'c.user_id = $2', '(c.is_system = false OR c.is_system IS NULL)'];
+    let queryParams = [accountId, userId];
+    let paramIndex = 3;
+
+    // SECTOR FILTER: Add sector filtering
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, paramIndex);
+    if (sectorParams.length > 0) {
+      whereConditions.push(sectorFilter.replace(/^AND /, ''));
+      queryParams.push(...sectorParams);
+      paramIndex += sectorParams.length;
+    } else if (sectorFilter) {
+      whereConditions.push(sectorFilter.replace(/^AND /, ''));
+    }
 
     // Filtro por status
     if (status) {
@@ -138,11 +169,15 @@ const getCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
-    console.log(`🔍 Buscando campanha ${id}`);
+    console.log(`🔍 Buscando campanha ${id} (conta ${accountId})`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
     const query = `
-      SELECT 
+      SELECT
         c.*,
         la.linkedin_username,
         la.profile_name as linkedin_profile_name,
@@ -153,12 +188,12 @@ const getCampaign = async (req, res) => {
         aa.personality_tone,
         aa.is_active as ai_agent_active
       FROM campaigns c
-      LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
-      LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
-      WHERE c.id = $1 AND c.user_id = $2
+      LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id AND la.account_id = $3
+      LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id AND aa.account_id = $3
+      WHERE c.id = $1 AND c.account_id = $3 AND c.user_id = $2 ${sectorFilter}
     `;
 
-    const result = await db.query(query, [id, userId]);
+    const result = await db.query(query, [id, userId, accountId, ...sectorParams]);
 
     if (result.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
@@ -207,10 +242,12 @@ const getCampaign = async (req, res) => {
 const createCampaign = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       name,
       description,
       type,
+      sector_id,                 // Sector assignment
       linkedin_account_id,      // Single account (legacy)
       linkedin_account_ids,      // Multiple accounts (new)
       ai_agent_id,
@@ -228,7 +265,7 @@ const createCampaign = async (req, res) => {
       daily_limit
     } = req.body;
 
-    console.log(`📝 Criando nova campanha: ${name}`);
+    console.log(`📝 Criando nova campanha: ${name} (conta ${accountId})`);
     console.log(`📊 Tipo: ${type}, Filtros:`, search_filters);
 
     // Validações básicas
@@ -251,37 +288,51 @@ const createCampaign = async (req, res) => {
       throw new ValidationError('At least one LinkedIn account is required');
     }
 
-    // Verificar se todas as contas pertencem ao usuário
+    // Verificar se todas as contas pertencem ao usuário E à mesma conta (multi-tenancy)
     const linkedinAccounts = await db.query(
       `SELECT id, profile_name, daily_limit
        FROM linkedin_accounts
-       WHERE id = ANY($1) AND user_id = $2`,
-      [accountIds, userId]
+       WHERE id = ANY($1) AND user_id = $2 AND account_id = $3`,
+      [accountIds, userId, accountId]
     );
 
     if (linkedinAccounts.rows.length !== accountIds.length) {
-      throw new NotFoundError('One or more LinkedIn accounts not found or do not belong to you');
+      throw new NotFoundError('One or more LinkedIn accounts not found or do not belong to your account');
     }
 
     // Calcular limite total disponível
     const totalDailyLimit = linkedinAccounts.rows.reduce((sum, acc) => sum + (acc.daily_limit || 0), 0);
     console.log(`📊 Limite total disponível: ${totalDailyLimit} convites/dia`);
 
-    // Se AI agent foi especificado, verificar se pertence ao usuário
+    // Se AI agent foi especificado, verificar se pertence ao usuário E à conta
     if (ai_agent_id) {
-      const aiAgent = await db.findOne('ai_agents', {
-        id: ai_agent_id,
-        user_id: userId
-      });
+      const aiAgent = await db.query(
+        'SELECT id FROM ai_agents WHERE id = $1 AND user_id = $2 AND account_id = $3',
+        [ai_agent_id, userId, accountId]
+      );
 
-      if (!aiAgent) {
-        throw new NotFoundError('AI Agent not found');
+      if (aiAgent.rows.length === 0) {
+        throw new NotFoundError('AI Agent not found in your account');
       }
     }
 
-    // Criar campanha (manter linkedin_account_id para compatibilidade)
+    // Se sector_id foi especificado, verificar se pertence à conta
+    if (sector_id) {
+      const sector = await db.query(
+        'SELECT id FROM sectors WHERE id = $1 AND account_id = $2 AND is_active = true',
+        [sector_id, accountId]
+      );
+
+      if (sector.rows.length === 0) {
+        throw new NotFoundError('Sector not found in your account');
+      }
+    }
+
+    // Criar campanha com account_id (multi-tenancy) e sector_id
     const campaignData = {
       user_id: userId,
+      account_id: accountId,
+      sector_id: sector_id || null,
       name,
       description: description || null,
       type: type || 'manual',
@@ -343,6 +394,7 @@ const updateCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       name,
       ai_agent_id,
@@ -355,12 +407,18 @@ const updateCampaign = async (req, res) => {
       status
     } = req.body;
 
-    console.log(`📝 Atualizando campanha ${id}`);
+    console.log(`📝 Atualizando campanha ${id} (conta ${accountId})`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaign.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
 
@@ -400,15 +458,24 @@ const deleteCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
-    console.log(`🗑️ Deletando campanha ${id}`);
+    console.log(`🗑️ Deletando campanha ${id} (conta ${accountId})`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaign.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
+
+    const campaignData = campaign.rows[0];
 
     // Verificar se há coleta em andamento
     const collectionJobCheck = await db.query(
@@ -421,7 +488,7 @@ const deleteCampaign = async (req, res) => {
     }
 
     // Não permitir deletar campanhas com automação ativa E que tenham leads
-    if (campaign.automation_active) {
+    if (campaignData.automation_active) {
       // Verificar se tem leads
       const leadsCheck = await db.query(
         'SELECT COUNT(*) FROM leads WHERE campaign_id = $1',
@@ -460,18 +527,27 @@ const startCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
-    console.log(`▶️ Iniciando campanha ${id}`);
+    console.log(`▶️ Iniciando campanha ${id} (conta ${accountId})`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaign.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
 
+    const campaignData = campaign.rows[0];
+
     // Verificar se já está ativa
-    if (campaign.automation_active) {
+    if (campaignData.automation_active) {
       throw new ValidationError('Campaign is already active');
     }
 
@@ -512,15 +588,24 @@ const pauseCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`⏸️ Pausando campanha ${id}`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
+
+    const campaign = campaignResult.rows[0];
 
     // Verificar se está ativa
     if (!campaign.automation_active) {
@@ -549,15 +634,24 @@ const resumeCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`▶️ Retomando campanha ${id}`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
+
+    const campaign = campaignResult.rows[0];
 
     // Verificar se está pausada
     if (campaign.status !== CAMPAIGN_STATUS.PAUSED) {
@@ -601,15 +695,24 @@ const stopCampaign = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`⏹️ Parando campanha ${id}`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
+
+    const campaign = campaignResult.rows[0];
 
     // Atualizar campanha (parar = voltar para draft)
     const updatedCampaign = await db.update('campaigns', {
@@ -633,15 +736,24 @@ const getCampaignStats = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`📊 Buscando estatísticas da campanha ${id}`);
 
-    // Verificar se campanha pertence ao usuário
-    const campaign = await db.findOne('campaigns', { id, user_id: userId });
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
-    if (!campaign) {
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
       throw new NotFoundError('Campaign not found');
     }
+
+    const campaign = campaignResult.rows[0];
 
     // Buscar estatísticas dos leads
     const statsQuery = `

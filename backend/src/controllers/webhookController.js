@@ -3,6 +3,7 @@ const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { LEAD_STATUS } = require('../utils/helpers');
 const conversationAutomationService = require('../services/conversationAutomationService');
+const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
 const axios = require('axios');
 
 // ================================
@@ -87,71 +88,36 @@ const receiveWebhook = async (req, res) => {
       // }
     }
 
+    // Check for duplicate webhook (idempotency)
+    const alreadyProcessed = await isWebhookProcessed(eventType, payload);
+    if (alreadyProcessed) {
+      console.log('⚠️ Webhook já processado, ignorando duplicata');
+      return res.status(200).json({
+        success: true,
+        message: 'Webhook already processed (duplicate)',
+        duplicate: true
+      });
+    }
+
     // Salvar log do webhook
-    await db.insert('webhook_logs', {
+    const webhookLog = await db.insert('webhook_logs', {
       event_type: eventType || 'unknown',
       account_id: payload.account_id || null,
       payload: JSON.stringify(payload),
       processed: false
     });
 
-    // Processar webhook de acordo com o tipo
-    // ✅ EVENTOS CORRETOS SEGUNDO DOCUMENTAÇÃO UNIPILE
-    let result;
-    switch (eventType) {
-      case 'message_received':
-        result = await handleMessageReceived(payload);
-        break;
+    // ✅ NOVO: Adicionar job à fila em vez de processar síncronamente
+    const job = await addWebhookJob(eventType, payload, webhookLog.id);
 
-      case 'new_relation':
-        result = await handleNewRelation(payload);
-        break;
+    console.log(`✅ Webhook enfileirado - Job ID: ${job.id}`);
 
-      case 'message_reaction':
-        result = await handleMessageReaction(payload);
-        break;
-
-      case 'message_read':
-        result = await handleMessageRead(payload);
-        break;
-
-      case 'message_edited':
-        result = await handleMessageEdited(payload);
-        break;
-
-      case 'message_deleted':
-        result = await handleMessageDeleted(payload);
-        break;
-
-      case 'message_delivered':
-        result = await handleMessageDelivered(payload);
-        break;
-
-      default:
-        console.log(`⚠️ Tipo de evento não tratado: ${eventType}`);
-        result = { handled: false, reason: 'Event type not handled' };
-    }
-
-    // Marcar webhook como processado (usando subconsulta para PostgreSQL)
-    await db.query(
-      `UPDATE webhook_logs
-       SET processed = true
-       WHERE id = (
-         SELECT id FROM webhook_logs
-         WHERE event_type = $1 AND account_id = $2
-         ORDER BY created_at DESC
-         LIMIT 1
-       )`,
-      [eventType, payload.account_id]
-    );
-
-    console.log('✅ Webhook processado:', result);
-
-    // Sempre retornar 200 para o Unipile
-    res.status(200).json({ 
-      success: true, 
-      message: 'Webhook received',
-      result 
+    // ✅ Retornar 200 IMEDIATAMENTE (sem aguardar processamento)
+    res.status(200).json({
+      success: true,
+      message: 'Webhook queued for processing',
+      jobId: job.id,
+      eventType
     });
 
   } catch (error) {
@@ -379,7 +345,10 @@ async function handleMessageReceived(payload) {
         ai_active: shouldActivateAI,
         ai_agent_id: leadData.campaign_ai_agent_id || null,
         is_connection: true,
-        unread_count: 1
+        // ✅ Só marcar como não lida se for mensagem DO LEAD (não enviada pelo usuário)
+        unread_count: isOwnMessage ? 0 : 1,
+        last_message_at: timestamp ? new Date(timestamp) : new Date(),
+        last_message_preview: messageContent?.substring(0, 100) || ''
       });
 
       // Atualizar lead para "accepted" se ainda não estiver
@@ -402,10 +371,11 @@ async function handleMessageReceived(payload) {
       console.log('📝 Conversa existente encontrada');
 
       // Atualizar conversa
+      // ✅ Só incrementar unread_count se for mensagem DO LEAD (não enviada pelo usuário)
       await db.update('conversations', {
         last_message_preview: messageContent?.substring(0, 100) || '',
         last_message_at: new Date(),
-        unread_count: conversation.unread_count + 1
+        unread_count: isOwnMessage ? conversation.unread_count : conversation.unread_count + 1
       }, { id: conversation.id });
     }
 
@@ -897,5 +867,13 @@ const getWebhookStats = async (req, res) => {
 module.exports = {
   receiveWebhook,
   getWebhookLogs,
-  getWebhookStats
+  getWebhookStats,
+  // Export handler functions for webhook worker
+  handleMessageReceived,
+  handleNewRelation,
+  handleMessageReaction,
+  handleMessageRead,
+  handleMessageEdited,
+  handleMessageDeleted,
+  handleMessageDelivered
 };
