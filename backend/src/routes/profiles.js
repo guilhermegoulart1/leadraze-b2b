@@ -61,6 +61,9 @@ router.post('/search', profileController.searchProfilesAdvanced);
 // Buscar perfis - rota simples (GET - mantida para compatibilidade)
 router.get('/linkedin/search', profileController.searchProfiles);
 
+// Buscar detalhes completos de um perfil
+router.get('/:profileId/details', profileController.getProfileDetails);
+
 // Enviar convite
 router.post('/linkedin/invite', profileController.sendInvitation);
 

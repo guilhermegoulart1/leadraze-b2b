@@ -46,9 +46,10 @@ const getLeads = async (req, res) => {
     console.log(`📋 Listando leads do usuário ${userId}`);
 
     // Construir query - MULTI-TENANCY: Filter by account_id
-    let whereConditions = ['c.account_id = $1', 'c.user_id = $2'];
-    let queryParams = [accountId, userId];
-    let paramIndex = 3;
+    // Support both campaign leads AND Google Maps leads (without campaign)
+    let whereConditions = ['(l.account_id = $1 OR c.account_id = $1)'];
+    let queryParams = [accountId];
+    let paramIndex = 2;
 
     // SECTOR FILTER: Add sector filtering
     const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, paramIndex);
@@ -86,19 +87,19 @@ const getLeads = async (req, res) => {
 
     // Query principal
     const query = `
-      SELECT 
+      SELECT
         l.*,
         c.name as campaign_name,
         c.status as campaign_status,
-        CASE 
-          WHEN l.status = 'invite_sent' AND l.sent_at IS NOT NULL 
+        CASE
+          WHEN l.status = 'invite_sent' AND l.sent_at IS NOT NULL
           THEN EXTRACT(DAY FROM NOW() - l.sent_at)::INTEGER
           ELSE 0
         END as days_since_invite
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN campaigns c ON l.campaign_id = c.id
       WHERE ${whereClause}
-      ORDER BY 
+      ORDER BY
         CASE l.status
           WHEN 'qualified' THEN 1
           WHEN 'qualifying' THEN 2
@@ -119,7 +120,7 @@ const getLeads = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*)
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN campaigns c ON l.campaign_id = c.id
       WHERE ${whereClause}
     `;
 
@@ -170,8 +171,8 @@ const getLead = async (req, res) => {
           ELSE 0
         END as days_since_invite
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
-      WHERE l.id = $1 AND c.account_id = $2 ${sectorFilter}
+      LEFT JOIN campaigns c ON l.campaign_id = c.id
+      WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, ...sectorParams];
@@ -417,7 +418,7 @@ const updateLead = async (req, res) => {
 
     // Verificar se lead pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const leadCheck = await db.query(
-      `SELECT l.*, c.user_id, c.account_id FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1 AND c.account_id = $2 ${sectorFilter}`,
+      `SELECT l.*, c.user_id, c.account_id FROM leads l LEFT JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}`,
       [id, accountId, ...sectorParams]
     );
 
@@ -509,7 +510,7 @@ const deleteLead = async (req, res) => {
 
     // Verificar se lead pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const leadCheck = await db.query(
-      `SELECT l.*, c.user_id, c.account_id FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1 AND c.account_id = $2 ${sectorFilter}`,
+      `SELECT l.*, c.user_id, c.account_id FROM leads l LEFT JOIN campaigns c ON l.campaign_id = c.id WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}`,
       [id, accountId, ...sectorParams]
     );
 

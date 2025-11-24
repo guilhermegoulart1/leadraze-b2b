@@ -10,6 +10,9 @@ const conversationSyncWorker = require('./workers/conversationSyncWorker');
 // ✅ Import webhook worker to register job processors
 require('./workers/webhookWorker');
 
+// ✅ Import Google Maps Agent processor
+const { registerGoogleMapsAgentProcessor } = require('./queues/processors/googleMapsAgentProcessor');
+
 const PORT = process.env.PORT || 3001;
 
 // Test database connection before starting server
@@ -39,6 +42,9 @@ async function startServer() {
 
     console.log('✅ Webhook worker registered (Bull queue)');
 
+    // Register Google Maps Agent processor
+    registerGoogleMapsAgentProcessor();
+
     // Start server
     app.listen(PORT, () => {
       console.log('\n🚀 ========================================');
@@ -51,6 +57,7 @@ async function startServer() {
       console.log('========================================');
       console.log('\n📊 Queue Status:');
       console.log('   - webhooks: ✅ Active (real-time processing)');
+      console.log('   - google-maps-agents: ✅ Active (automated lead collection)');
       console.log('   - campaigns: Ready (Phase 2)');
       console.log('   - bulk-collection: Ready (Phase 3)');
       console.log('   - conversation-sync: Disabled (webhooks handle sync)');

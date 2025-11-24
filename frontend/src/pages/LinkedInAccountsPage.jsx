@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings } from 'lucide-react';
+import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin } from 'lucide-react';
 import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
 
@@ -213,19 +213,22 @@ const LinkedInAccountsPage = () => {
   }
 
   return (
-    <div className="p-6">
-      
+    <div className="h-full bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Contas LinkedIn</h2>
-          <p className="text-gray-500 mt-1">Gerencie suas contas conectadas</p>
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Canais Conectados</h1>
+            <p className="text-sm text-gray-500 mt-1">Gerencie todas as suas contas conectadas em diferentes canais</p>
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors shadow-sm">
+            <Plus className="w-5 h-5" />
+            <span>Conectar Canal</span>
+          </button>
         </div>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-lg hover:opacity-90 font-semibold">
-          <Plus className="w-5 h-5" />
-          <span>Conectar Nova Conta</span>
-        </button>
       </div>
+
+      <div className="p-6">
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -272,51 +275,59 @@ const LinkedInAccountsPage = () => {
           const healthStyle = healthScore ? getHealthScoreStyle(healthScore.health_score) : null;
 
           return (
-            <div key={account.id} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+            <div key={account.id} className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all">
+              {/* Canal Badge - Sempre no topo */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 rounded-t-lg flex items-center justify-between">
+                <div className="flex items-center gap-2 text-white">
+                  <Linkedin className="w-4 h-4" />
+                  <span className="text-sm font-semibold">LinkedIn</span>
+                </div>
+                <span className={`flex items-center gap-1 px-2 py-0.5 ${typeStyle.bg} ${typeStyle.text} text-xs font-semibold rounded-full`}>
+                  <TypeIcon className="w-3 h-3" />
+                  <span>{typeStyle.label}</span>
+                </span>
+              </div>
 
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  {account.profile_picture ? (
-                    <img
-                      src={account.profile_picture}
-                      alt={account.profile_name}
-                      className="w-16 h-16 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                      {account.profile_name?.substring(0, 2).toUpperCase()}
+              <div className="p-5">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    {account.profile_picture ? (
+                      <img
+                        src={account.profile_picture}
+                        alt={account.profile_name}
+                        className="w-14 h-14 rounded-full border-2 border-blue-200"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                        {account.profile_name?.substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate">{account.profile_name}</h3>
+                      <p className="text-sm text-gray-500 truncate">@{account.public_identifier || account.linkedin_username}</p>
                     </div>
-                  )}
-                  <div>
-                    <h3 className="font-bold text-gray-900">{account.profile_name}</h3>
-                    <p className="text-sm text-gray-500">@{account.public_identifier || account.linkedin_username}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {account.status === 'active' ? (
+                      <span className="flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span>Ativa</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>Inativa</span>
+                      </span>
+                    )}
+                    {healthStyle && (
+                      <span className={`flex items-center gap-1 px-2.5 py-1 ${healthStyle.bg} ${healthStyle.text} text-xs font-medium rounded-full`}>
+                        <span className="font-semibold">{healthScore.health_score}</span>
+                        <span>/100</span>
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-col items-end space-y-2">
-                  {account.status === 'active' ? (
-                    <span className="flex items-center space-x-1 px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Ativa</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center space-x-1 px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>Inativa</span>
-                    </span>
-                  )}
-                  <span className={`flex items-center space-x-1 px-3 py-1 ${typeStyle.bg} ${typeStyle.text} text-xs font-semibold rounded-full`}>
-                    <TypeIcon className="w-3 h-3" />
-                    <span>{typeStyle.label}</span>
-                  </span>
-                  {healthStyle && (
-                    <span className={`flex items-center space-x-1 px-3 py-1 ${healthStyle.bg} ${healthStyle.text} text-xs font-semibold rounded-full border ${healthStyle.border}`}>
-                      <span className="font-bold">{healthScore.health_score}</span>
-                      <span>/100</span>
-                    </span>
-                  )}
-                </div>
-              </div>
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200">
@@ -375,20 +386,17 @@ const LinkedInAccountsPage = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div className="flex items-center space-x-3">
-                  <button className="text-sm text-purple-600 hover:text-purple-700 font-semibold">
-                    Ver Detalhes
-                  </button>
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleOpenLimitConfig(account)}
-                    className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800 font-semibold"
+                    className="flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-700 font-medium"
                   >
                     <Settings className="w-4 h-4" />
-                    <span>Configurar Limites</span>
+                    <span>Limites</span>
                   </button>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleRefreshAccount(account.id)}
                     disabled={refreshingAccounts[account.id]}
@@ -397,26 +405,32 @@ const LinkedInAccountsPage = () => {
                   >
                     <RefreshCw className={`w-4 h-4 ${refreshingAccounts[account.id] ? 'animate-spin' : ''}`} />
                   </button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remover conta">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-
+              </div>
             </div>
           );
         })}
       </div>
 
       {accounts.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500 mb-4">Nenhuma conta LinkedIn conectada</p>
-          <button className="text-purple-600 hover:text-purple-700 font-semibold">
-            Conectar primeira conta
-          </button>
+        <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Linkedin className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum canal conectado</h3>
+            <p className="text-gray-500 mb-6">Conecte sua primeira conta LinkedIn ou outro canal para começar</p>
+            <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors shadow-sm">
+              Conectar primeiro canal
+            </button>
+          </div>
         </div>
       )}
+      </div>
 
       {/* Modal de Configuração de Limites */}
       {showLimitModal && selectedAccount && (

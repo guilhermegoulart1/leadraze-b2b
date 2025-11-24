@@ -7,7 +7,10 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'leadraze',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // SSL is required for cloud databases (Supabase, Railway, etc.) even in development
+  ssl: process.env.DB_HOST && (process.env.DB_HOST.includes('supabase.co') || process.env.DB_HOST.includes('railway.app'))
+    ? { rejectUnauthorized: false }
+    : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
 
   // ✅ OPTIMIZED: Increased for high-volume webhook processing
   max: 50, // Increased from 20 to support concurrent webhooks + campaigns

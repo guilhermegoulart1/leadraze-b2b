@@ -548,12 +548,16 @@ class ApiService {
   }
 
   async searchCompanies(query, accountId, limit = 20) {
-    const params = new URLSearchParams({ 
-      query, 
+    const params = new URLSearchParams({
+      query,
       account_id: accountId,
-      limit 
+      limit
     });
     return this.request(`/unipile/companies?${params}`);
+  }
+
+  async getProfileDetails(profileId, accountId) {
+    return this.request(`/profiles/${profileId}/details?linkedin_account_id=${accountId}`);
   }
 
   // ================================
@@ -860,6 +864,90 @@ class ApiService {
 
   async getAvailablePermissions() {
     return this.request('/permissions/available');
+  }
+
+  // ================================
+  // GOOGLE MAPS SEARCH (OUTSCRAPER)
+  // ================================
+
+  async searchGoogleMaps(filters) {
+    return this.request('/google-maps/search', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  }
+
+  async exportGoogleMapsCSV(businesses) {
+    const url = `${this.baseURL}/google-maps/export`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ businesses }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao exportar CSV');
+    }
+
+    // Retorna o texto CSV (não JSON)
+    return response.text();
+  }
+
+  async getGoogleMapsAccountInfo() {
+    return this.request('/google-maps/account');
+  }
+
+  // ================================
+  // GOOGLE MAPS AGENTS
+  // ================================
+
+  async getGoogleMapsAgents(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/google-maps-agents${query ? '?' + query : ''}`);
+  }
+
+  async getGoogleMapsAgent(id) {
+    return this.request(`/google-maps-agents/${id}`);
+  }
+
+  async createGoogleMapsAgent(data) {
+    return this.request('/google-maps-agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async executeGoogleMapsAgent(id) {
+    return this.request(`/google-maps-agents/${id}/execute`, {
+      method: 'POST',
+    });
+  }
+
+  async pauseGoogleMapsAgent(id) {
+    return this.request(`/google-maps-agents/${id}/pause`, {
+      method: 'PUT',
+    });
+  }
+
+  async resumeGoogleMapsAgent(id) {
+    return this.request(`/google-maps-agents/${id}/resume`, {
+      method: 'PUT',
+    });
+  }
+
+  async deleteGoogleMapsAgent(id) {
+    return this.request(`/google-maps-agents/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getGoogleMapsAgentStats(id) {
+    return this.request(`/google-maps-agents/${id}/stats`);
   }
 
 }

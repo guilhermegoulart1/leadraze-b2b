@@ -516,6 +516,13 @@ const searchProfilesAdvanced = async (req, res) => {
     const profiles = unipileResponse.items || [];
 
     console.log(`📥 Recebidos ${profiles.length} perfis`);
+    console.log('🔍 === RESPONSE COMPLETO DA UNIPILE ===');
+    console.log(JSON.stringify(unipileResponse, null, 2));
+    console.log('🔍 === PRIMEIRO PERFIL (AMOSTRA) ===');
+    if (profiles.length > 0) {
+      console.log(JSON.stringify(profiles[0], null, 2));
+    }
+    console.log('🔍 === FIM DO LOG ===');
 
     // ✅ PROCESSAR PERFIS COM VERIFICAÇÃO CORRETA DE LEADS
     const processedProfiles = await Promise.all(
@@ -553,22 +560,45 @@ const searchProfilesAdvanced = async (req, res) => {
                               profile.photoUrl ||
                               null;
 
+        // Buscar empresa de current_positions (formato Unipile)
+        const company = profile.company ||
+                       profile.current_company ||
+                       (profile.current_positions && profile.current_positions.length > 0
+                         ? profile.current_positions[0].company
+                         : null) ||
+                       profile.companyName ||
+                       null;
+
+        // Buscar título/cargo
+        const title = profile.title ||
+                     profile.headline ||
+                     (profile.current_positions && profile.current_positions.length > 0
+                       ? profile.current_positions[0].role
+                       : null) ||
+                     profile.occupation ||
+                     null;
+
         return {
           id: profileId || `temp_${index}`,
           provider_id: profile.provider_id || profile.id,
           name: profile.name || profile.full_name || profile.firstName || 'Nome não disponível',
-          title: profile.title || profile.headline || profile.occupation || null,
-          company: profile.company || profile.current_company || profile.companyName || null,
+          title: title,
+          company: company,
           location: profile.location || profile.geo_location || null,
           profile_url: profile.profile_url || profile.url || profile.public_profile_url || null,
           profile_picture: profilePicture,
           summary: profile.summary || profile.description || null,
           industry: profile.industry || null,
-          connections: profile.connections || profile.connection_count || null,
+          connections: profile.connections || profile.connections_count || null,
+          follower_count: profile.follower_count || profile.followers_count || null,
+          is_premium: profile.premium || profile.is_premium || false,
+          verified: profile.verified || false,
           is_private: profile.is_private || false,
           already_lead: isLead,
           can_get_details: true,
-          profile_score: calculateProfileScore(profile)
+          profile_score: calculateProfileScore(profile),
+          // Incluir current_positions para debug no frontend
+          current_positions: profile.current_positions || null
         };
       })
     );
@@ -577,14 +607,16 @@ const searchProfilesAdvanced = async (req, res) => {
     const paginationResponse = {
       current_cursor: cursor,
       next_cursor: unipileResponse.cursor || null,
-      has_more: !!(unipileResponse.cursor && profiles.length === parseInt(limit)),
+      has_more: !!unipileResponse.cursor, // Se tem cursor, tem mais páginas
       page_count: profiles.length,
       limit: parseInt(limit)
     };
 
     console.log('✅ Busca concluída:', {
       found: processedProfiles.length,
-      has_next: paginationResponse.has_more
+      has_next: paginationResponse.has_more,
+      next_cursor: paginationResponse.next_cursor,
+      unipile_cursor: unipileResponse.cursor
     });
 
     sendSuccess(res, {
@@ -614,6 +646,59 @@ function calculateProfileScore(profile) {
   if (profile.industry) score += 5;
   return Math.min(score, 100);
 }
+
+// ================================
+// 6. BUSCAR DETALHES COMPLETOS DO PERFIL
+// ================================
+const getProfileDetails = async (req, res) => {
+  try {
+    const { profileId } = req.params;
+    const { linkedin_account_id } = req.query;
+    const userId = req.user.id;
+
+    console.log('🔍 === BUSCAR DETALHES DO PERFIL ===');
+    console.log('👤 Profile ID:', profileId);
+    console.log('🔐 LinkedIn Account ID:', linkedin_account_id);
+
+    if (!profileId || !linkedin_account_id) {
+      throw new ValidationError('profileId and linkedin_account_id are required');
+    }
+
+    // Verificar se a conta LinkedIn pertence ao usuário
+    const accountQuery = await db.query(
+      'SELECT * FROM linkedin_accounts WHERE id = $1 AND user_id = $2',
+      [linkedin_account_id, userId]
+    );
+
+    if (accountQuery.rows.length === 0) {
+      throw new ForbiddenError('LinkedIn account not found or access denied');
+    }
+
+    const account = accountQuery.rows[0];
+
+    console.log('📡 Buscando detalhes na Unipile...');
+
+    // Buscar detalhes completos via Unipile
+    // Nota: O LinkedIn limita informações disponíveis para perfis de 2º grau
+    // Apenas conexões diretas (1º grau) fornecem experiência, educação, habilidades completas
+    const profileDetails = await unipileClient.users.getOne(
+      account.unipile_account_id,
+      profileId
+    );
+
+    console.log('✅ Detalhes recebidos da Unipile');
+    console.log('📊 Network Distance:', profileDetails.network_distance);
+    console.log('📊 DETALHES COMPLETOS:', JSON.stringify(profileDetails, null, 2));
+
+    sendSuccess(res, {
+      data: profileDetails
+    }, 'Profile details retrieved successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar detalhes do perfil:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
 
 // ================================
 // 7. ENVIAR CONVITE
@@ -996,6 +1081,7 @@ module.exports = {
   refreshLinkedInAccount,
   searchProfiles,
   searchProfilesAdvanced,
+  getProfileDetails,
   sendInvitation,
   getInviteStats,
   updateInviteLimit,

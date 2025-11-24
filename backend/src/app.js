@@ -105,7 +105,8 @@ app.get('/api', (req, res) => {
       analytics: '/api/analytics',
       users: '/api/users',
       permissions: '/api/permissions',
-      sectors: '/api/sectors'
+      sectors: '/api/sectors',
+      googleMaps: '/api/google-maps'
     }
   });
 });
@@ -226,6 +227,20 @@ try {
   console.error('❌ Error loading contacts routes:', error.message);
 }
 
+try {
+  app.use('/api/google-maps', require('./routes/googleMaps'));
+  console.log('✅ Google Maps search routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Google Maps routes:', error.message);
+}
+
+try {
+  app.use('/api/google-maps-agents', require('./routes/googleMapsAgents'));
+  console.log('✅ Google Maps agents routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Google Maps agents routes:', error.message);
+}
+
 // ================================
 // BULL BOARD (Queue Monitoring Dashboard)
 // ================================
@@ -234,7 +249,7 @@ try {
   const { createBullBoard } = require('@bull-board/api');
   const { BullAdapter } = require('@bull-board/api/bullAdapter');
   const { ExpressAdapter } = require('@bull-board/express');
-  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue } = require('./queues');
+  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue } = require('./queues');
 
   // Create Express adapter for Bull Board
   const serverAdapter = new ExpressAdapter();
@@ -246,7 +261,8 @@ try {
       new BullAdapter(webhookQueue),
       new BullAdapter(campaignQueue),
       new BullAdapter(bulkCollectionQueue),
-      new BullAdapter(conversationSyncQueue)
+      new BullAdapter(conversationSyncQueue),
+      new BullAdapter(googleMapsAgentQueue)
     ],
     serverAdapter
   });
@@ -256,7 +272,7 @@ try {
   app.use('/admin/queues', serverAdapter.getRouter());
 
   console.log('✅ Bull Board dashboard loaded at /admin/queues');
-  console.log('   Monitoring queues: webhooks, campaigns, bulk-collection, conversation-sync');
+  console.log('   Monitoring queues: webhooks, campaigns, bulk-collection, conversation-sync, google-maps-agents');
   console.log('   ⚠️  Dashboard is currently public - add authentication in production');
 } catch (error) {
   console.error('❌ Error loading Bull Board:', error.message);

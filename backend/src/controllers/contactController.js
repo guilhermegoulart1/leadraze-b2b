@@ -622,11 +622,32 @@ exports.deleteContact = async (req, res) => {
       throw new NotFoundError('Contact not found');
     }
 
-    // Delete contact (cascading deletes will handle related records)
+    // First, find all leads associated with this contact
+    const associatedLeads = await db.query(
+      `SELECT DISTINCT l.id
+       FROM leads l
+       INNER JOIN contact_leads cl ON cl.lead_id = l.id
+       WHERE cl.contact_id = $1`,
+      [id]
+    );
+
+    // Delete all associated leads
+    if (associatedLeads.rows.length > 0) {
+      const leadIds = associatedLeads.rows.map(row => row.id);
+      console.log(`🗑️  Deleting ${leadIds.length} lead(s) associated with contact ${id}`);
+
+      await db.query(
+        'DELETE FROM leads WHERE id = ANY($1::uuid[])',
+        [leadIds]
+      );
+    }
+
+    // Delete contact (cascading deletes will handle contact_leads and other related records)
     await db.query('DELETE FROM contacts WHERE id = $1 AND account_id = $2', [id, accountId]);
 
     sendSuccess(res, {
-      message: 'Contact deleted successfully'
+      message: 'Contact deleted successfully',
+      deleted_leads: associatedLeads.rows.length
     });
 
   } catch (error) {

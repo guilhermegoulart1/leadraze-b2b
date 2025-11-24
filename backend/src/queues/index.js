@@ -199,9 +199,41 @@ const conversationSyncQueue = new Bull('conversation-sync', {
 });
 
 /**
+ * Google Maps Agent Queue - Automated Lead Collection
+ *
+ * Processes Google Maps agents - fetches 20 leads/day automatically
+ * - Jobs added: when agent created
+ * - Jobs processed: immediately + repeat every 24h
+ * - Auto-stops: when all results fetched
+ */
+const googleMapsAgentQueue = new Bull('google-maps-agents', {
+  redis: bullRedisConfig,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000
+    },
+    removeOnComplete: {
+      age: 7 * 24 * 3600, // Keep for 7 days
+      count: 500
+    },
+    removeOnFail: {
+      age: 30 * 24 * 3600, // Keep failed for 30 days
+      count: 1000
+    }
+  },
+  settings: {
+    stalledInterval: 60000,
+    maxStalledCount: 2,
+    lockDuration: 120000 // 2 minutes - API calls can take time
+  }
+});
+
+/**
  * Global error handler for all queues
  */
-const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue];
+const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue];
 
 queues.forEach((queue) => {
   queue.on('error', (error) => {
@@ -240,5 +272,6 @@ module.exports = {
   campaignQueue,
   bulkCollectionQueue,
   conversationSyncQueue,
+  googleMapsAgentQueue,
   closeAllQueues
 };

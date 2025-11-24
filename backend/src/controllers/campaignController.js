@@ -414,7 +414,7 @@ const updateCampaign = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaign = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -467,7 +467,7 @@ const deleteCampaign = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaign = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -536,7 +536,7 @@ const startCampaign = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaign = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -597,7 +597,7 @@ const pauseCampaign = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaignResult = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -643,7 +643,7 @@ const resumeCampaign = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaignResult = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -704,7 +704,7 @@ const stopCampaign = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaignResult = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -745,7 +745,7 @@ const getCampaignStats = async (req, res) => {
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaignResult = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 

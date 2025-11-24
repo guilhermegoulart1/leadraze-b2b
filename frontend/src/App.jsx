@@ -8,6 +8,8 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import AuthErrorPage from './pages/AuthErrorPage';
 import Dashboard from './pages/Dashboard';
 import SearchPage from './pages/SearchPage';
+import GoogleMapsSearchPage from './pages/GoogleMapsSearchPage';
+import GoogleMapsAgentsPage from './pages/GoogleMapsAgentsPage';
 import CampaignsPage from './pages/CampaignsPage';
 import LeadsPage from './pages/LeadsPage';
 import ContactsPage from './pages/ContactsPage';
@@ -70,6 +72,8 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
+        <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
         <Route path="campaigns" element={<CampaignsPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="contacts" element={<ContactsPage />} />

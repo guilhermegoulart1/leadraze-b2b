@@ -4,7 +4,7 @@ import {
   Home, Search, Award, BarChart3, MessageCircle,
   Bot, Lightbulb, Settings, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
-  ChevronDown, Users, Shield, Lock
+  ChevronDown, Users, Shield, Lock, Linkedin, MapPin
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -48,10 +48,15 @@ const Layout = () => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home, section: null },
 
-    // Prospecção
-    { section: 'Prospecção' },
+    // LinkedIn
+    { section: 'LINKEDIN' },
+    { path: '/ai-agents', label: 'Agentes de IA', icon: Bot },
     { path: '/search', label: 'Busca de Perfis', icon: Search },
     { path: '/campaigns', label: 'Campanhas', icon: Award },
+
+    // Google Maps
+    { section: 'GOOGLE MAPS' },
+    { path: '/google-maps-agents', label: 'Gerador de Leads', icon: Bot },
 
     // CRM
     { section: 'CRM' },
@@ -59,9 +64,8 @@ const Layout = () => {
     { path: '/conversations', label: 'Conversas', icon: MessageCircle, badge: unreadMessages },
     { path: '/contacts', label: 'Contatos', icon: Users },
 
-    // Inteligência Artificial
-    { section: 'Inteligência Artificial' },
-    { path: '/ai-agents', label: 'Agentes de IA', icon: Bot },
+    // Nossos agentes
+    { section: 'Nossos agentes' },
     { path: '/insights', label: 'Insights', icon: Lightbulb },
   ];
 
@@ -243,6 +247,14 @@ const Layout = () => {
                 >
                   <Settings className="w-4 h-4" />
                   <span>Configurações</span>
+                </Link>
+                <Link
+                  to="/linkedin-accounts"
+                  className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                  onClick={() => setShowUserMenu(false)}
+                >
+                  <Linkedin className="w-4 h-4" />
+                  <span>Canais Conectados</span>
                 </Link>
 
                 {/* Admin & Supervisor Links */}

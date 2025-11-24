@@ -55,22 +55,27 @@ const LeadsPage = () => {
   // Pipeline stages matching backend
   const pipelineStages = {
     leads: {
-      label: 'Novos Leads',
+      label: 'Prospecção',
       color: 'slate',
       icon: UserPlus
     },
     invite_sent: {
-      label: 'Convite Enviado',
+      label: 'Convite',
       color: 'blue',
       icon: Send
     },
     qualifying: {
-      label: 'Qualificando',
+      label: 'Qualificação',
       color: 'amber',
       icon: Target
     },
+    accepted: {
+      label: 'Em andamento',
+      color: 'purple',
+      icon: Clock
+    },
     qualified: {
-      label: 'Qualificado',
+      label: 'Ganho',
       color: 'emerald',
       icon: CheckCircle2
     },
@@ -1065,8 +1070,8 @@ const LeadsPage = () => {
       <div className="flex-1 overflow-hidden">
         {viewMode === 'kanban' && (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="h-full px-6 py-4">
-              <div className="flex gap-4 h-full">
+            <div className="h-full px-6 py-4 overflow-x-auto">
+              <div className="flex gap-4 h-full min-w-max">
                 {Object.entries(pipelineStages).map(([stageKey, stage]) => (
                   <KanbanColumn key={stageKey} stage={stage} stageKey={stageKey} />
                 ))}

@@ -43,7 +43,9 @@
       "Bash(ping:*)",
       "Bash(cmd /c \"taskkill /F /PID 124156\")",
       "Bash(cmd /c \"taskkill /F /IM node.exe /T >nul 2>&1 && ping -n 2 127.0.0.1 >nul && cd backend && npm run dev\")",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(tasklist:*)",
+      "Bash(cmd //c \"taskkill /F /PID 148188\")"
     ],
     "deny": [],
     "ask": []

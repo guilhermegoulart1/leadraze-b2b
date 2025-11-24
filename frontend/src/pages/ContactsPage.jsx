@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Search, Filter, Download, Upload, Plus,
   Mail, Phone, MessageCircle, Instagram, Linkedin, Send,
-  Eye, Edit2, Trash2, X
+  Eye, Edit2, Trash2, X, MapPin, FileText, Users
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +31,9 @@ const ContactsPage = () => {
   const [selectedContact, setSelectedContact] = useState(null);
   const [detailsContactId, setDetailsContactId] = useState(null);
 
+  // Seleção múltipla
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+
   // Channel icons and colors
   const channelConfig = {
     whatsapp: { icon: MessageCircle, color: 'text-green-600', bg: 'bg-green-100' },
@@ -39,6 +42,45 @@ const ContactsPage = () => {
     linkedin: { icon: Linkedin, color: 'text-blue-700', bg: 'bg-blue-100' },
     telegram: { icon: Send, color: 'text-blue-500', bg: 'bg-blue-100' },
     phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100' }
+  };
+
+  // Source (origem) icons and colors
+  const sourceConfig = {
+    google_maps: {
+      icon: MapPin,
+      color: 'text-red-600',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+      label: 'Google Maps'
+    },
+    linkedin: {
+      icon: Linkedin,
+      color: 'text-blue-700',
+      bg: 'bg-blue-50',
+      border: 'border-blue-200',
+      label: 'LinkedIn'
+    },
+    import: {
+      icon: Upload,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      border: 'border-purple-200',
+      label: 'Importação'
+    },
+    manual: {
+      icon: Users,
+      color: 'text-gray-600',
+      bg: 'bg-gray-50',
+      border: 'border-gray-200',
+      label: 'Manual'
+    },
+    campaign: {
+      icon: Send,
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50',
+      border: 'border-indigo-200',
+      label: 'Campanha'
+    }
   };
 
   // Tag colors
@@ -200,6 +242,66 @@ const ContactsPage = () => {
     }
   };
 
+  // Seleção múltipla
+  const toggleSelectAll = () => {
+    if (selectedContactIds.length === contacts.length) {
+      setSelectedContactIds([]);
+    } else {
+      setSelectedContactIds(contacts.map(c => c.id));
+    }
+  };
+
+  const toggleSelectContact = (contactId) => {
+    setSelectedContactIds(prev =>
+      prev.includes(contactId)
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedContactIds.length === 0) return;
+
+    if (!confirm(`Tem certeza que deseja excluir ${selectedContactIds.length} contato(s)?`)) {
+      return;
+    }
+
+    try {
+      // Delete one by one (ou pode criar um endpoint bulk delete no backend)
+      await Promise.all(selectedContactIds.map(id => api.deleteContact(id)));
+      setSelectedContactIds([]);
+      loadContacts(); // Reload list
+    } catch (error) {
+      console.error('Error deleting contacts:', error);
+      alert('Erro ao excluir contatos');
+    }
+  };
+
+  // Helper para pegar foto do contato (suporta Google Maps)
+  const getContactPhoto = (contact) => {
+    // Se tem profile_picture, usa
+    if (contact.profile_picture) {
+      return contact.profile_picture;
+    }
+
+    // Se é do Google Maps e tem foto em custom_fields
+    if (contact.source === 'google_maps' && contact.custom_fields) {
+      try {
+        const customFields = typeof contact.custom_fields === 'string'
+          ? JSON.parse(contact.custom_fields)
+          : contact.custom_fields;
+
+        if (customFields.photos && customFields.photos.length > 0) {
+          return customFields.photos[0];
+        }
+      } catch (e) {
+        console.error('Error parsing custom_fields:', e);
+      }
+    }
+
+    return null;
+  };
+
   const handleExport = async () => {
     try {
       // Get current filters
@@ -278,6 +380,21 @@ const ContactsPage = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {/* Botão Excluir Selecionados - aparece quando tem seleção */}
+            {selectedContactIds.length > 0 && (
+              <PermissionGate permission="contacts:delete:own">
+                <button
+                  onClick={handleDeleteSelected}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    Excluir Selecionados ({selectedContactIds.length})
+                  </span>
+                </button>
+              </PermissionGate>
+            )}
+
             <PermissionGate permission="contacts:export">
               <button
                 onClick={handleExport}
@@ -447,6 +564,14 @@ const ContactsPage = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
+                <th className="px-4 py-3 w-12">
+                  <input
+                    type="checkbox"
+                    checked={selectedContactIds.length === contacts.length && contacts.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-purple-600 bg-white border-gray-300 rounded focus:ring-purple-500 cursor-pointer"
+                  />
+                </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('name')}
@@ -480,25 +605,55 @@ const ContactsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {contacts.map((contact) => (
-                <tr key={contact.id} className="hover:bg-gray-50 transition-colors">
-                  {/* CONTATO */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      {contact.profile_picture ? (
-                        <img
-                          src={contact.profile_picture}
-                          alt={contact.name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                          {contact.name?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                      )}
+              {contacts.map((contact) => {
+                const contactPhoto = getContactPhoto(contact);
+
+                return (
+                  <tr key={contact.id} className="hover:bg-gray-50 transition-colors">
+                    {/* CHECKBOX */}
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedContactIds.includes(contact.id)}
+                        onChange={() => toggleSelectContact(contact.id)}
+                        className="w-4 h-4 text-purple-600 bg-white border-gray-300 rounded focus:ring-purple-500 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+
+                    {/* CONTATO */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {contactPhoto ? (
+                          <img
+                            src={contactPhoto}
+                            alt={contact.name}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                            {contact.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                        )}
                       <div className="min-w-0">
-                        <div className="font-semibold text-sm text-gray-900 truncate">
-                          {contact.name}
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-sm text-gray-900 truncate">
+                            {contact.name}
+                          </div>
+                          {/* Source Badge */}
+                          {contact.source && sourceConfig[contact.source] && (
+                            <div
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${
+                                sourceConfig[contact.source].bg
+                              } ${sourceConfig[contact.source].color} ${sourceConfig[contact.source].border}`}
+                              title={`Origem: ${sourceConfig[contact.source].label}`}
+                            >
+                              {React.createElement(sourceConfig[contact.source].icon, {
+                                className: 'w-3 h-3'
+                              })}
+                              <span className="hidden xl:inline">{sourceConfig[contact.source].label}</span>
+                            </div>
+                          )}
                         </div>
                         {contact.title && (
                           <div className="text-xs text-gray-500 truncate">{contact.title}</div>
@@ -619,7 +774,8 @@ const ContactsPage = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         )}
