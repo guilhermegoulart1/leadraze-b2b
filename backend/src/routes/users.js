@@ -12,6 +12,11 @@ const { requireRole, checkPermission } = require('../middleware/permissions');
 // All user management routes require authentication
 router.use(authenticateToken);
 
+// Update user's language preference (any authenticated user)
+router.put('/language',
+  userController.updateLanguage
+);
+
 // List all users (admin only)
 router.get('/',
   checkPermission('users:view'),

@@ -1,0 +1,29 @@
+{
+  "validation": {
+    "required": "{{field}} is required",
+    "invalid": "Invalid {{field}}",
+    "tooShort": "{{field}} is too short",
+    "tooLong": "{{field}} is too long",
+    "invalidFormat": "Invalid format for {{field}}"
+  },
+  "auth": {
+    "invalidCredentials": "Invalid email or password",
+    "emailRequired": "Email, password and name are required",
+    "userExists": "User with this email already exists",
+    "userNotFound": "User not found",
+    "accountDisabled": "Account is disabled",
+    "unauthorized": "Unauthorized access",
+    "tokenExpired": "Token has expired",
+    "invalidToken": "Invalid token"
+  },
+  "resources": {
+    "notFound": "Resource not found",
+    "alreadyExists": "Resource already exists",
+    "forbidden": "You don't have permission to access this resource"
+  },
+  "server": {
+    "internalError": "Internal server error",
+    "badRequest": "Bad request",
+    "serviceUnavailable": "Service temporarily unavailable"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "title": "Contas do LinkedIn",
+  "subtitle": "Gerencie suas contas do LinkedIn para campanhas",
+  "connectAccount": "Conectar Conta do LinkedIn",
+  "addAccount": "Adicionar Conta",
+  "table": {
+    "account": "Conta",
+    "email": "Email",
+    "status": "Status",
+    "dailyLimit": "Limite Diário",
+    "invitesSent": "Convites Enviados Hoje",
+    "campaigns": "Campanhas Ativas",
+    "actions": "Ações"
+  },
+  "status": {
+    "connected": "Conectada",
+    "disconnected": "Desconectada",
+    "error": "Erro",
+    "limited": "Limitada",
+    "pending": "Pendente"
+  },
+  "actions": {
+    "edit": "Editar",
+    "disconnect": "Desconectar",
+    "reconnect": "Reconectar",
+    "viewLimits": "Ver Limites",
+    "testConnection": "Testar Conexão"
+  },
+  "limits": {
+    "title": "Limites da Conta",
+    "dailyInvites": "Convites Diários",
+    "dailyMessages": "Mensagens Diárias",
+    "weeklyInvites": "Convites Semanais",
+    "remaining": "{{count}} restantes",
+    "resetIn": "Reinicia em {{time}}",
+    "configure": "Configurar Limites"
+  },
+  "form": {
+    "title": "Configurações da Conta do LinkedIn",
+    "email": "Email do LinkedIn",
+    "emailPlaceholder": "seu-email@exemplo.com",
+    "dailyInviteLimit": "Limite Diário de Convites",
+    "dailyMessageLimit": "Limite Diário de Mensagens",
+    "delayBetweenActions": "Atraso Entre Ações (segundos)",
+    "randomizeDelay": "Randomizar Atraso",
+    "notes": "Notas",
+    "notesPlaceholder": "Notas internas sobre esta conta",
+    "save": "Salvar Configurações",
+    "cancel": "Cancelar"
+  },
+  "messages": {
+    "connected": "Conta do LinkedIn conectada com sucesso",
+    "disconnected": "Conta do LinkedIn desconectada",
+    "updated": "Configurações da conta atualizadas",
+    "testSuccess": "Teste de conexão bem-sucedido",
+    "testFailed": "Teste de conexão falhou",
+    "confirmDisconnect": "Tem certeza que deseja desconectar esta conta?",
+    "limitReached": "Limite diário atingido para esta conta",
+    "noAccounts": "Nenhuma conta do LinkedIn conectada",
+    "connectFirst": "Conecte sua conta do LinkedIn para iniciar campanhas"
+  }
+}

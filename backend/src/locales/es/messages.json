@@ -1,0 +1,34 @@
+{
+  "auth": {
+    "registerSuccess": "Usuario registrado con éxito",
+    "loginSuccess": "Inicio de sesión exitoso",
+    "logoutSuccess": "Cierre de sesión exitoso",
+    "passwordChanged": "Contraseña cambiada con éxito"
+  },
+  "campaigns": {
+    "created": "Campaña creada con éxito",
+    "updated": "Campaña actualizada con éxito",
+    "deleted": "Campaña eliminada con éxito",
+    "started": "Campaña iniciada con éxito",
+    "paused": "Campaña pausada con éxito",
+    "resumed": "Campaña reanudada con éxito"
+  },
+  "leads": {
+    "created": "Lead creado con éxito",
+    "updated": "Lead actualizado con éxito",
+    "deleted": "Lead eliminado con éxito",
+    "statusChanged": "Estado del lead cambiado con éxito"
+  },
+  "contacts": {
+    "created": "Contacto creado con éxito",
+    "updated": "Contacto actualizado con éxito",
+    "deleted": "Contacto eliminado con éxito",
+    "imported": "Contactos importados con éxito"
+  },
+  "general": {
+    "success": "Operación completada con éxito",
+    "created": "Creado con éxito",
+    "updated": "Actualizado con éxito",
+    "deleted": "Eliminado con éxito"
+  }
+}

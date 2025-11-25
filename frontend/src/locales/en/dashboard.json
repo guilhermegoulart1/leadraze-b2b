@@ -1,0 +1,79 @@
+{
+  "title": "Dashboard",
+  "welcome": "Welcome, {{name}}!",
+  "overview": "Overview",
+  "errors": {
+    "loadFailed": "Error loading dashboard:"
+  },
+  "periods": {
+    "last30Days": "Last 30 days",
+    "today": "Today"
+  },
+  "metrics": {
+    "totalLeads": "Total Leads",
+    "activeLeads": "Active Leads",
+    "conversionRate": "Conversion Rate",
+    "overallConversionRate": "Overall Conversion Rate",
+    "activeCampaigns": "Active Campaigns",
+    "totalContacts": "Total Contacts",
+    "newThisWeek": "New this week",
+    "newThisMonth": "New this month",
+    "invitesAccepted": "Invites Accepted",
+    "acceptanceRate": "acceptance rate",
+    "qualifiedLeads": "Qualified Leads",
+    "ofAccepted": "of accepted",
+    "activeConversations": "Active Conversations",
+    "aiResponding247": "AI responding 24/7",
+    "responseRate": "Response Rate",
+    "leadsRespondingToMessages": "Leads responding to messages",
+    "avgResponseTime": "Average Response Time",
+    "timeToFirstResponse": "Time to first response",
+    "invitesSent": "Invites Sent",
+    "linkedinRequests": "LinkedIn connection requests",
+    "leadsToQualified": "Leads → Qualified"
+  },
+  "charts": {
+    "leadsOverTime": "Leads Over Time",
+    "conversionFunnel": "Conversion Funnel",
+    "fullSalesPipeline": "Full sales pipeline",
+    "campaignPerformance": "Campaign Performance",
+    "topSources": "Top Sources",
+    "performanceOverTime": "Performance Over Time",
+    "statusDistribution": "Distribution by Status",
+    "seniorityProfile": "Profile by Seniority",
+    "leadsByIndustry": "Leads by Industry",
+    "responseTime": "Response Time"
+  },
+  "campaigns": {
+    "topCampaigns": "Top Campaigns",
+    "bestPerformers": "Best performers this month",
+    "qualified": "qualified"
+  },
+  "conversations": {
+    "metrics": "Conversation Metrics",
+    "totalMessages": "Total Messages",
+    "aiMessages": "AI Messages",
+    "leadMessages": "Lead Messages",
+    "avgPerLead": "Average per Lead",
+    "mostEngaged": "Most Engaged Leads",
+    "msgs": "msgs"
+  },
+  "goals": {
+    "monthly": "Monthly Goals",
+    "progressTowards": "Progress towards monthly objectives",
+    "leadsGenerated": "Leads Generated",
+    "qualifiedLeads": "Qualified Leads",
+    "activeConversations": "Active Conversations"
+  },
+  "recentActivity": {
+    "title": "Recent Activity",
+    "noActivity": "No recent activity",
+    "viewAll": "View all"
+  },
+  "quickActions": {
+    "title": "Quick Actions",
+    "newCampaign": "New Campaign",
+    "importLeads": "Import Leads",
+    "viewReports": "View Reports"
+  }
+}

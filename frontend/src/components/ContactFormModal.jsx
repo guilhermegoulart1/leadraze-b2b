@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, Building2, MapPin, Linkedin, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }) => {
+  const { t } = useTranslation();
   const isEditing = !!contact;
 
   const [formData, setFormData] = useState({
@@ -90,17 +92,17 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
 
     // Nome é obrigatório
     if (!formData.name.trim()) {
-      newErrors.name = 'Nome é obrigatório';
+      newErrors.name = t('contacts.form.nameRequired');
     }
 
     // Pelo menos um identificador é obrigatório (email, phone ou linkedin)
     if (!formData.email && !formData.phone && !formData.linkedin_profile_id) {
-      newErrors.identifier = 'Informe pelo menos um: email, telefone ou LinkedIn';
+      newErrors.identifier = t('contacts.form.identifierRequired');
     }
 
     // Validar email se fornecido
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
+      newErrors.email = t('contacts.form.emailInvalid');
     }
 
     setErrors(newErrors);
@@ -121,7 +123,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
       onClose();
     } catch (error) {
       console.error('Error saving contact:', error);
-      setErrors({ submit: error.message || 'Erro ao salvar contato' });
+      setErrors({ submit: error.message || t('contacts.form.errorSaving') });
     } finally {
       setSaving(false);
     }
@@ -153,7 +155,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h3 className="text-lg font-semibold text-gray-900">
-              {isEditing ? 'Editar Contato' : 'Novo Contato'}
+              {isEditing ? t('contacts.form.editContact') : t('contacts.form.createContact')}
             </h3>
             <button
               onClick={onClose}
@@ -183,7 +185,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               {/* Nome */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome <span className="text-red-500">*</span>
+                  {t('contacts.form.name')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -193,7 +195,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                     errors.name ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="Nome completo"
+                  placeholder={t('contacts.form.namePlaceholder')}
                 />
                 {errors.name && (
                   <p className="mt-1 text-xs text-red-600">{errors.name}</p>
@@ -204,7 +206,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Primeiro Nome
+                    {t('contacts.form.firstName')}
                   </label>
                   <input
                     type="text"
@@ -212,12 +214,12 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.first_name}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="João"
+                    placeholder={t('contacts.form.firstNamePlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sobrenome
+                    {t('contacts.form.lastName')}
                   </label>
                   <input
                     type="text"
@@ -225,7 +227,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.last_name}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Silva"
+                    placeholder={t('contacts.form.lastNamePlaceholder')}
                   />
                 </div>
               </div>
@@ -235,7 +237,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Mail className="w-4 h-4 inline mr-1" />
-                    Email
+                    {t('contacts.form.email')}
                   </label>
                   <input
                     type="email"
@@ -245,7 +247,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                       errors.email ? 'border-red-300' : 'border-gray-300'
                     }`}
-                    placeholder="joao@empresa.com"
+                    placeholder={t('contacts.form.emailPlaceholder')}
                   />
                   {errors.email && (
                     <p className="mt-1 text-xs text-red-600">{errors.email}</p>
@@ -254,7 +256,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Phone className="w-4 h-4 inline mr-1" />
-                    Telefone
+                    {t('contacts.form.phone')}
                   </label>
                   <input
                     type="tel"
@@ -262,7 +264,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.phone}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="+55 11 99999-9999"
+                    placeholder={t('contacts.form.phonePlaceholder')}
                   />
                 </div>
               </div>
@@ -272,7 +274,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Building2 className="w-4 h-4 inline mr-1" />
-                    Empresa
+                    {t('contacts.form.company')}
                   </label>
                   <input
                     type="text"
@@ -280,12 +282,12 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.company}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Nome da empresa"
+                    placeholder={t('contacts.form.companyPlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cargo
+                    {t('contacts.form.position')}
                   </label>
                   <input
                     type="text"
@@ -293,7 +295,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.title}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="CEO, Gerente, etc."
+                    placeholder={t('contacts.form.positionPlaceholder')}
                   />
                 </div>
               </div>
@@ -303,7 +305,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <MapPin className="w-4 h-4 inline mr-1" />
-                    Localização
+                    {t('contacts.form.location')}
                   </label>
                   <input
                     type="text"
@@ -311,12 +313,12 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.location}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="São Paulo, Brasil"
+                    placeholder={t('contacts.form.locationPlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Indústria
+                    {t('contacts.form.industry')}
                   </label>
                   <input
                     type="text"
@@ -324,7 +326,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     value={formData.industry}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Tecnologia, Saúde, etc."
+                    placeholder={t('contacts.form.industryPlaceholder')}
                   />
                 </div>
               </div>
@@ -333,7 +335,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Linkedin className="w-4 h-4 inline mr-1" />
-                  LinkedIn Profile ID
+                  {t('contacts.form.linkedinProfileId')}
                 </label>
                 <input
                   type="text"
@@ -341,7 +343,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   value={formData.linkedin_profile_id}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="joaosilva"
+                  placeholder={t('contacts.form.linkedinPlaceholder')}
                 />
               </div>
 
@@ -349,7 +351,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Globe className="w-4 h-4 inline mr-1" />
-                  URL do Perfil
+                  {t('contacts.form.profileUrl')}
                 </label>
                 <input
                   type="url"
@@ -357,14 +359,14 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   value={formData.profile_url}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="https://linkedin.com/in/joaosilva"
+                  placeholder={t('contacts.form.profileUrlPlaceholder')}
                 />
               </div>
 
               {/* Headline */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Headline
+                  {t('contacts.form.headline')}
                 </label>
                 <input
                   type="text"
@@ -372,14 +374,14 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   value={formData.headline}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="CEO na Tech Solutions"
+                  placeholder={t('contacts.form.headlinePlaceholder')}
                 />
               </div>
 
               {/* About */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sobre
+                  {t('contacts.form.about')}
                 </label>
                 <textarea
                   name="about"
@@ -387,14 +389,14 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   onChange={handleChange}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Informações sobre o contato..."
+                  placeholder={t('contacts.form.aboutPlaceholder')}
                 />
               </div>
 
               {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas Internas
+                  {t('contacts.form.notes')}
                 </label>
                 <textarea
                   name="notes"
@@ -402,7 +404,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   onChange={handleChange}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Anotações privadas..."
+                  placeholder={t('contacts.form.notesPlaceholder')}
                 />
               </div>
 
@@ -410,7 +412,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               {tags.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags
+                    {t('contacts.form.tags')}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {tags.map(tag => (
@@ -439,14 +441,14 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Cancelar
+                {t('contacts.form.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Contato'}
+                {saving ? t('contacts.form.saving') : isEditing ? t('contacts.form.saveChanges') : t('contacts.form.createNew')}
               </button>
             </div>
           </form>

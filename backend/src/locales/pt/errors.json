@@ -1,0 +1,29 @@
+{
+  "validation": {
+    "required": "{{field}} é obrigatório",
+    "invalid": "{{field}} inválido",
+    "tooShort": "{{field}} é muito curto",
+    "tooLong": "{{field}} é muito longo",
+    "invalidFormat": "Formato inválido para {{field}}"
+  },
+  "auth": {
+    "invalidCredentials": "Email ou senha inválidos",
+    "emailRequired": "Email, senha e nome são obrigatórios",
+    "userExists": "Usuário com este email já existe",
+    "userNotFound": "Usuário não encontrado",
+    "accountDisabled": "Conta está desativada",
+    "unauthorized": "Acesso não autorizado",
+    "tokenExpired": "Token expirado",
+    "invalidToken": "Token inválido"
+  },
+  "resources": {
+    "notFound": "Recurso não encontrado",
+    "alreadyExists": "Recurso já existe",
+    "forbidden": "Você não tem permissão para acessar este recurso"
+  },
+  "server": {
+    "internalError": "Erro interno do servidor",
+    "badRequest": "Requisição inválida",
+    "serviceUnavailable": "Serviço temporariamente indisponível"
+  }
+}

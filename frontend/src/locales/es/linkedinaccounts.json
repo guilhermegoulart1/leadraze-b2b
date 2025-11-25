@@ -1,0 +1,50 @@
+{
+  "title": "Canales Conectados",
+  "subtitle": "Gestione todas sus cuentas conectadas en diferentes canales",
+  "loading": "Cargando cuentas LinkedIn...",
+  "connectChannel": "Conectar Canal",
+  "stats": {
+    "totalAccounts": "Total de Cuentas",
+    "activeAccounts": "Cuentas Activas",
+    "dailyLimitTotal": "Límite Diario Total",
+    "sentToday": "Enviados Hoy"
+  },
+  "accountTypes": {
+    "salesNavigator": "Sales Navigator",
+    "recruiter": "Recruiter",
+    "premium": "Premium",
+    "free": "Free"
+  },
+  "card": {
+    "dailyLimit": "Límite Diario",
+    "sentToday": "Enviados Hoy",
+    "dailyUsage": "Uso diario",
+    "connectedOrganizations": "Organizaciones Conectadas",
+    "more": "más",
+    "connectedAt": "Conectada",
+    "unipileId": "ID Unipile",
+    "limits": "Límites",
+    "refresh": "Actualizar datos de la cuenta",
+    "remove": "Eliminar cuenta"
+  },
+  "status": {
+    "active": "Activa",
+    "inactive": "Inactiva"
+  },
+  "healthScore": {
+    "healthy": "Saludable",
+    "warning": "Atención",
+    "critical": "Crítico"
+  },
+  "messages": {
+    "noChannels": "No hay canales conectados",
+    "noChannelsDescription": "Conecte su primera cuenta de LinkedIn u otro canal para comenzar",
+    "connectFirstChannel": "Conectar primer canal",
+    "updateSuccess": "Cuenta actualizada con éxito",
+    "updateError": "Error al actualizar cuenta. Intente nuevamente.",
+    "removeConfirm": "¿Está seguro de que desea eliminar esta cuenta?",
+    "removeSuccess": "Cuenta eliminada con éxito",
+    "removeError": "Error al eliminar cuenta"
+  },
+  "channel": "LinkedIn"
+}

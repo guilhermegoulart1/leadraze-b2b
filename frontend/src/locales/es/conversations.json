@@ -1,0 +1,63 @@
+{
+  "title": "Conversaciones",
+  "subtitle": "Gestione todas sus conversaciones en un solo lugar",
+  "allConversations": "Todas las Conversaciones",
+  "unread": "No Leídas",
+  "archived": "Archivadas",
+  "filters": {
+    "all": "Todas",
+    "unread": "No Leídas",
+    "starred": "Favoritas",
+    "archived": "Archivadas",
+    "channel": "Canal"
+  },
+  "channels": {
+    "whatsapp": "WhatsApp",
+    "instagram": "Instagram",
+    "email": "Correo",
+    "linkedin": "LinkedIn",
+    "telegram": "Telegram"
+  },
+  "search": {
+    "placeholder": "Buscar conversaciones...",
+    "noResults": "Ninguna conversación encontrada",
+    "tryDifferent": "Pruebe con un término de búsqueda diferente"
+  },
+  "conversation": {
+    "typeMessage": "Escriba un mensaje...",
+    "send": "Enviar",
+    "attach": "Adjuntar archivo",
+    "emoji": "Agregar emoji",
+    "markAsRead": "Marcar como leída",
+    "markAsUnread": "Marcar como no leída",
+    "archive": "Archivar",
+    "unarchive": "Desarchivar",
+    "star": "Marcar como favorita",
+    "unstar": "Quitar de favoritas",
+    "delete": "Eliminar",
+    "viewContact": "Ver Contacto",
+    "assignTo": "Asignar a",
+    "addNote": "Agregar nota"
+  },
+  "messages": {
+    "sent": "Mensaje enviado",
+    "deleted": "Mensaje eliminado",
+    "archived": "Conversación archivada",
+    "unarchived": "Conversación desarchivada",
+    "confirmDelete": "¿Está seguro de que desea eliminar este mensaje?",
+    "noConversations": "Aún no hay conversaciones",
+    "startFirst": "Inicie una conversación con sus contactos"
+  },
+  "status": {
+    "online": "En línea",
+    "offline": "Desconectado",
+    "typing": "escribiendo...",
+    "away": "Ausente"
+  },
+  "time": {
+    "now": "Ahora",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "thisWeek": "Esta semana"
+  }
+}

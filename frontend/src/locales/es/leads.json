@@ -1,0 +1,136 @@
+{
+  "title": "Pipeline",
+  "subtitle": "Gestione sus leads y oportunidades",
+  "allLeads": "Todos los Leads",
+  "newLead": "Nuevo Lead",
+  "exportButton": "Exportar",
+  "loading": "Cargando pipeline...",
+  "searchPlaceholder": "Buscar por nombre, empresa, email...",
+  "filtersButton": "Filtros",
+  "stages": {
+    "leads": "Prospección",
+    "invite_sent": "Invitación",
+    "qualifying": "Calificación",
+    "accepted": "En progreso",
+    "qualified": "Ganado",
+    "discarded": "Descartado"
+  },
+  "filters": {
+    "all": "Todos",
+    "assigned": "Asignados a Mí",
+    "unassigned": "Sin Asignar",
+    "hot": "Leads Calientes",
+    "cold": "Leads Fríos"
+  },
+  "sort": {
+    "newest": "Más Recientes",
+    "oldest": "Más Antiguos",
+    "nameAZ": "Nombre (A-Z)",
+    "nameZA": "Nombre (Z-A)",
+    "score": "Puntuación"
+  },
+  "actions": {
+    "moveTo": "Mover a",
+    "assignTo": "Asignar a",
+    "addNote": "Agregar Nota",
+    "sendMessage": "Enviar Mensaje",
+    "schedule": "Programar Llamada",
+    "markAsWon": "Marcar como Ganado",
+    "markAsLost": "Marcar como Perdido"
+  },
+  "details": {
+    "info": "Información",
+    "notes": "Notas",
+    "activity": "Actividad",
+    "messages": "Mensajes"
+  },
+  "form": {
+    "name": "Nombre",
+    "email": "Correo",
+    "phone": "Teléfono",
+    "company": "Empresa",
+    "position": "Cargo",
+    "linkedinUrl": "URL de LinkedIn",
+    "source": "Origen",
+    "score": "Puntuación",
+    "tags": "Etiquetas"
+  },
+  "stats": {
+    "total": "Total de Leads",
+    "new": "Nuevos",
+    "qualified": "Calificados",
+    "converted": "Convertidos",
+    "conversionRate": "Tasa de Conversión"
+  },
+  "messages": {
+    "created": "Lead creado con éxito",
+    "updated": "Lead actualizado con éxito",
+    "deleted": "Lead eliminado con éxito",
+    "moved": "Lead movido a {{stage}}",
+    "assigned": "Lead asignado a {{user}}",
+    "noLeads": "No hay leads",
+    "dropHere": "Soltar aquí",
+    "confirmDelete": "¿Está seguro de que desea eliminar este lead?"
+  },
+  "viewModes": {
+    "kanban": "Vista Kanban",
+    "list": "Vista de Lista",
+    "calendar": "Vista de Calendario"
+  },
+  "badges": {
+    "draft": "Borrador",
+    "premium": "Premium",
+    "creator": "Creator",
+    "influencer": "Influencer",
+    "linkedInPremium": "LinkedIn Premium",
+    "creatorMode": "Modo Creator",
+    "linkedInInfluencer": "Influencer de LinkedIn"
+  },
+  "stats": {
+    "connections": "conexiones",
+    "followers": "seguidores",
+    "profile": "Perfil"
+  },
+  "tooltips": {
+    "viewDetails": "Ver detalles",
+    "viewLinkedIn": "Ver perfil en LinkedIn",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "draftCampaign": "Esta campaña está en modo borrador"
+  },
+  "table": {
+    "lead": "Lead",
+    "company": "Empresa",
+    "contact": "Contacto",
+    "campaign": "Campaña",
+    "stage": "Etapa",
+    "tags": "Etiquetas",
+    "date": "Fecha",
+    "actions": "Acciones"
+  },
+  "calendar": {
+    "view": "Vista de Calendario",
+    "inDevelopment": "En desarrollo..."
+  },
+  "modal": {
+    "statusClassification": "Estado y Clasificación",
+    "networkReach": "Red y Alcance",
+    "connections": "Conexiones",
+    "followers": "Seguidores",
+    "networkDistance": "Distancia en la red:",
+    "about": "Acerca de",
+    "experience": "Experiencia Profesional",
+    "education": "Educación",
+    "skills": "Habilidades",
+    "certifications": "Certificaciones",
+    "languages": "Idiomas",
+    "contact": "Contacto",
+    "campaign": "Campaña",
+    "information": "Información",
+    "addedOn": "Agregado el",
+    "enrichedOn": "Enriquecido el",
+    "qualificationScore": "Puntuación de Calificación",
+    "source": "Fuente:",
+    "present": "Presente"
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage = () => {
@@ -9,6 +10,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const { t } = useTranslation('auth');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -23,10 +25,10 @@ const LoginPage = () => {
       if (response.success) {
         navigate('/');
       } else {
-        setError(response.message || 'Erro ao fazer login');
+        setError(response.message || t('errors.invalidCredentials'));
       }
     } catch (err) {
-      setError(err.message || 'Erro ao fazer login');
+      setError(err.message || t('errors.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -53,13 +55,11 @@ const LoginPage = () => {
           {/* Main Content */}
           <div className="relative z-10">
             <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-              Transforme seu<br />
-              LinkedIn em uma<br />
-              máquina de vendas
+              {t('login.tagline')}
             </h1>
             <p className="text-purple-100 text-lg">
-              Automatize prospecção, gerencie campanhas e<br />
-              converta leads com inteligência artificial.
+              Automate prospecting, manage campaigns and<br />
+              convert leads with artificial intelligence.
             </p>
           </div>
 
@@ -84,10 +84,10 @@ const LoginPage = () => {
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Bem-vindo de volta
+              {t('login.title')}
             </h2>
             <p className="text-gray-600">
-              Entre na sua conta para continuar
+              {t('login.subtitle')}
             </p>
           </div>
 
@@ -104,7 +104,7 @@ const LoginPage = () => {
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                {t('login.email')}
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -125,10 +125,10 @@ const LoginPage = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Senha
+                  {t('login.password')}
                 </label>
                 <a href="#" className="text-sm text-purple-600 hover:text-purple-700 font-medium">
-                  Esqueceu?
+                  {t('login.forgotPassword')}
                 </a>
               </div>
               <div className="relative">
@@ -154,7 +154,7 @@ const LoginPage = () => {
                 className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
               />
               <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                Manter conectado
+                {t('login.rememberMe')}
               </label>
             </div>
 
@@ -164,14 +164,14 @@ const LoginPage = () => {
               disabled={loading}
               className="w-full bg-purple-600 text-white font-semibold py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? t('login.loggingIn') : t('login.loginButton')}
             </button>
           </form>
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-500 font-medium">OU CONTINUE COM</span>
+            <span className="text-xs text-gray-500 font-medium">{t('login.orContinueWith')}</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
@@ -190,14 +190,14 @@ const LoginPage = () => {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            <span className="text-sm font-medium text-gray-700">Continuar com Google</span>
+            <span className="text-sm font-medium text-gray-700">{t('login.googleButton')}</span>
           </button>
 
           {/* Sign Up Link */}
           <p className="text-center text-sm text-gray-600 mt-6">
-            Ainda não tem uma conta?{' '}
+            {t('login.noAccount')}{' '}
             <a href="#" className="text-purple-600 hover:text-purple-700 font-semibold">
-              Criar conta gratuita
+              {t('login.createAccount')}
             </a>
           </p>
         </div>

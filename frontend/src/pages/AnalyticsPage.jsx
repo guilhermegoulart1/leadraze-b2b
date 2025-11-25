@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Users, Target, MessageCircle, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
 const AnalyticsPage = () => {
+  const { t } = useTranslation(['analytics', 'common']);
   const [period, setPeriod] = useState(30);
   const [dashboardData, setDashboardData] = useState(null);
   const [linkedinPerformance, setLinkedinPerformance] = useState(null);
@@ -39,7 +41,7 @@ const AnalyticsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando analytics...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     );
@@ -53,10 +55,10 @@ const AnalyticsPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Analytics & Relatórios</h2>
-          <p className="text-gray-500 mt-1">Análise detalhada de performance</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
+          <p className="text-gray-500 mt-1">{t('subtitle')}</p>
         </div>
-        
+
         {/* Period Selector */}
         <div className="flex items-center space-x-2">
           {[7, 30, 90].map((days) => (
@@ -69,7 +71,7 @@ const AnalyticsPage = () => {
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
-              {days} dias
+              {t(`periodSelector.${days}days`)}
             </button>
           ))}
         </div>
@@ -90,7 +92,7 @@ const AnalyticsPage = () => {
           <h3 className="text-3xl font-bold text-gray-900 mb-1">
             {data.totals?.leads || 0}
           </h3>
-          <p className="text-gray-500 text-sm">Total de Leads</p>
+          <p className="text-gray-500 text-sm">{t('kpis.totalLeads')}</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -106,7 +108,7 @@ const AnalyticsPage = () => {
           <h3 className="text-3xl font-bold text-gray-900 mb-1">
             {data.pipeline?.accepted || 0}
           </h3>
-          <p className="text-gray-500 text-sm">Convites Aceitos</p>
+          <p className="text-gray-500 text-sm">{t('kpis.acceptedInvites')}</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -122,7 +124,7 @@ const AnalyticsPage = () => {
           <h3 className="text-3xl font-bold text-gray-900 mb-1">
             {data.totals?.qualified_leads || 0}
           </h3>
-          <p className="text-gray-500 text-sm">Leads Qualificados</p>
+          <p className="text-gray-500 text-sm">{t('kpis.qualifiedLeads')}</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -135,7 +137,7 @@ const AnalyticsPage = () => {
           <h3 className="text-3xl font-bold text-gray-900 mb-1">
             {data.totals?.conversations || 0}
           </h3>
-          <p className="text-gray-500 text-sm">Conversas Ativas</p>
+          <p className="text-gray-500 text-sm">{t('kpis.activeConversations')}</p>
         </div>
       </div>
 
@@ -144,12 +146,12 @@ const AnalyticsPage = () => {
         
         {/* Conversion Rates */}
         <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Taxas de Conversão</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">{t('conversionRates.title')}</h3>
           
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Aceitação de Convites</span>
+                <span className="text-sm font-medium text-gray-700">{t('conversionRates.invitationAcceptance')}</span>
                 <span className="text-lg font-bold text-purple-600">
                   {data.conversion_rates?.invitation_to_acceptance || 0}%
                 </span>
@@ -164,7 +166,7 @@ const AnalyticsPage = () => {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Taxa de Qualificação</span>
+                <span className="text-sm font-medium text-gray-700">{t('conversionRates.qualificationRate')}</span>
                 <span className="text-lg font-bold text-green-600">
                   {data.conversion_rates?.acceptance_to_qualified || 0}%
                 </span>
@@ -179,7 +181,7 @@ const AnalyticsPage = () => {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Taxa de Resposta IA</span>
+                <span className="text-sm font-medium text-gray-700">{t('conversionRates.aiResponseRate')}</span>
                 <span className="text-lg font-bold text-blue-600">94%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
@@ -195,11 +197,11 @@ const AnalyticsPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-gray-900">2.3min</p>
-                <p className="text-xs text-gray-500 mt-1">Tempo Médio de Resposta</p>
+                <p className="text-xs text-gray-500 mt-1">{t('conversionRates.averageResponseTime')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">127</p>
-                <p className="text-xs text-gray-500 mt-1">Conversas IA Hoje</p>
+                <p className="text-xs text-gray-500 mt-1">{t('conversionRates.aiConversationsToday')}</p>
               </div>
             </div>
           </div>
@@ -207,7 +209,7 @@ const AnalyticsPage = () => {
 
         {/* Top Campaigns */}
         <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Top Campanhas</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">{t('topCampaigns.title')}</h3>
           
           <div className="space-y-4">
             {data.top_campaigns?.slice(0, 5).map((campaign, index) => (
@@ -219,17 +221,17 @@ const AnalyticsPage = () => {
                   <div>
                     <p className="font-semibold text-gray-900">{campaign.name}</p>
                     <p className="text-xs text-gray-500">
-                      {campaign.total_leads} leads • {campaign.qualified_leads} qualificados
+                      {campaign.total_leads} {t('topCampaigns.leads')} • {campaign.qualified_leads} {t('topCampaigns.qualified')}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-purple-600">
-                    {campaign.sent > 0 
+                    {campaign.sent > 0
                       ? ((campaign.accepted / campaign.sent) * 100).toFixed(1)
                       : 0}%
                   </p>
-                  <p className="text-xs text-gray-500">Taxa</p>
+                  <p className="text-xs text-gray-500">{t('topCampaigns.rate')}</p>
                 </div>
               </div>
             ))}
@@ -240,29 +242,29 @@ const AnalyticsPage = () => {
 
       {/* LinkedIn Accounts Performance */}
       <div className="bg-white rounded-xl p-6 border border-gray-200 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Performance das Contas LinkedIn</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-6">{t('linkedinPerformance.title')}</h3>
         
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Conta
+                  {t('linkedinPerformance.account')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Campanhas
+                  {t('linkedinPerformance.campaigns')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Enviados
+                  {t('linkedinPerformance.sent')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Aceitos
+                  {t('linkedinPerformance.accepted')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Taxa
+                  {t('linkedinPerformance.rate')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Limite Diário
+                  {t('linkedinPerformance.dailyLimit')}
                 </th>
               </tr>
             </thead>
@@ -311,7 +313,7 @@ const AnalyticsPage = () => {
 
       {/* AI Agents Performance */}
       <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Performance dos Agentes de IA</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-6">{t('aiPerformance.title')}</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {aiPerformance?.agents?.map((agent, index) => (
@@ -328,19 +330,19 @@ const AnalyticsPage = () => {
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs text-gray-500">Conversas</p>
+                  <p className="text-xs text-gray-500">{t('aiPerformance.conversations')}</p>
                   <p className="text-lg font-bold text-gray-900">{agent.conversations_count}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Mensagens</p>
+                  <p className="text-xs text-gray-500">{t('aiPerformance.messages')}</p>
                   <p className="text-lg font-bold text-purple-600">{agent.messages_sent}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Qualificados</p>
+                  <p className="text-xs text-gray-500">{t('aiPerformance.qualified')}</p>
                   <p className="text-lg font-bold text-green-600">{agent.leads_qualified}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Taxa</p>
+                  <p className="text-xs text-gray-500">{t('aiPerformance.rate')}</p>
                   <p className="text-lg font-bold text-blue-600">{agent.qualification_rate}%</p>
                 </div>
               </div>

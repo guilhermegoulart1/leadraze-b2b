@@ -1,0 +1,50 @@
+{
+  "title": "Connected Channels",
+  "subtitle": "Manage all your connected accounts across different channels",
+  "loading": "Loading LinkedIn accounts...",
+  "connectChannel": "Connect Channel",
+  "stats": {
+    "totalAccounts": "Total Accounts",
+    "activeAccounts": "Active Accounts",
+    "dailyLimitTotal": "Total Daily Limit",
+    "sentToday": "Sent Today"
+  },
+  "accountTypes": {
+    "salesNavigator": "Sales Navigator",
+    "recruiter": "Recruiter",
+    "premium": "Premium",
+    "free": "Free"
+  },
+  "card": {
+    "dailyLimit": "Daily Limit",
+    "sentToday": "Sent Today",
+    "dailyUsage": "Daily usage",
+    "connectedOrganizations": "Connected Organizations",
+    "more": "more",
+    "connectedAt": "Connected",
+    "unipileId": "Unipile ID",
+    "limits": "Limits",
+    "refresh": "Refresh account data",
+    "remove": "Remove account"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "healthScore": {
+    "healthy": "Healthy",
+    "warning": "Warning",
+    "critical": "Critical"
+  },
+  "messages": {
+    "noChannels": "No channels connected",
+    "noChannelsDescription": "Connect your first LinkedIn account or another channel to get started",
+    "connectFirstChannel": "Connect first channel",
+    "updateSuccess": "Account updated successfully",
+    "updateError": "Error updating account. Please try again.",
+    "removeConfirm": "Are you sure you want to remove this account?",
+    "removeSuccess": "Account removed successfully",
+    "removeError": "Error removing account"
+  },
+  "channel": "LinkedIn"
+}

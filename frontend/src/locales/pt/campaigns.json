@@ -1,0 +1,206 @@
+{
+  "title": "Campanhas",
+  "newCampaign": "Nova Campanha",
+  "editCampaign": "Editar Campanha",
+  "deleteCampaign": "Excluir Campanha",
+  "noCampaigns": "Nenhuma campanha ainda",
+  "createFirst": "Crie sua primeira campanha para começar a gerar leads",
+  "status": {
+    "draft": "Rascunho",
+    "active": "Ativa",
+    "paused": "Pausada",
+    "completed": "Concluída",
+    "failed": "Falhou"
+  },
+  "actions": {
+    "start": "Iniciar Campanha",
+    "pause": "Pausar Campanha",
+    "resume": "Retomar Campanha",
+    "stop": "Parar Campanha",
+    "duplicate": "Duplicar",
+    "archive": "Arquivar"
+  },
+  "wizard": {
+    "title": "Nova Campanha",
+    "steps": {
+      "search": "Busca",
+      "collection": "Coleta",
+      "validation": "Validação"
+    },
+    "step1": {
+      "title": "Como deseja criar sua campanha?",
+      "subtitle": "Escolha entre criar filtros manualmente ou deixar a IA gerar para você",
+      "manual": {
+        "title": "Manual",
+        "description": "Defina seus próprios filtros de busca no LinkedIn"
+      },
+      "automatic": {
+        "title": "Automática (IA)",
+        "description": "Escolha cidade e cargos, a IA cria os filtros otimizados"
+      }
+    },
+    "step1_5": {
+      "title": "Configure sua busca automática",
+      "subtitle": "Simples e direto: escolha a cidade e os cargos. A IA faz o resto!",
+      "location": {
+        "label": "Localização",
+        "placeholder": "Digite uma cidade ou região...",
+        "example": "Ex: São Paulo, SP ou Rio de Janeiro, RJ",
+        "noOptions": "Digite para buscar localizações",
+        "loading": "Buscando...",
+        "required": "Selecione uma localização primeiro"
+      },
+      "jobTitles": {
+        "label": "Cargos",
+        "placeholder": "Ex: CEO, Diretor, Gerente, Fundador...",
+        "help": "Digite os cargos que deseja buscar e pressione vírgula ou Enter para adicionar",
+        "required": "Preencha pelo menos um cargo que deseja buscar"
+      },
+      "howItWorks": "Como funciona: Você define a cidade e os cargos, e nossa IA expande e otimiza os filtros automaticamente para encontrar os melhores perfis.",
+      "generateButton": "Gerar Filtros com IA",
+      "generating": "Gerando filtros..."
+    },
+    "step2": {
+      "title": "Configurar coleta de perfis",
+      "subtitle": "Revise os filtros gerados e defina quantos perfis deseja coletar",
+      "generatedFilters": "Filtros gerados pela IA",
+      "filters": {
+        "keywords": "Palavras-chave:",
+        "location": "Localização:",
+        "industries": "Indústrias:",
+        "jobTitles": "Cargos:"
+      },
+      "campaignName": {
+        "label": "Nome da Campanha",
+        "placeholder": "Ex: Prospecção SaaS B2B - São Paulo",
+        "required": "Nome da campanha obrigatório (mínimo 3 caracteres)"
+      },
+      "description": {
+        "label": "Descrição (opcional)",
+        "placeholder": "Descreva o objetivo desta campanha..."
+      },
+      "targetCount": {
+        "label": "Quantidade de perfis a coletar",
+        "help": "Mínimo: 10 perfis | Máximo: 1000 perfis",
+        "required": "Quantidade mínima de 10 perfis"
+      }
+    },
+    "step3": {
+      "title": "Configuração final",
+      "subtitle": "Selecione a conta do LinkedIn e o agente de IA para esta campanha",
+      "linkedinAccount": {
+        "label": "Contas do LinkedIn * (selecione uma ou mais)",
+        "noAccounts": "Você ainda não conectou nenhuma conta do LinkedIn. Conecte uma conta primeiro para criar campanhas.",
+        "limit": "Limite: {{limit}} convites/dia",
+        "selected": "{{count}} conta(s) selecionada(s)",
+        "distribution": "Os envios serão distribuídos automaticamente",
+        "totalLimit": "convites/dia total"
+      },
+      "aiAgent": {
+        "label": "Agente de IA",
+        "placeholder": "Selecione um agente...",
+        "noAgents": "Você ainda não criou nenhum agente de IA. Crie um agente primeiro para poder ativar campanhas."
+      },
+      "summary": {
+        "title": "Resumo da campanha",
+        "name": "Nome:",
+        "type": "Tipo:",
+        "typeAutomatic": "Automática (IA)",
+        "typeManual": "Manual",
+        "targetCount": "Perfis a coletar:",
+        "linkedinAccount": "Conta LinkedIn:",
+        "aiAgent": "Agente selecionado:"
+      }
+    },
+    "buttons": {
+      "back": "Voltar",
+      "cancel": "Cancelar",
+      "next": "Avançar",
+      "createCampaign": "Criar Campanha",
+      "creating": "Criando..."
+    },
+    "errors": {
+      "selectLocation": "Selecione uma localização primeiro",
+      "minJobTitles": "Preencha pelo menos um cargo que deseja buscar",
+      "generateFilters": "Erro ao gerar filtros com IA",
+      "minName": "Nome da campanha obrigatório (mínimo 3 caracteres)",
+      "minProfiles": "Quantidade mínima de 10 perfis",
+      "selectLinkedin": "Selecione pelo menos uma conta do LinkedIn",
+      "selectAgent": "Selecione um agente de IA para conduzir a campanha",
+      "createCampaign": "Erro ao criar campanha"
+    }
+  },
+  "form": {
+    "name": "Nome da Campanha",
+    "namePlaceholder": "Digite o nome da campanha",
+    "description": "Descrição",
+    "descriptionPlaceholder": "Descreva sua campanha",
+    "type": "Tipo de Campanha",
+    "target": "Público-Alvo",
+    "message": "Modelo de Mensagem",
+    "schedule": "Agendamento",
+    "startDate": "Data de Início",
+    "endDate": "Data de Término"
+  },
+  "stats": {
+    "leads": "Leads",
+    "sent": "Enviados",
+    "opened": "Abertos",
+    "replied": "Respondidos",
+    "converted": "Convertidos",
+    "total": "Total",
+    "active": "Ativas",
+    "totalLeads": "Total Leads",
+    "qualified": "Qualificados"
+  },
+  "messages": {
+    "created": "Campanha criada com sucesso",
+    "updated": "Campanha atualizada com sucesso",
+    "deleted": "Campanha excluída com sucesso",
+    "started": "Campanha iniciada com sucesso",
+    "paused": "Campanha pausada com sucesso",
+    "confirmDelete": "Tem certeza que deseja excluir esta campanha?",
+    "confirmDeleteMessage": "Tem certeza que deseja excluir a campanha",
+    "confirmDeleteWarning": "Esta ação não pode ser desfeita. Todos os leads coletados para esta campanha também serão removidos.",
+    "deleting": "Excluindo...",
+    "loading": "Carregando campanhas...",
+    "subtitle": "Gerencie suas campanhas de prospecção",
+    "errorStartCollection": "Erro ao iniciar coleta",
+    "errorPause": "Erro ao pausar campanha",
+    "errorResume": "Erro ao retomar campanha",
+    "errorStop": "Erro ao parar campanha",
+    "errorDelete": "Erro ao deletar campanha",
+    "errorActivate": "Erro ao ativar campanha",
+    "errorLoading": "Erro ao carregar campanhas:"
+  },
+  "table": {
+    "name": "Nome da Campanha",
+    "status": "Status",
+    "total": "Total",
+    "qualified": "Qualif.",
+    "scheduled": "Agend.",
+    "won": "Ganhos",
+    "lost": "Perdidos",
+    "conversionRate": "Conv. %",
+    "actions": "Ações",
+    "of": "de"
+  },
+  "statusBadges": {
+    "waiting": "Aguardando",
+    "collecting": "Coletando...",
+    "review": "Revisar"
+  },
+  "buttons": {
+    "startCollection": "Iniciar",
+    "review": "Revisar",
+    "activate": "Ativar"
+  },
+  "info": {
+    "agent": "Agente:",
+    "account": "Conta:",
+    "pauseCampaign": "Pausar campanha",
+    "resumeCampaign": "Retomar campanha",
+    "stopCampaign": "Parar campanha",
+    "deleteCampaign": "Excluir campanha"
+  }
+}

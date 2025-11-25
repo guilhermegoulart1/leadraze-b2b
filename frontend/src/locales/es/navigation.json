@@ -1,0 +1,57 @@
+{
+  "menu": {
+    "dashboard": "Dashboard",
+    "aiAgents": "Agentes de IA",
+    "allAgents": "Todos los Agentes",
+    "googleMaps": "Google Maps",
+    "profileSearch": "Búsqueda de Perfiles",
+    "linkedin": "LinkedIn",
+    "campaigns": "Campañas",
+    "pipeline": "Pipeline",
+    "activation": "Activación de Listas",
+    "crm": "CRM",
+    "conversations": "Conversaciones",
+    "contacts": "Contactos",
+    "contactLists": "Listas de Contactos",
+    "insights": "Insights",
+    "settings": "Configuración",
+    "help": "Ayuda",
+    "logout": "Salir"
+  },
+  "sections": {
+    "aiAgents": "AGENTES DE IA",
+    "googleMaps": "GOOGLE MAPS",
+    "linkedin": "LINKEDIN",
+    "activation": "ACTIVACIÓN DE LISTAS",
+    "crm": "CRM"
+  },
+  "userMenu": {
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "billing": "Facturación",
+    "channels": "Canales Conectados",
+    "users": "Usuarios",
+    "sectors": "Sectores",
+    "permissions": "Permisos",
+    "logout": "Salir",
+    "expandMenu": "Expandir menú",
+    "collapseMenu": "Contraer menú",
+    "user": "Usuario"
+  },
+  "roles": {
+    "admin": "Admin",
+    "supervisor": "Supervisor",
+    "user": "Usuario"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "viewAll": "Ver todas las notificaciones",
+    "newCampaign": "Nueva campaña creada",
+    "newLeads": "{{count}} nuevos leads agregados",
+    "timeAgo": {
+      "minutes": "Hace {{count}} minutos",
+      "hours": "Hace {{count}} horas",
+      "days": "Hace {{count}} días"
+    }
+  }
+}

@@ -1,12 +1,14 @@
 // frontend/src/pages/AIAgentsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Bot, Edit, Trash2, Sparkles, Target, Zap, BookOpen, Smile, Calendar, MessageSquare, Database } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import AIAgentModal from '../components/AIAgentModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 
 const AIAgentsPage = () => {
+  const { t } = useTranslation(['aiagents', 'common']);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,12 +41,12 @@ const AIAgentsPage = () => {
   };
 
   const handleDeleteAgent = async (id) => {
-    if (window.confirm('Tem certeza que deseja excluir este agente?')) {
+    if (window.confirm(t('messages.confirmDelete'))) {
       try {
         await api.deleteAIAgent(id);
         loadAgents();
       } catch (error) {
-        alert(error.message || 'Erro ao excluir agente');
+        alert(error.message || t('messages.errorDeleting'));
       }
     }
   };
@@ -91,7 +93,7 @@ const AIAgentsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Carregando agentes de IA...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     );
@@ -103,9 +105,9 @@ const AIAgentsPage = () => {
       <div className="flex-shrink-0 bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Agentes de IA</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Configure agentes inteligentes para conduzir suas conversas
+              {t('subtitle')}
             </p>
           </div>
           <button
@@ -113,7 +115,7 @@ const AIAgentsPage = () => {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            Novo Agente
+            {t('newAgent')}
           </button>
         </div>
       </div>
@@ -124,16 +126,16 @@ const AIAgentsPage = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum agente criado</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('messages.noAgents')}</h3>
               <p className="text-gray-600 mb-4">
-                Crie seu primeiro agente de IA para começar a automatizar conversas
+                {t('messages.noAgentsDescription')}
               </p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Plus className="w-5 h-5" />
-                Criar Primeiro Agente
+                {t('messages.createFirst')}
               </button>
             </div>
           </div>
@@ -167,11 +169,11 @@ const AIAgentsPage = () => {
                       </div>
                       {agent.is_active ? (
                         <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                          Ativo
+                          {t('status.active')}
                         </span>
                       ) : (
                         <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
-                          Inativo
+                          {t('status.inactive')}
                         </span>
                       )}
                     </div>
@@ -185,7 +187,7 @@ const AIAgentsPage = () => {
 
                     {/* Products/Services */}
                     <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs font-medium text-gray-500 mb-1">Produtos/Serviços</p>
+                      <p className="text-xs font-medium text-gray-500 mb-1">{t('features.productsServices')}</p>
                       <p className="text-sm text-gray-700 line-clamp-2">
                         {agent.products_services}
                       </p>
@@ -196,13 +198,13 @@ const AIAgentsPage = () => {
                       {agent.auto_schedule && (
                         <span className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
                           <Calendar className="w-3 h-3" />
-                          Auto-agendamento
+                          {t('features.autoSchedule')}
                         </span>
                       )}
                       {agent.intent_detection_enabled && (
                         <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
                           <Sparkles className="w-3 h-3" />
-                          Detecção de intenção
+                          {t('features.intentDetection')}
                         </span>
                       )}
                     </div>
@@ -210,7 +212,7 @@ const AIAgentsPage = () => {
                     {/* LinkedIn Variables */}
                     {agent.linkedin_variables?.used?.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-xs font-medium text-gray-500 mb-2">Variáveis usadas</p>
+                        <p className="text-xs font-medium text-gray-500 mb-2">{t('features.variablesUsed')}</p>
                         <div className="flex flex-wrap gap-1">
                           {agent.linkedin_variables.used.slice(0, 3).map((variable) => (
                             <span
@@ -236,14 +238,14 @@ const AIAgentsPage = () => {
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
                       >
                         <MessageSquare className="w-4 h-4" />
-                        Testar Agente
+                        {t('actions.testAgent')}
                       </button>
                       <button
                         onClick={() => handleManageKnowledge(agent)}
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200"
                       >
                         <Database className="w-4 h-4" />
-                        Base de Conhecimento
+                        {t('actions.knowledgeBase')}
                       </button>
                       <div className="flex items-center gap-2">
                         <button
@@ -251,14 +253,14 @@ const AIAgentsPage = () => {
                           className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                         >
                           <Edit className="w-4 h-4" />
-                          Editar
+                          {t('actions.edit')}
                         </button>
                         <button
                           onClick={() => handleDeleteAgent(agent.id)}
                           className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
-                          Excluir
+                          {t('actions.delete')}
                         </button>
                       </div>
                     </div>

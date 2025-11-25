@@ -1,0 +1,99 @@
+{
+  "title": "Analytics",
+  "subtitle": "Track your campaign performance and insights",
+  "overview": "Overview",
+  "campaigns": "Campaigns",
+  "leads": "Leads",
+  "engagement": "Engagement",
+  "dateRange": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7Days": "Last 7 Days",
+    "last30Days": "Last 30 Days",
+    "thisMonth": "This Month",
+    "lastMonth": "Last Month",
+    "custom": "Custom Range"
+  },
+  "metrics": {
+    "totalCampaigns": "Total Campaigns",
+    "activeCampaigns": "Active Campaigns",
+    "totalLeads": "Total Leads",
+    "newLeads": "New Leads",
+    "conversionRate": "Conversion Rate",
+    "responseRate": "Response Rate",
+    "engagementRate": "Engagement Rate",
+    "totalContacts": "Total Contacts",
+    "messagesSent": "Messages Sent",
+    "messagesReceived": "Messages Received",
+    "avgResponseTime": "Avg Response Time"
+  },
+  "charts": {
+    "leadsOverTime": "Leads Over Time",
+    "campaignPerformance": "Campaign Performance",
+    "channelDistribution": "Channel Distribution",
+    "conversionFunnel": "Conversion Funnel",
+    "engagementTrends": "Engagement Trends",
+    "topPerformingCampaigns": "Top Performing Campaigns",
+    "responseTimeDistribution": "Response Time Distribution"
+  },
+  "table": {
+    "campaign": "Campaign",
+    "leads": "Leads",
+    "responses": "Responses",
+    "conversion": "Conversion",
+    "spent": "Spent",
+    "roi": "ROI"
+  },
+  "export": {
+    "title": "Export Analytics",
+    "format": "Format",
+    "dateRange": "Date Range",
+    "metrics": "Metrics to Export",
+    "exportPDF": "Export as PDF",
+    "exportCSV": "Export as CSV",
+    "exportExcel": "Export as Excel"
+  },
+  "noData": "No data available for the selected period",
+  "loading": "Loading analytics...",
+  "periodSelector": {
+    "7days": "7 days",
+    "30days": "30 days",
+    "90days": "90 days"
+  },
+  "kpis": {
+    "totalLeads": "Total Leads",
+    "acceptedInvites": "Accepted Invites",
+    "qualifiedLeads": "Qualified Leads",
+    "activeConversations": "Active Conversations"
+  },
+  "conversionRates": {
+    "title": "Conversion Rates",
+    "invitationAcceptance": "Invitation Acceptance",
+    "qualificationRate": "Qualification Rate",
+    "aiResponseRate": "AI Response Rate",
+    "averageResponseTime": "Average Response Time",
+    "aiConversationsToday": "AI Conversations Today"
+  },
+  "topCampaigns": {
+    "title": "Top Campaigns",
+    "leads": "leads",
+    "qualified": "qualified",
+    "rate": "Rate"
+  },
+  "linkedinPerformance": {
+    "title": "LinkedIn Accounts Performance",
+    "account": "Account",
+    "campaigns": "Campaigns",
+    "sent": "Sent",
+    "accepted": "Accepted",
+    "rate": "Rate",
+    "dailyLimit": "Daily Limit"
+  },
+  "aiPerformance": {
+    "title": "AI Agents Performance",
+    "conversations": "Conversations",
+    "messages": "Messages",
+    "qualified": "Qualified",
+    "rate": "Rate"
+  }
+}

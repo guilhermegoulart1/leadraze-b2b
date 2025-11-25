@@ -505,3 +505,42 @@ exports.getTeamMembers = async (req, res) => {
     sendError(res, error);
   }
 };
+
+/**
+ * PUT /users/language
+ * Update user's preferred language
+ * Accessible by the user themselves
+ */
+exports.updateLanguage = async (req, res) => {
+  try {
+    const { language } = req.body;
+    const userId = req.user.id;
+
+    // Validate language
+    const validLanguages = ['en', 'pt', 'es'];
+    if (!language || !validLanguages.includes(language)) {
+      throw new BadRequestError(`Invalid language. Must be one of: ${validLanguages.join(', ')}`);
+    }
+
+    // Update user's preferred language
+    const result = await db.query(`
+      UPDATE users
+      SET preferred_language = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING id, preferred_language, timezone
+    `, [language, userId]);
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    sendSuccess(res, {
+      message: 'Language preference updated successfully',
+      language: result.rows[0].preferred_language,
+      timezone: result.rows[0].timezone
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};

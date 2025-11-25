@@ -40,10 +40,12 @@ import {
   FileText as FileTextIcon,
   Clock
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../services/api';
 
 const LeadsPage = () => {
+  const { t } = useTranslation('leads');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,32 +57,32 @@ const LeadsPage = () => {
   // Pipeline stages matching backend
   const pipelineStages = {
     leads: {
-      label: 'Prospecção',
+      label: t('stages.leads'),
       color: 'slate',
       icon: UserPlus
     },
     invite_sent: {
-      label: 'Convite',
+      label: t('stages.invite_sent'),
       color: 'blue',
       icon: Send
     },
     qualifying: {
-      label: 'Qualificação',
+      label: t('stages.qualifying'),
       color: 'amber',
       icon: Target
     },
     accepted: {
-      label: 'Em andamento',
+      label: t('stages.accepted'),
       color: 'purple',
       icon: Clock
     },
     qualified: {
-      label: 'Ganho',
+      label: t('stages.qualified'),
       color: 'emerald',
       icon: CheckCircle2
     },
     discarded: {
-      label: 'Descartado',
+      label: t('stages.discarded'),
       color: 'red',
       icon: XCircle
     }
@@ -242,7 +244,7 @@ const LeadsPage = () => {
                   setSelectedLead(lead);
                 }}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-50 rounded flex-shrink-0"
-                title="Ver detalhes"
+                title={t('tooltips.viewDetails')}
               >
                 <Eye className="w-4 h-4 text-blue-600" />
               </button>
@@ -260,7 +262,7 @@ const LeadsPage = () => {
                 {isDraft && lead.status === 'leads' && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded flex-shrink-0">
                     <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
-                    <span className="text-amber-700 font-semibold text-[10px] leading-tight">Rascunho</span>
+                    <span className="text-amber-700 font-semibold text-[10px] leading-tight">{t('badges.draft')}</span>
                   </div>
                 )}
               </div>
@@ -272,21 +274,21 @@ const LeadsPage = () => {
                 {/* Badges */}
                 <div className="flex flex-wrap gap-1 mb-1.5">
                   {lead.is_premium && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title="LinkedIn Premium">
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title={t('badges.linkedInPremium')}>
                       <Crown className="w-2.5 h-2.5 text-amber-600" />
-                      <span className="text-amber-700 font-semibold text-[9px] leading-tight">Premium</span>
+                      <span className="text-amber-700 font-semibold text-[9px] leading-tight">{t('badges.premium')}</span>
                     </div>
                   )}
                   {lead.is_creator && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-300 rounded" title="Creator Mode">
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-300 rounded" title={t('badges.creatorMode')}>
                       <Star className="w-2.5 h-2.5 text-blue-600" />
-                      <span className="text-blue-700 font-semibold text-[9px] leading-tight">Creator</span>
+                      <span className="text-blue-700 font-semibold text-[9px] leading-tight">{t('badges.creator')}</span>
                     </div>
                   )}
                   {lead.is_influencer && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 border border-purple-300 rounded" title="LinkedIn Influencer">
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 border border-purple-300 rounded" title={t('badges.linkedInInfluencer')}>
                       <Star className="w-2.5 h-2.5 text-purple-600 fill-purple-600" />
-                      <span className="text-purple-700 font-semibold text-[9px] leading-tight">Influencer</span>
+                      <span className="text-purple-700 font-semibold text-[9px] leading-tight">{t('badges.influencer')}</span>
                     </div>
                   )}
                 </div>
@@ -294,13 +296,13 @@ const LeadsPage = () => {
                 {/* Stats */}
                 <div className="flex items-center gap-2 text-[10px] text-gray-600">
                   {lead.connections_count > 0 && (
-                    <div className="flex items-center gap-0.5" title={`${lead.connections_count} conexões`}>
+                    <div className="flex items-center gap-0.5" title={`${lead.connections_count} ${t('stats.connections')}`}>
                       <Users className="w-3 h-3 text-gray-500" />
                       <span className="font-medium">{lead.connections_count.toLocaleString()}</span>
                     </div>
                   )}
                   {lead.follower_count > 0 && (
-                    <div className="flex items-center gap-0.5" title={`${lead.follower_count} seguidores`}>
+                    <div className="flex items-center gap-0.5" title={`${lead.follower_count} ${t('stats.followers')}`}>
                       <UserCheck className="w-3 h-3 text-gray-500" />
                       <span className="font-medium">{lead.follower_count.toLocaleString()}</span>
                     </div>
@@ -311,10 +313,10 @@ const LeadsPage = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-0.5 text-blue-600 hover:text-blue-700 hover:underline ml-auto"
-                      title="Ver perfil no LinkedIn"
+                      title={t('tooltips.viewLinkedIn')}
                     >
                       <ExternalLink className="w-3 h-3" />
-                      <span className="font-medium">Perfil</span>
+                      <span className="font-medium">{t('stats.profile')}</span>
                     </a>
                   )}
                 </div>
@@ -408,7 +410,7 @@ const LeadsPage = () => {
                 ))
               ) : (
                 <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
-                  {snapshot.isDraggingOver ? 'Solte aqui' : 'Nenhum lead'}
+                  {snapshot.isDraggingOver ? t('messages.dropHere') : t('messages.noLeads')}
                 </div>
               )}
               {provided.placeholder}
@@ -448,17 +450,17 @@ const LeadsPage = () => {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <TableHeader field="name" label="Lead" />
-              <TableHeader field="company" label="Empresa" />
-              <TableHeader field="email" label="Contato" />
-              <TableHeader field="campaign_name" label="Campanha" />
-              <TableHeader field="status" label="Estágio" />
+              <TableHeader field="name" label={t('table.lead')} />
+              <TableHeader field="company" label={t('table.company')} />
+              <TableHeader field="email" label={t('table.contact')} />
+              <TableHeader field="campaign_name" label={t('table.campaign')} />
+              <TableHeader field="status" label={t('table.stage')} />
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Tags
+                {t('table.tags')}
               </th>
-              <TableHeader field="created_at" label="Data" />
+              <TableHeader field="created_at" label={t('table.date')} />
               <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Ações
+                {t('table.actions')}
               </th>
             </tr>
           </thead>
@@ -496,33 +498,33 @@ const LeadsPage = () => {
                           <div className="flex flex-wrap items-center gap-1 mt-1">
                             {/* Badges */}
                             {lead.is_premium && (
-                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title="LinkedIn Premium">
+                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title={t('badges.linkedInPremium')}>
                                 <Crown className="w-2 h-2 text-amber-600" />
-                                <span className="text-amber-700 font-semibold text-[8px] leading-tight">Premium</span>
+                                <span className="text-amber-700 font-semibold text-[8px] leading-tight">{t('badges.premium')}</span>
                               </div>
                             )}
                             {lead.is_creator && (
-                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 border border-blue-300 rounded" title="Creator Mode">
+                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 border border-blue-300 rounded" title={t('badges.creatorMode')}>
                                 <Star className="w-2 h-2 text-blue-600" />
-                                <span className="text-blue-700 font-semibold text-[8px] leading-tight">Creator</span>
+                                <span className="text-blue-700 font-semibold text-[8px] leading-tight">{t('badges.creator')}</span>
                               </div>
                             )}
                             {lead.is_influencer && (
-                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-purple-50 border border-purple-300 rounded" title="LinkedIn Influencer">
+                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-purple-50 border border-purple-300 rounded" title={t('badges.linkedInInfluencer')}>
                                 <Star className="w-2 h-2 text-purple-600 fill-purple-600" />
-                                <span className="text-purple-700 font-semibold text-[8px] leading-tight">Influencer</span>
+                                <span className="text-purple-700 font-semibold text-[8px] leading-tight">{t('badges.influencer')}</span>
                               </div>
                             )}
 
                             {/* Stats */}
                             {lead.connections_count > 0 && (
-                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600" title={`${lead.connections_count} conexões`}>
+                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600" title={`${lead.connections_count} ${t('stats.connections')}`}>
                                 <Users className="w-2.5 h-2.5 text-gray-500" />
                                 <span className="font-medium">{lead.connections_count > 999 ? `${(lead.connections_count / 1000).toFixed(1)}k` : lead.connections_count}</span>
                               </div>
                             )}
                             {lead.follower_count > 0 && (
-                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600" title={`${lead.follower_count} seguidores`}>
+                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600" title={`${lead.follower_count} ${t('stats.followers')}`}>
                                 <UserCheck className="w-2.5 h-2.5 text-gray-500" />
                                 <span className="font-medium">{lead.follower_count > 999 ? `${(lead.follower_count / 1000).toFixed(1)}k` : lead.follower_count}</span>
                               </div>
@@ -533,7 +535,7 @@ const LeadsPage = () => {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-0.5 text-blue-600 hover:text-blue-700 text-[9px]"
-                                title="Ver perfil no LinkedIn"
+                                title={t('tooltips.viewLinkedIn')}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <ExternalLink className="w-2.5 h-2.5" />
@@ -577,9 +579,9 @@ const LeadsPage = () => {
                           </span>
                         </div>
                         {isDraft && lead.status === 'leads' && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs flex-shrink-0" title="Esta campanha está em modo rascunho">
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs flex-shrink-0" title={t('tooltips.draftCampaign')}>
                             <AlertCircle className="w-3 h-3 text-amber-600" />
-                            <span className="text-amber-700 font-semibold">Rascunho</span>
+                            <span className="text-amber-700 font-semibold">{t('badges.draft')}</span>
                           </div>
                         )}
                       </div>
@@ -615,14 +617,14 @@ const LeadsPage = () => {
                       <button
                         onClick={() => setSelectedLead(lead)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="Ver detalhes"
+                        title={t('tooltips.viewDetails')}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors" title="Editar">
+                      <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors" title={t('tooltips.edit')}>
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir">
+                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors" title={t('tooltips.delete')}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -642,8 +644,8 @@ const LeadsPage = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-8">
         <div className="text-center text-gray-500">
           <CalendarIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-sm font-medium">Visualização de Calendário</p>
-          <p className="text-xs mt-1">Em desenvolvimento...</p>
+          <p className="text-sm font-medium">{t('calendar.view')}</p>
+          <p className="text-xs mt-1">{t('calendar.inDevelopment')}</p>
         </div>
       </div>
     );
@@ -697,7 +699,7 @@ const LeadsPage = () => {
               <div className="lg:col-span-2 space-y-6">
                 {/* Status & Badges */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">Status & Classificação</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.statusClassification')}</h3>
                   <div className="flex flex-wrap gap-2">
                     <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-${stage.color}-100 text-${stage.color}-700`}>
                       {stage.label}
@@ -705,19 +707,19 @@ const LeadsPage = () => {
                     {lead.is_premium && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded-full">
                         <Crown className="w-4 h-4 text-amber-600" />
-                        <span className="text-amber-700 font-semibold text-sm">LinkedIn Premium</span>
+                        <span className="text-amber-700 font-semibold text-sm">{t('badges.linkedInPremium')}</span>
                       </div>
                     )}
                     {lead.is_creator && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-300 rounded-full">
                         <Star className="w-4 h-4 text-blue-600" />
-                        <span className="text-blue-700 font-semibold text-sm">Creator Mode</span>
+                        <span className="text-blue-700 font-semibold text-sm">{t('badges.creatorMode')}</span>
                       </div>
                     )}
                     {lead.is_influencer && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-300 rounded-full">
                         <Star className="w-4 h-4 text-purple-600 fill-purple-600" />
-                        <span className="text-purple-700 font-semibold text-sm">LinkedIn Influencer</span>
+                        <span className="text-purple-700 font-semibold text-sm">{t('badges.linkedInInfluencer')}</span>
                       </div>
                     )}
                   </div>
@@ -726,13 +728,13 @@ const LeadsPage = () => {
                 {/* Network Stats */}
                 {(lead.connections_count > 0 || lead.follower_count > 0) && (
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">Rede & Alcance</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.networkReach')}</h3>
                     <div className="grid grid-cols-2 gap-4">
                       {lead.connections_count > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
                           <div className="flex items-center gap-2 text-gray-600 mb-1">
                             <Users className="w-4 h-4" />
-                            <span className="text-xs font-medium">Conexões</span>
+                            <span className="text-xs font-medium">{t('modal.connections')}</span>
                           </div>
                           <p className="text-2xl font-bold text-gray-900">{lead.connections_count.toLocaleString()}</p>
                         </div>
@@ -741,7 +743,7 @@ const LeadsPage = () => {
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
                           <div className="flex items-center gap-2 text-gray-600 mb-1">
                             <UserCheck className="w-4 h-4" />
-                            <span className="text-xs font-medium">Seguidores</span>
+                            <span className="text-xs font-medium">{t('modal.followers')}</span>
                           </div>
                           <p className="text-2xl font-bold text-gray-900">{lead.follower_count.toLocaleString()}</p>
                         </div>
@@ -749,7 +751,7 @@ const LeadsPage = () => {
                     </div>
                     {lead.network_distance && (
                       <div className="mt-3 text-sm text-gray-600">
-                        <span className="font-medium">Distância na rede:</span> {lead.network_distance.replace('_', ' ')}
+                        <span className="font-medium">{t('modal.networkDistance')}</span> {lead.network_distance.replace('_', ' ')}
                       </div>
                     )}
                   </div>
@@ -760,7 +762,7 @@ const LeadsPage = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
                       <FileTextIcon className="w-4 h-4" />
-                      Sobre
+                      {t('modal.about')}
                     </h3>
                     <p className="text-sm text-gray-700 whitespace-pre-line">{lead.about}</p>
                   </div>
@@ -771,7 +773,7 @@ const LeadsPage = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
                       <Briefcase className="w-4 h-4" />
-                      Experiência Profissional
+                      {t('modal.experience')}
                     </h3>
                     <div className="space-y-3">
                       {lead.experience.map((exp, idx) => (
@@ -780,7 +782,7 @@ const LeadsPage = () => {
                           {exp.company && <p className="text-sm text-gray-600">{exp.company}</p>}
                           {(exp.start_date || exp.end_date) && (
                             <p className="text-xs text-gray-500 mt-1">
-                              {exp.start_date} - {exp.end_date || 'Presente'}
+                              {exp.start_date} - {exp.end_date || t('modal.present')}
                             </p>
                           )}
                           {exp.description && <p className="text-sm text-gray-700 mt-2">{exp.description}</p>}
@@ -795,7 +797,7 @@ const LeadsPage = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
                       <GraduationCap className="w-4 h-4" />
-                      Educação
+                      {t('modal.education')}
                     </h3>
                     <div className="space-y-3">
                       {lead.education.map((edu, idx) => (
@@ -817,7 +819,7 @@ const LeadsPage = () => {
                 {/* Skills */}
                 {lead.skills && Array.isArray(lead.skills) && lead.skills.length > 0 && (
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">Habilidades</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.skills')}</h3>
                     <div className="flex flex-wrap gap-2">
                       {lead.skills.map((skill, idx) => (
                         <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
@@ -833,7 +835,7 @@ const LeadsPage = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
                       <Award className="w-4 h-4" />
-                      Certificações
+                      {t('modal.certifications')}
                     </h3>
                     <div className="space-y-2">
                       {lead.certifications.map((cert, idx) => (
@@ -852,7 +854,7 @@ const LeadsPage = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
                       <Languages className="w-4 h-4" />
-                      Idiomas
+                      {t('modal.languages')}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {lead.languages.map((lang, idx) => (
@@ -869,7 +871,7 @@ const LeadsPage = () => {
               <div className="space-y-6">
                 {/* Contact Information */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">Contato</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.contact')}</h3>
                   <div className="space-y-3">
                     {lead.email && (
                       <div className="flex items-start gap-2">
@@ -879,7 +881,7 @@ const LeadsPage = () => {
                             {lead.email}
                           </a>
                           {lead.email_source && (
-                            <p className="text-xs text-gray-500">Fonte: {lead.email_source}</p>
+                            <p className="text-xs text-gray-500">{t('modal.source')} {lead.email_source}</p>
                           )}
                         </div>
                       </div>
@@ -892,7 +894,7 @@ const LeadsPage = () => {
                             {lead.phone}
                           </a>
                           {lead.phone_source && (
-                            <p className="text-xs text-gray-500">Fonte: {lead.phone_source}</p>
+                            <p className="text-xs text-gray-500">{t('modal.source')} {lead.phone_source}</p>
                           )}
                         </div>
                       </div>
@@ -933,7 +935,7 @@ const LeadsPage = () => {
                 {/* Campaign Info */}
                 {lead.campaign_name && (
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">Campanha</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.campaign')}</h3>
                     <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
                       <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
                       <span className="text-sm text-purple-700 font-medium">{lead.campaign_name}</span>
@@ -943,23 +945,23 @@ const LeadsPage = () => {
 
                 {/* Metadata */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">Informações</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.information')}</h3>
                   <div className="space-y-2 text-sm">
                     {lead.created_at && (
                       <div className="flex items-center gap-2 text-gray-600">
                         <Clock className="w-4 h-4" />
-                        <span>Adicionado em {new Date(lead.created_at).toLocaleDateString('pt-BR')}</span>
+                        <span>{t('modal.addedOn')} {new Date(lead.created_at).toLocaleDateString('pt-BR')}</span>
                       </div>
                     )}
                     {lead.full_profile_fetched_at && (
                       <div className="text-xs text-gray-500">
-                        Enriquecido em {new Date(lead.full_profile_fetched_at).toLocaleDateString('pt-BR')}
+                        {t('modal.enrichedOn')} {new Date(lead.full_profile_fetched_at).toLocaleDateString('pt-BR')}
                       </div>
                     )}
                     {lead.score && (
                       <div className="mt-3">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-600">Score de Qualificação</span>
+                          <span className="text-xs font-medium text-gray-600">{t('modal.qualificationScore')}</span>
                           <span className="text-xs font-bold text-blue-600">{lead.score}/100</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -985,7 +987,7 @@ const LeadsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando pipeline...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     );
@@ -997,13 +999,13 @@ const LeadsPage = () => {
       <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
-            <p className="text-sm text-gray-500 mt-1">Gerencie seus leads e oportunidades</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
+            <p className="text-sm text-gray-500 mt-1">{t('subtitle')}</p>
           </div>
 
           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 shadow-sm text-sm transition-colors">
             <Download className="w-4 h-4" />
-            <span>Exportar</span>
+            <span>{t('exportButton')}</span>
           </button>
         </div>
 
@@ -1016,7 +1018,7 @@ const LeadsPage = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nome, empresa, email..."
+              placeholder={t('searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           </div>
@@ -1024,7 +1026,7 @@ const LeadsPage = () => {
           {/* Filters Button */}
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors">
             <Filter className="w-4 h-4" />
-            <span>Filtros</span>
+            <span>{t('filtersButton')}</span>
           </button>
 
           {/* View Mode Toggle */}
@@ -1036,7 +1038,7 @@ const LeadsPage = () => {
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
-              title="Visualização Kanban"
+              title={t('viewModes.kanban')}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
@@ -1047,7 +1049,7 @@ const LeadsPage = () => {
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
-              title="Visualização em Lista"
+              title={t('viewModes.list')}
             >
               <ListIcon className="w-4 h-4" />
             </button>
@@ -1058,7 +1060,7 @@ const LeadsPage = () => {
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
-              title="Visualização em Calendário"
+              title={t('viewModes.calendar')}
             >
               <CalendarIcon className="w-4 h-4" />
             </button>

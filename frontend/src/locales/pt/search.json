@@ -1,0 +1,78 @@
+{
+  "title": "Busca",
+  "subtitle": "Encontre e salve perfis para suas campanhas",
+  "linkedinSearch": "Busca no LinkedIn",
+  "googleMapsSearch": "Busca no Google Maps",
+  "filters": {
+    "title": "Filtros de Busca",
+    "location": "Localização",
+    "locationPlaceholder": "Cidade, Estado, País",
+    "jobTitle": "Cargo",
+    "jobTitlePlaceholder": "CEO, Gerente, etc.",
+    "company": "Empresa",
+    "companyPlaceholder": "Nome da empresa",
+    "industry": "Setor",
+    "industryPlaceholder": "Tecnologia, Saúde, etc.",
+    "keywords": "Palavras-chave",
+    "keywordsPlaceholder": "Habilidades, interesses, etc.",
+    "connectionDegree": "Grau de Conexão",
+    "yearsOfExperience": "Anos de Experiência",
+    "apply": "Aplicar Filtros",
+    "clear": "Limpar Filtros",
+    "save": "Salvar Busca"
+  },
+  "results": {
+    "found": "{{count}} perfis encontrados",
+    "viewing": "Visualizando {{from}} a {{to}} de {{total}}",
+    "selectAll": "Selecionar Todos",
+    "deselectAll": "Desmarcar Todos",
+    "selected": "{{count}} selecionados",
+    "saveSelected": "Salvar Selecionados ({{count}})",
+    "noResults": "Nenhum perfil encontrado",
+    "tryAdjusting": "Tente ajustar seus filtros de busca"
+  },
+  "profile": {
+    "view": "Ver Perfil",
+    "save": "Salvar",
+    "saved": "Salvo",
+    "addToCampaign": "Adicionar à Campanha",
+    "addToList": "Adicionar à Lista",
+    "sendMessage": "Enviar Mensagem"
+  },
+  "saveModal": {
+    "title": "Salvar Perfis",
+    "selectList": "Selecione uma lista",
+    "createNewList": "Criar nova lista",
+    "listName": "Nome da lista",
+    "listNamePlaceholder": "Digite o nome da lista",
+    "save": "Salvar {{count}} Perfil(is)",
+    "cancel": "Cancelar"
+  },
+  "messages": {
+    "saved": "{{count}} perfil(is) salvo(s) com sucesso",
+    "addedToCampaign": "{{count}} perfil(is) adicionado(s) à campanha",
+    "errorSaving": "Erro ao salvar perfis",
+    "searchSaved": "Busca salva com sucesso"
+  },
+  "bulkCollection": {
+    "title": "Coleta em Lote",
+    "subtitle": "Colete centenas de perfis automaticamente",
+    "targetCount": "Quantos perfis deseja coletar?",
+    "targetCountHelp": "Mínimo: 10 | Máximo: 1.000 perfis",
+    "selectCampaign": "Salvar perfis em qual campanha?",
+    "selectCampaignPlaceholder": "Selecione uma campanha...",
+    "createNew": "+ Criar nova campanha",
+    "campaignNamePlaceholder": "Nome da nova campanha...",
+    "creating": "Criando...",
+    "create": "Criar",
+    "cancel": "Cancelar",
+    "howItWorks": "Como funciona:",
+    "howItWorksList": [
+      "A coleta será feita em background",
+      "Você receberá notificações do progresso",
+      "Os perfis serão salvos automaticamente na campanha",
+      "Pode levar alguns minutos dependendo da quantidade"
+    ],
+    "startCollection": "Iniciar Coleta"
+  }
+}

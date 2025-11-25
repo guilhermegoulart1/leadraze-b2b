@@ -1,0 +1,57 @@
+{
+  "menu": {
+    "dashboard": "Dashboard",
+    "aiAgents": "AI Agents",
+    "allAgents": "All Agents",
+    "googleMaps": "Google Maps",
+    "profileSearch": "Profile Search",
+    "linkedin": "LinkedIn",
+    "campaigns": "Campaigns",
+    "pipeline": "Pipeline",
+    "activation": "List Activation",
+    "crm": "CRM",
+    "conversations": "Conversations",
+    "contacts": "Contacts",
+    "contactLists": "Contact Lists",
+    "insights": "Insights",
+    "settings": "Settings",
+    "help": "Help",
+    "logout": "Logout"
+  },
+  "sections": {
+    "aiAgents": "AI AGENTS",
+    "googleMaps": "GOOGLE MAPS",
+    "linkedin": "LINKEDIN",
+    "activation": "LIST ACTIVATION",
+    "crm": "CRM"
+  },
+  "userMenu": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "billing": "Billing",
+    "channels": "Connected Channels",
+    "users": "Users",
+    "sectors": "Sectors",
+    "permissions": "Permissions",
+    "logout": "Logout",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu",
+    "user": "User"
+  },
+  "roles": {
+    "admin": "Admin",
+    "supervisor": "Supervisor",
+    "user": "User"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "viewAll": "View all notifications",
+    "newCampaign": "New campaign created",
+    "newLeads": "{{count}} new leads added",
+    "timeAgo": {
+      "minutes": "{{count}} minutes ago",
+      "hours": "{{count}} hours ago",
+      "days": "{{count}} days ago"
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "title": "Dashboard",
+  "welcome": "Bienvenido, {{name}}!",
+  "overview": "Resumen",
+  "errors": {
+    "loadFailed": "Error al cargar dashboard:"
+  },
+  "periods": {
+    "last30Days": "Últimos 30 días",
+    "today": "Hoy"
+  },
+  "metrics": {
+    "totalLeads": "Total de Leads",
+    "activeLeads": "Leads Activos",
+    "conversionRate": "Tasa de Conversión",
+    "overallConversionRate": "Tasa de Conversión General",
+    "activeCampaigns": "Campañas Activas",
+    "totalContacts": "Total de Contactos",
+    "newThisWeek": "Nuevos esta semana",
+    "newThisMonth": "Nuevos este mes",
+    "invitesAccepted": "Invitaciones Aceptadas",
+    "acceptanceRate": "tasa de aceptación",
+    "qualifiedLeads": "Leads Calificados",
+    "ofAccepted": "de los aceptados",
+    "activeConversations": "Conversaciones Activas",
+    "aiResponding247": "IA respondiendo 24/7",
+    "responseRate": "Tasa de Respuesta",
+    "leadsRespondingToMessages": "Leads que responden a los mensajes",
+    "avgResponseTime": "Tiempo Promedio de Respuesta",
+    "timeToFirstResponse": "Tiempo hasta primera respuesta",
+    "invitesSent": "Invitaciones Enviadas",
+    "linkedinRequests": "LinkedIn connection requests",
+    "leadsToQualified": "Leads → Calificados"
+  },
+  "charts": {
+    "leadsOverTime": "Leads a lo Largo del Tiempo",
+    "conversionFunnel": "Embudo de Conversión",
+    "fullSalesPipeline": "Pipeline completo de ventas",
+    "campaignPerformance": "Rendimiento de Campañas",
+    "topSources": "Principales Fuentes",
+    "performanceOverTime": "Rendimiento a lo Largo del Tiempo",
+    "statusDistribution": "Distribución por Estado",
+    "seniorityProfile": "Perfil por Antigüedad",
+    "leadsByIndustry": "Leads por Industria",
+    "responseTime": "Tiempo de Respuesta"
+  },
+  "campaigns": {
+    "topCampaigns": "Top Campañas",
+    "bestPerformers": "Mejores performers del mes",
+    "qualified": "calificados"
+  },
+  "conversations": {
+    "metrics": "Métricas de Conversación",
+    "totalMessages": "Total de Mensajes",
+    "aiMessages": "Mensajes de IA",
+    "leadMessages": "Mensajes de Leads",
+    "avgPerLead": "Promedio por Lead",
+    "mostEngaged": "Leads Más Comprometidos",
+    "msgs": "msgs"
+  },
+  "goals": {
+    "monthly": "Metas del Mes",
+    "progressTowards": "Progreso hacia los objetivos mensuales",
+    "leadsGenerated": "Leads Generados",
+    "qualifiedLeads": "Leads Calificados",
+    "activeConversations": "Conversaciones Activas"
+  },
+  "recentActivity": {
+    "title": "Actividad Reciente",
+    "noActivity": "No hay actividad reciente",
+    "viewAll": "Ver todas"
+  },
+  "quickActions": {
+    "title": "Acciones Rápidas",
+    "newCampaign": "Nueva Campaña",
+    "importLeads": "Importar Leads",
+    "viewReports": "Ver Informes"
+  }
+}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, Mail, Phone, Linkedin, Building2, Briefcase, CheckCircle, Clock, XCircle, Search } from 'lucide-react';
+import { X, Users, Mail, Phone, Linkedin, Building2, Briefcase, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
 const ContactListItemsModal = ({ isOpen, onClose, list }) => {
+  const { t } = useTranslation(['contacts', 'common']);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     if (isOpen && list) {
@@ -28,38 +29,7 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: Clock },
-      activated: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
-      failed: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-      skipped: { bg: 'bg-gray-100', text: 'text-gray-700', icon: XCircle }
-    };
-
-    const labels = {
-      pending: 'Pendente',
-      activated: 'Ativado',
-      failed: 'Falha',
-      skipped: 'Ignorado'
-    };
-
-    const style = styles[status] || styles.pending;
-    const Icon = style.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-        <Icon className="w-3 h-3" />
-        {labels[status] || status}
-      </span>
-    );
-  };
-
   const filteredItems = items.filter(item => {
-    // Filter by status
-    if (statusFilter !== 'all' && item.status !== statusFilter) {
-      return false;
-    }
-
     // Filter by search term
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -72,13 +42,6 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
 
     return true;
   });
-
-  const stats = {
-    total: items.length,
-    pending: items.filter(i => i.status === 'pending').length,
-    activated: items.filter(i => i.status === 'activated').length,
-    failed: items.filter(i => i.status === 'failed').length,
-  };
 
   if (!isOpen || !list) return null;
 
@@ -94,7 +57,7 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{list.name}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                {stats.total} contatos • {stats.activated} ativados • {stats.pending} pendentes
+                {items.length} {t('lists.contacts')}
               </p>
             </div>
           </div>
@@ -108,30 +71,16 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
 
         {/* Filters */}
         <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome, email ou empresa..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="all">Todos os status</option>
-              <option value="pending">Pendentes</option>
-              <option value="activated">Ativados</option>
-              <option value="failed">Falhas</option>
-            </select>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder={t('lists.searchPlaceholder')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
           </div>
         </div>
 
@@ -141,17 +90,17 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Carregando contatos...</p>
+                <p className="mt-4 text-gray-600">{t('lists.loadingContacts')}</p>
               </div>
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || statusFilter !== 'all' ? 'Nenhum contato encontrado' : 'Lista vazia'}
+                {searchTerm ? t('lists.noContactsFound') : t('lists.emptyList')}
               </h3>
               <p className="text-gray-600">
-                {searchTerm || statusFilter !== 'all' ? 'Tente ajustar os filtros' : 'Importe contatos para começar'}
+                {searchTerm ? t('lists.tryAdjustingSearch') : t('lists.importToStart')}
               </p>
             </div>
           ) : (
@@ -160,22 +109,19 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
                 <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contato
+                      {t('lists.contact')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
+                      {t('lists.company')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Telefone
+                      {t('form.email')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      LinkedIn
+                      {t('lists.phone')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Empresa
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      {t('lists.channels')}
                     </th>
                   </tr>
                 </thead>
@@ -186,10 +132,11 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
                     const phone = item.phone || item.contact_phone;
                     const linkedin = item.linkedin_url || item.contact_linkedin_url;
                     const company = item.company || item.contact_company;
-                    const position = item.position;
+                    const position = item.position || item.contact_position;
 
                     return (
                       <tr key={item.id} className="hover:bg-gray-50">
+                        {/* Contato */}
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900">{name}</div>
@@ -201,43 +148,8 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {email ? (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Mail className="w-4 h-4 text-gray-400" />
-                              <a href={`mailto:${email}`} className="hover:text-purple-600">
-                                {email}
-                              </a>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {phone ? (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Phone className="w-4 h-4 text-gray-400" />
-                              {phone}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {linkedin ? (
-                            <a
-                              href={linkedin.startsWith('http') ? linkedin : `https://${linkedin}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700"
-                            >
-                              <Linkedin className="w-4 h-4" />
-                              Perfil
-                            </a>
-                          ) : (
-                            <span className="text-sm text-gray-400">-</span>
-                          )}
-                        </td>
+
+                        {/* Empresa */}
                         <td className="px-6 py-4 whitespace-nowrap">
                           {company ? (
                             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -248,8 +160,43 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
                             <span className="text-sm text-gray-400">-</span>
                           )}
                         </td>
+
+                        {/* Email */}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(item.status)}
+                          {email ? (
+                            <a href={`mailto:${email}`} className="text-sm text-gray-600 hover:text-purple-600">
+                              {email}
+                            </a>
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
+                        </td>
+
+                        {/* Telefone */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {phone ? (
+                            <span className="text-sm text-gray-600">{phone}</span>
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
+                        </td>
+
+                        {/* Canais */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <Linkedin
+                              className={`w-5 h-5 ${linkedin ? 'text-blue-600' : 'text-gray-300'}`}
+                              title={linkedin ? t('lists.linkedinAvailable') : t('lists.linkedinNotAvailable')}
+                            />
+                            <Mail
+                              className={`w-5 h-5 ${email ? 'text-green-600' : 'text-gray-300'}`}
+                              title={email ? t('lists.emailAvailable') : t('lists.emailNotAvailable')}
+                            />
+                            <Phone
+                              className={`w-5 h-5 ${phone ? 'text-purple-600' : 'text-gray-300'}`}
+                              title={phone ? t('lists.phoneAvailable') : t('lists.phoneNotAvailable')}
+                            />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -263,13 +210,13 @@ const ContactListItemsModal = ({ isOpen, onClose, list }) => {
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <div className="text-sm text-gray-600">
-            Exibindo {filteredItems.length} de {stats.total} contatos
+            {searchTerm ? t('lists.showing', { filtered: filteredItems.length, total: items.length }) : `${items.length} ${t('lists.contacts')}`}
           </div>
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Fechar
+            {t('common:buttons.close')}
           </button>
         </div>
       </div>

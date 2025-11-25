@@ -1,0 +1,49 @@
+{
+  "buttons": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "create": "Criar",
+    "close": "Fechar",
+    "confirm": "Confirmar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "finish": "Finalizar",
+    "loading": "Carregando...",
+    "search": "Pesquisar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "refresh": "Atualizar"
+  },
+  "status": {
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "pending": "Pendente",
+    "completed": "Concluído",
+    "failed": "Falhou",
+    "paused": "Pausado",
+    "draft": "Rascunho"
+  },
+  "messages": {
+    "success": "Operação concluída com sucesso",
+    "error": "Ocorreu um erro",
+    "loading": "Carregando...",
+    "noData": "Nenhum dado disponível",
+    "confirmDelete": "Tem certeza que deseja excluir este item?",
+    "unsavedChanges": "Você tem alterações não salvas. Deseja sair?",
+    "requiredField": "Este campo é obrigatório",
+    "invalidEmail": "Por favor, insira um email válido",
+    "invalidPhone": "Por favor, insira um telefone válido"
+  },
+  "time": {
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "tomorrow": "Amanhã",
+    "lastWeek": "Semana passada",
+    "lastMonth": "Mês passado",
+    "thisWeek": "Esta semana",
+    "thisMonth": "Este mês"
+  }
+}

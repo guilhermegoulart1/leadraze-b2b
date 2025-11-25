@@ -1,0 +1,136 @@
+{
+  "title": "Pipeline",
+  "subtitle": "Manage your leads and opportunities",
+  "allLeads": "All Leads",
+  "newLead": "New Lead",
+  "exportButton": "Export",
+  "loading": "Loading pipeline...",
+  "searchPlaceholder": "Search by name, company, email...",
+  "filtersButton": "Filters",
+  "stages": {
+    "leads": "Prospecting",
+    "invite_sent": "Invite",
+    "qualifying": "Qualifying",
+    "accepted": "In Progress",
+    "qualified": "Won",
+    "discarded": "Discarded"
+  },
+  "filters": {
+    "all": "All",
+    "assigned": "Assigned to Me",
+    "unassigned": "Unassigned",
+    "hot": "Hot Leads",
+    "cold": "Cold Leads"
+  },
+  "sort": {
+    "newest": "Newest First",
+    "oldest": "Oldest First",
+    "nameAZ": "Name (A-Z)",
+    "nameZA": "Name (Z-A)",
+    "score": "Score"
+  },
+  "actions": {
+    "moveTo": "Move to",
+    "assignTo": "Assign to",
+    "addNote": "Add Note",
+    "sendMessage": "Send Message",
+    "schedule": "Schedule Call",
+    "markAsWon": "Mark as Won",
+    "markAsLost": "Mark as Lost"
+  },
+  "details": {
+    "info": "Information",
+    "notes": "Notes",
+    "activity": "Activity",
+    "messages": "Messages"
+  },
+  "form": {
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "company": "Company",
+    "position": "Position",
+    "linkedinUrl": "LinkedIn URL",
+    "source": "Source",
+    "score": "Score",
+    "tags": "Tags"
+  },
+  "stats": {
+    "total": "Total Leads",
+    "new": "New",
+    "qualified": "Qualified",
+    "converted": "Converted",
+    "conversionRate": "Conversion Rate"
+  },
+  "messages": {
+    "created": "Lead created successfully",
+    "updated": "Lead updated successfully",
+    "deleted": "Lead deleted successfully",
+    "moved": "Lead moved to {{stage}}",
+    "assigned": "Lead assigned to {{user}}",
+    "noLeads": "No leads",
+    "dropHere": "Drop here",
+    "confirmDelete": "Are you sure you want to delete this lead?"
+  },
+  "viewModes": {
+    "kanban": "Kanban View",
+    "list": "List View",
+    "calendar": "Calendar View"
+  },
+  "badges": {
+    "draft": "Draft",
+    "premium": "Premium",
+    "creator": "Creator",
+    "influencer": "Influencer",
+    "linkedInPremium": "LinkedIn Premium",
+    "creatorMode": "Creator Mode",
+    "linkedInInfluencer": "LinkedIn Influencer"
+  },
+  "stats": {
+    "connections": "connections",
+    "followers": "followers",
+    "profile": "Profile"
+  },
+  "tooltips": {
+    "viewDetails": "View details",
+    "viewLinkedIn": "View LinkedIn profile",
+    "edit": "Edit",
+    "delete": "Delete",
+    "draftCampaign": "This campaign is in draft mode"
+  },
+  "table": {
+    "lead": "Lead",
+    "company": "Company",
+    "contact": "Contact",
+    "campaign": "Campaign",
+    "stage": "Stage",
+    "tags": "Tags",
+    "date": "Date",
+    "actions": "Actions"
+  },
+  "calendar": {
+    "view": "Calendar View",
+    "inDevelopment": "In development..."
+  },
+  "modal": {
+    "statusClassification": "Status & Classification",
+    "networkReach": "Network & Reach",
+    "connections": "Connections",
+    "followers": "Followers",
+    "networkDistance": "Network distance:",
+    "about": "About",
+    "experience": "Professional Experience",
+    "education": "Education",
+    "skills": "Skills",
+    "certifications": "Certifications",
+    "languages": "Languages",
+    "contact": "Contact",
+    "campaign": "Campaign",
+    "information": "Information",
+    "addedOn": "Added on",
+    "enrichedOn": "Enriched on",
+    "qualificationScore": "Qualification Score",
+    "source": "Source:",
+    "present": "Present"
+  }
+}

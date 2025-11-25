@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
 
 const LinkedInAccountsPage = () => {
+  const { t } = useTranslation(['linkedinaccounts', 'common']);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshingAccounts, setRefreshingAccounts] = useState({});
@@ -60,25 +62,25 @@ const LinkedInAccountsPage = () => {
         bg: 'bg-blue-100',
         text: 'text-blue-700',
         icon: Briefcase,
-        label: 'Sales Navigator'
+        label: t('accountTypes.salesNavigator')
       },
       'Recruiter': {
         bg: 'bg-purple-100',
         text: 'text-purple-700',
         icon: Users,
-        label: 'Recruiter'
+        label: t('accountTypes.recruiter')
       },
       'Premium': {
         bg: 'bg-amber-100',
         text: 'text-amber-700',
         icon: Crown,
-        label: 'Premium'
+        label: t('accountTypes.premium')
       },
       'Free': {
         bg: 'bg-gray-100',
         text: 'text-gray-700',
         icon: CheckCircle,
-        label: 'Free'
+        label: t('accountTypes.free')
       }
     };
 
@@ -92,21 +94,21 @@ const LinkedInAccountsPage = () => {
         bg: 'bg-green-100',
         text: 'text-green-700',
         border: 'border-green-300',
-        label: 'Saudável'
+        label: t('healthScore.healthy')
       };
     } else if (score >= 50) {
       return {
         bg: 'bg-yellow-100',
         text: 'text-yellow-700',
         border: 'border-yellow-300',
-        label: 'Atenção'
+        label: t('healthScore.warning')
       };
     } else {
       return {
         bg: 'bg-red-100',
         text: 'text-red-700',
         border: 'border-red-300',
-        label: 'Crítico'
+        label: t('healthScore.critical')
       };
     }
   };
@@ -206,7 +208,7 @@ const LinkedInAccountsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando contas LinkedIn...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     );
@@ -218,12 +220,12 @@ const LinkedInAccountsPage = () => {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Canais Conectados</h1>
-            <p className="text-sm text-gray-500 mt-1">Gerencie todas as suas contas conectadas em diferentes canais</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
+            <p className="text-sm text-gray-500 mt-1">{t('subtitle')}</p>
           </div>
           <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors shadow-sm">
             <Plus className="w-5 h-5" />
-            <span>Conectar Canal</span>
+            <span>{t('connectChannel')}</span>
           </button>
         </div>
       </div>
@@ -233,23 +235,23 @@ const LinkedInAccountsPage = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Total de Contas</p>
+          <p className="text-sm text-gray-500 mb-2">{t('stats.totalAccounts')}</p>
           <p className="text-3xl font-bold text-gray-900">{accounts.length}</p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Contas Ativas</p>
+          <p className="text-sm text-gray-500 mb-2">{t('stats.activeAccounts')}</p>
           <p className="text-3xl font-bold text-green-600">
             {accounts.filter(a => a.status === 'active').length}
           </p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Limite Diário Total</p>
+          <p className="text-sm text-gray-500 mb-2">{t('stats.dailyLimitTotal')}</p>
           <p className="text-3xl font-bold text-purple-600">
             {accounts.reduce((sum, a) => sum + (a.daily_limit || 0), 0)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">Enviados Hoje</p>
+          <p className="text-sm text-gray-500 mb-2">{t('stats.sentToday')}</p>
           <p className="text-3xl font-bold text-blue-600">
             {accounts.reduce((sum, a) => sum + (a.today_sent || 0), 0)}
           </p>
@@ -280,7 +282,7 @@ const LinkedInAccountsPage = () => {
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 rounded-t-lg flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white">
                   <Linkedin className="w-4 h-4" />
-                  <span className="text-sm font-semibold">LinkedIn</span>
+                  <span className="text-sm font-semibold">{t('channel')}</span>
                 </div>
                 <span className={`flex items-center gap-1 px-2 py-0.5 ${typeStyle.bg} ${typeStyle.text} text-xs font-semibold rounded-full`}>
                   <TypeIcon className="w-3 h-3" />
@@ -312,12 +314,12 @@ const LinkedInAccountsPage = () => {
                     {account.status === 'active' ? (
                       <span className="flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                         <CheckCircle className="w-3.5 h-3.5" />
-                        <span>Ativa</span>
+                        <span>{t('status.active')}</span>
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
                         <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Inativa</span>
+                        <span>{t('status.inactive')}</span>
                       </span>
                     )}
                     {healthStyle && (
@@ -332,11 +334,11 @@ const LinkedInAccountsPage = () => {
               {/* Stats */}
               <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Limite Diário</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('card.dailyLimit')}</p>
                   <p className="text-lg font-bold text-gray-900">{account.daily_limit}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Enviados Hoje</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('card.sentToday')}</p>
                   <p className="text-lg font-bold text-purple-600">{account.today_sent}</p>
                 </div>
               </div>
@@ -344,7 +346,7 @@ const LinkedInAccountsPage = () => {
               {/* Usage Bar */}
               <div className="mb-4">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="text-gray-500">Uso diário</span>
+                  <span className="text-gray-500">{t('card.dailyUsage')}</span>
                   <span className="font-semibold text-gray-900">{usagePercent}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
@@ -362,7 +364,7 @@ const LinkedInAccountsPage = () => {
               {/* Organizations */}
               {organizations.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-xs text-gray-500 mb-2">Organizações Conectadas:</p>
+                  <p className="text-xs text-gray-500 mb-2">{t('card.connectedOrganizations')}:</p>
                   <div className="flex flex-wrap gap-2">
                     {organizations.slice(0, 3).map((org, idx) => (
                       <span key={idx} className="flex items-center space-x-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-lg">
@@ -372,7 +374,7 @@ const LinkedInAccountsPage = () => {
                     ))}
                     {organizations.length > 3 && (
                       <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg">
-                        +{organizations.length - 3} mais
+                        +{organizations.length - 3} {t('card.more')}
                       </span>
                     )}
                   </div>
@@ -381,8 +383,8 @@ const LinkedInAccountsPage = () => {
 
               {/* Info */}
               <div className="text-xs text-gray-500 space-y-1 mb-4">
-                <p>Conectada: {new Date(account.connected_at).toLocaleDateString('pt-BR')}</p>
-                <p>ID Unipile: {account.unipile_account_id}</p>
+                <p>{t('card.connectedAt')}: {new Date(account.connected_at).toLocaleDateString('pt-BR')}</p>
+                <p>{t('card.unipileId')}: {account.unipile_account_id}</p>
               </div>
 
               {/* Actions */}
@@ -393,7 +395,7 @@ const LinkedInAccountsPage = () => {
                     className="flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-700 font-medium"
                   >
                     <Settings className="w-4 h-4" />
-                    <span>Limites</span>
+                    <span>{t('card.limits')}</span>
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
@@ -401,11 +403,11 @@ const LinkedInAccountsPage = () => {
                     onClick={() => handleRefreshAccount(account.id)}
                     disabled={refreshingAccounts[account.id]}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Atualizar dados da conta"
+                    title={t('card.refresh')}
                   >
                     <RefreshCw className={`w-4 h-4 ${refreshingAccounts[account.id] ? 'animate-spin' : ''}`} />
                   </button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remover conta">
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title={t('card.remove')}>
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -422,10 +424,10 @@ const LinkedInAccountsPage = () => {
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Linkedin className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum canal conectado</h3>
-            <p className="text-gray-500 mb-6">Conecte sua primeira conta LinkedIn ou outro canal para começar</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('messages.noChannels')}</h3>
+            <p className="text-gray-500 mb-6">{t('messages.noChannelsDescription')}</p>
             <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors shadow-sm">
-              Conectar primeiro canal
+              {t('messages.connectFirstChannel')}
             </button>
           </div>
         </div>

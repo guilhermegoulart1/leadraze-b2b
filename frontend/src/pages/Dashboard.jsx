@@ -13,6 +13,7 @@ import {
   Mail,
   BarChart3
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import StatCard from '../components/StatCard';
 import MetricCard from '../components/MetricCard';
 import TopListCard from '../components/TopListCard';
@@ -24,6 +25,7 @@ import BarChart from '../components/charts/BarChart';
 import api from '../services/api';
 
 const Dashboard = () => {
+  const { t } = useTranslation('dashboard');
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
 
@@ -40,7 +42,7 @@ const Dashboard = () => {
         setDashboardData(response.data);
       }
     } catch (error) {
-      console.error('Erro ao carregar dashboard:', error);
+      console.error(t('errors.loadFailed'), error);
     } finally {
       setLoading(false);
     }
@@ -51,7 +53,7 @@ const Dashboard = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7229f7] mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando dashboard...</p>
+          <p className="text-gray-600">{t('common:messages.loading')}</p>
         </div>
       </div>
     );
@@ -178,9 +180,9 @@ const Dashboard = () => {
       {/* Main Metrics Grid - 4 columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <StatCard
-          title="Total de Leads"
+          title={t('metrics.totalLeads')}
           value={mockData.metrics.totalLeads.toLocaleString()}
-          subtitle="Últimos 30 dias"
+          subtitle={t('periods.last30Days')}
           icon={Users}
           iconColor="purple"
           trend="up"
@@ -188,9 +190,9 @@ const Dashboard = () => {
         />
 
         <StatCard
-          title="Convites Aceitos"
+          title={t('metrics.invitesAccepted')}
           value={mockData.metrics.accepted.toLocaleString()}
-          subtitle={`${((mockData.metrics.accepted / mockData.metrics.invitesSent) * 100).toFixed(1)}% taxa de aceitação`}
+          subtitle={`${((mockData.metrics.accepted / mockData.metrics.invitesSent) * 100).toFixed(1)}% ${t('metrics.acceptanceRate')}`}
           icon={UserPlus}
           iconColor="blue"
           trend="up"
@@ -198,9 +200,9 @@ const Dashboard = () => {
         />
 
         <StatCard
-          title="Leads Qualificados"
+          title={t('metrics.qualifiedLeads')}
           value={mockData.metrics.qualified}
-          subtitle={`${((mockData.metrics.qualified / mockData.metrics.accepted) * 100).toFixed(1)}% dos aceitos`}
+          subtitle={`${((mockData.metrics.qualified / mockData.metrics.accepted) * 100).toFixed(1)}% ${t('metrics.ofAccepted')}`}
           icon={CheckCircle}
           iconColor="green"
           trend="up"
@@ -208,9 +210,9 @@ const Dashboard = () => {
         />
 
         <StatCard
-          title="Conversas Ativas"
+          title={t('metrics.activeConversations')}
           value={mockData.metrics.activeConversations}
-          subtitle="IA respondendo 24/7"
+          subtitle={t('metrics.aiResponding247')}
           icon={MessageCircle}
           iconColor="yellow"
           trend="up"
@@ -221,41 +223,41 @@ const Dashboard = () => {
       {/* Secondary Metrics - 4 columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <MetricCard
-          title="Taxa de Resposta"
+          title={t('metrics.responseRate')}
           value={mockData.metrics.responseRate}
           suffix="%"
           icon={TrendingUp}
           trend="up"
           trendValue={mockData.metrics.responseRateChange}
-          subtitle="Leads que respondem às mensagens"
+          subtitle={t('metrics.leadsRespondingToMessages')}
         />
 
         <MetricCard
-          title="Tempo Médio de Resposta"
+          title={t('metrics.avgResponseTime')}
           value={mockData.metrics.avgResponseTime}
           icon={Clock}
           trend="up"
           trendValue={mockData.metrics.avgResponseTimeChange}
-          subtitle="Tempo até primeira resposta"
+          subtitle={t('metrics.timeToFirstResponse')}
         />
 
         <MetricCard
-          title="Taxa de Conversão Geral"
+          title={t('metrics.overallConversionRate')}
           value={mockData.metrics.conversionRate}
           suffix="%"
           icon={Target}
           trend="up"
           trendValue={mockData.metrics.conversionRateChange}
-          subtitle="Leads → Qualificados"
+          subtitle={t('metrics.leadsToQualified')}
         />
 
         <MetricCard
-          title="Convites Enviados"
+          title={t('metrics.invitesSent')}
           value={mockData.metrics.invitesSent.toLocaleString()}
           icon={Mail}
           trend="up"
           trendValue={mockData.metrics.invitesSentChange}
-          subtitle="LinkedIn connection requests"
+          subtitle={t('metrics.linkedinRequests')}
         />
       </div>
 
@@ -265,8 +267,8 @@ const Dashboard = () => {
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-              <p className="text-sm text-gray-500 mt-1">Pipeline completo de vendas</p>
+              <h3 className="text-lg font-bold text-gray-900">{t('charts.conversionFunnel')}</h3>
+              <p className="text-sm text-gray-500 mt-1">{t('charts.fullSalesPipeline')}</p>
             </div>
             <div className="p-2 rounded-lg bg-purple-50">
               <BarChart3 className="w-5 h-5 text-[#7229f7]" />
@@ -279,8 +281,8 @@ const Dashboard = () => {
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Performance ao Longo do Tempo</h3>
-              <p className="text-sm text-gray-500 mt-1">Últimos 30 dias</p>
+              <h3 className="text-lg font-bold text-gray-900">{t('charts.performanceOverTime')}</h3>
+              <p className="text-sm text-gray-500 mt-1">{t('periods.last30Days')}</p>
             </div>
             <div className="p-2 rounded-lg bg-purple-50">
               <TrendingUp className="w-5 h-5 text-[#7229f7]" />
@@ -294,7 +296,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Lead Status Distribution */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Distribuição por Status</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">{t('charts.statusDistribution')}</h3>
           <DonutChart
             data={mockData.leadStatusDistribution}
             colors={['#7229f7', '#894cf8', '#a06ff9', '#b793fa', '#d4c5fc', '#e8e0fd']}
@@ -303,7 +305,7 @@ const Dashboard = () => {
 
         {/* Lead by Seniority */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Perfil por Senioridade</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">{t('charts.seniorityProfile')}</h3>
           <DonutChart
             data={mockData.leadBySeniority}
             colors={['#7229f7', '#894cf8', '#a06ff9', '#b793fa']}
@@ -317,8 +319,8 @@ const Dashboard = () => {
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Top Campanhas</h3>
-              <p className="text-sm text-gray-500 mt-1">Melhores performers do mês</p>
+              <h3 className="text-lg font-bold text-gray-900">{t('campaigns.topCampaigns')}</h3>
+              <p className="text-sm text-gray-500 mt-1">{t('campaigns.bestPerformers')}</p>
             </div>
             <div className="p-2 rounded-lg bg-purple-50">
               <Award className="w-5 h-5 text-[#7229f7]" />
@@ -327,14 +329,14 @@ const Dashboard = () => {
           <TopListCard
             title=""
             items={mockData.topCampaigns}
-            valueFormatter={(v) => `${v} qualificados`}
+            valueFormatter={(v) => `${v} ${t('campaigns.qualified')}`}
             showTrend={true}
           />
         </div>
 
         {/* Lead by Industry */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Leads por Indústria</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">{t('charts.leadsByIndustry')}</h3>
           <BarChart
             data={mockData.leadByIndustry}
             dataKey="value"
@@ -350,34 +352,34 @@ const Dashboard = () => {
         {/* Conversation Stats */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900">Métricas de Conversação</h3>
+            <h3 className="text-lg font-bold text-gray-900">{t('conversations.metrics')}</h3>
             <div className="p-2 rounded-lg bg-purple-50">
               <MessageCircle className="w-5 h-5 text-[#7229f7]" />
             </div>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-              <span className="text-sm text-gray-600">Total de Mensagens</span>
+              <span className="text-sm text-gray-600">{t('conversations.totalMessages')}</span>
               <span className="text-lg font-bold text-gray-900">
                 {mockData.conversationMetrics.totalMessages.toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50">
-              <span className="text-sm text-gray-600">Mensagens da IA</span>
+              <span className="text-sm text-gray-600">{t('conversations.aiMessages')}</span>
               <span className="text-lg font-bold text-[#7229f7]">
                 {mockData.conversationMetrics.aiMessages.toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-              <span className="text-sm text-gray-600">Mensagens de Leads</span>
+              <span className="text-sm text-gray-600">{t('conversations.leadMessages')}</span>
               <span className="text-lg font-bold text-gray-900">
                 {mockData.conversationMetrics.leadMessages.toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-              <span className="text-sm text-gray-600">Média por Lead</span>
+              <span className="text-sm text-gray-600">{t('conversations.avgPerLead')}</span>
               <span className="text-lg font-bold text-gray-900">
-                {mockData.conversationMetrics.avgMessagesPerLead} msgs
+                {mockData.conversationMetrics.avgMessagesPerLead} {t('conversations.msgs')}
               </span>
             </div>
           </div>
@@ -386,7 +388,7 @@ const Dashboard = () => {
         {/* Most Engaged Leads */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900">Leads Mais Engajados</h3>
+            <h3 className="text-lg font-bold text-gray-900">{t('conversations.mostEngaged')}</h3>
             <div className="p-2 rounded-lg bg-purple-50">
               <Zap className="w-5 h-5 text-[#7229f7]" />
             </div>
@@ -394,13 +396,13 @@ const Dashboard = () => {
           <TopListCard
             title=""
             items={mockData.mostEngagedLeads}
-            valueFormatter={(v) => `${v} msgs`}
+            valueFormatter={(v) => `${v} ${t('conversations.msgs')}`}
           />
         </div>
 
         {/* Response Time Distribution */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Tempo de Resposta</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-6">{t('charts.responseTime')}</h3>
           <BarChart
             data={mockData.responseTimeData}
             dataKey="value"
@@ -415,8 +417,8 @@ const Dashboard = () => {
       <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Metas do Mês</h3>
-            <p className="text-sm text-gray-500 mt-1">Progresso em relação aos objetivos mensais</p>
+            <h3 className="text-lg font-bold text-gray-900">{t('goals.monthly')}</h3>
+            <p className="text-sm text-gray-500 mt-1">{t('goals.progressTowards')}</p>
           </div>
           <div className="p-2 rounded-lg bg-purple-50">
             <Calendar className="w-5 h-5 text-[#7229f7]" />
@@ -424,19 +426,19 @@ const Dashboard = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <ProgressMetric
-            label="Leads Gerados"
+            label={t('goals.leadsGenerated')}
             current={mockData.monthlyGoals.leads.current}
             target={mockData.monthlyGoals.leads.target}
             color="#7229f7"
           />
           <ProgressMetric
-            label="Leads Qualificados"
+            label={t('goals.qualifiedLeads')}
             current={mockData.monthlyGoals.qualified.current}
             target={mockData.monthlyGoals.qualified.target}
             color="#894cf8"
           />
           <ProgressMetric
-            label="Conversas Ativas"
+            label={t('goals.activeConversations')}
             current={mockData.monthlyGoals.conversations.current}
             target={mockData.monthlyGoals.conversations.target}
             color="#a06ff9"

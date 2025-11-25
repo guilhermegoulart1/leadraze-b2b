@@ -1,0 +1,34 @@
+{
+  "auth": {
+    "registerSuccess": "User registered successfully",
+    "loginSuccess": "Login successful",
+    "logoutSuccess": "Logout successful",
+    "passwordChanged": "Password changed successfully"
+  },
+  "campaigns": {
+    "created": "Campaign created successfully",
+    "updated": "Campaign updated successfully",
+    "deleted": "Campaign deleted successfully",
+    "started": "Campaign started successfully",
+    "paused": "Campaign paused successfully",
+    "resumed": "Campaign resumed successfully"
+  },
+  "leads": {
+    "created": "Lead created successfully",
+    "updated": "Lead updated successfully",
+    "deleted": "Lead deleted successfully",
+    "statusChanged": "Lead status changed successfully"
+  },
+  "contacts": {
+    "created": "Contact created successfully",
+    "updated": "Contact updated successfully",
+    "deleted": "Contact deleted successfully",
+    "imported": "Contacts imported successfully"
+  },
+  "general": {
+    "success": "Operation completed successfully",
+    "created": "Created successfully",
+    "updated": "Updated successfully",
+    "deleted": "Deleted successfully"
+  }
+}

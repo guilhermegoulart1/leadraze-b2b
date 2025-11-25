@@ -1,0 +1,62 @@
+{
+  "title": "LinkedIn Accounts",
+  "subtitle": "Manage your LinkedIn accounts for campaigns",
+  "connectAccount": "Connect LinkedIn Account",
+  "addAccount": "Add Account",
+  "table": {
+    "account": "Account",
+    "email": "Email",
+    "status": "Status",
+    "dailyLimit": "Daily Limit",
+    "invitesSent": "Invites Sent Today",
+    "campaigns": "Active Campaigns",
+    "actions": "Actions"
+  },
+  "status": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "error": "Error",
+    "limited": "Limited",
+    "pending": "Pending"
+  },
+  "actions": {
+    "edit": "Edit",
+    "disconnect": "Disconnect",
+    "reconnect": "Reconnect",
+    "viewLimits": "View Limits",
+    "testConnection": "Test Connection"
+  },
+  "limits": {
+    "title": "Account Limits",
+    "dailyInvites": "Daily Invites",
+    "dailyMessages": "Daily Messages",
+    "weeklyInvites": "Weekly Invites",
+    "remaining": "{{count}} remaining",
+    "resetIn": "Resets in {{time}}",
+    "configure": "Configure Limits"
+  },
+  "form": {
+    "title": "LinkedIn Account Settings",
+    "email": "LinkedIn Email",
+    "emailPlaceholder": "your-email@example.com",
+    "dailyInviteLimit": "Daily Invite Limit",
+    "dailyMessageLimit": "Daily Message Limit",
+    "delayBetweenActions": "Delay Between Actions (seconds)",
+    "randomizeDelay": "Randomize Delay",
+    "notes": "Notes",
+    "notesPlaceholder": "Internal notes about this account",
+    "save": "Save Settings",
+    "cancel": "Cancel"
+  },
+  "messages": {
+    "connected": "LinkedIn account connected successfully",
+    "disconnected": "LinkedIn account disconnected",
+    "updated": "Account settings updated",
+    "testSuccess": "Connection test successful",
+    "testFailed": "Connection test failed",
+    "confirmDisconnect": "Are you sure you want to disconnect this account?",
+    "limitReached": "Daily limit reached for this account",
+    "noAccounts": "No LinkedIn accounts connected",
+    "connectFirst": "Connect your LinkedIn account to start campaigns"
+  }
+}

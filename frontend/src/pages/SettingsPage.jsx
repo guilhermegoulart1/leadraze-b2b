@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { User, Lock, Bell, CreditCard, Database, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const SettingsPage = () => {
+  const { t } = useTranslation('settings');
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
-    { id: 'profile', label: 'Perfil', icon: User },
-    { id: 'security', label: 'Segurança', icon: Lock },
-    { id: 'notifications', label: 'Notificações', icon: Bell },
-    { id: 'billing', label: 'Cobrança', icon: CreditCard },
-    { id: 'integrations', label: 'Integrações', icon: Database },
-    { id: 'privacy', label: 'Privacidade', icon: Shield },
+    { id: 'profile', label: t('tabs.profile'), icon: User },
+    { id: 'security', label: t('tabs.security'), icon: Lock },
+    { id: 'notifications', label: t('tabs.notifications'), icon: Bell },
+    { id: 'billing', label: t('tabs.billing'), icon: CreditCard },
+    { id: 'integrations', label: t('tabs.integrations'), icon: Database },
+    { id: 'privacy', label: t('tabs.privacy'), icon: Shield },
   ];
 
   return (
@@ -20,8 +22,8 @@ const SettingsPage = () => {
       
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Configurações</h2>
-        <p className="text-gray-500 mt-1">Gerencie suas preferências e configurações</p>
+        <h2 className="text-2xl font-bold text-gray-900">{t('title')}</h2>
+        <p className="text-gray-500 mt-1">{t('subtitle')}</p>
       </div>
 
       <div className="flex gap-6">
@@ -57,10 +59,10 @@ const SettingsPage = () => {
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Informações do Perfil</h3>
-              
+              <h3 className="text-lg font-bold text-gray-900 mb-6">{t('profile.title')}</h3>
+
               <div className="space-y-6">
-                
+
                 {/* Avatar */}
                 <div className="flex items-center space-x-4">
                   <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-2xl font-bold">
@@ -68,9 +70,9 @@ const SettingsPage = () => {
                   </div>
                   <div>
                     <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:opacity-90 font-semibold text-sm">
-                      Alterar Foto
+                      {t('profile.changePhoto')}
                     </button>
-                    <p className="text-xs text-gray-500 mt-2">JPG, PNG ou GIF • Máx 2MB</p>
+                    <p className="text-xs text-gray-500 mt-2">{t('profile.photoRequirements')}</p>
                   </div>
                 </div>
 
@@ -78,7 +80,7 @@ const SettingsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nome Completo
+                      {t('profile.fullName')}
                     </label>
                     <input
                       type="text"
@@ -89,7 +91,7 @@ const SettingsPage = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email
+                      {t('profile.email')}
                     </label>
                     <input
                       type="email"
@@ -100,22 +102,22 @@ const SettingsPage = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Telefone
+                      {t('profile.phone')}
                     </label>
                     <input
                       type="tel"
-                      placeholder="+55 (11) 99999-9999"
+                      placeholder={t('profile.phonePlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cargo
+                      {t('profile.position')}
                     </label>
                     <input
                       type="text"
-                      placeholder="Ex: Gerente de Vendas"
+                      placeholder={t('profile.positionPlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
@@ -123,21 +125,21 @@ const SettingsPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Empresa
+                    {t('profile.company')}
                   </label>
                   <input
                     type="text"
-                    placeholder="Nome da sua empresa"
+                    placeholder={t('profile.companyPlaceholder')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold">
-                    Cancelar
+                    {t('profile.cancel')}
                   </button>
                   <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:opacity-90 font-semibold">
-                    Salvar Alterações
+                    {t('profile.saveChanges')}
                   </button>
                 </div>
               </div>
@@ -147,17 +149,17 @@ const SettingsPage = () => {
           {/* Security Tab */}
           {activeTab === 'security' && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Segurança</h3>
-              
+              <h3 className="text-lg font-bold text-gray-900 mb-6">{t('security.title')}</h3>
+
               <div className="space-y-6">
-                
+
                 {/* Change Password */}
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-4">Alterar Senha</h4>
+                  <h4 className="font-semibold text-gray-900 mb-4">{t('security.changePassword')}</h4>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Senha Atual
+                        {t('security.currentPassword')}
                       </label>
                       <input
                         type="password"
@@ -166,7 +168,7 @@ const SettingsPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nova Senha
+                        {t('security.newPassword')}
                       </label>
                       <input
                         type="password"
@@ -175,7 +177,7 @@ const SettingsPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Confirmar Nova Senha
+                        {t('security.confirmNewPassword')}
                       </label>
                       <input
                         type="password"
@@ -189,20 +191,20 @@ const SettingsPage = () => {
                 <div className="pt-6 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-semibold text-gray-900">Autenticação de Dois Fatores</h4>
+                      <h4 className="font-semibold text-gray-900">{t('security.twoFactor')}</h4>
                       <p className="text-sm text-gray-500 mt-1">
-                        Adicione uma camada extra de segurança à sua conta
+                        {t('security.twoFactorDescription')}
                       </p>
                     </div>
                     <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:opacity-90 font-semibold">
-                      Ativar 2FA
+                      {t('security.enable2FA')}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex justify-end pt-4">
                   <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:opacity-90 font-semibold">
-                    Atualizar Senha
+                    {t('security.updatePassword')}
                   </button>
                 </div>
               </div>
@@ -212,21 +214,21 @@ const SettingsPage = () => {
           {/* Notifications Tab */}
           {activeTab === 'notifications' && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Notificações</h3>
-              
+              <h3 className="text-lg font-bold text-gray-900 mb-6">{t('notifications.title')}</h3>
+
               <div className="space-y-4">
                 {[
-                  { title: 'Novos leads', description: 'Receber notificação quando novos leads forem adicionados' },
-                  { title: 'Convites aceitos', description: 'Ser notificado quando um convite for aceito' },
-                  { title: 'Leads qualificados', description: 'Alertas quando um lead for qualificado' },
-                  { title: 'Mensagens recebidas', description: 'Notificações de novas mensagens nas conversas' },
-                  { title: 'Campanhas concluídas', description: 'Avisos quando uma campanha atingir 100%' },
-                  { title: 'Relatórios semanais', description: 'Resumo semanal por email' },
+                  { key: 'newLeads' },
+                  { key: 'acceptedInvites' },
+                  { key: 'qualifiedLeads' },
+                  { key: 'receivedMessages' },
+                  { key: 'completedCampaigns' },
+                  { key: 'weeklyReports' },
                 ].map((item, index) => (
                   <div key={index} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0">
                     <div>
-                      <p className="font-medium text-gray-900">{item.title}</p>
-                      <p className="text-sm text-gray-500">{item.description}</p>
+                      <p className="font-medium text-gray-900">{t(`notifications.items.${item.key}.title`)}</p>
+                      <p className="text-sm text-gray-500">{t(`notifications.items.${item.key}.description`)}</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" defaultChecked />
@@ -244,7 +246,7 @@ const SettingsPage = () => {
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 {tabs.find(t => t.id === activeTab)?.label}
               </h3>
-              <p className="text-gray-500">Conteúdo em desenvolvimento...</p>
+              <p className="text-gray-500">{t('placeholder.title')}</p>
             </div>
           )}
 

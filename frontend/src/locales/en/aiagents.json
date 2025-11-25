@@ -1,0 +1,83 @@
+{
+  "title": "AI Agents",
+  "subtitle": "Configure intelligent agents to conduct your conversations",
+  "newAgent": "New Agent",
+  "loading": "Loading AI agents...",
+  "form": {
+    "createAgent": "Create AI Agent",
+    "editAgent": "Edit AI Agent",
+    "name": "Agent Name",
+    "namePlaceholder": "Enter agent name",
+    "nameRequired": "Agent name is required",
+    "description": "Description",
+    "descriptionPlaceholder": "Describe the agent's purpose",
+    "model": "AI Model",
+    "temperature": "Temperature",
+    "temperatureHelp": "Controls randomness (0 = focused, 1 = creative)",
+    "maxTokens": "Max Tokens",
+    "systemPrompt": "System Prompt",
+    "systemPromptPlaceholder": "Define the agent's behavior and personality",
+    "knowledgeBase": "Knowledge Base",
+    "selectKnowledgeBase": "Select Knowledge Base",
+    "active": "Active",
+    "inactive": "Inactive",
+    "cancel": "Cancel",
+    "save": "Save Agent",
+    "saving": "Saving...",
+    "errorSaving": "Error saving agent"
+  },
+  "profiles": {
+    "consultivo": "Consultative",
+    "direto": "Direct",
+    "educativo": "Educational",
+    "amigavel": "Friendly"
+  },
+  "table": {
+    "agent": "Agent",
+    "model": "Model",
+    "status": "Status",
+    "conversations": "Conversations",
+    "lastUsed": "Last Used",
+    "actions": "Actions"
+  },
+  "actions": {
+    "edit": "Edit",
+    "test": "Test Agent",
+    "testAgent": "Test Agent",
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "viewAnalytics": "View Analytics",
+    "knowledgeBase": "Knowledge Base",
+    "manageKnowledge": "Manage Knowledge Base"
+  },
+  "features": {
+    "autoSchedule": "Auto-scheduling",
+    "intentDetection": "Intent detection",
+    "productsServices": "Products/Services",
+    "variablesUsed": "Variables used"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "testing": "Testing"
+  },
+  "messages": {
+    "created": "AI agent created successfully",
+    "updated": "AI agent updated successfully",
+    "deleted": "AI agent deleted successfully",
+    "confirmDelete": "Are you sure you want to delete this agent?",
+    "errorDeleting": "Error deleting agent",
+    "noAgents": "No agents created",
+    "noAgentsDescription": "Create your first AI agent to start automating conversations",
+    "createFirst": "Create First Agent",
+    "loadingError": "Error loading agents"
+  },
+  "test": {
+    "title": "Test AI Agent",
+    "subtitle": "Try out your agent before deploying",
+    "inputPlaceholder": "Type a message...",
+    "send": "Send",
+    "reset": "Reset Conversation",
+    "close": "Close"
+  }
+}

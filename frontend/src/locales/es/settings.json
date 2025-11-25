@@ -1,0 +1,70 @@
+{
+  "title": "Configuración",
+  "subtitle": "Gestione sus preferencias y configuración",
+  "tabs": {
+    "profile": "Perfil",
+    "security": "Seguridad",
+    "notifications": "Notificaciones",
+    "billing": "Facturación",
+    "integrations": "Integraciones",
+    "privacy": "Privacidad"
+  },
+  "profile": {
+    "title": "Información del Perfil",
+    "fullName": "Nombre Completo",
+    "email": "Email",
+    "phone": "Teléfono",
+    "phonePlaceholder": "+34 (91) 999-9999",
+    "position": "Cargo",
+    "positionPlaceholder": "Ej: Gerente de Ventas",
+    "company": "Empresa",
+    "companyPlaceholder": "Nombre de su empresa",
+    "changePhoto": "Cambiar Foto",
+    "photoRequirements": "JPG, PNG o GIF • Máx 2MB",
+    "cancel": "Cancelar",
+    "saveChanges": "Guardar Cambios"
+  },
+  "security": {
+    "title": "Seguridad",
+    "changePassword": "Cambiar Contraseña",
+    "currentPassword": "Contraseña Actual",
+    "newPassword": "Nueva Contraseña",
+    "confirmNewPassword": "Confirmar Nueva Contraseña",
+    "twoFactor": "Autenticación de Dos Factores",
+    "twoFactorDescription": "Agregue una capa extra de seguridad a su cuenta",
+    "enable2FA": "Activar 2FA",
+    "updatePassword": "Actualizar Contraseña"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "items": {
+      "newLeads": {
+        "title": "Nuevos leads",
+        "description": "Recibir notificación cuando se agreguen nuevos leads"
+      },
+      "acceptedInvites": {
+        "title": "Invitaciones aceptadas",
+        "description": "Ser notificado cuando una invitación sea aceptada"
+      },
+      "qualifiedLeads": {
+        "title": "Leads calificados",
+        "description": "Alertas cuando un lead sea calificado"
+      },
+      "receivedMessages": {
+        "title": "Mensajes recibidos",
+        "description": "Notificaciones de nuevos mensajes en conversaciones"
+      },
+      "completedCampaigns": {
+        "title": "Campañas completadas",
+        "description": "Avisos cuando una campaña alcance el 100%"
+      },
+      "weeklyReports": {
+        "title": "Informes semanales",
+        "description": "Resumen semanal por email"
+      }
+    }
+  },
+  "placeholder": {
+    "title": "Contenido en desarrollo..."
+  }
+}

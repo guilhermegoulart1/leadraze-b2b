@@ -1,0 +1,83 @@
+{
+  "title": "Agentes de IA",
+  "subtitle": "Configure agentes inteligentes para conducir sus conversaciones",
+  "newAgent": "Nuevo Agente",
+  "loading": "Cargando agentes de IA...",
+  "form": {
+    "createAgent": "Crear Agente de IA",
+    "editAgent": "Editar Agente de IA",
+    "name": "Nombre del Agente",
+    "namePlaceholder": "Ingrese el nombre del agente",
+    "nameRequired": "El nombre del agente es obligatorio",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Describa el propósito del agente",
+    "model": "Modelo de IA",
+    "temperature": "Temperatura",
+    "temperatureHelp": "Controla aleatoriedad (0 = enfocado, 1 = creativo)",
+    "maxTokens": "Máximo de Tokens",
+    "systemPrompt": "Prompt del Sistema",
+    "systemPromptPlaceholder": "Defina el comportamiento y personalidad del agente",
+    "knowledgeBase": "Base de Conocimiento",
+    "selectKnowledgeBase": "Seleccionar Base de Conocimiento",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "cancel": "Cancelar",
+    "save": "Guardar Agente",
+    "saving": "Guardando...",
+    "errorSaving": "Error al guardar agente"
+  },
+  "profiles": {
+    "consultivo": "Consultivo",
+    "direto": "Directo",
+    "educativo": "Educativo",
+    "amigavel": "Amigable"
+  },
+  "table": {
+    "agent": "Agente",
+    "model": "Modelo",
+    "status": "Estado",
+    "conversations": "Conversaciones",
+    "lastUsed": "Último Uso",
+    "actions": "Acciones"
+  },
+  "actions": {
+    "edit": "Editar",
+    "test": "Probar",
+    "testAgent": "Probar Agente",
+    "delete": "Eliminar",
+    "duplicate": "Duplicar",
+    "viewAnalytics": "Ver Análisis",
+    "knowledgeBase": "Base de Conocimiento",
+    "manageKnowledge": "Gestionar Base de Conocimiento"
+  },
+  "features": {
+    "autoSchedule": "Auto-programación",
+    "intentDetection": "Detección de intención",
+    "productsServices": "Productos/Servicios",
+    "variablesUsed": "Variables usadas"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "testing": "Probando"
+  },
+  "messages": {
+    "created": "Agente de IA creado con éxito",
+    "updated": "Agente de IA actualizado con éxito",
+    "deleted": "Agente de IA eliminado con éxito",
+    "confirmDelete": "¿Está seguro de que desea eliminar este agente?",
+    "errorDeleting": "Error al eliminar agente",
+    "noAgents": "No hay agentes creados",
+    "noAgentsDescription": "Cree su primer agente de IA para comenzar a automatizar conversaciones",
+    "createFirst": "Crear Primer Agente",
+    "loadingError": "Error al cargar agentes"
+  },
+  "test": {
+    "title": "Probar Agente de IA",
+    "subtitle": "Pruebe su agente antes de implementar",
+    "inputPlaceholder": "Escriba un mensaje...",
+    "send": "Enviar",
+    "reset": "Restablecer Conversación",
+    "close": "Cerrar"
+  }
+}

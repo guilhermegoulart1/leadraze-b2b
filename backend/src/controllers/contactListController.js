@@ -261,8 +261,8 @@ const updateContactList = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildContactListSectorFilter(userId, accountId, 4);
 
     const checkQuery = `
-      SELECT * FROM contact_lists
-      WHERE id = $1 AND account_id = $3 AND user_id = $2 ${sectorFilter}
+      SELECT * FROM contact_lists cl
+      WHERE cl.id = $1 AND cl.account_id = $3 AND cl.user_id = $2 ${sectorFilter}
     `;
 
     const checkResult = await db.query(checkQuery, [id, userId, accountId, ...sectorParams]);
@@ -365,8 +365,8 @@ const deleteContactList = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildContactListSectorFilter(userId, accountId, 4);
 
     const checkQuery = `
-      SELECT * FROM contact_lists
-      WHERE id = $1 AND account_id = $3 AND user_id = $2 ${sectorFilter}
+      SELECT * FROM contact_lists cl
+      WHERE cl.id = $1 AND cl.account_id = $3 AND cl.user_id = $2 ${sectorFilter}
     `;
 
     const checkResult = await db.query(checkQuery, [id, userId, accountId, ...sectorParams]);
@@ -418,7 +418,7 @@ const getContactListItems = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildContactListSectorFilter(userId, accountId, 4);
 
     const listCheck = await db.query(
-      `SELECT * FROM contact_lists WHERE id = $1 AND account_id = $3 AND user_id = $2 ${sectorFilter}`,
+      `SELECT * FROM contact_lists cl WHERE cl.id = $1 AND cl.account_id = $3 AND cl.user_id = $2 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -446,8 +446,9 @@ const getContactListItems = async (req, res) => {
         c.name as contact_name,
         c.email as contact_email,
         c.phone as contact_phone,
-        c.linkedin_url as contact_linkedin_url,
+        c.profile_url as contact_linkedin_url,
         c.company as contact_company,
+        c.title as contact_position,
         ac.name as campaign_name
       FROM contact_list_items cli
       LEFT JOIN contacts c ON cli.contact_id = c.id
@@ -508,7 +509,7 @@ const addContactToList = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildContactListSectorFilter(userId, accountId, 4);
 
     const listCheck = await db.query(
-      `SELECT * FROM contact_lists WHERE id = $1 AND account_id = $3 AND user_id = $2 ${sectorFilter}`,
+      `SELECT * FROM contact_lists cl WHERE cl.id = $1 AND cl.account_id = $3 AND cl.user_id = $2 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -595,7 +596,7 @@ const removeContactFromList = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildContactListSectorFilter(userId, accountId, 4);
 
     const listCheck = await db.query(
-      `SELECT * FROM contact_lists WHERE id = $1 AND account_id = $3 AND user_id = $2 ${sectorFilter}`,
+      `SELECT * FROM contact_lists cl WHERE cl.id = $1 AND cl.account_id = $3 AND cl.user_id = $2 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
@@ -654,7 +655,7 @@ const importContactsFromCSV = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildContactListSectorFilter(userId, accountId, 4);
 
     const listCheck = await db.query(
-      `SELECT * FROM contact_lists WHERE id = $1 AND account_id = $3 AND user_id = $2 ${sectorFilter}`,
+      `SELECT * FROM contact_lists cl WHERE cl.id = $1 AND cl.account_id = $3 AND cl.user_id = $2 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 

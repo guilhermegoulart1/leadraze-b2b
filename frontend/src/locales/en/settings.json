@@ -1,0 +1,70 @@
+{
+  "title": "Settings",
+  "subtitle": "Manage your preferences and settings",
+  "tabs": {
+    "profile": "Profile",
+    "security": "Security",
+    "notifications": "Notifications",
+    "billing": "Billing",
+    "integrations": "Integrations",
+    "privacy": "Privacy"
+  },
+  "profile": {
+    "title": "Profile Information",
+    "fullName": "Full Name",
+    "email": "Email",
+    "phone": "Phone",
+    "phonePlaceholder": "+1 (555) 999-9999",
+    "position": "Position",
+    "positionPlaceholder": "E.g.: Sales Manager",
+    "company": "Company",
+    "companyPlaceholder": "Your company name",
+    "changePhoto": "Change Photo",
+    "photoRequirements": "JPG, PNG or GIF • Max 2MB",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes"
+  },
+  "security": {
+    "title": "Security",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "twoFactor": "Two-Factor Authentication",
+    "twoFactorDescription": "Add an extra layer of security to your account",
+    "enable2FA": "Enable 2FA",
+    "updatePassword": "Update Password"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "items": {
+      "newLeads": {
+        "title": "New leads",
+        "description": "Receive notification when new leads are added"
+      },
+      "acceptedInvites": {
+        "title": "Accepted invites",
+        "description": "Be notified when an invite is accepted"
+      },
+      "qualifiedLeads": {
+        "title": "Qualified leads",
+        "description": "Alerts when a lead is qualified"
+      },
+      "receivedMessages": {
+        "title": "Received messages",
+        "description": "Notifications of new messages in conversations"
+      },
+      "completedCampaigns": {
+        "title": "Completed campaigns",
+        "description": "Alerts when a campaign reaches 100%"
+      },
+      "weeklyReports": {
+        "title": "Weekly reports",
+        "description": "Weekly summary by email"
+      }
+    }
+  },
+  "placeholder": {
+    "title": "Content in development..."
+  }
+}

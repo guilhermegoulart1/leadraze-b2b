@@ -6,12 +6,15 @@ import {
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import LanguageSelector from './LanguageSelector';
 import api from '../services/api';
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation('navigation');
   const { user, logout, isAdmin, isSupervisor, hasPermission } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -46,35 +49,35 @@ const Layout = () => {
   };
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home, section: null },
+    { path: '/', label: t('menu.dashboard'), icon: Home, section: null },
 
     // Agentes de IA (Unificado)
-    { section: 'AGENTES DE IA' },
-    { path: '/agents', label: 'Todos os Agentes', icon: Bot },
+    { section: t('sections.aiAgents') },
+    { path: '/agents', label: t('menu.allAgents'), icon: Bot },
 
     // Google Maps
-    { section: 'GOOGLE MAPS' },
-    { path: '/google-maps-agents', label: 'Campanhas', icon: MapPin },
+    { section: t('sections.googleMaps') },
+    { path: '/google-maps-agents', label: t('menu.campaigns'), icon: MapPin },
 
     // LinkedIn
-    { section: 'LINKEDIN' },
-    { path: '/search', label: 'Busca de Perfis', icon: Search },
-    { path: '/campaigns', label: 'Campanhas', icon: Award },
+    { section: t('sections.linkedin') },
+    { path: '/search', label: t('menu.profileSearch'), icon: Search },
+    { path: '/campaigns', label: t('menu.campaigns'), icon: Award },
 
     // Ativação de Listas
-    { section: 'ATIVAÇÃO DE LISTAS' },
-    { path: '/activation-campaigns', label: 'Campanhas', icon: Award },
-    { path: '/contact-lists', label: 'Listas', icon: Users },
+    { section: t('sections.activation') },
+    { path: '/activation-campaigns', label: t('menu.campaigns'), icon: Award },
+    { path: '/contact-lists', label: t('menu.contactLists'), icon: Users },
 
     // CRM
-    { section: 'CRM' },
-    { path: '/leads', label: 'Pipeline', icon: BarChart3 },
-    { path: '/conversations', label: 'Conversas', icon: MessageCircle, badge: unreadMessages },
-    { path: '/contacts', label: 'Contatos', icon: Users },
+    { section: t('sections.crm') },
+    { path: '/leads', label: t('menu.pipeline'), icon: BarChart3 },
+    { path: '/conversations', label: t('menu.conversations'), icon: MessageCircle, badge: unreadMessages },
+    { path: '/contacts', label: t('menu.contacts'), icon: Users },
 
-    // Nossos agentes
-    { section: 'Nossos agentes' },
-    { path: '/insights', label: 'Insights', icon: Lightbulb },
+    // Insights
+    { section: 'Insights' },
+    { path: '/insights', label: t('menu.insights'), icon: Lightbulb },
   ];
 
   const handleLogout = () => {
@@ -108,7 +111,7 @@ const Layout = () => {
             <button
               onClick={() => setIsCollapsed(false)}
               className="w-full flex items-center justify-center hover:bg-gray-50 rounded transition-colors p-2"
-              title="Expandir menu"
+              title={t('userMenu.expandMenu')}
             >
               <img
                 src="/logo/getraze-square-purple.svg"
@@ -128,7 +131,7 @@ const Layout = () => {
               <button
                 onClick={() => setIsCollapsed(true)}
                 className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
-                title="Recolher menu"
+                title={t('userMenu.collapseMenu')}
               >
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
@@ -215,10 +218,10 @@ const Layout = () => {
               <>
                 <div className="flex-1 text-left min-w-0">
                   <p className="text-xs font-semibold text-gray-900 truncate">
-                    {user?.name || 'Usuário'}
+                    {user?.name || t('userMenu.user')}
                   </p>
                   <p className="text-[10px] text-gray-500">
-                    {user?.role === 'admin' ? 'Admin' : user?.role === 'supervisor' ? 'Supervisor' : 'Usuário'}
+                    {user?.role === 'admin' ? t('roles.admin') : user?.role === 'supervisor' ? t('roles.supervisor') : t('roles.user')}
                   </p>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
@@ -246,7 +249,7 @@ const Layout = () => {
                   onClick={() => setShowUserMenu(false)}
                 >
                   <User className="w-4 h-4" />
-                  <span>Meu Perfil</span>
+                  <span>{t('userMenu.profile')}</span>
                 </Link>
                 <Link
                   to="/settings"
@@ -254,7 +257,7 @@ const Layout = () => {
                   onClick={() => setShowUserMenu(false)}
                 >
                   <Settings className="w-4 h-4" />
-                  <span>Configurações</span>
+                  <span>{t('userMenu.settings')}</span>
                 </Link>
                 <Link
                   to="/linkedin-accounts"
@@ -262,8 +265,13 @@ const Layout = () => {
                   onClick={() => setShowUserMenu(false)}
                 >
                   <Linkedin className="w-4 h-4" />
-                  <span>Canais Conectados</span>
+                  <span>{t('userMenu.channels')}</span>
                 </Link>
+
+                {/* Language Selector */}
+                <div className="px-2 py-1">
+                  <LanguageSelector variant="compact" />
+                </div>
 
                 {/* Admin & Supervisor Links */}
                 {(isAdmin || isSupervisor) && (
@@ -276,7 +284,7 @@ const Layout = () => {
                         onClick={() => setShowUserMenu(false)}
                       >
                         <Shield className="w-4 h-4" />
-                        <span>Usuários</span>
+                        <span>{t('userMenu.users')}</span>
                       </Link>
                     )}
                     {hasPermission('sectors:view') && (
@@ -286,7 +294,7 @@ const Layout = () => {
                         onClick={() => setShowUserMenu(false)}
                       >
                         <Users className="w-4 h-4" />
-                        <span>Setores</span>
+                        <span>{t('userMenu.sectors')}</span>
                       </Link>
                     )}
                     {hasPermission('permissions:manage') && (
@@ -296,7 +304,7 @@ const Layout = () => {
                         onClick={() => setShowUserMenu(false)}
                       >
                         <Lock className="w-4 h-4" />
-                        <span>Permissões</span>
+                        <span>{t('userMenu.permissions')}</span>
                       </Link>
                     )}
                   </>
@@ -308,7 +316,7 @@ const Layout = () => {
                   className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-red-50 text-red-600 text-sm"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Sair</span>
+                  <span>{t('userMenu.logout')}</span>
                 </button>
               </div>
             </>

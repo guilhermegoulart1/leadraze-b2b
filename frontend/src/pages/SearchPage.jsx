@@ -1,5 +1,6 @@
 // frontend/src/pages/SearchPage.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import apiService from '../services/api';
 import SearchSidebar from '../components/SearchSidebar';
 import SearchResults from '../components/SearchResults';
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 const SearchPage = () => {
+  const { t } = useTranslation(['search', 'common']);
   // Estados de busca
   const [searchParams, setSearchParams] = useState({
     query: '',
@@ -388,9 +390,9 @@ const SearchPage = () => {
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Coleta em Lote</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{t('bulkCollection.title')}</h2>
                 <p className="text-gray-600 mt-1">
-                  Colete centenas de perfis automaticamente
+                  {t('bulkCollection.subtitle')}
                 </p>
               </div>
               <button
@@ -406,7 +408,7 @@ const SearchPage = () => {
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Target className="w-4 h-4 inline mr-1" />
-                  Quantos perfis deseja coletar?
+                  {t('bulkCollection.targetCount')}
                 </label>
                 <input
                   type="number"
@@ -418,14 +420,14 @@ const SearchPage = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Mínimo: 10 | Máximo: 1.000 perfis
+                  {t('bulkCollection.targetCountHelp')}
                 </p>
               </div>
 
               {/* Campanha */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Salvar perfis em qual campanha?
+                  {t('bulkCollection.selectCampaign')}
                 </label>
 
                 {!showCreateCampaign ? (
@@ -435,7 +437,7 @@ const SearchPage = () => {
                       onChange={(e) => setSelectedCampaign(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2"
                     >
-                      <option value="">Selecione uma campanha...</option>
+                      <option value="">{t('bulkCollection.selectCampaignPlaceholder')}</option>
                       {campaigns.map(campaign => (
                         <option key={campaign.id} value={campaign.id}>
                           {campaign.name} ({campaign.status})
@@ -446,7 +448,7 @@ const SearchPage = () => {
                       onClick={() => setShowCreateCampaign(true)}
                       className="text-sm text-purple-600 hover:text-purple-700 font-medium"
                     >
-                      + Criar nova campanha
+                      {t('bulkCollection.createNew')}
                     </button>
                   </>
                 ) : (
@@ -455,7 +457,7 @@ const SearchPage = () => {
                       type="text"
                       value={newCampaignName}
                       onChange={(e) => setNewCampaignName(e.target.value)}
-                      placeholder="Nome da nova campanha..."
+                      placeholder={t('bulkCollection.campaignNamePlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                     <div className="flex space-x-2">
@@ -464,7 +466,7 @@ const SearchPage = () => {
                         disabled={creatingCampaign || !newCampaignName.trim()}
                         className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
                       >
-                        {creatingCampaign ? 'Criando...' : 'Criar'}
+                        {creatingCampaign ? t('bulkCollection.creating') : t('bulkCollection.create')}
                       </button>
                       <button
                         onClick={() => {
@@ -473,7 +475,7 @@ const SearchPage = () => {
                         }}
                         className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                       >
-                        Cancelar
+                        {t('bulkCollection.cancel')}
                       </button>
                     </div>
                   </div>
@@ -482,12 +484,11 @@ const SearchPage = () => {
 
               {/* Info */}
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <p className="text-sm text-purple-800 font-medium mb-1">ℹ️ Como funciona:</p>
+                <p className="text-sm text-purple-800 font-medium mb-1">ℹ️ {t('bulkCollection.howItWorks')}</p>
                 <ul className="text-sm text-purple-700 space-y-1">
-                  <li>• A coleta será feita em background</li>
-                  <li>• Você receberá notificações do progresso</li>
-                  <li>• Os perfis serão salvos automaticamente na campanha</li>
-                  <li>• Pode levar alguns minutos dependendo da quantidade</li>
+                  {t('bulkCollection.howItWorksList', { returnObjects: true }).map((item, index) => (
+                    <li key={index}>• {item}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -501,7 +502,7 @@ const SearchPage = () => {
                 }}
                 className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
               >
-                Cancelar
+                {t('bulkCollection.cancel')}
               </button>
               <button
                 onClick={startBulkCollection}
@@ -509,7 +510,7 @@ const SearchPage = () => {
                 className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
               >
                 <PlayCircle className="w-5 h-5" />
-                <span>Iniciar Coleta</span>
+                <span>{t('bulkCollection.startCollection')}</span>
               </button>
             </div>
           </div>

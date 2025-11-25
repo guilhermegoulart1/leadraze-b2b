@@ -4,6 +4,7 @@ import {
   Mail, Phone, MessageCircle, Instagram, Linkedin, Send,
   Eye, Edit2, Trash2, X, MapPin, FileText, Users
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import PermissionGate from '../components/PermissionGate';
@@ -11,6 +12,7 @@ import ContactFormModal from '../components/ContactFormModal';
 import ContactDetailsModal from '../components/ContactDetailsModal';
 
 const ContactsPage = () => {
+  const { t } = useTranslation('contacts');
   const { hasPermission } = useAuth();
 
   // State
@@ -51,35 +53,35 @@ const ContactsPage = () => {
       color: 'text-red-600',
       bg: 'bg-red-50',
       border: 'border-red-200',
-      label: 'Google Maps'
+      label: t('sources.googleMaps')
     },
     linkedin: {
       icon: Linkedin,
       color: 'text-blue-700',
       bg: 'bg-blue-50',
       border: 'border-blue-200',
-      label: 'LinkedIn'
+      label: t('sources.linkedin')
     },
     import: {
       icon: Upload,
       color: 'text-purple-600',
       bg: 'bg-purple-50',
       border: 'border-purple-200',
-      label: 'Importação'
+      label: t('sources.import')
     },
     manual: {
       icon: Users,
       color: 'text-gray-600',
       bg: 'bg-gray-50',
       border: 'border-gray-200',
-      label: 'Manual'
+      label: t('sources.manual')
     },
     campaign: {
       icon: Send,
       color: 'text-indigo-600',
       bg: 'bg-indigo-50',
       border: 'border-indigo-200',
-      label: 'Campanha'
+      label: t('sources.campaign')
     }
   };
 
@@ -173,13 +175,13 @@ const ContactsPage = () => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `${diffMins}m atrás`;
-    if (diffHours < 24) return `${diffHours}h atrás`;
-    if (diffDays < 7) return `${diffDays}d atrás`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} semana${Math.floor(diffDays / 7) > 1 ? 's' : ''} atrás`;
+    if (diffMins < 1) return t('time.now');
+    if (diffMins < 60) return t('time.minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('time.hoursAgo', { count: diffHours });
+    if (diffDays < 7) return t('time.daysAgo', { count: diffDays });
+    if (diffDays < 30) return t('time.weeksAgo', { count: Math.floor(diffDays / 7) });
 
-    return date.toLocaleDateString('pt-BR');
+    return date.toLocaleDateString();
   };
 
   const handleSort = (field) => {
@@ -229,7 +231,7 @@ const ContactsPage = () => {
   };
 
   const handleDeleteContact = async (contactId) => {
-    if (!confirm('Tem certeza que deseja excluir este contato?')) {
+    if (!confirm(t('messages.confirmDelete'))) {
       return;
     }
 
@@ -238,7 +240,7 @@ const ContactsPage = () => {
       loadContacts(); // Reload list
     } catch (error) {
       console.error('Error deleting contact:', error);
-      alert('Erro ao excluir contato');
+      alert(t('messages.errorDelete'));
     }
   };
 
@@ -262,7 +264,7 @@ const ContactsPage = () => {
   const handleDeleteSelected = async () => {
     if (selectedContactIds.length === 0) return;
 
-    if (!confirm(`Tem certeza que deseja excluir ${selectedContactIds.length} contato(s)?`)) {
+    if (!confirm(t('messages.confirmDeleteMultiple', { count: selectedContactIds.length }))) {
       return;
     }
 
@@ -273,7 +275,7 @@ const ContactsPage = () => {
       loadContacts(); // Reload list
     } catch (error) {
       console.error('Error deleting contacts:', error);
-      alert('Erro ao excluir contatos');
+      alert(t('messages.errorDeleteMultiple'));
     }
   };
 
@@ -329,7 +331,7 @@ const ContactsPage = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting contacts:', error);
-      alert('Erro ao exportar contatos');
+      alert(t('messages.errorExport'));
     }
   };
 
@@ -350,12 +352,16 @@ const ContactsPage = () => {
           const response = await api.importContacts(csvData);
 
           if (response.success) {
-            alert(`Importação concluída!\n${response.data.imported} contatos importados de ${response.data.total_rows} linhas.\n${response.data.errors ? response.data.errors.length + ' erros.' : ''}`);
+            alert(t('messages.importSuccess', {
+              imported: response.data.imported,
+              total: response.data.total_rows,
+              errors: response.data.errors ? response.data.errors.length + ' ' + t('import.errors', { count: response.data.errors.length }) : ''
+            }));
             loadContacts(); // Reload list
           }
         } catch (error) {
           console.error('Error importing contacts:', error);
-          alert('Erro ao importar contatos');
+          alert(t('messages.errorImport'));
         }
       };
 
@@ -372,9 +378,9 @@ const ContactsPage = () => {
         {/* Title and Actions */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Contatos</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('page.title')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {pagination.total} contato{pagination.total !== 1 ? 's' : ''} encontrado{pagination.total !== 1 ? 's' : ''}
+              {t('page.subtitle', { count: pagination.total })}
             </p>
           </div>
 
@@ -389,7 +395,7 @@ const ContactsPage = () => {
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="text-sm font-medium">
-                    Excluir Selecionados ({selectedContactIds.length})
+                    {t('page.deleteSelected', { count: selectedContactIds.length })}
                   </span>
                 </button>
               </PermissionGate>
@@ -401,7 +407,7 @@ const ContactsPage = () => {
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">Exportar</span>
+                <span className="text-sm font-medium">{t('page.export')}</span>
               </button>
             </PermissionGate>
 
@@ -411,7 +417,7 @@ const ContactsPage = () => {
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Upload className="w-4 h-4" />
-                <span className="text-sm font-medium">Importar</span>
+                <span className="text-sm font-medium">{t('page.import')}</span>
               </button>
             </PermissionGate>
 
@@ -421,7 +427,7 @@ const ContactsPage = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                <span className="text-sm font-medium">Novo Contato</span>
+                <span className="text-sm font-medium">{t('page.newContact')}</span>
               </button>
             </PermissionGate>
           </div>
@@ -435,7 +441,7 @@ const ContactsPage = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nome, email, telefone ou empresa..."
+              placeholder={t('page.searchPlaceholder')}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
@@ -449,7 +455,7 @@ const ContactsPage = () => {
             }`}
           >
             <Filter className="w-4 h-4" />
-            <span className="text-sm font-medium">Filtros</span>
+            <span className="text-sm font-medium">{t('page.filters')}</span>
             {(selectedTags.length + selectedChannels.length) > 0 && (
               <span className="px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full min-w-[20px] text-center">
                 {selectedTags.length + selectedChannels.length}
@@ -461,7 +467,7 @@ const ContactsPage = () => {
         {/* Active Filters Pills */}
         {(selectedTags.length > 0 || selectedChannels.length > 0) && (
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <span className="text-xs font-medium text-gray-500">Filtros ativos:</span>
+            <span className="text-xs font-medium text-gray-500">{t('page.activeFilters')}</span>
             {selectedTags.map(tagId => {
               const tag = tags.find(t => t.id === tagId);
               return tag ? (
@@ -491,7 +497,7 @@ const ContactsPage = () => {
               onClick={clearFilters}
               className="text-xs text-gray-500 hover:text-gray-700 underline"
             >
-              Limpar tudo
+              {t('page.clearAll')}
             </button>
           </div>
         )}
@@ -502,7 +508,7 @@ const ContactsPage = () => {
             <div className="grid grid-cols-2 gap-4">
               {/* Tags Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('table.tags')}</label>
                 <div className="flex flex-wrap gap-2">
                   {tags.map(tag => (
                     <button
@@ -522,7 +528,7 @@ const ContactsPage = () => {
 
               {/* Channels Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Canais</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('table.channels')}</label>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(channelConfig).map(([type, config]) => {
                     const IconComponent = config.icon;
@@ -557,8 +563,8 @@ const ContactsPage = () => {
         ) : contacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             <Search className="w-12 h-12 mb-3 opacity-50" />
-            <p className="text-lg font-medium">Nenhum contato encontrado</p>
-            <p className="text-sm">Tente ajustar os filtros ou criar um novo contato</p>
+            <p className="text-lg font-medium">{t('page.noContactsFound')}</p>
+            <p className="text-sm">{t('page.tryAdjustFilters')}</p>
           </div>
         ) : (
           <table className="w-full">
@@ -576,31 +582,31 @@ const ContactsPage = () => {
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('name')}
                 >
-                  Contato {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('table.contact')} {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('company')}
                 >
-                  Empresa {sortBy === 'company' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('table.company')} {sortBy === 'company' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Canais
+                  {t('table.channels')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Tags
+                  {t('table.tags')}
                 </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('last_interaction')}
                 >
-                  Última Interação {sortBy === 'last_interaction' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('table.lastInteraction')} {sortBy === 'last_interaction' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Mensagens
+                  {t('table.messages')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Ações
+                  {t('table.actions')}
                 </th>
               </tr>
             </thead>
@@ -646,7 +652,7 @@ const ContactsPage = () => {
                               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${
                                 sourceConfig[contact.source].bg
                               } ${sourceConfig[contact.source].color} ${sourceConfig[contact.source].border}`}
-                              title={`Origem: ${sourceConfig[contact.source].label}`}
+                              title={t('sources.tooltip', { source: sourceConfig[contact.source].label })}
                             >
                               {React.createElement(sourceConfig[contact.source].icon, {
                                 className: 'w-3 h-3'
@@ -749,7 +755,7 @@ const ContactsPage = () => {
                       <button
                         onClick={() => handleViewDetails(contact.id)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="Ver detalhes"
+                        title={t('actions.viewDetails')}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
@@ -757,7 +763,7 @@ const ContactsPage = () => {
                         <button
                           onClick={() => handleEditContact(contact)}
                           className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                          title="Editar"
+                          title={t('actions.edit')}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -766,7 +772,7 @@ const ContactsPage = () => {
                         <button
                           onClick={() => handleDeleteContact(contact.id)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Excluir"
+                          title={t('actions.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -786,9 +792,11 @@ const ContactsPage = () => {
         <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Mostrando {((pagination.page - 1) * pagination.limit) + 1} a{' '}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} de{' '}
-              {pagination.total} contatos
+              {t('pagination.showing', {
+                from: ((pagination.page - 1) * pagination.limit) + 1,
+                to: Math.min(pagination.page * pagination.limit, pagination.total),
+                total: pagination.total
+              })}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -796,17 +804,17 @@ const ContactsPage = () => {
                 disabled={pagination.page === 1}
                 className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Anterior
+                {t('pagination.previous')}
               </button>
               <span className="text-sm text-gray-600">
-                Página {pagination.page} de {pagination.pages}
+                {t('pagination.page', { current: pagination.page, total: pagination.pages })}
               </span>
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                 disabled={pagination.page >= pagination.pages}
                 className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Próxima
+                {t('pagination.next')}
               </button>
             </div>
           </div>

@@ -1,0 +1,70 @@
+{
+  "title": "Configurações",
+  "subtitle": "Gerencie suas preferências e configurações",
+  "tabs": {
+    "profile": "Perfil",
+    "security": "Segurança",
+    "notifications": "Notificações",
+    "billing": "Cobrança",
+    "integrations": "Integrações",
+    "privacy": "Privacidade"
+  },
+  "profile": {
+    "title": "Informações do Perfil",
+    "fullName": "Nome Completo",
+    "email": "Email",
+    "phone": "Telefone",
+    "phonePlaceholder": "+55 (11) 99999-9999",
+    "position": "Cargo",
+    "positionPlaceholder": "Ex: Gerente de Vendas",
+    "company": "Empresa",
+    "companyPlaceholder": "Nome da sua empresa",
+    "changePhoto": "Alterar Foto",
+    "photoRequirements": "JPG, PNG ou GIF • Máx 2MB",
+    "cancel": "Cancelar",
+    "saveChanges": "Salvar Alterações"
+  },
+  "security": {
+    "title": "Segurança",
+    "changePassword": "Alterar Senha",
+    "currentPassword": "Senha Atual",
+    "newPassword": "Nova Senha",
+    "confirmNewPassword": "Confirmar Nova Senha",
+    "twoFactor": "Autenticação de Dois Fatores",
+    "twoFactorDescription": "Adicione uma camada extra de segurança à sua conta",
+    "enable2FA": "Ativar 2FA",
+    "updatePassword": "Atualizar Senha"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "items": {
+      "newLeads": {
+        "title": "Novos leads",
+        "description": "Receber notificação quando novos leads forem adicionados"
+      },
+      "acceptedInvites": {
+        "title": "Convites aceitos",
+        "description": "Ser notificado quando um convite for aceito"
+      },
+      "qualifiedLeads": {
+        "title": "Leads qualificados",
+        "description": "Alertas quando um lead for qualificado"
+      },
+      "receivedMessages": {
+        "title": "Mensagens recebidas",
+        "description": "Notificações de novas mensagens nas conversas"
+      },
+      "completedCampaigns": {
+        "title": "Campanhas concluídas",
+        "description": "Avisos quando uma campanha atingir 100%"
+      },
+      "weeklyReports": {
+        "title": "Relatórios semanais",
+        "description": "Resumo semanal por email"
+      }
+    }
+  },
+  "placeholder": {
+    "title": "Conteúdo em desenvolvimento..."
+  }
+}

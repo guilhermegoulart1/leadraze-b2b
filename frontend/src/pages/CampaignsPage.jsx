@@ -6,12 +6,14 @@ import {
   Eye, TrendingUp, Activity,
   Send, UserCheck, Zap, FolderOpen
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import CampaignWizard from '../components/CampaignWizard';
 import CampaignReviewModal from '../components/CampaignReviewModal';
 import InviteLimitBadge from '../components/InviteLimitBadge';
 
 const CampaignsPage = () => {
+  const { t } = useTranslation(['campaigns', 'common']);
   const [campaigns, setCampaigns] = useState([]);
   const [collectionStatuses, setCollectionStatuses] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +110,7 @@ const CampaignsPage = () => {
       await loadCampaigns();
       checkCollectionStatus();
     } catch (error) {
-      alert(error.message || 'Erro ao iniciar coleta');
+      alert(error.message || t('messages.errorStartCollection'));
     } finally {
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
@@ -120,7 +122,7 @@ const CampaignsPage = () => {
       await api.pauseCampaign(campaignId);
       await loadCampaigns();
     } catch (error) {
-      alert(error.message || 'Erro ao pausar campanha');
+      alert(error.message || t('messages.errorPause'));
     } finally {
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
@@ -132,7 +134,7 @@ const CampaignsPage = () => {
       await api.resumeCampaign(campaignId);
       await loadCampaigns();
     } catch (error) {
-      alert(error.message || 'Erro ao retomar campanha');
+      alert(error.message || t('messages.errorResume'));
     } finally {
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
@@ -144,7 +146,7 @@ const CampaignsPage = () => {
       await api.stopCampaign(campaignId);
       await loadCampaigns();
     } catch (error) {
-      alert(error.message || 'Erro ao parar campanha');
+      alert(error.message || t('messages.errorStop'));
     } finally {
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
@@ -157,7 +159,7 @@ const CampaignsPage = () => {
       setDeleteConfirmation(null);
       await loadCampaigns();
     } catch (error) {
-      alert(error.message || 'Erro ao deletar campanha');
+      alert(error.message || t('messages.errorDelete'));
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
   };
@@ -168,7 +170,7 @@ const CampaignsPage = () => {
       await api.startCampaign(campaignId);
       await loadCampaigns();
     } catch (error) {
-      alert(error.message || 'Erro ao ativar campanha');
+      alert(error.message || t('messages.errorActivate'));
     } finally {
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
@@ -181,7 +183,7 @@ const CampaignsPage = () => {
     if (collectionStatus) {
       if (collectionStatus.status === 'pending') {
         return {
-          label: 'Aguardando',
+          label: t('statusBadges.waiting'),
           color: 'bg-gray-500',
           textColor: 'text-gray-700',
           bgColor: 'bg-gray-50',
@@ -192,7 +194,7 @@ const CampaignsPage = () => {
       }
       if (collectionStatus.status === 'processing') {
         return {
-          label: 'Coletando...',
+          label: t('statusBadges.collecting'),
           color: 'bg-blue-500',
           textColor: 'text-blue-700',
           bgColor: 'bg-blue-50',
@@ -203,7 +205,7 @@ const CampaignsPage = () => {
       }
       if (collectionStatus.status === 'completed' && campaign.status === 'draft') {
         return {
-          label: 'Revisar',
+          label: t('statusBadges.review'),
           color: 'bg-yellow-500',
           textColor: 'text-yellow-700',
           bgColor: 'bg-yellow-50',
@@ -217,7 +219,7 @@ const CampaignsPage = () => {
     switch (campaign.status) {
       case 'active':
         return {
-          label: 'Ativa',
+          label: t('status.active'),
           color: 'bg-green-500',
           textColor: 'text-green-700',
           bgColor: 'bg-green-50',
@@ -227,7 +229,7 @@ const CampaignsPage = () => {
         };
       case 'paused':
         return {
-          label: 'Pausada',
+          label: t('status.paused'),
           color: 'bg-orange-500',
           textColor: 'text-orange-700',
           bgColor: 'bg-orange-50',
@@ -238,7 +240,7 @@ const CampaignsPage = () => {
       case 'draft':
       default:
         return {
-          label: 'Rascunho',
+          label: t('status.draft'),
           color: 'bg-gray-500',
           textColor: 'text-gray-700',
           bgColor: 'bg-gray-50',
@@ -254,7 +256,7 @@ const CampaignsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Carregando campanhas...</p>
+          <p className="text-gray-600">{t('messages.loading')}</p>
         </div>
       </div>
     );
@@ -265,15 +267,15 @@ const CampaignsPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Campanhas</h1>
-          <p className="text-sm text-gray-500 mt-1">Gerencie suas campanhas de prospecção</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('messages.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowWizard(true)}
           className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
         >
           <Plus className="w-5 h-5" />
-          Nova Campanha
+          {t('newCampaign')}
         </button>
       </div>
 
@@ -282,7 +284,7 @@ const CampaignsPage = () => {
         <div className="bg-white rounded-lg p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total</p>
+              <p className="text-sm text-gray-500">{t('stats.total')}</p>
               <p className="text-2xl font-bold text-gray-900">{stats.totalCampaigns}</p>
             </div>
             <FolderOpen className="w-8 h-8 text-gray-400" />
@@ -292,7 +294,7 @@ const CampaignsPage = () => {
         <div className="bg-white rounded-lg p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Ativas</p>
+              <p className="text-sm text-gray-500">{t('stats.active')}</p>
               <p className="text-2xl font-bold text-green-600">{stats.activeCampaigns}</p>
             </div>
             <Zap className="w-8 h-8 text-green-400" />
@@ -302,7 +304,7 @@ const CampaignsPage = () => {
         <div className="bg-white rounded-lg p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Leads</p>
+              <p className="text-sm text-gray-500">{t('stats.totalLeads')}</p>
               <p className="text-2xl font-bold text-purple-600">{stats.totalLeads}</p>
             </div>
             <Users className="w-8 h-8 text-purple-400" />
@@ -312,7 +314,7 @@ const CampaignsPage = () => {
         <div className="bg-white rounded-lg p-4 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Qualificados</p>
+              <p className="text-sm text-gray-500">{t('stats.qualified')}</p>
               <p className="text-2xl font-bold text-blue-600">{stats.leadsWon}</p>
             </div>
             <Trophy className="w-8 h-8 text-blue-400" />
@@ -325,14 +327,14 @@ const CampaignsPage = () => {
         {campaigns.length === 0 ? (
           <div className="text-center py-12">
             <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma campanha criada</h3>
-            <p className="text-gray-500 mb-4">Crie sua primeira campanha para começar a prospectar</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noCampaigns')}</h3>
+            <p className="text-gray-500 mb-4">{t('createFirst')}</p>
             <button
               onClick={() => setShowWizard(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Nova Campanha
+              {t('newCampaign')}
             </button>
           </div>
         ) : (
@@ -341,31 +343,31 @@ const CampaignsPage = () => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nome da Campanha
+                    {t('table.name')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('table.status')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
+                    {t('table.total')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Qualif.
+                    {t('table.qualified')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Agend.
+                    {t('table.scheduled')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ganhos
+                    {t('table.won')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Perdidos
+                    {t('table.lost')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conv. %
+                    {t('table.conversionRate')}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
+                    {t('table.actions')}
                   </th>
                 </tr>
               </thead>
@@ -400,12 +402,12 @@ const CampaignsPage = () => {
                         </div>
                         <div className="flex items-center gap-3 text-xs text-gray-500">
                           {campaign.ai_agent_name && (
-                            <span>Agente: {campaign.ai_agent_name}</span>
+                            <span>{t('info.agent')} {campaign.ai_agent_name}</span>
                           )}
                           {campaign.linked_accounts_count > 0 && (
                             <>
                               <span>•</span>
-                              <span>Conta: {campaign.linked_accounts?.[0]?.profile_name || 'N/A'}</span>
+                              <span>{t('info.account')} {campaign.linked_accounts?.[0]?.profile_name || 'N/A'}</span>
                             </>
                           )}
                         </div>
@@ -422,7 +424,7 @@ const CampaignsPage = () => {
                       {/* Total */}
                       <td className="px-6 py-4 text-center">
                         <div className="text-sm font-medium text-gray-900">
-                          {campaign.total_leads || 0} <span className="text-gray-500">de {collectionStatus?.target_count || campaign.total_leads || 0}</span>
+                          {campaign.total_leads || 0} <span className="text-gray-500">{t('table.of')} {collectionStatus?.target_count || campaign.total_leads || 0}</span>
                         </div>
                         {collectionStatus?.status === 'processing' && (
                           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
@@ -485,7 +487,7 @@ const CampaignsPage = () => {
                               ) : (
                                 <Rocket className="w-3.5 h-3.5" />
                               )}
-                              Iniciar
+                              {t('buttons.startCollection')}
                             </button>
                           )}
 
@@ -496,7 +498,7 @@ const CampaignsPage = () => {
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
                               >
                                 <Eye className="w-3.5 h-3.5" />
-                                Revisar
+                                {t('buttons.review')}
                               </button>
                               <button
                                 onClick={() => handleActivateCampaign(campaign.id)}
@@ -508,7 +510,7 @@ const CampaignsPage = () => {
                                 ) : (
                                   <Play className="w-3.5 h-3.5" />
                                 )}
-                                Ativar
+                                {t('buttons.activate')}
                               </button>
                             </>
                           )}
@@ -519,7 +521,7 @@ const CampaignsPage = () => {
                                 onClick={() => handlePauseCampaign(campaign.id)}
                                 disabled={isActionLoading === 'pausing'}
                                 className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-50"
-                                title="Pausar campanha"
+                                title={t('info.pauseCampaign')}
                               >
                                 {isActionLoading === 'pausing' ? (
                                   <Loader className="w-4 h-4 animate-spin" />
@@ -536,7 +538,7 @@ const CampaignsPage = () => {
                                 onClick={() => handleResumeCampaign(campaign.id)}
                                 disabled={isActionLoading === 'resuming'}
                                 className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                                title="Retomar campanha"
+                                title={t('info.resumeCampaign')}
                               >
                                 {isActionLoading === 'resuming' ? (
                                   <Loader className="w-4 h-4 animate-spin" />
@@ -548,7 +550,7 @@ const CampaignsPage = () => {
                                 onClick={() => handleStopCampaign(campaign.id)}
                                 disabled={isActionLoading === 'stopping'}
                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                                title="Parar campanha"
+                                title={t('info.stopCampaign')}
                               >
                                 {isActionLoading === 'stopping' ? (
                                   <Loader className="w-4 h-4 animate-spin" />
@@ -563,7 +565,7 @@ const CampaignsPage = () => {
                             onClick={() => setDeleteConfirmation(campaign)}
                             disabled={isActionLoading === 'deleting'}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                            title="Excluir campanha"
+                            title={t('info.deleteCampaign')}
                           >
                             {isActionLoading === 'deleting' ? (
                               <Loader className="w-4 h-4 animate-spin" />
@@ -615,13 +617,13 @@ const CampaignsPage = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Excluir Campanha
+                  {t('deleteCampaign')}
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Tem certeza que deseja excluir a campanha <strong>"{deleteConfirmation.name}"</strong>?
+                  {t('messages.confirmDeleteMessage')} <strong>"{deleteConfirmation.name}"</strong>?
                 </p>
                 <p className="text-sm text-red-600 mt-2">
-                  Esta ação não pode ser desfeita. Todos os leads coletados para esta campanha também serão removidos.
+                  {t('messages.confirmDeleteWarning')}
                 </p>
               </div>
             </div>
@@ -631,7 +633,7 @@ const CampaignsPage = () => {
                 disabled={loadingActions[deleteConfirmation.id] === 'deleting'}
                 className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
               >
-                Cancelar
+                {t('common:buttons.cancel')}
               </button>
               <button
                 onClick={() => handleDeleteCampaign(deleteConfirmation.id)}
@@ -641,12 +643,12 @@ const CampaignsPage = () => {
                 {loadingActions[deleteConfirmation.id] === 'deleting' ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    Excluindo...
+                    {t('messages.deleting')}
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4" />
-                    Excluir Campanha
+                    {t('deleteCampaign')}
                   </>
                 )}
               </button>

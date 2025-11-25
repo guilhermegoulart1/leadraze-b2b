@@ -1,0 +1,78 @@
+{
+  "title": "Search",
+  "subtitle": "Find and save profiles for your campaigns",
+  "linkedinSearch": "LinkedIn Search",
+  "googleMapsSearch": "Google Maps Search",
+  "filters": {
+    "title": "Search Filters",
+    "location": "Location",
+    "locationPlaceholder": "City, State, Country",
+    "jobTitle": "Job Title",
+    "jobTitlePlaceholder": "CEO, Manager, etc.",
+    "company": "Company",
+    "companyPlaceholder": "Company name",
+    "industry": "Industry",
+    "industryPlaceholder": "Technology, Health, etc.",
+    "keywords": "Keywords",
+    "keywordsPlaceholder": "Skills, interests, etc.",
+    "connectionDegree": "Connection Degree",
+    "yearsOfExperience": "Years of Experience",
+    "apply": "Apply Filters",
+    "clear": "Clear Filters",
+    "save": "Save Search"
+  },
+  "results": {
+    "found": "{{count}} profiles found",
+    "viewing": "Viewing {{from}} to {{to}} of {{total}}",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "selected": "{{count}} selected",
+    "saveSelected": "Save Selected ({{count}})",
+    "noResults": "No profiles found",
+    "tryAdjusting": "Try adjusting your search filters"
+  },
+  "profile": {
+    "view": "View Profile",
+    "save": "Save",
+    "saved": "Saved",
+    "addToCampaign": "Add to Campaign",
+    "addToList": "Add to List",
+    "sendMessage": "Send Message"
+  },
+  "saveModal": {
+    "title": "Save Profiles",
+    "selectList": "Select a list",
+    "createNewList": "Create new list",
+    "listName": "List name",
+    "listNamePlaceholder": "Enter list name",
+    "save": "Save {{count}} Profile(s)",
+    "cancel": "Cancel"
+  },
+  "messages": {
+    "saved": "{{count}} profile(s) saved successfully",
+    "addedToCampaign": "{{count}} profile(s) added to campaign",
+    "errorSaving": "Error saving profiles",
+    "searchSaved": "Search saved successfully"
+  },
+  "bulkCollection": {
+    "title": "Bulk Collection",
+    "subtitle": "Collect hundreds of profiles automatically",
+    "targetCount": "How many profiles do you want to collect?",
+    "targetCountHelp": "Minimum: 10 | Maximum: 1,000 profiles",
+    "selectCampaign": "Save profiles to which campaign?",
+    "selectCampaignPlaceholder": "Select a campaign...",
+    "createNew": "+ Create new campaign",
+    "campaignNamePlaceholder": "New campaign name...",
+    "creating": "Creating...",
+    "create": "Create",
+    "cancel": "Cancel",
+    "howItWorks": "How it works:",
+    "howItWorksList": [
+      "Collection will run in the background",
+      "You will receive progress notifications",
+      "Profiles will be automatically saved to the campaign",
+      "May take a few minutes depending on the quantity"
+    ],
+    "startCollection": "Start Collection"
+  }
+}

@@ -4,9 +4,11 @@ import {
   MessageCircle, Instagram, Send, Calendar, FileText,
   Briefcase, GraduationCap
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
 const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
+  const { t } = useTranslation();
   const [contact, setContact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // overview, activity, opportunities
@@ -39,7 +41,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
     email: { icon: Mail, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Email' },
     linkedin: { icon: Linkedin, color: 'text-blue-700', bg: 'bg-blue-100', label: 'LinkedIn' },
     telegram: { icon: Send, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Telegram' },
-    phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Telefone' }
+    phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100', label: t('contacts.details.phone') }
   };
 
   const tagColors = {
@@ -121,7 +123,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         }}
                         className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
                       >
-                        Editar
+                        {t('contacts.actions.edit')}
                       </button>
                     )}
                     <button
@@ -143,7 +145,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Visão Geral
+                    {t('contacts.details.tabs.overview')}
                   </button>
                   <button
                     onClick={() => setActiveTab('opportunities')}
@@ -153,7 +155,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Oportunidades ({contact.opportunities?.length || 0})
+                    {t('contacts.details.tabs.opportunities')} ({contact.opportunities?.length || 0})
                   </button>
                 </div>
               </div>
@@ -165,13 +167,13 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                   <div className="space-y-6">
                     {/* Contact Info */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Informações de Contato</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.contactInfo')}</h3>
                       <div className="grid grid-cols-2 gap-4">
                         {contact.email && (
                           <div className="flex items-center gap-2">
                             <Mail className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">Email</p>
+                              <p className="text-xs text-gray-500">{t('contacts.details.email')}</p>
                               <a href={`mailto:${contact.email}`} className="text-sm text-purple-600 hover:underline">
                                 {contact.email}
                               </a>
@@ -182,7 +184,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2">
                             <Phone className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">Telefone</p>
+                              <p className="text-xs text-gray-500">{t('contacts.details.phone')}</p>
                               <a href={`tel:${contact.phone}`} className="text-sm text-gray-700">
                                 {contact.phone}
                               </a>
@@ -193,7 +195,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">Localização</p>
+                              <p className="text-xs text-gray-500">{t('contacts.details.location')}</p>
                               <p className="text-sm text-gray-700">{contact.location}</p>
                             </div>
                           </div>
@@ -202,7 +204,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2">
                             <Briefcase className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">Indústria</p>
+                              <p className="text-xs text-gray-500">{t('contacts.details.industry')}</p>
                               <p className="text-sm text-gray-700">{contact.industry}</p>
                             </div>
                           </div>
@@ -213,7 +215,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Channels */}
                     {contact.channels && contact.channels.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Canais de Comunicação</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.channels')}</h3>
                         <div className="grid grid-cols-2 gap-3">
                           {contact.channels.map((channel, idx) => {
                             const config = channelConfig[channel.type];
@@ -231,7 +233,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                                   </p>
                                   {channel.messageCount > 0 && (
                                     <p className="text-xs text-gray-500">
-                                      {channel.messageCount} mensagens
+                                      {channel.messageCount} {t('contacts.details.messages')}
                                     </p>
                                   )}
                                 </div>
@@ -245,7 +247,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Headline */}
                     {contact.headline && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Headline</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('contacts.details.headline')}</h3>
                         <p className="text-sm text-gray-700">{contact.headline}</p>
                       </div>
                     )}
@@ -253,7 +255,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* About */}
                     {contact.about && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Sobre</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('contacts.details.about')}</h3>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{contact.about}</p>
                       </div>
                     )}
@@ -261,7 +263,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Profile Links */}
                     {(contact.profile_url || contact.linkedin_profile_id) && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Links do Perfil</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.profileLinks')}</h3>
                         <div className="space-y-2">
                           {contact.profile_url && (
                             <a
@@ -292,7 +294,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Notes */}
                     {contact.notes && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Notas Internas</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('contacts.details.notesInternal')}</h3>
                         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <p className="text-sm text-gray-700 whitespace-pre-wrap">{contact.notes}</p>
                         </div>
@@ -301,21 +303,21 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
 
                     {/* Metadata */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Informações do Sistema</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.systemInfo')}</h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500">Origem</p>
+                          <p className="text-gray-500">{t('contacts.details.source')}</p>
                           <p className="text-gray-900 capitalize">{contact.source || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Criado em</p>
+                          <p className="text-gray-500">{t('contacts.details.createdAt')}</p>
                           <p className="text-gray-900">
                             {new Date(contact.created_at).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                         {contact.last_interaction_at && (
                           <div>
-                            <p className="text-gray-500">Última Interação</p>
+                            <p className="text-gray-500">{t('contacts.details.lastInteraction')}</p>
                             <p className="text-gray-900">
                               {new Date(contact.last_interaction_at).toLocaleDateString('pt-BR')}
                             </p>
@@ -337,10 +339,10 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                               <div>
                                 <h4 className="font-medium text-gray-900">{opp.name}</h4>
                                 <p className="text-sm text-gray-500 mt-1">
-                                  Função: <span className="capitalize">{opp.role}</span>
+                                  {t('contacts.details.opportunities.role')}: <span className="capitalize">{opp.role}</span>
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                  Status: <span className="capitalize">{opp.status}</span>
+                                  {t('contacts.details.opportunities.status')}: <span className="capitalize">{opp.status}</span>
                                 </p>
                               </div>
                               <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
@@ -353,7 +355,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     ) : (
                       <div className="text-center py-12 text-gray-500">
                         <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Nenhuma oportunidade vinculada</p>
+                        <p>{t('contacts.details.opportunities.none')}</p>
                       </div>
                     )}
                   </div>
@@ -362,7 +364,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
             </>
           ) : (
             <div className="flex items-center justify-center h-96">
-              <p className="text-gray-500">Contato não encontrado</p>
+              <p className="text-gray-500">{t('contacts.details.notFound')}</p>
             </div>
           )}
         </div>

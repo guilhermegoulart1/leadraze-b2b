@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Upload, FileText, AlertCircle, CheckCircle, Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
+  const { t } = useTranslation(['contacts', 'common']);
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState('');
   const [listName, setListName] = useState('');
@@ -14,7 +16,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       if (!selectedFile.name.endsWith('.csv')) {
-        setErrors({ file: 'Por favor, selecione um arquivo CSV' });
+        setErrors({ file: t('import.errorSelectCsv') });
         return;
       }
 
@@ -37,7 +39,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
         const lines = text.split('\n').filter(line => line.trim());
 
         if (lines.length < 2) {
-          setErrors({ file: 'O arquivo CSV deve conter ao menos uma linha de dados' });
+          setErrors({ file: t('import.errorAtLeastOne') });
           return;
         }
 
@@ -76,20 +78,20 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
         }
 
         if (contacts.length === 0) {
-          setErrors({ file: 'Nenhum contato válido encontrado no arquivo' });
+          setErrors({ file: t('import.errorNoValidContacts') });
           return;
         }
 
         setParsedData({ contacts, total: contacts.length });
         setStep(2);
       } catch (error) {
-        console.error('Erro ao parsear CSV:', error);
-        setErrors({ file: 'Erro ao processar arquivo CSV' });
+        console.error(t('import.errorProcessing'), error);
+        setErrors({ file: t('import.errorProcessing') });
       }
     };
 
     reader.onerror = () => {
-      setErrors({ file: 'Erro ao ler arquivo' });
+      setErrors({ file: t('import.errorReading') });
     };
 
     reader.readAsText(file);
@@ -97,12 +99,12 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
 
   const handleImport = async () => {
     if (!listName.trim()) {
-      setErrors({ listName: 'Nome da lista é obrigatório' });
+      setErrors({ listName: t('import.listNameRequired') });
       return;
     }
 
     if (!parsedData || parsedData.contacts.length === 0) {
-      setErrors({ submit: 'Nenhum contato para importar' });
+      setErrors({ submit: t('import.errorNoContacts') });
       return;
     }
 
@@ -117,8 +119,8 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
       // Reset state
       handleClose();
     } catch (error) {
-      console.error('Erro ao importar:', error);
-      setErrors({ submit: error.message || 'Erro ao importar contatos' });
+      console.error(t('import.errors'), error);
+      setErrors({ submit: error.message || t('import.errors') });
     } finally {
       setImporting(false);
     }
@@ -134,6 +136,29 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
     onClose();
   };
 
+  const downloadTemplate = () => {
+    // CSV template content
+    const csvContent = `Nome,Email,Telefone,LinkedIn,Empresa,Cargo
+João Silva,joao@empresa.com,+5511999999999,linkedin.com/in/joao,Tech Corp,CEO
+Maria Santos,maria@exemplo.com,+5521988888888,linkedin.com/in/maria,StartupXYZ,CTO
+Pedro Costa,pedro@negocio.com,+5511977777777,linkedin.com/in/pedro,Consultoria ABC,Diretor`;
+
+    // Create blob
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Create download link
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'modelo_importacao_contatos.csv');
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -146,9 +171,9 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
               <Upload className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Importar Contatos CSV</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{t('import.csvTitle')}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Etapa {step} de 2: {step === 1 ? 'Upload do arquivo' : 'Revisar e confirmar'}
+                {t('import.step', { current: step, total: 2 })}: {step === 1 ? t('import.uploadFile') : t('import.reviewConfirm')}
               </p>
             </div>
           </div>
@@ -168,14 +193,27 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex gap-3">
                   <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-900">
-                    <p className="font-medium mb-2">Formato esperado do CSV:</p>
-                    <p>O arquivo deve conter as colunas: <strong>Nome, Email, Telefone, LinkedIn, Empresa, Cargo</strong></p>
-                    <p className="mt-2">Exemplo:</p>
-                    <code className="block mt-1 p-2 bg-white rounded text-xs">
-                      Nome,Email,Telefone,LinkedIn,Empresa,Cargo<br />
-                      João Silva,joao@empresa.com,11999999999,linkedin.com/in/joao,Tech Corp,CEO
-                    </code>
+                  <div className="flex-1">
+                    <div className="text-sm text-blue-900">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium mb-2">{t('import.expectedFormat')}</p>
+                          <p>{t('import.formatInstructions')}</p>
+                          <p className="mt-2">{t('import.example')}</p>
+                          <code className="block mt-1 p-2 bg-white rounded text-xs">
+                            Nome,Email,Telefone,LinkedIn,Empresa,Cargo<br />
+                            João Silva,joao@empresa.com,+5511999999999,linkedin.com/in/joao,Tech Corp,CEO
+                          </code>
+                        </div>
+                        <button
+                          onClick={downloadTemplate}
+                          className="ml-4 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+                        >
+                          <Download className="w-4 h-4" />
+                          {t('import.downloadTemplate')}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -185,14 +223,14 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
                 <div className="text-center">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Selecione um arquivo CSV
+                    {t('import.selectCsvFile')}
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
-                    Clique no botão abaixo ou arraste o arquivo para esta área
+                    {t('import.clickOrDrag')}
                   </p>
                   <label className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer transition-colors">
                     <Upload className="w-4 h-4" />
-                    Selecionar Arquivo
+                    {t('import.selectFile')}
                     <input
                       type="file"
                       accept=".csv"
@@ -226,10 +264,10 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-green-900">
-                      Arquivo processado com sucesso!
+                      {t('import.processedSuccess')}
                     </p>
                     <p className="text-sm text-green-700 mt-1">
-                      {parsedData.total} contatos encontrados
+                      {t('import.contactsFound', { count: parsedData.total })}
                     </p>
                   </div>
                 </div>
@@ -238,7 +276,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
               {/* List Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome da Lista *
+                  {t('contacts:lists.listName')} *
                 </label>
                 <input
                   type="text"
@@ -252,7 +290,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                     errors.listName ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Ex: Leads Importados - Janeiro 2024"
+                  placeholder={t('import.listNamePlaceholder')}
                 />
                 {errors.listName && (
                   <p className="mt-1 text-sm text-red-600">{errors.listName}</p>
@@ -262,16 +300,16 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
               {/* Preview */}
               <div>
                 <h3 className="text-sm font-medium text-gray-900 mb-3">
-                  Preview dos primeiros 5 contatos:
+                  {t('import.previewFirst5')}
                 </h3>
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Telefone</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empresa</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('import.name')}</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('import.email')}</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('contacts:lists.phone')}</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('contacts:lists.company')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -288,7 +326,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
                 </div>
                 {parsedData.total > 5 && (
                   <p className="text-xs text-gray-500 mt-2">
-                    ... e mais {parsedData.total - 5} contatos
+                    {t('import.andMore', { count: parsedData.total - 5 })}
                   </p>
                 )}
               </div>
@@ -310,7 +348,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             disabled={importing}
           >
-            Cancelar
+            {t('common:buttons.cancel')}
           </button>
           {step === 2 && (
             <>
@@ -320,7 +358,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 disabled={importing}
               >
-                Voltar
+                {t('import.back')}
               </button>
               <button
                 type="button"
@@ -328,7 +366,7 @@ const ImportCSVModal = ({ isOpen, onClose, onImport }) => {
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={importing}
               >
-                {importing ? 'Importando...' : `Importar ${parsedData.total} Contatos`}
+                {importing ? t('import.importing') : t('import.importContacts', { count: parsedData.total })}
               </button>
             </>
           )}

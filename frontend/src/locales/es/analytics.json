@@ -1,0 +1,99 @@
+{
+  "title": "Análisis",
+  "subtitle": "Rastree el rendimiento e insights de sus campañas",
+  "overview": "Resumen",
+  "campaigns": "Campañas",
+  "leads": "Leads",
+  "engagement": "Compromiso",
+  "dateRange": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "last7Days": "Últimos 7 Días",
+    "last30Days": "Últimos 30 Días",
+    "thisMonth": "Este Mes",
+    "lastMonth": "Mes Pasado",
+    "custom": "Rango Personalizado"
+  },
+  "metrics": {
+    "totalCampaigns": "Total de Campañas",
+    "activeCampaigns": "Campañas Activas",
+    "totalLeads": "Total de Leads",
+    "newLeads": "Nuevos Leads",
+    "conversionRate": "Tasa de Conversión",
+    "responseRate": "Tasa de Respuesta",
+    "engagementRate": "Tasa de Compromiso",
+    "totalContacts": "Total de Contactos",
+    "messagesSent": "Mensajes Enviados",
+    "messagesReceived": "Mensajes Recibidos",
+    "avgResponseTime": "Tiempo Promedio de Respuesta"
+  },
+  "charts": {
+    "leadsOverTime": "Leads a lo Largo del Tiempo",
+    "campaignPerformance": "Rendimiento de Campañas",
+    "channelDistribution": "Distribución por Canal",
+    "conversionFunnel": "Embudo de Conversión",
+    "engagementTrends": "Tendencias de Compromiso",
+    "topPerformingCampaigns": "Campañas de Mejor Rendimiento",
+    "responseTimeDistribution": "Distribución de Tiempo de Respuesta"
+  },
+  "table": {
+    "campaign": "Campaña",
+    "leads": "Leads",
+    "responses": "Respuestas",
+    "conversion": "Conversión",
+    "spent": "Gastado",
+    "roi": "ROI"
+  },
+  "export": {
+    "title": "Exportar Análisis",
+    "format": "Formato",
+    "dateRange": "Rango de Fechas",
+    "metrics": "Métricas para Exportar",
+    "exportPDF": "Exportar como PDF",
+    "exportCSV": "Exportar como CSV",
+    "exportExcel": "Exportar como Excel"
+  },
+  "noData": "No hay datos disponibles para el período seleccionado",
+  "loading": "Cargando análisis...",
+  "periodSelector": {
+    "7days": "7 días",
+    "30days": "30 días",
+    "90days": "90 días"
+  },
+  "kpis": {
+    "totalLeads": "Total de Leads",
+    "acceptedInvites": "Invitaciones Aceptadas",
+    "qualifiedLeads": "Leads Calificados",
+    "activeConversations": "Conversaciones Activas"
+  },
+  "conversionRates": {
+    "title": "Tasas de Conversión",
+    "invitationAcceptance": "Aceptación de Invitaciones",
+    "qualificationRate": "Tasa de Calificación",
+    "aiResponseRate": "Tasa de Respuesta IA",
+    "averageResponseTime": "Tiempo Promedio de Respuesta",
+    "aiConversationsToday": "Conversaciones IA Hoy"
+  },
+  "topCampaigns": {
+    "title": "Top Campañas",
+    "leads": "leads",
+    "qualified": "calificados",
+    "rate": "Tasa"
+  },
+  "linkedinPerformance": {
+    "title": "Rendimiento de Cuentas LinkedIn",
+    "account": "Cuenta",
+    "campaigns": "Campañas",
+    "sent": "Enviados",
+    "accepted": "Aceptados",
+    "rate": "Tasa",
+    "dailyLimit": "Límite Diario"
+  },
+  "aiPerformance": {
+    "title": "Rendimiento de Agentes de IA",
+    "conversations": "Conversaciones",
+    "messages": "Mensajes",
+    "qualified": "Calificados",
+    "rate": "Tasa"
+  }
+}

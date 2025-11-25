@@ -1,0 +1,63 @@
+{
+  "title": "Conversations",
+  "subtitle": "Manage all your conversations in one place",
+  "allConversations": "All Conversations",
+  "unread": "Unread",
+  "archived": "Archived",
+  "filters": {
+    "all": "All",
+    "unread": "Unread",
+    "starred": "Starred",
+    "archived": "Archived",
+    "channel": "Channel"
+  },
+  "channels": {
+    "whatsapp": "WhatsApp",
+    "instagram": "Instagram",
+    "email": "Email",
+    "linkedin": "LinkedIn",
+    "telegram": "Telegram"
+  },
+  "search": {
+    "placeholder": "Search conversations...",
+    "noResults": "No conversations found",
+    "tryDifferent": "Try a different search term"
+  },
+  "conversation": {
+    "typeMessage": "Type a message...",
+    "send": "Send",
+    "attach": "Attach file",
+    "emoji": "Add emoji",
+    "markAsRead": "Mark as read",
+    "markAsUnread": "Mark as unread",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "star": "Star",
+    "unstar": "Unstar",
+    "delete": "Delete",
+    "viewContact": "View Contact",
+    "assignTo": "Assign to",
+    "addNote": "Add note"
+  },
+  "messages": {
+    "sent": "Message sent",
+    "deleted": "Message deleted",
+    "archived": "Conversation archived",
+    "unarchived": "Conversation unarchived",
+    "confirmDelete": "Are you sure you want to delete this message?",
+    "noConversations": "No conversations yet",
+    "startFirst": "Start a conversation with your contacts"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "typing": "typing...",
+    "away": "Away"
+  },
+  "time": {
+    "now": "Now",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week"
+  }
+}

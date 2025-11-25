@@ -4,9 +4,11 @@ import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader
 import AsyncSelect from 'react-select/async';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import TagsInput from './TagsInput';
 
 const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
+  const { t } = useTranslation('campaigns');
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,13 +76,13 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
   const handleGenerateFilters = async () => {
     if (!formData.selected_location) {
-      setError('Selecione uma localização primeiro');
+      setError(t('wizard.errors.selectLocation'));
       return;
     }
 
     // Validar se os cargos foram preenchidos
     if (formData.manual_job_titles.length === 0) {
-      setError('Preencha pelo menos um cargo que deseja buscar');
+      setError(t('wizard.errors.minJobTitles'));
       return;
     }
 
@@ -117,7 +119,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       setCurrentStep(2);
     } catch (err) {
       console.error('Erro ao gerar filtros:', err);
-      setError(err.message || 'Erro ao gerar filtros com IA');
+      setError(err.message || t('wizard.errors.generateFilters'));
     } finally {
       setIsLoading(false);
     }
@@ -128,12 +130,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
     if (currentStep === 2) {
       if (!formData.name || formData.name.trim().length < 3) {
-        setError('Nome da campanha obrigatório (mínimo 3 caracteres)');
+        setError(t('wizard.errors.minName'));
         return;
       }
 
       if (!formData.target_profiles_count || formData.target_profiles_count < 10) {
-        setError('Quantidade mínima de 10 perfis');
+        setError(t('wizard.errors.minProfiles'));
         return;
       }
     }
@@ -164,12 +166,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     setError('');
 
     if (formData.linkedin_account_ids.length === 0) {
-      setError('Selecione pelo menos uma conta do LinkedIn');
+      setError(t('wizard.errors.selectLinkedin'));
       return;
     }
 
     if (!formData.ai_agent_id) {
-      setError('Selecione um agente de IA para conduzir a campanha');
+      setError(t('wizard.errors.selectAgent'));
       return;
     }
 
@@ -208,7 +210,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       handleClose();
     } catch (err) {
       console.error('Erro ao criar campanha:', err);
-      setError(err.message || 'Erro ao criar campanha');
+      setError(err.message || t('wizard.errors.createCampaign'));
     } finally {
       setIsLoading(false);
     }
@@ -255,13 +257,6 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
   if (!isOpen) return null;
 
-  const stepLabels = {
-    1: 'Busca',
-    1.5: 'Busca',
-    2: 'Coleta',
-    3: 'Validação'
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -269,7 +264,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-blue-600" />
-            <h2 className="text-xl font-semibold">Nova Campanha</h2>
+            <h2 className="text-xl font-semibold">{t('wizard.title')}</h2>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
@@ -294,7 +289,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   {isPast ? <CheckCircle className="w-5 h-5" /> : step}
                 </div>
                 <div className="ml-2 text-xs font-medium text-gray-700">
-                  {step === 1 ? 'Busca' : step === 2 ? 'Coleta' : 'Validação'}
+                  {step === 1 ? t('wizard.steps.search') : step === 2 ? t('wizard.steps.collection') : t('wizard.steps.validation')}
                 </div>
                 {step < 3 && (
                   <div className={`w-16 h-1 mx-2 ${
@@ -318,9 +313,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
           {currentStep === 1 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium mb-2">Como deseja criar sua campanha?</h3>
+                <h3 className="text-lg font-medium mb-2">{t('wizard.step1.title')}</h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  Escolha entre criar filtros manualmente ou deixar a IA gerar para você
+                  {t('wizard.step1.subtitle')}
                 </p>
               </div>
 
@@ -334,9 +329,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
                       <Hand className="w-8 h-8 text-gray-600 group-hover:text-blue-600" />
                     </div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Manual</h4>
+                    <h4 className="font-semibold text-gray-900 mb-2">{t('wizard.step1.manual.title')}</h4>
                     <p className="text-sm text-gray-600">
-                      Defina seus próprios filtros de busca no LinkedIn
+                      {t('wizard.step1.manual.description')}
                     </p>
                   </div>
                 </button>
@@ -351,10 +346,10 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                       <Sparkles className="w-8 h-8 text-purple-600" />
                     </div>
                     <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 justify-center">
-                      Automática (IA)
+                      {t('wizard.step1.automatic.title')}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      Escolha cidade e cargos, a IA cria os filtros otimizados
+                      {t('wizard.step1.automatic.description')}
                     </p>
                   </div>
                 </button>
@@ -368,10 +363,10 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
               <div>
                 <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-600" />
-                  Configure sua busca automática
+                  {t('wizard.step1_5.title')}
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Simples e direto: escolha a <strong>cidade</strong> e os <strong>cargos</strong>. A IA faz o resto! 🚀
+                  {t('wizard.step1_5.subtitle')}
                 </p>
               </div>
 
@@ -379,16 +374,16 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                   <MapPin className="w-4 h-4" />
-                  Localização *
+                  {t('wizard.step1_5.location.label')} *
                 </label>
                 <AsyncSelect
                   cacheOptions
                   loadOptions={fetchLocationSuggestions}
                   onChange={(selected) => setFormData({ ...formData, selected_location: selected })}
                   value={formData.selected_location}
-                  placeholder="Digite uma cidade ou região..."
-                  noOptionsMessage={() => "Digite para buscar localizações"}
-                  loadingMessage={() => "Buscando..."}
+                  placeholder={t('wizard.step1_5.location.placeholder')}
+                  noOptionsMessage={() => t('wizard.step1_5.location.noOptions')}
+                  loadingMessage={() => t('wizard.step1_5.location.loading')}
                   className="text-sm"
                   styles={{
                     control: (base) => ({
@@ -404,7 +399,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   }}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Ex: São Paulo, SP ou Rio de Janeiro, RJ
+                  {t('wizard.step1_5.location.example')}
                 </p>
               </div>
 
@@ -412,21 +407,21 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                   <Briefcase className="w-4 h-4" />
-                  Cargos *
+                  {t('wizard.step1_5.jobTitles.label')} *
                 </label>
                 <TagsInput
                   tags={formData.manual_job_titles}
                   onChange={(tags) => setFormData({ ...formData, manual_job_titles: tags })}
-                  placeholder="Ex: CEO, Diretor, Gerente, Fundador..."
+                  placeholder={t('wizard.step1_5.jobTitles.placeholder')}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Digite os cargos que deseja buscar e pressione vírgula ou Enter para adicionar
+                  {t('wizard.step1_5.jobTitles.help')}
                 </p>
               </div>
 
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <p className="text-sm text-purple-800">
-                  <strong>✨ Como funciona:</strong> Você define a cidade e os cargos, e nossa IA expande e otimiza os filtros automaticamente para encontrar os melhores perfis.
+                  <strong>✨ {t('wizard.step1_5.howItWorks')}</strong>
                 </p>
               </div>
             </div>
@@ -436,9 +431,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
           {currentStep === 2 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium mb-2">Configurar coleta de perfis</h3>
+                <h3 className="text-lg font-medium mb-2">{t('wizard.step2.title')}</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Revise os filtros gerados e defina quantos perfis deseja coletar
+                  {t('wizard.step2.subtitle')}
                 </p>
               </div>
 
@@ -447,30 +442,30 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
                   <h4 className="font-medium text-purple-900 mb-3 flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
-                    Filtros gerados pela IA
+                    {t('wizard.step2.generatedFilters')}
                   </h4>
                   <div className="space-y-2 text-sm">
                     {formData.search_filters.keywords && (
                       <div>
-                        <span className="font-medium text-gray-700">Palavras-chave:</span>{' '}
+                        <span className="font-medium text-gray-700">{t('wizard.step2.filters.keywords')}</span>{' '}
                         <span className="text-gray-900">{formData.search_filters.keywords}</span>
                       </div>
                     )}
                     {formData.selected_location && (
                       <div>
-                        <span className="font-medium text-gray-700">Localização:</span>{' '}
+                        <span className="font-medium text-gray-700">{t('wizard.step2.filters.location')}</span>{' '}
                         <span className="text-gray-900">{formData.selected_location.label}</span>
                       </div>
                     )}
                     {formData.search_filters.industries && formData.search_filters.industries.length > 0 && (
                       <div>
-                        <span className="font-medium text-gray-700">Indústrias:</span>{' '}
+                        <span className="font-medium text-gray-700">{t('wizard.step2.filters.industries')}</span>{' '}
                         <span className="text-gray-900">{formData.search_filters.industries.join(', ')}</span>
                       </div>
                     )}
                     {formData.search_filters.job_titles && formData.search_filters.job_titles.length > 0 && (
                       <div>
-                        <span className="font-medium text-gray-700">Cargos:</span>{' '}
+                        <span className="font-medium text-gray-700">{t('wizard.step2.filters.jobTitles')}</span>{' '}
                         <span className="text-gray-900">{formData.search_filters.job_titles.join(', ')}</span>
                       </div>
                     )}
@@ -480,25 +475,25 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome da Campanha *
+                  {t('wizard.step2.campaignName.label')} *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: Prospecção SaaS B2B - São Paulo"
+                  placeholder={t('wizard.step2.campaignName.placeholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descrição (opcional)
+                  {t('wizard.step2.description.label')}
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descreva o objetivo desta campanha..."
+                  placeholder={t('wizard.step2.description.placeholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -506,7 +501,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantidade de perfis a coletar *
+                  {t('wizard.step2.targetCount.label')} *
                 </label>
                 <input
                   type="number"
@@ -517,7 +512,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Mínimo: 10 perfis | Máximo: 1000 perfis
+                  {t('wizard.step2.targetCount.help')}
                 </p>
               </div>
             </div>
@@ -527,9 +522,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
           {currentStep === 3 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium mb-2">Configuração final</h3>
+                <h3 className="text-lg font-medium mb-2">{t('wizard.step3.title')}</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Selecione a conta do LinkedIn e o agente de IA para esta campanha
+                  {t('wizard.step3.subtitle')}
                 </p>
               </div>
 
@@ -537,13 +532,13 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
               {linkedinAccounts.length === 0 ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
-                    Você ainda não conectou nenhuma conta do LinkedIn. Conecte uma conta primeiro para criar campanhas.
+                    {t('wizard.step3.linkedinAccount.noAccounts')}
                   </p>
                 </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Contas do LinkedIn * (selecione uma ou mais)
+                    {t('wizard.step3.linkedinAccount.label')}
                   </label>
 
                   <div className="space-y-2">
@@ -580,7 +575,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                                   {account.profile_name || account.linkedin_username}
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                  Limite: {account.daily_limit || 0} convites/dia
+                                  {t('wizard.step3.linkedinAccount.limit', { limit: account.daily_limit || 0 })}
                                 </p>
                               </div>
                             </div>
@@ -599,10 +594,10 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-700">
-                            {formData.linkedin_account_ids.length} conta(s) selecionada(s)
+                            {t('wizard.step3.linkedinAccount.selected', { count: formData.linkedin_account_ids.length })}
                           </p>
                           <p className="text-xs text-gray-600 mt-1">
-                            Os envios serão distribuídos automaticamente
+                            {t('wizard.step3.linkedinAccount.distribution')}
                           </p>
                         </div>
                         <div className="text-right">
@@ -612,7 +607,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                               .reduce((sum, acc) => sum + (acc.daily_limit || 0), 0)
                             }
                           </p>
-                          <p className="text-xs text-gray-600">convites/dia total</p>
+                          <p className="text-xs text-gray-600">{t('wizard.step3.linkedinAccount.totalLimit')}</p>
                         </div>
                       </div>
                     </div>
@@ -624,20 +619,20 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
               {aiAgents.length === 0 ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
-                    Você ainda não criou nenhum agente de IA. Crie um agente primeiro para poder ativar campanhas.
+                    {t('wizard.step3.aiAgent.noAgents')}
                   </p>
                 </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Agente de IA *
+                    {t('wizard.step3.aiAgent.label')} *
                   </label>
                   <select
                     value={formData.ai_agent_id}
                     onChange={(e) => setFormData({ ...formData, ai_agent_id: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Selecione um agente...</option>
+                    <option value="">{t('wizard.step3.aiAgent.placeholder')}</option>
                     {aiAgents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
                         {agent.name} ({agent.behavioral_profile})
@@ -649,13 +644,13 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
               {formData.linkedin_account_id && formData.ai_agent_id && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-medium text-green-900 mb-2">Resumo da campanha</h4>
+                  <h4 className="font-medium text-green-900 mb-2">{t('wizard.step3.summary.title')}</h4>
                   <div className="space-y-1 text-sm text-green-800">
-                    <p><strong>Nome:</strong> {formData.name}</p>
-                    <p><strong>Tipo:</strong> {formData.type === 'automatic' ? 'Automática (IA)' : 'Manual'}</p>
-                    <p><strong>Perfis a coletar:</strong> {formData.target_profiles_count}</p>
-                    <p><strong>Conta LinkedIn:</strong> {linkedinAccounts.find(a => a.id === formData.linkedin_account_id)?.profile_name || linkedinAccounts.find(a => a.id === formData.linkedin_account_id)?.linkedin_username}</p>
-                    <p><strong>Agente selecionado:</strong> {aiAgents.find(a => a.id === formData.ai_agent_id)?.name}</p>
+                    <p><strong>{t('wizard.step3.summary.name')}</strong> {formData.name}</p>
+                    <p><strong>{t('wizard.step3.summary.type')}</strong> {formData.type === 'automatic' ? t('wizard.step3.summary.typeAutomatic') : t('wizard.step3.summary.typeManual')}</p>
+                    <p><strong>{t('wizard.step3.summary.targetCount')}</strong> {formData.target_profiles_count}</p>
+                    <p><strong>{t('wizard.step3.summary.linkedinAccount')}</strong> {linkedinAccounts.find(a => a.id === formData.linkedin_account_id)?.profile_name || linkedinAccounts.find(a => a.id === formData.linkedin_account_id)?.linkedin_username}</p>
+                    <p><strong>{t('wizard.step3.summary.aiAgent')}</strong> {aiAgents.find(a => a.id === formData.ai_agent_id)?.name}</p>
                   </div>
                 </div>
               )}
@@ -673,7 +668,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg flex items-center gap-2 disabled:opacity-50"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Voltar
+                {t('wizard.buttons.back')}
               </button>
             )}
           </div>
@@ -684,7 +679,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
               disabled={isLoading}
               className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50"
             >
-              Cancelar
+              {t('wizard.buttons.cancel')}
             </button>
 
             {currentStep === 1.5 ? (
@@ -696,12 +691,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 {isLoading ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    Gerando filtros...
+                    {t('wizard.step1_5.generating')}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Gerar Filtros com IA
+                    {t('wizard.step1_5.generateButton')}
                   </>
                 )}
               </button>
@@ -711,7 +706,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 disabled={isLoading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
-                Avançar
+                {t('wizard.buttons.next')}
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
@@ -723,12 +718,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 {isLoading ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    Criando...
+                    {t('wizard.buttons.creating')}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    Criar Campanha
+                    {t('wizard.buttons.createCampaign')}
                   </>
                 )}
               </button>

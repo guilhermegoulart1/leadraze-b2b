@@ -3,12 +3,14 @@ import {
   Search, Filter, Plus, Edit2, Trash2, Shield, Users, User,
   ChevronDown, ChevronRight, X, Check, AlertCircle, Settings
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import PermissionGate from '../components/PermissionGate';
 import UserPermissionsModal from '../components/UserPermissionsModal';
 
 const UsersPage = () => {
+  const { t } = useTranslation(['users', 'common']);
   const { user: currentUser, isAdmin, isSupervisor } = useAuth();
 
   // State
@@ -37,9 +39,9 @@ const UsersPage = () => {
   const [formErrors, setFormErrors] = useState({});
 
   const roleConfig = {
-    admin: { label: 'Admin', icon: Shield, color: 'text-red-600', bg: 'bg-red-100', border: 'border-red-200' },
-    supervisor: { label: 'Supervisor', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
-    user: { label: 'Usuário', icon: User, color: 'text-gray-600', bg: 'bg-gray-100', border: 'border-gray-200' }
+    admin: { label: t('roles.admin'), icon: Shield, color: 'text-red-600', bg: 'bg-red-100', border: 'border-red-200' },
+    supervisor: { label: t('roles.supervisor'), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
+    user: { label: t('roles.user'), icon: User, color: 'text-gray-600', bg: 'bg-gray-100', border: 'border-gray-200' }
   };
 
   useEffect(() => {
@@ -94,33 +96,33 @@ const UsersPage = () => {
     const errors = {};
 
     if (!formData.name?.trim()) {
-      errors.name = 'Nome é obrigatório';
+      errors.name = t('form.nameRequired');
     }
 
     if (!formData.email?.trim()) {
-      errors.email = 'Email é obrigatório';
+      errors.email = t('form.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Email inválido';
+      errors.email = t('form.emailInvalid');
     }
 
     // Password is required only when creating new user
     if (!selectedUser && !formData.password) {
-      errors.password = 'Senha é obrigatória';
+      errors.password = t('form.passwordRequired');
     } else if (formData.password && formData.password.length < 6) {
-      errors.password = 'Senha deve ter pelo menos 6 caracteres';
+      errors.password = t('form.passwordMinLength');
     }
 
     // Check if trying to create another admin
     if (!selectedUser && formData.role === 'admin') {
       const hasAdmin = users.some(u => u.role === 'admin');
       if (hasAdmin) {
-        errors.role = 'Já existe um Admin no sistema';
+        errors.role = t('messages.adminExists');
       }
     }
 
     // Check if trying to change existing admin to another role
     if (selectedUser && selectedUser.role === 'admin' && formData.role !== 'admin') {
-      errors.role = 'Não é possível alterar o perfil do Admin';
+      errors.role = t('messages.cannotChangeAdminRole');
     }
 
     setFormErrors(errors);
@@ -157,7 +159,7 @@ const UsersPage = () => {
     } catch (error) {
       console.error('Error saving user:', error);
       setFormErrors({
-        general: error.response?.data?.message || 'Erro ao salvar usuário'
+        general: error.response?.data?.message || t('form.generalError')
       });
     }
   };
@@ -166,16 +168,16 @@ const UsersPage = () => {
     const user = users.find(u => u.id === userId);
 
     if (user?.role === 'admin') {
-      alert('Não é possível excluir o Admin do sistema');
+      alert(t('messages.cannotDeleteAdmin'));
       return;
     }
 
     if (userId === currentUser.id) {
-      alert('Você não pode excluir sua própria conta');
+      alert(t('messages.cannotDeleteSelf'));
       return;
     }
 
-    if (!confirm('Tem certeza que deseja excluir este usuário?')) {
+    if (!confirm(t('messages.confirmDelete'))) {
       return;
     }
 
@@ -184,7 +186,7 @@ const UsersPage = () => {
       loadUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Erro ao excluir usuário');
+      alert(t('messages.errorDeleting'));
     }
   };
 
@@ -215,9 +217,9 @@ const UsersPage = () => {
         {/* Title and Actions */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestão de Usuários</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {filteredUsers.length} usuário{filteredUsers.length !== 1 ? 's' : ''} cadastrado{filteredUsers.length !== 1 ? 's' : ''}
+              {t('subtitle', { count: filteredUsers.length })}
             </p>
           </div>
 
@@ -228,7 +230,7 @@ const UsersPage = () => {
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              <span className="text-sm font-medium">Novo Usuário</span>
+              <span className="text-sm font-medium">{t('newUser')}</span>
             </button>
           </PermissionGate>
         </div>
@@ -241,7 +243,7 @@ const UsersPage = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nome ou email..."
+              placeholder={t('searchPlaceholder')}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
@@ -255,14 +257,14 @@ const UsersPage = () => {
             }`}
           >
             <Filter className="w-4 h-4" />
-            <span className="text-sm font-medium">Filtros</span>
+            <span className="text-sm font-medium">{t('filters')}</span>
           </button>
         </div>
 
         {/* Filters Panel */}
         {showFilters && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Perfil</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('filterByRole')}</label>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedRole('')}
@@ -272,7 +274,7 @@ const UsersPage = () => {
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Todos
+                {t('all')}
               </button>
               {Object.entries(roleConfig).map(([role, config]) => {
                 const IconComponent = config.icon;
@@ -305,8 +307,8 @@ const UsersPage = () => {
         ) : filteredUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             <User className="w-12 h-12 mb-3 opacity-50" />
-            <p className="text-lg font-medium">Nenhum usuário encontrado</p>
-            <p className="text-sm">Tente ajustar os filtros ou criar um novo usuário</p>
+            <p className="text-lg font-medium">{t('messages.noUsers')}</p>
+            <p className="text-sm">{t('messages.noUsersDescription')}</p>
           </div>
         ) : (
           <table className="w-full">
@@ -316,19 +318,19 @@ const UsersPage = () => {
                   {/* Expand icon column */}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Usuário
+                  {t('table.user')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Perfil
+                  {t('table.profile')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Status
+                  {t('table.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Data de Criação
+                  {t('table.createdAt')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Ações
+                  {t('table.actions')}
                 </th>
               </tr>
             </thead>
@@ -368,7 +370,7 @@ const UsersPage = () => {
                             <div className="font-semibold text-sm text-gray-900">
                               {user.name}
                               {user.id === currentUser.id && (
-                                <span className="ml-2 text-xs text-purple-600">(Você)</span>
+                                <span className="ml-2 text-xs text-purple-600">{t('table.you')}</span>
                               )}
                             </div>
                             <div className="text-xs text-gray-500">{user.email}</div>
@@ -389,12 +391,12 @@ const UsersPage = () => {
                         {user.is_active !== false ? (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 rounded-full border border-green-200">
                             <Check className="w-3 h-3" />
-                            <span className="text-xs font-medium">Ativo</span>
+                            <span className="text-xs font-medium">{t('status.active')}</span>
                           </div>
                         ) : (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full border border-gray-200">
                             <X className="w-3 h-3" />
-                            <span className="text-xs font-medium">Inativo</span>
+                            <span className="text-xs font-medium">{t('status.inactive')}</span>
                           </div>
                         )}
                       </td>
@@ -413,7 +415,7 @@ const UsersPage = () => {
                             <button
                               onClick={() => handleEditUser(user)}
                               className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                              title="Editar"
+                              title={t('actions.edit')}
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -422,7 +424,7 @@ const UsersPage = () => {
                             <button
                               onClick={() => handleManagePermissions(user)}
                               className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition-colors"
-                              title="Gerenciar Permissões e Setores"
+                              title={t('actions.permissions')}
                             >
                               <Settings className="w-4 h-4" />
                             </button>
@@ -432,7 +434,7 @@ const UsersPage = () => {
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                title="Excluir"
+                                title={t('actions.delete')}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -448,11 +450,11 @@ const UsersPage = () => {
                         <td colSpan="6" className="px-4 py-3 bg-gray-50">
                           <div className="ml-12 p-4 bg-white rounded-lg border border-gray-200">
                             <div className="text-sm font-medium text-gray-700 mb-2">
-                              {user.role === 'supervisor' ? 'Membros da Equipe' : 'Supervisor'}
+                              {user.role === 'supervisor' ? t('table.teamMembers') : t('table.supervisor')}
                             </div>
                             <div className="text-sm text-gray-600">
                               {/* TODO: Load and display team information */}
-                              <p className="text-gray-500 italic">Informações da equipe serão exibidas aqui</p>
+                              <p className="text-gray-500 italic">{t('table.teamInfo')}</p>
                             </div>
                           </div>
                         </td>
@@ -485,7 +487,7 @@ const UsersPage = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">
-                {selectedUser ? 'Editar Usuário' : 'Novo Usuário'}
+                {selectedUser ? t('form.editUser') : t('form.newUser')}
               </h2>
               <button
                 onClick={() => setShowUserModal(false)}
@@ -507,7 +509,7 @@ const UsersPage = () => {
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome <span className="text-red-500">*</span>
+                  {t('form.name')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -516,7 +518,7 @@ const UsersPage = () => {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                     formErrors.name ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="Nome completo"
+                  placeholder={t('form.namePlaceholder')}
                 />
                 {formErrors.name && (
                   <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
@@ -526,7 +528,7 @@ const UsersPage = () => {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
+                  {t('form.email')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -535,7 +537,7 @@ const UsersPage = () => {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                     formErrors.email ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="email@exemplo.com"
+                  placeholder={t('form.emailPlaceholder')}
                 />
                 {formErrors.email && (
                   <p className="mt-1 text-xs text-red-600">{formErrors.email}</p>
@@ -545,7 +547,7 @@ const UsersPage = () => {
               {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Senha {!selectedUser && <span className="text-red-500">*</span>}
+                  {t('form.password')} {!selectedUser && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="password"
@@ -554,7 +556,7 @@ const UsersPage = () => {
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                     formErrors.password ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder={selectedUser ? 'Deixe em branco para não alterar' : 'Mínimo 6 caracteres'}
+                  placeholder={selectedUser ? t('form.passwordLeaveBlank') : t('form.passwordPlaceholder')}
                 />
                 {formErrors.password && (
                   <p className="mt-1 text-xs text-red-600">{formErrors.password}</p>
@@ -564,7 +566,7 @@ const UsersPage = () => {
               {/* Role */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Perfil <span className="text-red-500">*</span>
+                  {t('form.role')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.role}
@@ -574,17 +576,17 @@ const UsersPage = () => {
                     formErrors.role ? 'border-red-300' : 'border-gray-300'
                   } ${selectedUser?.role === 'admin' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 >
-                  <option value="user">Usuário</option>
-                  <option value="supervisor">Supervisor</option>
-                  <option value="admin">Admin</option>
+                  <option value="user">{t('roles.user')}</option>
+                  <option value="supervisor">{t('roles.supervisor')}</option>
+                  <option value="admin">{t('roles.admin')}</option>
                 </select>
                 {formErrors.role && (
                   <p className="mt-1 text-xs text-red-600">{formErrors.role}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  {formData.role === 'admin' && 'Admin tem todas as permissões'}
-                  {formData.role === 'supervisor' && 'Supervisores gerenciam equipes'}
-                  {formData.role === 'user' && 'Usuários padrão com permissões limitadas'}
+                  {formData.role === 'admin' && t('roles.adminDescription')}
+                  {formData.role === 'supervisor' && t('roles.supervisorDescription')}
+                  {formData.role === 'user' && t('roles.userDescription')}
                 </p>
               </div>
 
@@ -598,7 +600,7 @@ const UsersPage = () => {
                   className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                 />
                 <label htmlFor="is_active" className="text-sm text-gray-700">
-                  Usuário ativo
+                  {t('form.userActive')}
                 </label>
               </div>
             </div>
@@ -609,13 +611,13 @@ const UsersPage = () => {
                 onClick={() => setShowUserModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                Cancelar
+                {t('form.cancel')}
               </button>
               <button
                 onClick={handleSaveUser}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
               >
-                {selectedUser ? 'Salvar' : 'Criar Usuário'}
+                {selectedUser ? t('form.save') : t('form.create')}
               </button>
             </div>
           </div>

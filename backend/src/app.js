@@ -6,6 +6,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const session = require('express-session');
 const passport = require('./config/passport');
+const i18next = require('./config/i18n');
+const middleware = require('i18next-http-middleware');
 
 const app = express();
 
@@ -77,6 +79,9 @@ app.use(session({
 // Passport
 app.use(passport.initialize());
 app.use(passport.session());
+
+// i18next - Internationalization
+app.use(middleware.handle(i18next));
 
 // ================================
 // HEALTH CHECK

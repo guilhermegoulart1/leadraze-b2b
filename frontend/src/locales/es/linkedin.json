@@ -1,0 +1,62 @@
+{
+  "title": "Cuentas de LinkedIn",
+  "subtitle": "Gestione sus cuentas de LinkedIn para campañas",
+  "connectAccount": "Conectar Cuenta de LinkedIn",
+  "addAccount": "Agregar Cuenta",
+  "table": {
+    "account": "Cuenta",
+    "email": "Correo",
+    "status": "Estado",
+    "dailyLimit": "Límite Diario",
+    "invitesSent": "Invitaciones Enviadas Hoy",
+    "campaigns": "Campañas Activas",
+    "actions": "Acciones"
+  },
+  "status": {
+    "connected": "Conectada",
+    "disconnected": "Desconectada",
+    "error": "Error",
+    "limited": "Limitada",
+    "pending": "Pendiente"
+  },
+  "actions": {
+    "edit": "Editar",
+    "disconnect": "Desconectar",
+    "reconnect": "Reconectar",
+    "viewLimits": "Ver Límites",
+    "testConnection": "Probar Conexión"
+  },
+  "limits": {
+    "title": "Límites de la Cuenta",
+    "dailyInvites": "Invitaciones Diarias",
+    "dailyMessages": "Mensajes Diarios",
+    "weeklyInvites": "Invitaciones Semanales",
+    "remaining": "{{count}} restantes",
+    "resetIn": "Se reinicia en {{time}}",
+    "configure": "Configurar Límites"
+  },
+  "form": {
+    "title": "Configuración de Cuenta de LinkedIn",
+    "email": "Correo de LinkedIn",
+    "emailPlaceholder": "su-correo@ejemplo.com",
+    "dailyInviteLimit": "Límite Diario de Invitaciones",
+    "dailyMessageLimit": "Límite Diario de Mensajes",
+    "delayBetweenActions": "Retraso Entre Acciones (segundos)",
+    "randomizeDelay": "Aleatorizar Retraso",
+    "notes": "Notas",
+    "notesPlaceholder": "Notas internas sobre esta cuenta",
+    "save": "Guardar Configuración",
+    "cancel": "Cancelar"
+  },
+  "messages": {
+    "connected": "Cuenta de LinkedIn conectada con éxito",
+    "disconnected": "Cuenta de LinkedIn desconectada",
+    "updated": "Configuración de cuenta actualizada",
+    "testSuccess": "Prueba de conexión exitosa",
+    "testFailed": "Prueba de conexión fallida",
+    "confirmDisconnect": "¿Está seguro de que desea desconectar esta cuenta?",
+    "limitReached": "Límite diario alcanzado para esta cuenta",
+    "noAccounts": "No hay cuentas de LinkedIn conectadas",
+    "connectFirst": "Conecte su cuenta de LinkedIn para iniciar campañas"
+  }
+}

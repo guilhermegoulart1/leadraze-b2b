@@ -1,0 +1,78 @@
+{
+  "title": "Búsqueda",
+  "subtitle": "Encuentre y guarde perfiles para sus campañas",
+  "linkedinSearch": "Búsqueda en LinkedIn",
+  "googleMapsSearch": "Búsqueda en Google Maps",
+  "filters": {
+    "title": "Filtros de Búsqueda",
+    "location": "Ubicación",
+    "locationPlaceholder": "Ciudad, Estado, País",
+    "jobTitle": "Cargo",
+    "jobTitlePlaceholder": "CEO, Gerente, etc.",
+    "company": "Empresa",
+    "companyPlaceholder": "Nombre de la empresa",
+    "industry": "Industria",
+    "industryPlaceholder": "Tecnología, Salud, etc.",
+    "keywords": "Palabras clave",
+    "keywordsPlaceholder": "Habilidades, intereses, etc.",
+    "connectionDegree": "Grado de Conexión",
+    "yearsOfExperience": "Años de Experiencia",
+    "apply": "Aplicar Filtros",
+    "clear": "Limpiar Filtros",
+    "save": "Guardar Búsqueda"
+  },
+  "results": {
+    "found": "{{count}} perfiles encontrados",
+    "viewing": "Visualizando {{from}} a {{to}} de {{total}}",
+    "selectAll": "Seleccionar Todos",
+    "deselectAll": "Deseleccionar Todos",
+    "selected": "{{count}} seleccionados",
+    "saveSelected": "Guardar Seleccionados ({{count}})",
+    "noResults": "Ningún perfil encontrado",
+    "tryAdjusting": "Intente ajustar sus filtros de búsqueda"
+  },
+  "profile": {
+    "view": "Ver Perfil",
+    "save": "Guardar",
+    "saved": "Guardado",
+    "addToCampaign": "Agregar a Campaña",
+    "addToList": "Agregar a Lista",
+    "sendMessage": "Enviar Mensaje"
+  },
+  "saveModal": {
+    "title": "Guardar Perfiles",
+    "selectList": "Seleccione una lista",
+    "createNewList": "Crear nueva lista",
+    "listName": "Nombre de la lista",
+    "listNamePlaceholder": "Ingrese el nombre de la lista",
+    "save": "Guardar {{count}} Perfil(es)",
+    "cancel": "Cancelar"
+  },
+  "messages": {
+    "saved": "{{count}} perfil(es) guardado(s) con éxito",
+    "addedToCampaign": "{{count}} perfil(es) agregado(s) a la campaña",
+    "errorSaving": "Error al guardar perfiles",
+    "searchSaved": "Búsqueda guardada con éxito"
+  },
+  "bulkCollection": {
+    "title": "Recopilación Masiva",
+    "subtitle": "Recopile cientos de perfiles automáticamente",
+    "targetCount": "¿Cuántos perfiles desea recopilar?",
+    "targetCountHelp": "Mínimo: 10 | Máximo: 1.000 perfiles",
+    "selectCampaign": "¿Guardar perfiles en qué campaña?",
+    "selectCampaignPlaceholder": "Seleccione una campaña...",
+    "createNew": "+ Crear nueva campaña",
+    "campaignNamePlaceholder": "Nombre de la nueva campaña...",
+    "creating": "Creando...",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "howItWorks": "Cómo funciona:",
+    "howItWorksList": [
+      "La recopilación se ejecutará en segundo plano",
+      "Recibirá notificaciones de progreso",
+      "Los perfiles se guardarán automáticamente en la campaña",
+      "Puede tardar algunos minutos dependiendo de la cantidad"
+    ],
+    "startCollection": "Iniciar Recopilación"
+  }
+}
