@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Award, Play, Pause, Square, BarChart3, Mail, MessageCircle, Linkedin } from 'lucide-react';
 import api from '../services/api';
 import ActivationCampaignWizard from '../components/ActivationCampaignWizard';
 
 const ActivationCampaignsPage = () => {
+  const { t } = useTranslation(['activationcampaigns', 'common']);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -21,7 +23,7 @@ const ActivationCampaignsPage = () => {
         setCampaigns(response.data.campaigns || []);
       }
     } catch (error) {
-      console.error('Erro ao carregar campanhas:', error);
+      console.error(t('errors.loadFailed'), error);
     } finally {
       setLoading(false);
     }
@@ -35,7 +37,7 @@ const ActivationCampaignsPage = () => {
         setShowWizard(false);
       }
     } catch (error) {
-      console.error('Erro ao criar campanha:', error);
+      console.error(t('errors.createFailed'), error);
       throw error;
     }
   };
@@ -50,18 +52,9 @@ const ActivationCampaignsPage = () => {
       stopped: 'bg-red-100 text-red-700'
     };
 
-    const labels = {
-      draft: 'Rascunho',
-      scheduled: 'Agendada',
-      active: 'Ativa',
-      paused: 'Pausada',
-      completed: 'Concluída',
-      stopped: 'Parada'
-    };
-
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.draft}`}>
-        {labels[status] || status}
+        {t(`status.${status}`, status)}
       </span>
     );
   };
@@ -94,9 +87,9 @@ const ActivationCampaignsPage = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Campanhas de Ativação</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
             <p className="text-gray-600 mt-1">
-              Gerencie suas campanhas de ativação automática de contatos
+              {t('subtitle')}
             </p>
           </div>
           <button
@@ -104,7 +97,7 @@ const ActivationCampaignsPage = () => {
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Nova Campanha
+            {t('newCampaign')}
           </button>
         </div>
       </div>
@@ -114,7 +107,7 @@ const ActivationCampaignsPage = () => {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total de Campanhas</p>
+              <p className="text-sm text-gray-600">{t('stats.totalCampaigns')}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{campaigns.length}</p>
             </div>
             <Award className="w-8 h-8 text-purple-600" />
@@ -124,7 +117,7 @@ const ActivationCampaignsPage = () => {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Campanhas Ativas</p>
+              <p className="text-sm text-gray-600">{t('stats.activeCampaigns')}</p>
               <p className="text-2xl font-bold text-green-600 mt-1">{activeCampaigns.length}</p>
             </div>
             <Play className="w-8 h-8 text-green-600" />
@@ -134,7 +127,7 @@ const ActivationCampaignsPage = () => {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total de Contatos</p>
+              <p className="text-sm text-gray-600">{t('stats.totalContacts')}</p>
               <p className="text-2xl font-bold text-blue-600 mt-1">{totalContacts}</p>
             </div>
             <BarChart3 className="w-8 h-8 text-blue-600" />
@@ -144,7 +137,7 @@ const ActivationCampaignsPage = () => {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Ativados</p>
+              <p className="text-sm text-gray-600">{t('stats.activated')}</p>
               <p className="text-2xl font-bold text-purple-600 mt-1">{totalActivated}</p>
             </div>
             <BarChart3 className="w-8 h-8 text-purple-600" />
@@ -157,24 +150,24 @@ const ActivationCampaignsPage = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando campanhas...</p>
+            <p className="mt-4 text-gray-600">{t('loading')}</p>
           </div>
         </div>
       ) : campaigns.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Nenhuma campanha criada
+            {t('empty.title')}
           </h3>
           <p className="text-gray-600 mb-6">
-            Crie sua primeira campanha de ativação para começar a engajar seus contatos automaticamente
+            {t('empty.subtitle')}
           </p>
           <button
             onClick={() => setShowWizard(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             <Plus className="w-4 h-4" />
-            Criar Primeira Campanha
+            {t('empty.button')}
           </button>
         </div>
       ) : (
@@ -183,25 +176,25 @@ const ActivationCampaignsPage = () => {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Campanha
+                  {t('table.campaign')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
+                  {t('table.type')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('table.status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Lista
+                  {t('table.list')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Progresso
+                  {t('table.progress')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Limite Diário
+                  {t('table.dailyLimit')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
+                  {t('table.actions')}
                 </th>
               </tr>
             </thead>
@@ -238,7 +231,7 @@ const ActivationCampaignsPage = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">{campaign.list_name || 'N/A'}</div>
                       <div className="text-xs text-gray-500">
-                        {campaign.total_contacts || 0} contatos
+                        {campaign.total_contacts || 0} {t('table.contacts')}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -256,7 +249,7 @@ const ActivationCampaignsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {campaign.daily_limit || 50} / dia
+                      {campaign.daily_limit || 50} {t('table.perDay')}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">

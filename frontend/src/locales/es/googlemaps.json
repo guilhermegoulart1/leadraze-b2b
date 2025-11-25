@@ -1,0 +1,39 @@
+{
+  "search": {
+    "title": "Búsqueda Google Maps",
+    "subtitle": "Encuentre establecimientos usando Outscraper",
+    "creditsAvailable": "Créditos disponibles",
+    "loading": "Cargando...",
+    "searching": "Buscando establecimientos...",
+    "searchingSubtitle": "Esto puede tomar unos segundos",
+    "readyTitle": "Listo para buscar",
+    "readySubtitle": "Configure los filtros en la barra lateral y haga clic en 'Buscar' para comenzar",
+    "noResultsTitle": "No se encontraron resultados",
+    "noResultsSubtitle": "Intente ajustar los filtros o usar palabras clave diferentes",
+    "resultsFound": "establecimientos encontrados",
+    "exportCSV": "Exportar CSV",
+    "errorTitle": "Error de búsqueda",
+    "validationLocation": "Por favor, ingrese la ubicación",
+    "validationQuery": "Por favor, ingrese el nicho/categoría",
+    "errorMessage": "Error al ejecutar búsqueda. Verifique su conexión e intente nuevamente.",
+    "errorExecuting": "Error al ejecutar búsqueda",
+    "noResults": "Ningún resultado para exportar",
+    "exportError": "Error al exportar CSV. Intente nuevamente."
+  },
+  "agents": {
+    "title": "Campañas Google Maps",
+    "subtitle": "Automatice la recolección de leads de Google Maps",
+    "createCampaign": "Crear Campaña",
+    "noCampaignsTitle": "Ninguna campaña creada",
+    "noCampaignsSubtitle": "Cree su primera campaña para comenzar a recolectar leads automáticamente",
+    "createFirstCampaign": "Crear Primera Campaña",
+    "loading": "Cargando campañas...",
+    "errorTitle": "Error",
+    "errorLoading": "Error al cargar campañas",
+    "confirmDelete": "¿Está seguro de que desea eliminar esta campaña?",
+    "errorDelete": "Error al eliminar campaña",
+    "errorPause": "Error al pausar campaña",
+    "errorResume": "Error al reanudar campaña",
+    "errorExecute": "Error al ejecutar campaña"
+  }
+}

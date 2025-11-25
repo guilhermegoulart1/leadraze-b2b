@@ -59,7 +59,7 @@ const Dashboard = () => {
     );
   }
 
-  // Mock data - substituir com dados reais depois
+  // Mock data - replace with real data later
   const mockData = {
     // Main metrics
     metrics: {
@@ -98,44 +98,44 @@ const Dashboard = () => {
       { date: '15 Nov', leads: 289, qualified: 65, conversations: 52 },
       { date: '20 Nov', leads: 412, qualified: 89, conversations: 67 },
       { date: '25 Nov', leads: 478, qualified: 103, conversations: 78 },
-      { date: 'Hoje', leads: 523, qualified: 124, conversations: 89 }
+      { date: t('periods.today'), leads: 523, qualified: 124, conversations: 89 }
     ],
 
     // Campaign performance
     topCampaigns: [
-      { name: 'Tech Leaders Q4', value: 89, subtitle: '234 leads • 38% conversão', trend: 12 },
-      { name: 'Healthcare Decision Makers', value: 67, subtitle: '189 leads • 35% conversão', trend: 8 },
-      { name: 'Finance Executives', value: 45, subtitle: '156 leads • 29% conversão', trend: -3 },
-      { name: 'SaaS Founders', value: 33, subtitle: '124 leads • 27% conversão', trend: 15 },
-      { name: 'E-commerce Directors', value: 28, subtitle: '98 leads • 29% conversão', trend: 5 }
+      { name: 'Tech Leaders Q4', value: 89, subtitle: t('mockData.leadsConversion', { leads: 234, rate: 38 }), trend: 12 },
+      { name: 'Healthcare Decision Makers', value: 67, subtitle: t('mockData.leadsConversion', { leads: 189, rate: 35 }), trend: 8 },
+      { name: 'Finance Executives', value: 45, subtitle: t('mockData.leadsConversion', { leads: 156, rate: 29 }), trend: -3 },
+      { name: 'SaaS Founders', value: 33, subtitle: t('mockData.leadsConversion', { leads: 124, rate: 27 }), trend: 15 },
+      { name: 'E-commerce Directors', value: 28, subtitle: t('mockData.leadsConversion', { leads: 98, rate: 29 }), trend: 5 }
     ],
 
     // Lead status distribution
     leadStatusDistribution: [
-      { name: 'Novo', value: 847 },
-      { name: 'Contatado', value: 631 },
-      { name: 'Em Conversa', value: 412 },
-      { name: 'Qualificando', value: 412 },
-      { name: 'Qualificado', value: 234 },
-      { name: 'Perdido', value: 311 }
+      { name: t('leadStatus.new'), value: 847 },
+      { name: t('leadStatus.contacted'), value: 631 },
+      { name: t('leadStatus.inConversation'), value: 412 },
+      { name: t('leadStatus.qualifying'), value: 412 },
+      { name: t('leadStatus.qualified'), value: 234 },
+      { name: t('leadStatus.lost'), value: 311 }
     ],
 
     // Lead profile - Seniority
     leadBySeniority: [
-      { name: 'C-Level', value: 456 },
-      { name: 'VP/Director', value: 892 },
-      { name: 'Manager', value: 1024 },
-      { name: 'Specialist', value: 475 }
+      { name: t('seniority.cLevel'), value: 456 },
+      { name: t('seniority.vpDirector'), value: 892 },
+      { name: t('seniority.manager'), value: 1024 },
+      { name: t('seniority.specialist'), value: 475 }
     ],
 
     // Lead profile - Industry
     leadByIndustry: [
-      { name: 'Technology', value: 1248 },
-      { name: 'Healthcare', value: 782 },
-      { name: 'Finance', value: 654 },
-      { name: 'E-commerce', value: 523 },
-      { name: 'Manufacturing', value: 412 },
-      { name: 'Others', value: 228 }
+      { name: t('industries.technology'), value: 1248 },
+      { name: t('industries.healthcare'), value: 782 },
+      { name: t('industries.finance'), value: 654 },
+      { name: t('industries.ecommerce'), value: 523 },
+      { name: t('industries.manufacturing'), value: 412 },
+      { name: t('industries.others'), value: 228 }
     ],
 
     // Conversation metrics
@@ -150,11 +150,11 @@ const Dashboard = () => {
 
     // Most engaged leads
     mostEngagedLeads: [
-      { name: 'Carlos Mendes', value: 24, subtitle: 'Tech Leader • Respondeu 12x' },
-      { name: 'Ana Silva', value: 21, subtitle: 'Healthcare Director • Respondeu 10x' },
-      { name: 'Roberto Santos', value: 18, subtitle: 'Finance VP • Respondeu 9x' },
-      { name: 'Marina Costa', value: 16, subtitle: 'E-commerce Manager • Respondeu 8x' },
-      { name: 'Felipe Rodrigues', value: 14, subtitle: 'SaaS Founder • Respondeu 7x' }
+      { name: 'Carlos Mendes', value: 24, subtitle: `Tech Leader • ${t('mockData.responded', { count: 12 })}` },
+      { name: 'Ana Silva', value: 21, subtitle: `Healthcare Director • ${t('mockData.responded', { count: 10 })}` },
+      { name: 'Roberto Santos', value: 18, subtitle: `Finance VP • ${t('mockData.responded', { count: 9 })}` },
+      { name: 'Marina Costa', value: 16, subtitle: `E-commerce Manager • ${t('mockData.responded', { count: 8 })}` },
+      { name: 'Felipe Rodrigues', value: 14, subtitle: `SaaS Founder • ${t('mockData.responded', { count: 7 })}` }
     ],
 
     // Response time distribution

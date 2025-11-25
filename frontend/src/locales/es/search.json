@@ -52,7 +52,16 @@
     "saved": "{{count}} perfil(es) guardado(s) con éxito",
     "addedToCampaign": "{{count}} perfil(es) agregado(s) a la campaña",
     "errorSaving": "Error al guardar perfiles",
-    "searchSaved": "Búsqueda guardada con éxito"
+    "searchSaved": "Búsqueda guardada con éxito",
+    "selectLinkedInAccount": "Por favor, seleccione una cuenta de LinkedIn",
+    "errorSearching": "Error al buscar perfiles: {{error}}",
+    "errorLoadingMore": "Error al cargar más resultados: {{error}}",
+    "enterCampaignName": "Por favor, ingrese un nombre para la campaña",
+    "campaignCreatedSuccess": "¡Campaña creada con éxito!",
+    "errorCreatingCampaign": "Error al crear campaña: {{error}}",
+    "selectCampaignError": "Por favor, seleccione una campaña",
+    "bulkCollectionStarted": "¡Recopilación masiva iniciada! Recibirá una notificación cuando se complete.",
+    "errorStartingCollection": "Error al iniciar recopilación: {{error}}"
   },
   "bulkCollection": {
     "title": "Recopilación Masiva",

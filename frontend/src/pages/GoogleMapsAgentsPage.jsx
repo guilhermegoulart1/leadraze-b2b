@@ -1,11 +1,13 @@
 // frontend/src/pages/GoogleMapsAgentsPage.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bot, Plus, Loader2, AlertCircle } from 'lucide-react';
 import apiService from '../services/api';
 import GoogleMapsAgentCard from '../components/GoogleMapsAgentCard';
 import GoogleMapsAgentForm from '../components/GoogleMapsAgentForm';
 
 const GoogleMapsAgentsPage = () => {
+  const { t } = useTranslation(['googlemaps', 'common']);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -61,11 +63,11 @@ const GoogleMapsAgentsPage = () => {
 
         setAgents(agentsWithStatus);
       } else {
-        setError(response.message || 'Erro ao carregar campanhas');
+        setError(response.message || t('agents.errorLoading'));
       }
     } catch (error) {
       console.error('❌ Erro ao carregar campanhas:', error);
-      setError('Erro ao carregar campanhas. Tente novamente.');
+      setError(t('agents.errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -107,7 +109,7 @@ const GoogleMapsAgentsPage = () => {
       loadAgents();
     } catch (error) {
       console.error('❌ Erro ao pausar campanha:', error);
-      alert('Erro ao pausar campanha');
+      alert(t('agents.errorPause'));
     }
   };
 
@@ -117,12 +119,12 @@ const GoogleMapsAgentsPage = () => {
       loadAgents();
     } catch (error) {
       console.error('❌ Erro ao retomar campanha:', error);
-      alert('Erro ao retomar campanha');
+      alert(t('agents.errorResume'));
     }
   };
 
   const handleDeleteAgent = async (agentId) => {
-    if (!confirm('Tem certeza que deseja deletar esta campanha?')) {
+    if (!confirm(t('agents.confirmDelete'))) {
       return;
     }
 
@@ -131,7 +133,7 @@ const GoogleMapsAgentsPage = () => {
       loadAgents();
     } catch (error) {
       console.error('❌ Erro ao deletar campanha:', error);
-      alert('Erro ao deletar campanha');
+      alert(t('agents.errorDelete'));
     }
   };
 
@@ -147,7 +149,7 @@ const GoogleMapsAgentsPage = () => {
       loadAgents();
     } catch (error) {
       console.error('❌ Erro ao executar campanha:', error);
-      alert('Erro ao executar campanha');
+      alert(t('agents.errorExecute'));
 
       // Remove from executing list if failed
       setExecutingAgents(prev => {
@@ -170,10 +172,10 @@ const GoogleMapsAgentsPage = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Campanhas Google Maps
+                  {t('agents.title')}
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Automatize a coleta de leads do Google Maps
+                  {t('agents.subtitle')}
                 </p>
               </div>
             </div>
@@ -183,7 +185,7 @@ const GoogleMapsAgentsPage = () => {
               className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
             >
               <Plus className="w-5 h-5" />
-              <span>Criar Campanha</span>
+              <span>{t('agents.createCampaign')}</span>
             </button>
           </div>
         </div>
@@ -198,7 +200,7 @@ const GoogleMapsAgentsPage = () => {
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
               <div>
                 <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
-                  Erro
+                  {t('agents.errorTitle')}
                 </h3>
                 <p className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</p>
               </div>
@@ -211,7 +213,7 @@ const GoogleMapsAgentsPage = () => {
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center space-y-4">
               <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
-              <p className="text-gray-600 dark:text-gray-400">Carregando campanhas...</p>
+              <p className="text-gray-600 dark:text-gray-400">{t('agents.loading')}</p>
             </div>
           </div>
         )}
@@ -238,17 +240,17 @@ const GoogleMapsAgentsPage = () => {
             <div className="text-center">
               <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                Nenhuma campanha criada
+                {t('agents.noCampaignsTitle')}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Crie sua primeira campanha para começar a coletar leads automaticamente
+                {t('agents.noCampaignsSubtitle')}
               </p>
               <button
                 onClick={() => setShowCreateForm(true)}
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                <span>Criar Primeira Campanha</span>
+                <span>{t('agents.createFirstCampaign')}</span>
               </button>
             </div>
           </div>

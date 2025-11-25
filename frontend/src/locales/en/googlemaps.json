@@ -1,0 +1,39 @@
+{
+  "search": {
+    "title": "Google Maps Search",
+    "subtitle": "Find establishments using Outscraper",
+    "creditsAvailable": "Credits available",
+    "loading": "Loading...",
+    "searching": "Searching establishments...",
+    "searchingSubtitle": "This may take a few seconds",
+    "readyTitle": "Ready to search",
+    "readySubtitle": "Configure the filters in the sidebar and click 'Search' to start",
+    "noResultsTitle": "No results found",
+    "noResultsSubtitle": "Try adjusting the filters or using different keywords",
+    "resultsFound": "establishments found",
+    "exportCSV": "Export CSV",
+    "errorTitle": "Search error",
+    "validationLocation": "Please enter the location",
+    "validationQuery": "Please enter the niche/category",
+    "errorMessage": "Error executing search. Check your connection and try again.",
+    "errorExecuting": "Error executing search",
+    "noResults": "No results to export",
+    "exportError": "Error exporting CSV. Try again."
+  },
+  "agents": {
+    "title": "Google Maps Campaigns",
+    "subtitle": "Automate Google Maps lead collection",
+    "createCampaign": "Create Campaign",
+    "noCampaignsTitle": "No campaigns created",
+    "noCampaignsSubtitle": "Create your first campaign to start collecting leads automatically",
+    "createFirstCampaign": "Create First Campaign",
+    "loading": "Loading campaigns...",
+    "errorTitle": "Error",
+    "errorLoading": "Error loading campaigns",
+    "confirmDelete": "Are you sure you want to delete this campaign?",
+    "errorDelete": "Error deleting campaign",
+    "errorPause": "Error pausing campaign",
+    "errorResume": "Error resuming campaign",
+    "errorExecute": "Error executing campaign"
+  }
+}

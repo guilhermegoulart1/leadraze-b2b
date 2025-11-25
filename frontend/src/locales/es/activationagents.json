@@ -1,0 +1,29 @@
+{
+  "title": "Agentes de Activación",
+  "subtitle": "Configure agentes de IA para activar sus contactos vía Correo, WhatsApp o LinkedIn",
+  "newAgent": "Nuevo Agente",
+  "createAgent": "Crear Agente",
+  "createFirstAgent": "Crear Primer Agente",
+  "empty": {
+    "title": "Ningún agente configurado",
+    "subtitle": "Cree su primer agente de activación para comenzar a automatizar sus campañas",
+    "button": "Crear Primer Agente"
+  },
+  "card": {
+    "tone": "Tono",
+    "campaigns": "campañas",
+    "active": "activas",
+    "delete": "Eliminar"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo"
+  },
+  "loading": "Cargando agentes...",
+  "confirmDelete": "¿Está seguro de que desea eliminar este agente?",
+  "errors": {
+    "loadFailed": "Error al cargar agentes",
+    "createFailed": "Error al crear agente",
+    "deleteFailed": "Error al eliminar agente"
+  }
+}

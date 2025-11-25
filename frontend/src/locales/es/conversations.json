@@ -6,10 +6,16 @@
   "archived": "Archivadas",
   "filters": {
     "all": "Todas",
+    "mine": "Mis Conversaciones",
+    "unassigned": "Sin Asignar",
+    "closed": "Cerradas",
     "unread": "No Leídas",
     "starred": "Favoritas",
     "archived": "Archivadas",
-    "channel": "Canal"
+    "channel": "Canal",
+    "showAdvanced": "Mostrar Filtros Avanzados",
+    "hideAdvanced": "Ocultar Filtros Avanzados",
+    "clearAll": "Limpiar Todos los Filtros"
   },
   "channels": {
     "whatsapp": "WhatsApp",
@@ -35,16 +41,49 @@
     "star": "Marcar como favorita",
     "unstar": "Quitar de favoritas",
     "delete": "Eliminar",
+    "close": "Cerrar",
+    "reopen": "Reabrir",
     "viewContact": "Ver Contacto",
     "assignTo": "Asignar a",
     "addNote": "Agregar nota"
+  },
+  "statusLabels": {
+    "open": "Abiertas",
+    "ai_active": "IA Activa",
+    "manual": "Manual",
+    "closed": "Cerradas"
+  },
+  "modeLabels": {
+    "all": "Todos",
+    "ai": "IA",
+    "manual": "Manual"
+  },
+  "periodLabels": {
+    "all": "Todo el Período",
+    "today": "Hoy",
+    "last_7_days": "Últimos 7 Días",
+    "last_30_days": "Últimos 30 Días",
+    "this_month": "Este Mes",
+    "last_month": "Mes Pasado"
+  },
+  "activeFilters": {
+    "status": "Estado",
+    "mode": "Modo",
+    "campaign": "Campaña",
+    "tags": "Etiquetas",
+    "period": "Período"
   },
   "messages": {
     "sent": "Mensaje enviado",
     "deleted": "Mensaje eliminado",
     "archived": "Conversación archivada",
     "unarchived": "Conversación desarchivada",
-    "confirmDelete": "¿Está seguro de que desea eliminar este mensaje?",
+    "confirmDelete": "¿Está seguro de que desea eliminar esta conversación?",
+    "deleteError": "Error al eliminar conversación",
+    "closeError": "Error al cerrar conversación",
+    "reopenError": "Error al reabrir conversación",
+    "loadError": "Error al cargar conversaciones",
+    "statsError": "Error al cargar estadísticas",
     "noConversations": "Aún no hay conversaciones",
     "startFirst": "Inicie una conversación con sus contactos"
   },

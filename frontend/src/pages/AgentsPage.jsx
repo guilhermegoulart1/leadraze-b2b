@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, Filter, BookOpen, Zap } from 'lucide-react';
 import api from '../services/api';
 import UnifiedAgentWizard from '../components/UnifiedAgentWizard';
@@ -6,6 +7,7 @@ import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
 
 const AgentsPage = () => {
+  const { t } = useTranslation(['agents', 'common']);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -26,7 +28,7 @@ const AgentsPage = () => {
         setAgents(response.data.agents || []);
       }
     } catch (error) {
-      console.error('Erro ao carregar agentes:', error);
+      console.error(t('errors.loadFailed'), error);
     } finally {
       setLoading(false);
     }
@@ -49,13 +51,14 @@ const AgentsPage = () => {
         setSelectedAgent(null);
       }
     } catch (error) {
-      console.error(`Erro ao ${selectedAgent ? 'atualizar' : 'criar'} agente:`, error);
+      const errorKey = selectedAgent ? 'errors.updateFailed' : 'errors.createFailed';
+      console.error(t(errorKey), error);
       throw error;
     }
   };
 
   const handleDeleteAgent = async (agentId) => {
-    if (!confirm('Tem certeza que deseja excluir este agente?')) {
+    if (!confirm(t('confirmDelete'))) {
       return;
     }
 
@@ -65,8 +68,8 @@ const AgentsPage = () => {
         await loadAgents();
       }
     } catch (error) {
-      console.error('Erro ao deletar agente:', error);
-      alert(error.message || 'Erro ao deletar agente');
+      console.error(t('errors.deleteFailed'), error);
+      alert(error.message || t('errors.deleteFailed'));
     }
   };
 
@@ -121,9 +124,9 @@ const AgentsPage = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Agentes de IA</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
             <p className="text-gray-600 mt-1">
-              Gerencie todos os seus agentes inteligentes em um único lugar
+              {t('subtitle')}
             </p>
           </div>
           <button
@@ -131,7 +134,7 @@ const AgentsPage = () => {
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Novo Agente
+            {t('newAgent')}
           </button>
         </div>
       </div>
@@ -148,13 +151,13 @@ const AgentsPage = () => {
             }`}
           >
             <Filter className="w-4 h-4" />
-            Todos ({stats.total})
+            {t('filters.all')} ({stats.total})
           </button>
 
           {[
-            { type: 'linkedin', label: 'LinkedIn', icon: Linkedin, count: stats.linkedin },
-            { type: 'email', label: 'Email', icon: Mail, count: stats.email },
-            { type: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, count: stats.whatsapp }
+            { type: 'linkedin', label: t('filters.linkedin'), icon: Linkedin, count: stats.linkedin },
+            { type: 'email', label: t('filters.email'), icon: Mail, count: stats.email },
+            { type: 'whatsapp', label: t('filters.whatsapp'), icon: MessageCircle, count: stats.whatsapp }
           ].map(({ type, label, icon: Icon, count }) => (
             <button
               key={type}
@@ -177,19 +180,19 @@ const AgentsPage = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando agentes...</p>
+            <p className="mt-4 text-gray-600">{t('loading')}</p>
           </div>
         </div>
       ) : filteredAgents.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {filterType === 'all' ? 'Nenhum agente criado' : `Nenhum agente ${getTypeLabel(filterType)}`}
+            {filterType === 'all' ? t('empty.title') : t('empty.titleFiltered', { type: getTypeLabel(filterType) })}
           </h3>
           <p className="text-gray-600 mb-6">
             {filterType === 'all'
-              ? 'Crie seu primeiro agente de IA para começar a automatizar seus processos'
-              : `Crie um agente ${getTypeLabel(filterType)} para começar`
+              ? t('empty.subtitle')
+              : t('empty.subtitleFiltered', { type: getTypeLabel(filterType) })
             }
           </p>
           <button
@@ -197,7 +200,7 @@ const AgentsPage = () => {
             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             <Plus className="w-4 h-4" />
-            Criar Agente
+            {t('createAgent')}
           </button>
         </div>
       ) : (
@@ -206,19 +209,19 @@ const AgentsPage = () => {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Agente
+                  {t('table.agent')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
+                  {t('table.type')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('table.status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Interações
+                  {t('table.interactions')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
+                  {t('table.actions')}
                 </th>
               </tr>
             </thead>
@@ -264,7 +267,7 @@ const AgentsPage = () => {
                           ? 'bg-green-100 text-green-700'
                           : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {agent.is_active ? 'Ativo' : 'Inativo'}
+                        {agent.is_active ? t('status.active') : t('status.inactive')}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -275,14 +278,14 @@ const AgentsPage = () => {
                         <button
                           onClick={() => setKnowledgeBaseAgent(agent)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Base de Conhecimento"
+                          title={t('actions.knowledgeBase')}
                         >
                           <BookOpen className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleTestAgent(agent)}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Testar Agente"
+                          title={t('actions.testAgent')}
                         >
                           <Zap className="w-4 h-4" />
                         </button>
@@ -292,14 +295,14 @@ const AgentsPage = () => {
                             setShowWizard(true);
                           }}
                           className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="Editar Agente"
+                          title={t('actions.editAgent')}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteAgent(agent.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Excluir Agente"
+                          title={t('actions.deleteAgent')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

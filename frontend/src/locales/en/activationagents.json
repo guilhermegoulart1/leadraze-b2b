@@ -1,0 +1,29 @@
+{
+  "title": "Activation Agents",
+  "subtitle": "Configure AI agents to activate your contacts via Email, WhatsApp or LinkedIn",
+  "newAgent": "New Agent",
+  "createAgent": "Create Agent",
+  "createFirstAgent": "Create First Agent",
+  "empty": {
+    "title": "No agents configured",
+    "subtitle": "Create your first activation agent to start automating your campaigns",
+    "button": "Create First Agent"
+  },
+  "card": {
+    "tone": "Tone",
+    "campaigns": "campaigns",
+    "active": "active",
+    "delete": "Delete"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "loading": "Loading agents...",
+  "confirmDelete": "Are you sure you want to delete this agent?",
+  "errors": {
+    "loadFailed": "Error loading agents",
+    "createFailed": "Error creating agent",
+    "deleteFailed": "Error deleting agent"
+  }
+}

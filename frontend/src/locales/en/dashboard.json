@@ -75,5 +75,31 @@
     "newCampaign": "New Campaign",
     "importLeads": "Import Leads",
     "viewReports": "View Reports"
+  },
+  "leadStatus": {
+    "new": "New",
+    "contacted": "Contacted",
+    "inConversation": "In Conversation",
+    "qualifying": "Qualifying",
+    "qualified": "Qualified",
+    "lost": "Lost"
+  },
+  "seniority": {
+    "cLevel": "C-Level",
+    "vpDirector": "VP/Director",
+    "manager": "Manager",
+    "specialist": "Specialist"
+  },
+  "industries": {
+    "technology": "Technology",
+    "healthcare": "Healthcare",
+    "finance": "Finance",
+    "ecommerce": "E-commerce",
+    "manufacturing": "Manufacturing",
+    "others": "Others"
+  },
+  "mockData": {
+    "leadsConversion": "{{leads}} leads • {{rate}}% conversion",
+    "responded": "Responded {{count}}x"
   }
 }

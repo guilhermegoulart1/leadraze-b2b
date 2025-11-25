@@ -52,7 +52,16 @@
     "saved": "{{count}} profile(s) saved successfully",
     "addedToCampaign": "{{count}} profile(s) added to campaign",
     "errorSaving": "Error saving profiles",
-    "searchSaved": "Search saved successfully"
+    "searchSaved": "Search saved successfully",
+    "selectLinkedInAccount": "Please select a LinkedIn account",
+    "errorSearching": "Error searching profiles: {{error}}",
+    "errorLoadingMore": "Error loading more results: {{error}}",
+    "enterCampaignName": "Please enter a campaign name",
+    "campaignCreatedSuccess": "Campaign created successfully!",
+    "errorCreatingCampaign": "Error creating campaign: {{error}}",
+    "selectCampaignError": "Please select a campaign",
+    "bulkCollectionStarted": "Bulk collection started! You will receive a notification when it's completed.",
+    "errorStartingCollection": "Error starting collection: {{error}}"
   },
   "bulkCollection": {
     "title": "Bulk Collection",

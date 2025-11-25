@@ -52,7 +52,16 @@
     "saved": "{{count}} perfil(is) salvo(s) com sucesso",
     "addedToCampaign": "{{count}} perfil(is) adicionado(s) à campanha",
     "errorSaving": "Erro ao salvar perfis",
-    "searchSaved": "Busca salva com sucesso"
+    "searchSaved": "Busca salva com sucesso",
+    "selectLinkedInAccount": "Por favor, selecione uma conta LinkedIn",
+    "errorSearching": "Erro ao buscar perfis: {{error}}",
+    "errorLoadingMore": "Erro ao carregar mais resultados: {{error}}",
+    "enterCampaignName": "Por favor, digite um nome para a campanha",
+    "campaignCreatedSuccess": "Campanha criada com sucesso!",
+    "errorCreatingCampaign": "Erro ao criar campanha: {{error}}",
+    "selectCampaignError": "Por favor, selecione uma campanha",
+    "bulkCollectionStarted": "Coleta em lote iniciada! Você receberá uma notificação quando concluir.",
+    "errorStartingCollection": "Erro ao iniciar coleta: {{error}}"
   },
   "bulkCollection": {
     "title": "Coleta em Lote",

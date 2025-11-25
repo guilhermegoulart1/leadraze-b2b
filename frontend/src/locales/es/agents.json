@@ -1,0 +1,44 @@
+{
+  "title": "Agentes de IA",
+  "subtitle": "Gestione todos sus agentes inteligentes en un solo lugar",
+  "newAgent": "Nuevo Agente",
+  "createAgent": "Crear Agente",
+  "filters": {
+    "all": "Todos",
+    "linkedin": "LinkedIn",
+    "email": "Correo",
+    "whatsapp": "WhatsApp"
+  },
+  "table": {
+    "agent": "Agente",
+    "type": "Tipo",
+    "status": "Estado",
+    "interactions": "Interacciones",
+    "actions": "Acciones"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo"
+  },
+  "actions": {
+    "knowledgeBase": "Base de Conocimiento",
+    "testAgent": "Probar Agente",
+    "editAgent": "Editar Agente",
+    "deleteAgent": "Eliminar Agente"
+  },
+  "empty": {
+    "title": "Ningún agente creado",
+    "titleFiltered": "Ningún agente {{type}}",
+    "subtitle": "Cree su primer agente de IA para comenzar a automatizar sus procesos",
+    "subtitleFiltered": "Cree un agente {{type}} para comenzar",
+    "button": "Crear Agente"
+  },
+  "loading": "Cargando agentes...",
+  "confirmDelete": "¿Está seguro de que desea eliminar este agente?",
+  "errors": {
+    "loadFailed": "Error al cargar agentes",
+    "createFailed": "Error al crear agente",
+    "updateFailed": "Error al actualizar agente",
+    "deleteFailed": "Error al eliminar agente"
+  }
+}

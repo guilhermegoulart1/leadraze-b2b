@@ -1,11 +1,13 @@
 // frontend/src/pages/GoogleMapsSearchPage.jsx
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import apiService from '../services/api';
 import GoogleMapsSearchSidebar from '../components/GoogleMapsSearchSidebar';
 import GoogleMapsResults from '../components/GoogleMapsResults';
 import { MapPin, Download, AlertCircle, Loader2 } from 'lucide-react';
 
 const GoogleMapsSearchPage = () => {
+  const { t } = useTranslation(['googlemaps', 'common']);
   // Estados de busca
   const [searchFilters, setSearchFilters] = useState({
     country: 'Brazil',
@@ -52,12 +54,12 @@ const GoogleMapsSearchPage = () => {
   const handleSearch = async () => {
     // Validação
     if (!searchFilters.location.trim()) {
-      setError('Por favor, informe a localização');
+      setError(t('search.validationLocation'));
       return;
     }
 
     if (!searchFilters.query.trim()) {
-      setError('Por favor, informe o nicho/categoria');
+      setError(t('search.validationQuery'));
       return;
     }
 
@@ -78,12 +80,12 @@ const GoogleMapsSearchPage = () => {
         // Atualizar créditos após busca
         loadAccountInfo();
       } else {
-        setError(response.message || 'Erro ao executar busca');
+        setError(response.message || t('search.errorExecuting'));
       }
 
     } catch (error) {
       console.error('❌ Erro na busca:', error);
-      setError(error.message || 'Erro ao executar busca. Verifique sua conexão e tente novamente.');
+      setError(error.message || t('search.errorMessage'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ const GoogleMapsSearchPage = () => {
   // Exportar para CSV
   const handleExportCSV = async () => {
     if (searchResults.length === 0) {
-      alert('Não há resultados para exportar');
+      alert(t('search.noResults'));
       return;
     }
 
@@ -120,7 +122,7 @@ const GoogleMapsSearchPage = () => {
 
     } catch (error) {
       console.error('❌ Erro ao exportar CSV:', error);
-      alert('Erro ao exportar CSV. Tente novamente.');
+      alert(t('search.exportError', 'Error exporting CSV. Try again.'));
     }
   };
 
@@ -143,10 +145,10 @@ const GoogleMapsSearchPage = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Busca Google Maps
+                  {t('search.title')}
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Encontre estabelecimentos usando Outscraper
+                  {t('search.subtitle')}
                 </p>
               </div>
             </div>
@@ -155,7 +157,7 @@ const GoogleMapsSearchPage = () => {
             {credits !== null && (
               <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-lg">
                 <span className="text-sm text-gray-600 dark:text-gray-300">
-                  Créditos disponíveis:
+                  {t('search.creditsAvailable')}:
                 </span>
                 <span className="text-lg font-bold text-green-600 dark:text-green-400">
                   {credits.toLocaleString()}
@@ -166,7 +168,7 @@ const GoogleMapsSearchPage = () => {
             {loadingCredits && (
               <div className="flex items-center space-x-2 text-gray-500">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Carregando...</span>
+                <span className="text-sm">{t('search.loading')}</span>
               </div>
             )}
           </div>
@@ -195,7 +197,7 @@ const GoogleMapsSearchPage = () => {
                   <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
                   <div className="flex-1">
                     <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
-                      Erro na busca
+                      {t('search.errorTitle')}
                     </h3>
                     <p className="mt-1 text-sm text-red-700 dark:text-red-400">
                       {error}
@@ -212,10 +214,10 @@ const GoogleMapsSearchPage = () => {
                   <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
                   <div className="text-center">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      Buscando estabelecimentos...
+                      {t('search.searching')}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Isso pode levar alguns segundos
+                      {t('search.searchingSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -232,7 +234,7 @@ const GoogleMapsSearchPage = () => {
                       <span className="font-semibold text-gray-900 dark:text-white">
                         {searchResults.length}
                       </span>{' '}
-                      estabelecimentos encontrados
+                      {t('search.resultsFound')}
                     </div>
 
                     <button
@@ -240,7 +242,7 @@ const GoogleMapsSearchPage = () => {
                       className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                     >
                       <Download className="w-4 h-4" />
-                      <span>Exportar CSV</span>
+                      <span>{t('search.exportCSV')}</span>
                     </button>
                   </div>
                 )}
@@ -254,10 +256,10 @@ const GoogleMapsSearchPage = () => {
                     <div className="text-center">
                       <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                        Nenhum resultado encontrado
+                        {t('search.noResultsTitle')}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Tente ajustar os filtros ou usar palavras-chave diferentes
+                        {t('search.noResultsSubtitle')}
                       </p>
                     </div>
                   </div>
@@ -271,10 +273,10 @@ const GoogleMapsSearchPage = () => {
                 <div className="text-center">
                   <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    Pronto para buscar
+                    {t('search.readyTitle')}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Configure os filtros na barra lateral e clique em "Buscar" para começar
+                    {t('search.readySubtitle')}
                   </p>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 // frontend/src/pages/ConversationsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import ConversationSidebar from '../components/ConversationSidebar';
@@ -8,6 +9,7 @@ import ChatArea from '../components/ChatArea';
 import DetailsPanel from '../components/DetailsPanel';
 
 const ConversationsPage = () => {
+  const { t } = useTranslation(['conversations', 'common']);
   const { refreshUnreadCount } = useOutletContext();
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -143,25 +145,19 @@ const ConversationsPage = () => {
 
     // Status filters
     if (advancedFilters.status.length > 0) {
-      const statusLabels = {
-        open: 'Abertas',
-        ai_active: 'IA Ativa',
-        manual: 'Manual',
-        closed: 'Fechadas'
-      };
-      const statusNames = advancedFilters.status.map(s => statusLabels[s] || s).join(', ');
+      const statusNames = advancedFilters.status.map(s => t(`statusLabels.${s}`, s)).join(', ');
       filters.push({
         key: 'status',
-        label: `Status: ${statusNames}`
+        label: `${t('activeFilters.status')}: ${statusNames}`
       });
     }
 
     // Mode filter
     if (advancedFilters.mode !== 'all') {
-      const modeLabel = advancedFilters.mode === 'ai' ? 'IA' : 'Manual';
+      const modeLabel = t(`modeLabels.${advancedFilters.mode}`);
       filters.push({
         key: 'mode',
-        label: `Modo: ${modeLabel}`
+        label: `${t('activeFilters.mode')}: ${modeLabel}`
       });
     }
 
@@ -171,7 +167,7 @@ const ConversationsPage = () => {
       if (campaign) {
         filters.push({
           key: 'campaigns',
-          label: `Campanha: ${campaign.name}`
+          label: `${t('activeFilters.campaign')}: ${campaign.name}`
         });
       }
     }
@@ -182,22 +178,15 @@ const ConversationsPage = () => {
       const tagNames = selectedTags.map(t => t.name).join(', ');
       filters.push({
         key: 'tags',
-        label: `Tags: ${tagNames}`
+        label: `${t('activeFilters.tags')}: ${tagNames}`
       });
     }
 
     // Period filter
     if (advancedFilters.period !== 'all') {
-      const periodLabels = {
-        today: 'Hoje',
-        last_7_days: 'Últimos 7 dias',
-        last_30_days: 'Últimos 30 dias',
-        this_month: 'Este mês',
-        last_month: 'Mês passado'
-      };
       filters.push({
         key: 'period',
-        label: `Período: ${periodLabels[advancedFilters.period]}`
+        label: `${t('activeFilters.period')}: ${t(`periodLabels.${advancedFilters.period}`)}`
       });
     }
 
@@ -240,7 +229,7 @@ const ConversationsPage = () => {
   };
 
   const handleDeleteConversation = async (conversationId) => {
-    if (!confirm('Tem certeza que deseja excluir esta conversa?')) {
+    if (!confirm(t('messages.confirmDelete'))) {
       return;
     }
 
@@ -255,7 +244,7 @@ const ConversationsPage = () => {
       loadConversations();
       loadStats();
     } catch (error) {
-      console.error('Erro ao excluir conversa:', error);
+      console.error(t('messages.deleteError'), error);
     }
   };
 
@@ -306,7 +295,7 @@ const ConversationsPage = () => {
       loadConversations();
       loadStats();
     } catch (error) {
-      console.error('Erro ao fechar conversa:', error);
+      console.error(t('messages.closeError'), error);
     }
   };
 
@@ -318,7 +307,7 @@ const ConversationsPage = () => {
       loadConversations();
       loadStats();
     } catch (error) {
-      console.error('Erro ao reabrir conversa:', error);
+      console.error(t('messages.reopenError'), error);
     }
   };
 

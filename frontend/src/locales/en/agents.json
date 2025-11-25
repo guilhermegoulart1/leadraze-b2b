@@ -1,0 +1,44 @@
+{
+  "title": "AI Agents",
+  "subtitle": "Manage all your intelligent agents in one place",
+  "newAgent": "New Agent",
+  "createAgent": "Create Agent",
+  "filters": {
+    "all": "All",
+    "linkedin": "LinkedIn",
+    "email": "Email",
+    "whatsapp": "WhatsApp"
+  },
+  "table": {
+    "agent": "Agent",
+    "type": "Type",
+    "status": "Status",
+    "interactions": "Interactions",
+    "actions": "Actions"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "actions": {
+    "knowledgeBase": "Knowledge Base",
+    "testAgent": "Test Agent",
+    "editAgent": "Edit Agent",
+    "deleteAgent": "Delete Agent"
+  },
+  "empty": {
+    "title": "No agents created",
+    "titleFiltered": "No {{type}} agents",
+    "subtitle": "Create your first AI agent to start automating your processes",
+    "subtitleFiltered": "Create a {{type}} agent to get started",
+    "button": "Create Agent"
+  },
+  "loading": "Loading agents...",
+  "confirmDelete": "Are you sure you want to delete this agent?",
+  "errors": {
+    "loadFailed": "Error loading agents",
+    "createFailed": "Error creating agent",
+    "updateFailed": "Error updating agent",
+    "deleteFailed": "Error deleting agent"
+  }
+}

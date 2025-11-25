@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, PlayCircle } from 'lucide-react';
 import api from '../services/api';
 import ActivationAgentWizard from '../components/ActivationAgentWizard';
 
 const ActivationAgentsPage = () => {
+  const { t } = useTranslation(['activationagents', 'common']);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -21,7 +23,7 @@ const ActivationAgentsPage = () => {
         setAgents(response.data.agents || []);
       }
     } catch (error) {
-      console.error('Erro ao carregar agentes:', error);
+      console.error(t('errors.loadFailed'), error);
     } finally {
       setLoading(false);
     }
@@ -35,13 +37,13 @@ const ActivationAgentsPage = () => {
         setShowWizard(false);
       }
     } catch (error) {
-      console.error('Erro ao criar agente:', error);
+      console.error(t('errors.createFailed'), error);
       throw error;
     }
   };
 
   const handleDeleteAgent = async (agentId) => {
-    if (!confirm('Tem certeza que deseja excluir este agente?')) {
+    if (!confirm(t('confirmDelete'))) {
       return;
     }
 
@@ -51,8 +53,8 @@ const ActivationAgentsPage = () => {
         await loadAgents();
       }
     } catch (error) {
-      console.error('Erro ao deletar agente:', error);
-      alert(error.message || 'Erro ao deletar agente');
+      console.error(t('errors.deleteFailed'), error);
+      alert(error.message || t('errors.deleteFailed'));
     }
   };
 
@@ -89,9 +91,9 @@ const ActivationAgentsPage = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Agentes de Ativação</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
             <p className="text-gray-600 mt-1">
-              Configure agentes de IA para ativar seus contatos via Email, WhatsApp ou LinkedIn
+              {t('subtitle')}
             </p>
           </div>
           <button
@@ -99,7 +101,7 @@ const ActivationAgentsPage = () => {
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Novo Agente
+            {t('newAgent')}
           </button>
         </div>
       </div>
@@ -109,24 +111,24 @@ const ActivationAgentsPage = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando agentes...</p>
+            <p className="mt-4 text-gray-600">{t('loading')}</p>
           </div>
         </div>
       ) : agents.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <Bot className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Nenhum agente configurado
+            {t('empty.title')}
           </h3>
           <p className="text-gray-600 mb-6">
-            Crie seu primeiro agente de ativação para começar a automatizar suas campanhas
+            {t('empty.subtitle')}
           </p>
           <button
             onClick={() => setShowWizard(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             <Plus className="w-4 h-4" />
-            Criar Primeiro Agente
+            {t('empty.button')}
           </button>
         </div>
       ) : (
@@ -153,7 +155,7 @@ const ActivationAgentsPage = () => {
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-700'
                 }`}>
-                  {agent.is_active ? 'Ativo' : 'Inativo'}
+                  {agent.is_active ? t('status.active') : t('status.inactive')}
                 </div>
               </div>
 
@@ -164,16 +166,16 @@ const ActivationAgentsPage = () => {
               )}
 
               <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                <span className="font-medium">Tom:</span>
+                <span className="font-medium">{t('card.tone')}:</span>
                 <span className="capitalize">{agent.tone || 'Professional'}</span>
               </div>
 
               {agent.campaigns_count !== undefined && (
                 <div className="text-sm text-gray-600 mb-4">
-                  <span className="font-medium">{agent.campaigns_count || 0}</span> campanhas
+                  <span className="font-medium">{agent.campaigns_count || 0}</span> {t('card.campaigns')}
                   {agent.active_campaigns_count > 0 && (
                     <span className="text-green-600 ml-2">
-                      ({agent.active_campaigns_count} ativas)
+                      ({agent.active_campaigns_count} {t('card.active')})
                     </span>
                   )}
                 </div>
@@ -185,7 +187,7 @@ const ActivationAgentsPage = () => {
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Excluir
+                  {t('card.delete')}
                 </button>
               </div>
             </div>

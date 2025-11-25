@@ -6,10 +6,16 @@
   "archived": "Arquivadas",
   "filters": {
     "all": "Todas",
+    "mine": "Minhas Conversas",
+    "unassigned": "Não Atribuídas",
+    "closed": "Fechadas",
     "unread": "Não Lidas",
     "starred": "Favoritas",
     "archived": "Arquivadas",
-    "channel": "Canal"
+    "channel": "Canal",
+    "showAdvanced": "Mostrar Filtros Avançados",
+    "hideAdvanced": "Ocultar Filtros Avançados",
+    "clearAll": "Limpar Todos os Filtros"
   },
   "channels": {
     "whatsapp": "WhatsApp",
@@ -35,16 +41,49 @@
     "star": "Favoritar",
     "unstar": "Desfavoritar",
     "delete": "Excluir",
+    "close": "Fechar",
+    "reopen": "Reabrir",
     "viewContact": "Ver Contato",
     "assignTo": "Atribuir a",
     "addNote": "Adicionar nota"
+  },
+  "statusLabels": {
+    "open": "Abertas",
+    "ai_active": "IA Ativa",
+    "manual": "Manual",
+    "closed": "Fechadas"
+  },
+  "modeLabels": {
+    "all": "Todos",
+    "ai": "IA",
+    "manual": "Manual"
+  },
+  "periodLabels": {
+    "all": "Todo o Período",
+    "today": "Hoje",
+    "last_7_days": "Últimos 7 Dias",
+    "last_30_days": "Últimos 30 Dias",
+    "this_month": "Este Mês",
+    "last_month": "Mês Passado"
+  },
+  "activeFilters": {
+    "status": "Status",
+    "mode": "Modo",
+    "campaign": "Campanha",
+    "tags": "Tags",
+    "period": "Período"
   },
   "messages": {
     "sent": "Mensagem enviada",
     "deleted": "Mensagem excluída",
     "archived": "Conversa arquivada",
     "unarchived": "Conversa desarquivada",
-    "confirmDelete": "Tem certeza que deseja excluir esta mensagem?",
+    "confirmDelete": "Tem certeza que deseja excluir esta conversa?",
+    "deleteError": "Erro ao excluir conversa",
+    "closeError": "Erro ao fechar conversa",
+    "reopenError": "Erro ao reabrir conversa",
+    "loadError": "Erro ao carregar conversas",
+    "statsError": "Erro ao carregar estatísticas",
     "noConversations": "Nenhuma conversa ainda",
     "startFirst": "Inicie uma conversa com seus contatos"
   },

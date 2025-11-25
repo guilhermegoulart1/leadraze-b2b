@@ -147,7 +147,7 @@ const SearchPage = () => {
   // Busca normal
   const handleSearch = async () => {
     if (!searchParams.linkedin_account_id) {
-      alert('Selecione uma conta LinkedIn');
+      alert(t('messages.selectLinkedInAccount'));
       return;
     }
 
@@ -199,7 +199,7 @@ const SearchPage = () => {
       }
     } catch (error) {
       console.error('❌ Erro na busca:', error);
-      alert(`Erro ao buscar perfis: ${error.message}`);
+      alert(t('messages.errorSearching', { error: error.message }));
     } finally {
       setLoading(false);
     }
@@ -257,7 +257,7 @@ const SearchPage = () => {
       }
     } catch (error) {
       console.error('❌ Erro no load more:', error);
-      alert(`Erro ao carregar mais resultados: ${error.message}`);
+      alert(t('messages.errorLoadingMore', { error: error.message }));
     } finally {
       setLoadingMore(false);
     }
@@ -266,7 +266,7 @@ const SearchPage = () => {
   // Criar campanha nova
   const handleCreateCampaign = async () => {
     if (!newCampaignName.trim()) {
-      alert('Digite um nome para a campanha');
+      alert(t('messages.enterCampaignName'));
       return;
     }
 
@@ -284,11 +284,11 @@ const SearchPage = () => {
         setSelectedCampaign(newCampaign.id);
         setShowCreateCampaign(false);
         setNewCampaignName('');
-        alert('✅ Campanha criada com sucesso!');
+        alert(t('messages.campaignCreatedSuccess'));
       }
     } catch (error) {
       console.error('❌ Erro ao criar campanha:', error);
-      alert(`Erro ao criar campanha: ${error.message}`);
+      alert(t('messages.errorCreatingCampaign', { error: error.message }));
     } finally {
       setCreatingCampaign(false);
     }
@@ -297,7 +297,7 @@ const SearchPage = () => {
   // Iniciar coleta em lote
   const startBulkCollection = async () => {
     if (!selectedCampaign) {
-      alert('Selecione uma campanha');
+      alert(t('messages.selectCampaignError'));
       return;
     }
 
@@ -327,12 +327,12 @@ const SearchPage = () => {
       const response = await apiService.createBulkCollectionJob(bulkData);
 
       if (response.success) {
-        alert('✅ Coleta em lote iniciada! Você receberá uma notificação quando concluir.');
+        alert(t('messages.bulkCollectionStarted'));
         setShowBulkModal(false);
       }
     } catch (error) {
       console.error('❌ Erro ao iniciar coleta:', error);
-      alert(`Erro ao iniciar coleta: ${error.message}`);
+      alert(t('messages.errorStartingCollection', { error: error.message }));
     }
   };
 

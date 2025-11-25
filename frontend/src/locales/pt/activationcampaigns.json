@@ -1,0 +1,46 @@
+{
+  "title": "Campanhas de Ativação",
+  "subtitle": "Gerencie suas campanhas de ativação automática de contatos",
+  "newCampaign": "Nova Campanha",
+  "createFirstCampaign": "Criar Primeira Campanha",
+  "stats": {
+    "totalCampaigns": "Total de Campanhas",
+    "activeCampaigns": "Campanhas Ativas",
+    "totalContacts": "Total de Contatos",
+    "activated": "Ativados"
+  },
+  "table": {
+    "campaign": "Campanha",
+    "type": "Tipo",
+    "status": "Status",
+    "list": "Lista",
+    "progress": "Progresso",
+    "dailyLimit": "Limite Diário",
+    "actions": "Ações",
+    "contacts": "contatos",
+    "perDay": "/ dia"
+  },
+  "status": {
+    "draft": "Rascunho",
+    "scheduled": "Agendada",
+    "active": "Ativa",
+    "paused": "Pausada",
+    "completed": "Concluída",
+    "stopped": "Parada"
+  },
+  "types": {
+    "email": "Email",
+    "whatsapp": "WhatsApp",
+    "linkedin": "LinkedIn"
+  },
+  "empty": {
+    "title": "Nenhuma campanha criada",
+    "subtitle": "Crie sua primeira campanha de ativação para começar a engajar seus contatos automaticamente",
+    "button": "Criar Primeira Campanha"
+  },
+  "loading": "Carregando campanhas...",
+  "errors": {
+    "loadFailed": "Erro ao carregar campanhas",
+    "createFailed": "Erro ao criar campanha"
+  }
+}
