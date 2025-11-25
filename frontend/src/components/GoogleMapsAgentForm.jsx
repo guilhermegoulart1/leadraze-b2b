@@ -1,5 +1,5 @@
 // frontend/src/components/GoogleMapsAgentForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Bot, MapPin, Search, Star, Phone, Mail, Loader2,
   Database, Send, MessageCircle, DollarSign, ChevronLeft,
@@ -7,22 +7,21 @@ import {
 } from 'lucide-react';
 import LocationMapPicker from './LocationMapPicker';
 import { BUSINESS_CATEGORIES, detectUserLanguage, getTranslatedCategories } from '../data/businessCategories';
+import apiService from '../services/api';
 
 const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
 
-  // Avatar state
-  const [avatarSeed, setAvatarSeed] = useState(Math.floor(Math.random() * 70) + 1);
-  const [avatarUrl, setAvatarUrl] = useState(`https://i.pravatar.cc/200?img=${Math.floor(Math.random() * 70) + 1}`);
-  const [avatarLoading, setAvatarLoading] = useState(true);
-  const [avatarError, setAvatarError] = useState(false);
+  // Agents state
+  const [emailAgents, setEmailAgents] = useState([]);
+  const [whatsappAgents, setWhatsappAgents] = useState([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
-    // Step 1: Avatar + Name
+    // Step 1: Name only
     name: '',
-    avatarUrl: avatarUrl,
 
     // Step 2: Location
     location: null, // { lat, lng, radius, location, city, country }
@@ -38,7 +37,11 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     requireEmail: false,
 
     // Step 5: Actions
-    actionType: 'crm_only'
+    actionType: 'crm_only',
+    activateEmail: false,
+    emailAgentId: null,
+    activateWhatsapp: false,
+    whatsappAgentId: null
   });
 
   const [loading, setLoading] = useState(false);
@@ -46,7 +49,31 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
   // Detect user language for categories
   const userLang = detectUserLanguage();
-  const translatedCategories = getTranslatedCategories(userLang);
+  const translatedCategories = getTranslatedCategories(userLang).sort((a, b) =>
+    a.label.localeCompare(b.label)
+  );
+
+  // Load agents when component mounts
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const loadAgents = async () => {
+    try {
+      setLoadingAgents(true);
+      const response = await apiService.getAgents();
+
+      if (response.success) {
+        const allAgents = response.data.agents || [];
+        setEmailAgents(allAgents.filter(a => a.agent_type === 'email' && a.is_active));
+        setWhatsappAgents(allAgents.filter(a => a.agent_type === 'whatsapp' && a.is_active));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar agentes:', error);
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
 
   // Update field
   const updateField = (field, value) => {
@@ -57,37 +84,12 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     setError(null);
   };
 
-  // Refresh avatar
-  const refreshAvatar = () => {
-    const newSeed = Math.floor(Math.random() * 70) + 1;
-    setAvatarSeed(newSeed);
-    setAvatarLoading(true);
-    setAvatarError(false);
-    const newUrl = `https://i.pravatar.cc/200?img=${newSeed}`;
-    setAvatarUrl(newUrl);
-    updateField('avatarUrl', newUrl);
-  };
-
-  // Handle avatar load
-  const handleAvatarLoad = () => {
-    setAvatarLoading(false);
-    setAvatarError(false);
-  };
-
-  // Handle avatar error
-  const handleAvatarError = (e) => {
-    console.error('Avatar loading error:', e);
-    console.log('Failed URL:', avatarUrl);
-    setAvatarLoading(false);
-    setAvatarError(true);
-  };
-
   // Validation for each step
   const validateStep = (step) => {
     switch (step) {
       case 1:
         if (!formData.name.trim()) {
-          setError('Nome do agente é obrigatório');
+          setError('Nome da campanha é obrigatório');
           return false;
         }
         return true;
@@ -107,8 +109,19 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         return true;
 
       case 4:
-      case 5:
         return true; // No validation needed
+
+      case 5:
+        // Validate activation agents
+        if (formData.activateEmail && !formData.emailAgentId) {
+          setError('Selecione um agente de Email para ativação ou desmarque esta opção');
+          return false;
+        }
+        if (formData.activateWhatsapp && !formData.whatsappAgentId) {
+          setError('Selecione um agente de WhatsApp para ativação ou desmarque esta opção');
+          return false;
+        }
+        return true;
 
       default:
         return true;
@@ -149,7 +162,6 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
       // Prepare payload for API
       const payload = {
         name: formData.name,
-        avatar_url: formData.avatarUrl,
 
         // Location
         searchLocation: formData.location?.location || formData.location?.city || `Lat: ${formData.location?.lat}, Lng: ${formData.location?.lng}`,
@@ -169,8 +181,14 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         requirePhone: formData.requirePhone,
         requireEmail: formData.requireEmail,
 
-        // Action
-        actionType: formData.actionType,
+        // Action (always CRM)
+        actionType: 'crm_only',
+
+        // Activation agents
+        activateEmail: formData.activateEmail,
+        emailAgentId: formData.activateEmail ? formData.emailAgentId : null,
+        activateWhatsapp: formData.activateWhatsapp,
+        whatsappAgentId: formData.activateWhatsapp ? formData.whatsappAgentId : null,
 
         // Fixed params
         dailyLimit: 20
@@ -178,7 +196,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
       await onSubmit(payload);
     } catch (error) {
-      setError(error.message || 'Erro ao criar agente');
+      setError(error.message || 'Erro ao criar campanha');
       setLoading(false);
     }
   };
@@ -212,7 +230,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                Criar Agente Google Maps
+                Criar Campanha Google Maps
               </h2>
               <p className="text-sm text-gray-500">
                 Passo {currentStep} de {totalSteps}
@@ -241,60 +259,22 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
             </div>
           )}
 
-          {/* Step 1: Avatar + Name */}
+          {/* Step 1: Name */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Escolha um avatar e dê um nome ao seu agente
+                  Dê um nome à sua coleta de leads
                 </h3>
                 <p className="text-sm text-gray-500">
-                  O avatar é apenas visual, você pode mudá-lo a qualquer momento
-                </p>
-              </div>
-
-              {/* Avatar */}
-              <div className="flex flex-col items-center space-y-3">
-                <div className="relative">
-                  {avatarError ? (
-                    <div className="w-32 h-32 rounded-full border-4 border-purple-200 bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center">
-                      <Bot className="w-16 h-16 text-purple-600" />
-                    </div>
-                  ) : (
-                    <>
-                      <img
-                        src={avatarUrl}
-                        alt="Agent Avatar"
-                        onLoad={handleAvatarLoad}
-                        onError={handleAvatarError}
-                        className={`w-32 h-32 rounded-full object-cover border-4 border-purple-200 transition-opacity ${
-                          avatarLoading ? 'opacity-0' : 'opacity-100'
-                        }`}
-                      />
-                      {avatarLoading && (
-                        <div className="absolute inset-0 w-32 h-32 rounded-full border-4 border-purple-200 bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center">
-                          <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <button
-                    onClick={refreshAvatar}
-                    className="absolute bottom-0 right-0 p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg transition-colors"
-                    title="Trocar foto"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Clique no ícone para gerar uma nova foto
+                  Escolha um nome descritivo para identificar esta configuração
                 </p>
               </div>
 
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome do Agente <span className="text-red-500">*</span>
+                  Nome da Configuração <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -465,112 +445,119 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  O que fazer com cada lead?
+                  Ativação de Leads
                 </h3>
                 <p className="text-sm text-gray-500">
-                  Escolha a ação que será executada para cada lead encontrado
+                  Configure como os leads encontrados serão ativados
                 </p>
               </div>
 
-              {/* Action types */}
-              <div className="space-y-3">
-                <label className="flex items-start space-x-3 p-4 border-2 border-purple-600 bg-purple-50 rounded-lg cursor-pointer">
-                  <input
-                    type="radio"
-                    name="actionType"
-                    value="crm_only"
-                    checked={formData.actionType === 'crm_only'}
-                    onChange={(e) => updateField('actionType', e.target.value)}
-                    className="mt-1 w-4 h-4 text-purple-600 focus:ring-purple-500"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Database className="w-5 h-5 text-purple-600" />
-                      <span className="font-medium text-gray-900">
-                        Apenas inserir no CRM
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Os leads serão apenas adicionados ao seu CRM
-                    </p>
-                  </div>
-                </label>
-
-                <label className="flex items-start space-x-3 p-4 border-2 border-gray-200 rounded-lg opacity-50 cursor-not-allowed">
-                  <input
-                    type="radio"
-                    disabled
-                    className="mt-1 w-4 h-4"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Send className="w-5 h-5 text-gray-400" />
-                      <span className="font-medium text-gray-700">
-                        Inserir no CRM + enviar email
-                      </span>
-                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
-                        Em breve
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      Inserir no CRM e enviar email de apresentação
-                    </p>
-                  </div>
-                </label>
-
-                <label className="flex items-start space-x-3 p-4 border-2 border-gray-200 rounded-lg opacity-50 cursor-not-allowed">
-                  <input
-                    type="radio"
-                    disabled
-                    className="mt-1 w-4 h-4"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <MessageCircle className="w-5 h-5 text-gray-400" />
-                      <span className="font-medium text-gray-700">
-                        CRM + Email + WhatsApp
-                      </span>
-                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
-                        Em breve
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      Inserir no CRM, enviar email E mensagem no WhatsApp
-                    </p>
-                  </div>
-                </label>
+              {/* Base action - Always CRM */}
+              <div className="p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Database className="w-5 h-5 text-purple-600" />
+                  <span className="font-medium text-gray-900">Inserir no CRM</span>
+                  <Check className="w-4 h-4 text-green-600 ml-auto" />
+                </div>
+                <p className="text-sm text-gray-600">
+                  Todos os leads serão automaticamente adicionados ao seu CRM
+                </p>
               </div>
 
-              {/* Summary */}
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-purple-900 mb-3">
-                  Resumo do Agente
+              {/* Activation channels */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Canais de Ativação (opcional)
                 </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-start space-x-2">
-                    <Check className="w-4 h-4 text-purple-600 mt-0.5" />
-                    <span className="text-gray-700">
-                      <strong>Nome:</strong> {formData.name}
-                    </span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Check className="w-4 h-4 text-purple-600 mt-0.5" />
-                    <span className="text-gray-700">
-                      <strong>Localização:</strong> {formData.location?.location || 'Não definida'} ({formData.location?.radius || 10}km)
-                    </span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Check className="w-4 h-4 text-purple-600 mt-0.5" />
-                    <span className="text-gray-700">
-                      <strong>Nicho:</strong> {formData.businessSpecification || formData.businessCategory || 'Não definido'}
-                    </span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <Check className="w-4 h-4 text-purple-600 mt-0.5" />
-                    <span className="text-gray-700">
-                      <strong>Frequência:</strong> 20 leads por dia
-                    </span>
-                  </div>
+
+                {/* Email Activation */}
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.activateEmail}
+                      onChange={(e) => updateField('activateEmail', e.target.checked)}
+                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                    />
+                    <Send className="w-5 h-5 text-blue-600" />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Ativar por Email</span>
+                      <p className="text-xs text-gray-500">Enviar mensagem de apresentação por email</p>
+                    </div>
+                  </label>
+
+                  {formData.activateEmail && (
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Agente de Email *
+                      </label>
+                      {loadingAgents ? (
+                        <div className="text-sm text-gray-500">Carregando agentes...</div>
+                      ) : emailAgents.length === 0 ? (
+                        <div className="text-sm text-amber-600">
+                          Nenhum agente de Email ativo. Crie um agente na página de Agentes.
+                        </div>
+                      ) : (
+                        <select
+                          value={formData.emailAgentId || ''}
+                          onChange={(e) => updateField('emailAgentId', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">Selecione um agente de Email</option>
+                          {emailAgents.map(agent => (
+                            <option key={agent.id} value={agent.id}>
+                              {agent.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* WhatsApp Activation */}
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.activateWhatsapp}
+                      onChange={(e) => updateField('activateWhatsapp', e.target.checked)}
+                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                    />
+                    <MessageCircle className="w-5 h-5 text-green-600" />
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Ativar por WhatsApp</span>
+                      <p className="text-xs text-gray-500">Enviar mensagem de apresentação pelo WhatsApp</p>
+                    </div>
+                  </label>
+
+                  {formData.activateWhatsapp && (
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Agente de WhatsApp *
+                      </label>
+                      {loadingAgents ? (
+                        <div className="text-sm text-gray-500">Carregando agentes...</div>
+                      ) : whatsappAgents.length === 0 ? (
+                        <div className="text-sm text-amber-600">
+                          Nenhum agente de WhatsApp ativo. Crie um agente na página de Agentes.
+                        </div>
+                      ) : (
+                        <select
+                          value={formData.whatsappAgentId || ''}
+                          onChange={(e) => updateField('whatsappAgentId', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">Selecione um agente de WhatsApp</option>
+                          {whatsappAgents.map(agent => (
+                            <option key={agent.id} value={agent.id}>
+                              {agent.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

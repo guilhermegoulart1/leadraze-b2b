@@ -206,27 +206,28 @@ const LocationMapPicker = ({ value, onChange }) => {
               className="fixed inset-0 z-10"
               onClick={() => setShowSuggestions(false)}
             />
-            <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+            <ul className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-[350px] overflow-y-auto py-1">
               {searchResults.map((result, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSelectSuggestion(result)}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-start space-x-2 border-b border-gray-100 last:border-b-0"
-                >
-                  <MapPin className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {result.display_name}
-                    </p>
-                    {result.importance && (
-                      <p className="text-xs text-gray-500">
-                        {result.type}
+                <li key={index}>
+                  <button
+                    onClick={() => handleSelectSuggestion(result)}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-start space-x-2"
+                  >
+                    <MapPin className="w-4 h-4 text-purple-600 mt-1 flex-shrink-0" />
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="text-sm font-medium text-gray-900 whitespace-normal leading-snug">
+                        {result.display_name}
                       </p>
-                    )}
-                  </div>
-                </button>
+                      {result.importance && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {result.type}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
           </>
         )}
       </div>

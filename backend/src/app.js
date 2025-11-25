@@ -106,7 +106,11 @@ app.get('/api', (req, res) => {
       users: '/api/users',
       permissions: '/api/permissions',
       sectors: '/api/sectors',
-      googleMaps: '/api/google-maps'
+      googleMaps: '/api/google-maps',
+      googleMapsAgents: '/api/google-maps-agents',
+      contactLists: '/api/contact-lists',
+      activationAgents: '/api/activation-agents',
+      activationCampaigns: '/api/activation-campaigns'
     }
   });
 });
@@ -239,6 +243,39 @@ try {
   console.log('✅ Google Maps agents routes loaded');
 } catch (error) {
   console.error('❌ Error loading Google Maps agents routes:', error.message);
+}
+
+// ================================
+// LIST ACTIVATION ROUTES
+// ================================
+
+try {
+  app.use('/api/contact-lists', require('./routes/contactLists'));
+  console.log('✅ Contact lists routes loaded');
+} catch (error) {
+  console.error('❌ Error loading contact lists routes:', error.message);
+}
+
+try {
+  app.use('/api/activation-agents', require('./routes/activationAgents'));
+  console.log('✅ Activation agents routes loaded');
+} catch (error) {
+  console.error('❌ Error loading activation agents routes:', error.message);
+}
+
+try {
+  app.use('/api/activation-campaigns', require('./routes/activationCampaigns'));
+  console.log('✅ Activation campaigns routes loaded');
+} catch (error) {
+  console.error('❌ Error loading activation campaigns routes:', error.message);
+}
+
+// Unified Agents (LinkedIn, Google Maps, Email, WhatsApp)
+try {
+  app.use('/api/agents', require('./routes/agents'));
+  console.log('✅ Unified agents routes loaded');
+} catch (error) {
+  console.error('❌ Error loading unified agents routes:', error.message);
 }
 
 // ================================

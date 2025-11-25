@@ -39,10 +39,19 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
     setIsLoading(true);
 
     try {
-      // Gerar mensagem inicial usando o template do agente
-      const response = await api.testAIAgentInitialMessage(agent.id, {
-        lead_data: testLeadData
-      });
+      // Try new unified system first
+      let response;
+      try {
+        response = await api.testAgentInitialMessage(agent.id, {
+          lead_data: testLeadData
+        });
+      } catch (error) {
+        // Fallback to old system if agent is from ai_agents table
+        console.log('Trying legacy AI agent API...');
+        response = await api.testAIAgentInitialMessage(agent.id, {
+          lead_data: testLeadData
+        });
+      }
 
       setMessages([{
         id: Date.now(),
@@ -52,11 +61,21 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
       }]);
     } catch (error) {
       console.error('Erro ao gerar mensagem inicial:', error);
-      // Fallback para mensagem padrão
+      // Fallback para mensagem padrão baseada na configuração do agente
+      let initialMsg = 'Olá! Como posso ajudar?';
+
+      if (agent.config?.initial_approach) {
+        initialMsg = agent.config.initial_approach;
+      } else if (agent.config?.initial_message) {
+        initialMsg = agent.config.initial_message;
+      } else if (agent.initial_approach) {
+        initialMsg = agent.initial_approach;
+      }
+
       setMessages([{
         id: Date.now(),
         sender: 'bot',
-        content: agent.initial_approach || 'Olá! Como posso ajudar?',
+        content: initialMsg,
         timestamp: new Date()
       }]);
     } finally {
@@ -79,15 +98,29 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
     setIsLoading(true);
 
     try {
-      // Chamar API de teste do agente
-      const response = await api.testAIAgentResponse(agent.id, {
-        message: inputMessage,
-        conversation_history: messages.map(m => ({
-          sender_type: m.sender === 'user' ? 'lead' : 'ai',
-          content: m.content
-        })),
-        lead_data: testLeadData
-      });
+      // Try new unified system first
+      let response;
+      try {
+        response = await api.testAgentResponse(agent.id, {
+          message: inputMessage,
+          conversation_history: messages.map(m => ({
+            sender_type: m.sender === 'user' ? 'lead' : 'ai',
+            content: m.content
+          })),
+          lead_data: testLeadData
+        });
+      } catch (error) {
+        // Fallback to old system if agent is from ai_agents table
+        console.log('Trying legacy AI agent API...');
+        response = await api.testAIAgentResponse(agent.id, {
+          message: inputMessage,
+          conversation_history: messages.map(m => ({
+            sender_type: m.sender === 'user' ? 'lead' : 'ai',
+            content: m.content
+          })),
+          lead_data: testLeadData
+        });
+      }
 
       const botMessage = {
         id: Date.now() + 1,
@@ -167,9 +200,17 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
+              {agent.avatar_url ? (
+                <img
+                  src={agent.avatar_url}
+                  alt={agent.name}
+                  className="w-10 h-10 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+              )}
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Testar Agente: {agent.name}</h2>
                 <p className="text-sm text-gray-600">Simule uma conversa e veja como o agente responde</p>
@@ -244,9 +285,17 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
               className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.sender === 'bot' && (
-                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-5 h-5 text-white" />
-                </div>
+                agent.avatar_url ? (
+                  <img
+                    src={agent.avatar_url}
+                    alt={agent.name}
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                )
               )}
 
               <div className={`flex flex-col gap-1 max-w-[70%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
@@ -283,9 +332,17 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
           {isLoading && (
             <div className="flex gap-3 justify-start">
-              <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
+              {agent.avatar_url ? (
+                <img
+                  src={agent.avatar_url}
+                  alt={agent.name}
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+              )}
               <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Loader className="w-4 h-4 text-purple-600 animate-spin" />

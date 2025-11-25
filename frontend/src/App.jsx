@@ -15,6 +15,7 @@ import LeadsPage from './pages/LeadsPage';
 import ContactsPage from './pages/ContactsPage';
 import ConversationsPage from './pages/ConversationsPage';
 import AIAgentsPage from './pages/AIAgentsPage';
+import AgentsPage from './pages/AgentsPage';
 import InsightsPage from './pages/InsightsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -22,6 +23,9 @@ import LinkedInAccountsPage from './pages/LinkedInAccountsPage';
 import UsersPage from './pages/UsersPage';
 import PermissionsPage from './pages/PermissionsPage';
 import SectorsPage from './pages/SectorsPage';
+import ActivationAgentsPage from './pages/ActivationAgentsPage';
+import ActivationCampaignsPage from './pages/ActivationCampaignsPage';
+import ContactListsPage from './pages/ContactListsPage';
 
 // Layout
 import Layout from './components/Layout';
@@ -71,6 +75,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="agents" element={<AgentsPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
@@ -86,6 +91,9 @@ function AppRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="permissions" element={<PermissionsPage />} />
         <Route path="sectors" element={<SectorsPage />} />
+        <Route path="activation-agents" element={<ActivationAgentsPage />} />
+        <Route path="activation-campaigns" element={<ActivationCampaignsPage />} />
+        <Route path="contact-lists" element={<ContactListsPage />} />
       </Route>
 
       {/* 404 */}

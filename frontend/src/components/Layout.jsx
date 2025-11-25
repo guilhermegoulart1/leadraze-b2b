@@ -48,15 +48,23 @@ const Layout = () => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home, section: null },
 
-    // LinkedIn
-    { section: 'LINKEDIN' },
-    { path: '/ai-agents', label: 'Agentes de IA', icon: Bot },
-    { path: '/search', label: 'Busca de Perfis', icon: Search },
-    { path: '/campaigns', label: 'Campanhas', icon: Award },
+    // Agentes de IA (Unificado)
+    { section: 'AGENTES DE IA' },
+    { path: '/agents', label: 'Todos os Agentes', icon: Bot },
 
     // Google Maps
     { section: 'GOOGLE MAPS' },
-    { path: '/google-maps-agents', label: 'Gerador de Leads', icon: Bot },
+    { path: '/google-maps-agents', label: 'Campanhas', icon: MapPin },
+
+    // LinkedIn
+    { section: 'LINKEDIN' },
+    { path: '/search', label: 'Busca de Perfis', icon: Search },
+    { path: '/campaigns', label: 'Campanhas', icon: Award },
+
+    // Ativação de Listas
+    { section: 'ATIVAÇÃO DE LISTAS' },
+    { path: '/activation-campaigns', label: 'Campanhas', icon: Award },
+    { path: '/contact-lists', label: 'Listas', icon: Users },
 
     // CRM
     { section: 'CRM' },

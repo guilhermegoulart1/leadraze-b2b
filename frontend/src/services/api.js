@@ -950,6 +950,261 @@ class ApiService {
     return this.request(`/google-maps-agents/${id}/stats`);
   }
 
+  // ================================
+  // CONTACT LISTS
+  // ================================
+
+  async getContactLists(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/contact-lists${query ? '?' + query : ''}`);
+  }
+
+  async getContactList(id) {
+    return this.request(`/contact-lists/${id}`);
+  }
+
+  async createContactList(data) {
+    return this.request('/contact-lists', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateContactList(id, data) {
+    return this.request(`/contact-lists/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteContactList(id) {
+    return this.request(`/contact-lists/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getContactListItems(listId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/contact-lists/${listId}/items${query ? '?' + query : ''}`);
+  }
+
+  async addContactToList(listId, data) {
+    return this.request(`/contact-lists/${listId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeContactFromList(listId, itemId) {
+    return this.request(`/contact-lists/${listId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async importContactsToList(listId, data) {
+    return this.request(`/contact-lists/${listId}/import`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ================================
+  // ACTIVATION AGENTS
+  // ================================
+
+  async getActivationAgents(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/activation-agents${query ? '?' + query : ''}`);
+  }
+
+  async getActivationAgent(id) {
+    return this.request(`/activation-agents/${id}`);
+  }
+
+  async createActivationAgent(data) {
+    return this.request('/activation-agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateActivationAgent(id, data) {
+    return this.request(`/activation-agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteActivationAgent(id) {
+    return this.request(`/activation-agents/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async testActivationAgent(id, data) {
+    return this.request(`/activation-agents/${id}/test`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ================================
+  // ACTIVATION CAMPAIGNS
+  // ================================
+
+  async getActivationCampaigns(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/activation-campaigns${query ? '?' + query : ''}`);
+  }
+
+  async getActivationCampaign(id) {
+    return this.request(`/activation-campaigns/${id}`);
+  }
+
+  async createActivationCampaign(data) {
+    return this.request('/activation-campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateActivationCampaign(id, data) {
+    return this.request(`/activation-campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteActivationCampaign(id) {
+    return this.request(`/activation-campaigns/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async startActivationCampaign(id) {
+    return this.request(`/activation-campaigns/${id}/start`, {
+      method: 'POST',
+    });
+  }
+
+  async pauseActivationCampaign(id) {
+    return this.request(`/activation-campaigns/${id}/pause`, {
+      method: 'POST',
+    });
+  }
+
+  async resumeActivationCampaign(id) {
+    return this.request(`/activation-campaigns/${id}/resume`, {
+      method: 'POST',
+    });
+  }
+
+  async stopActivationCampaign(id) {
+    return this.request(`/activation-campaigns/${id}/stop`, {
+      method: 'POST',
+    });
+  }
+
+  async getActivationCampaignStats(id) {
+    return this.request(`/activation-campaigns/${id}/stats`);
+  }
+
+  // ==========================================
+  // CONNECTED ACCOUNTS
+  // ==========================================
+
+  async getConnectedAccounts() {
+    // TODO: Implement backend endpoint to check connected accounts
+    // For now, check if user has linkedin profiles to determine linkedin availability
+    try {
+      const profilesResponse = await this.request('/profiles');
+      const emailAvailable = true; // Email is always available as it's system default
+      const linkedinAvailable = profilesResponse.success && profilesResponse.data?.profiles?.length > 0;
+
+      return {
+        success: true,
+        data: {
+          accounts: [
+            emailAvailable && { type: 'email', status: 'connected' },
+            { type: 'whatsapp', status: 'not_connected' }, // WhatsApp not implemented yet
+            linkedinAvailable && { type: 'linkedin', status: 'connected' }
+          ].filter(Boolean)
+        }
+      };
+    } catch (error) {
+      console.error('Error checking connected accounts:', error);
+      // Default to all available for development
+      return {
+        success: true,
+        data: {
+          accounts: [
+            { type: 'email', status: 'connected' },
+            { type: 'whatsapp', status: 'connected' },
+            { type: 'linkedin', status: 'connected' }
+          ]
+        }
+      };
+    }
+  }
+
+  // ==========================================
+  // UNIFIED AGENTS (LinkedIn, Google Maps, Email, WhatsApp)
+  // ==========================================
+
+  async getAgents(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/agents${query ? '?' + query : ''}`);
+  }
+
+  async getAgent(id) {
+    return this.request(`/agents/${id}`);
+  }
+
+  async createAgent(data) {
+    return this.request('/agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAgent(id, data) {
+    return this.request(`/agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAgent(id) {
+    return this.request(`/agents/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async testAgent(id, testInput) {
+    return this.request(`/agents/${id}/test`, {
+      method: 'POST',
+      body: JSON.stringify({ test_input: testInput }),
+    });
+  }
+
+  async testAgentInitialMessage(agentId, data) {
+    return this.request(`/agents/${agentId}/test/initial-message`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async testAgentResponse(agentId, data) {
+    return this.request(`/agents/${agentId}/test/response`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAgentStats(id) {
+    return this.request(`/agents/${id}/stats`);
+  }
+
 }
 
 export default new ApiService();
