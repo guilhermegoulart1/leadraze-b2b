@@ -45,5 +45,8 @@
     "lastMonth": "Mês passado",
     "thisWeek": "Esta semana",
     "thisMonth": "Este mês"
-  }
+  },
+  "conversation": "conversa",
+  "conversations": "conversas",
+  "filters": "Filtros"
 }

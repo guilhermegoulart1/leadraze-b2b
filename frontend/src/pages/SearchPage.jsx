@@ -310,14 +310,20 @@ const SearchPage = () => {
         search_filters: {
           keywords: searchParams.query || undefined,
           location: selectedLocation ? [selectedLocation.value] : undefined,
-          industries: selectedIndustries.length > 0 
-            ? selectedIndustries.map(i => i.value) 
+          // Include full location data for country detection
+          location_data: selectedLocation ? {
+            id: selectedLocation.value,
+            label: selectedLocation.label,
+            country: selectedLocation.country
+          } : undefined,
+          industries: selectedIndustries.length > 0
+            ? selectedIndustries.map(i => i.value)
             : undefined,
-          job_titles: selectedJobTitles.length > 0 
-            ? selectedJobTitles.map(j => j.value) 
+          job_titles: selectedJobTitles.length > 0
+            ? selectedJobTitles.map(j => j.value)
             : undefined,
-          companies: selectedCompanies.length > 0 
-            ? selectedCompanies.map(c => c.value) 
+          companies: selectedCompanies.length > 0
+            ? selectedCompanies.map(c => c.value)
             : undefined
         }
       };

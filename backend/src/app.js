@@ -284,6 +284,26 @@ try {
 }
 
 // ================================
+// BILLING ROUTES
+// ================================
+
+// Stripe webhook needs raw body for signature verification
+// Must be before express.json() - handled separately
+app.post('/api/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  require('./controllers/stripeWebhookController').handleWebhook
+);
+console.log('✅ Stripe webhook route loaded (raw body)');
+
+// Billing routes (authenticated)
+try {
+  app.use('/api/billing', require('./routes/billing'));
+  console.log('✅ Billing routes loaded');
+} catch (error) {
+  console.error('❌ Error loading billing routes:', error.message);
+}
+
+// ================================
 // BULL BOARD (Queue Monitoring Dashboard)
 // ================================
 
@@ -291,7 +311,7 @@ try {
   const { createBullBoard } = require('@bull-board/api');
   const { BullAdapter } = require('@bull-board/api/bullAdapter');
   const { ExpressAdapter } = require('@bull-board/express');
-  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue } = require('./queues');
+  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, delayedConversationQueue } = require('./queues');
 
   // Create Express adapter for Bull Board
   const serverAdapter = new ExpressAdapter();
@@ -304,7 +324,11 @@ try {
       new BullAdapter(campaignQueue),
       new BullAdapter(bulkCollectionQueue),
       new BullAdapter(conversationSyncQueue),
-      new BullAdapter(googleMapsAgentQueue)
+      new BullAdapter(googleMapsAgentQueue),
+      new BullAdapter(emailQueue),
+      new BullAdapter(billingQueue),
+      new BullAdapter(linkedinInviteQueue),
+      new BullAdapter(delayedConversationQueue)
     ],
     serverAdapter
   });
@@ -314,11 +338,31 @@ try {
   app.use('/admin/queues', serverAdapter.getRouter());
 
   console.log('✅ Bull Board dashboard loaded at /admin/queues');
-  console.log('   Monitoring queues: webhooks, campaigns, bulk-collection, conversation-sync, google-maps-agents');
+  console.log('   Monitoring queues: webhooks, campaigns, bulk-collection, conversation-sync, google-maps-agents, emails, billing, linkedin-invites, delayed-conversation');
   console.log('   ⚠️  Dashboard is currently public - add authentication in production');
 } catch (error) {
   console.error('❌ Error loading Bull Board:', error.message);
   console.error('   Queue monitoring dashboard will not be available');
+}
+
+// ================================
+// WORKERS INITIALIZATION
+// ================================
+console.log('🔧 Initializing workers...');
+
+try {
+  // Import workers to start processing jobs
+  require('./workers/webhookWorker');
+  require('./workers/linkedinInviteWorker');
+  require('./workers/delayedConversationWorker');
+
+  console.log('✅ Workers initialized successfully');
+  console.log('   - Webhook Worker: processing incoming webhooks from Unipile');
+  console.log('   - LinkedIn Invite Worker: processing invite sending');
+  console.log('   - Delayed Conversation Worker: processing automated conversation starters');
+} catch (workerError) {
+  console.error('❌ Error initializing workers:', workerError.message);
+  console.error('   Some background jobs may not process correctly');
 }
 
 // ================================

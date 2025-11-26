@@ -304,6 +304,19 @@ class ApiService {
     });
   }
 
+  async assignSectorToConversation(conversationId, sectorId) {
+    return this.request(`/conversations/${conversationId}/assign-sector`, {
+      method: 'POST',
+      body: JSON.stringify({ sector_id: sectorId }),
+    });
+  }
+
+  async unassignSectorFromConversation(conversationId) {
+    return this.request(`/conversations/${conversationId}/unassign-sector`, {
+      method: 'POST',
+    });
+  }
+
   // ================================
   // AI AGENTS
   // ================================
@@ -1203,6 +1216,107 @@ class ApiService {
 
   async getAgentStats(id) {
     return this.request(`/agents/${id}/stats`);
+  }
+
+  // ================================
+  // BILLING & SUBSCRIPTION
+  // ================================
+
+  async getSubscription() {
+    return this.request('/billing/subscription');
+  }
+
+  async getPlans() {
+    return this.request('/billing/plans');
+  }
+
+  async getUsage() {
+    return this.request('/billing/usage');
+  }
+
+  async getCredits() {
+    return this.request('/billing/credits');
+  }
+
+  async createCheckoutSession(data) {
+    return this.request('/billing/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async purchaseCredits(data) {
+    return this.request('/billing/purchase-credits', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createPortalSession() {
+    return this.request('/billing/portal-session', {
+      method: 'POST',
+    });
+  }
+
+  async cancelSubscription() {
+    return this.request('/billing/cancel-subscription', {
+      method: 'POST',
+    });
+  }
+
+  async reactivateSubscription() {
+    return this.request('/billing/reactivate-subscription', {
+      method: 'POST',
+    });
+  }
+
+  async addExtraChannel() {
+    return this.request('/billing/add-extra-channel', {
+      method: 'POST',
+    });
+  }
+
+  async addExtraUser() {
+    return this.request('/billing/add-extra-user', {
+      method: 'POST',
+    });
+  }
+
+  async getInvoices() {
+    return this.request('/billing/invoices');
+  }
+
+  // ================================
+  // 💬 LEAD COMMENTS
+  // ================================
+
+  async getLeadComments(leadId) {
+    return this.request(`/leads/${leadId}/comments`);
+  }
+
+  async createLeadComment(leadId, data) {
+    return this.request(`/leads/${leadId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLeadComment(leadId, commentId, data) {
+    return this.request(`/leads/${leadId}/comments/${commentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLeadComment(leadId, commentId) {
+    return this.request(`/leads/${leadId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async searchUsersForMentions(leadId, query) {
+    const params = new URLSearchParams({ query });
+    return this.request(`/leads/${leadId}/comments/search-users?${params}`);
   }
 
 }

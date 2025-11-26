@@ -3,7 +3,9 @@ const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { LEAD_STATUS } = require('../utils/helpers');
 const conversationAutomationService = require('../services/conversationAutomationService');
+const conversationSummaryService = require('../services/conversationSummaryService');
 const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
+const { scheduleDelayedConversation, cancelDelayedConversation } = require('../workers/delayedConversationWorker');
 const axios = require('axios');
 
 // ================================
@@ -287,6 +289,7 @@ async function handleMessageReceived(payload) {
         // Criar ou buscar campanha "Organic"
         let organicCampaign = await db.findOne('campaigns', {
           user_id: linkedinAccount.user_id,
+          account_id: linkedinAccount.account_id,
           name: 'Organic Conversations'
         });
 
@@ -294,6 +297,7 @@ async function handleMessageReceived(payload) {
           console.log('🆕 Criando campanha "Organic Conversations"');
           organicCampaign = await db.insert('campaigns', {
             user_id: linkedinAccount.user_id,
+            account_id: linkedinAccount.account_id, // Multi-tenancy
             linkedin_account_id: linkedinAccount.id,
             name: 'Organic Conversations',
             description: 'Conversas orgânicas recebidas no LinkedIn',
@@ -306,6 +310,7 @@ async function handleMessageReceived(payload) {
         // Criar lead com dados completos da API
         leadData = await db.insert('leads', {
           campaign_id: organicCampaign.id,
+          account_id: linkedinAccount.account_id, // Multi-tenancy: account do LinkedIn
           linkedin_profile_id: leadProviderId,
           name: leadName,
           profile_url: profileUrl,
@@ -337,6 +342,7 @@ async function handleMessageReceived(payload) {
       // Criar conversa
       conversation = await db.insert('conversations', {
         user_id: linkedinAccount.user_id,
+        account_id: linkedinAccount.account_id, // Multi-tenancy
         linkedin_account_id: linkedinAccount.id,
         lead_id: leadData.id,
         campaign_id: leadData.campaign_id,
@@ -396,6 +402,29 @@ async function handleMessageReceived(payload) {
     console.log(`   - Sender type: ${messageData.sender_type}`);
     console.log(`   - Content: ${messageData.content}`);
     console.log(`   - Sent at: ${messageData.sent_at}`);
+
+    // ✅ CANCELAR JOB DE DELAY SE LEAD ENVIOU MENSAGEM
+    // (cancela o início automático de conversa se lead responder antes dos 5 minutos)
+    if (!isOwnMessage && conversation.lead_id) {
+      try {
+        console.log('🛑 Verificando job de delay para cancelar...');
+        const canceled = await cancelDelayedConversation(conversation.lead_id);
+        if (canceled) {
+          console.log('✅ Job de delay cancelado (lead respondeu primeiro)');
+        }
+      } catch (cancelError) {
+        console.error('⚠️ Erro ao cancelar job de delay:', cancelError.message);
+        // Não falhar o webhook se cancelamento der erro
+      }
+    }
+
+    // ✅ ATUALIZAR RESUMO DA CONVERSA (se necessário)
+    try {
+      await conversationSummaryService.processConversation(conversation.id);
+    } catch (summaryError) {
+      console.error('⚠️ Erro ao processar resumo da conversa:', summaryError.message);
+      // Não falhar o webhook se resumo der erro
+    }
 
     // Se IA estiver ativa, processar resposta automática
     // ✅ NÃO PROCESSAR IA PARA MENSAGENS PRÓPRIAS
@@ -573,23 +602,19 @@ async function handleNewRelation(payload) {
 
     console.log('✅ Lead atualizado para "accepted" e conversa criada');
 
-    // Processar envio de mensagem inicial automática se campanha tiver automação ativa
-    let initialMessageResult = null;
+    // Agendar início de conversa automático com delay de 5 minutos
+    let delayedJobScheduled = false;
     try {
       if (shouldActivateAI) {
-        console.log('🤖 Processando mensagem inicial automática...');
+        console.log('📅 Agendando início de conversa automático para daqui 5 minutos...');
 
-        initialMessageResult = await conversationAutomationService.processInviteAccepted({
-          lead_id: lead.id,
-          campaign_id: lead.campaign_id,
-          linkedin_account_id: linkedinAccount.id,
-          lead_unipile_id: user_provider_id // ✅ Usar campo correto
-        });
+        await scheduleDelayedConversation(lead.id, conversation.id);
+        delayedJobScheduled = true;
 
-        console.log('✅ Mensagem inicial processada:', initialMessageResult);
+        console.log('✅ Job de delay agendado com sucesso');
       }
     } catch (automationError) {
-      console.error('❌ Erro ao processar automação de convite aceito:', automationError);
+      console.error('❌ Erro ao agendar início de conversa:', automationError);
       // Não falhar o webhook se automação der erro
     }
 
@@ -598,7 +623,7 @@ async function handleNewRelation(payload) {
       lead_id: lead.id,
       conversation_id: conversation.id,
       lead_status: LEAD_STATUS.ACCEPTED,
-      initial_message_sent: initialMessageResult?.initial_message_sent || false
+      delayed_conversation_scheduled: delayedJobScheduled
     };
 
   } catch (error) {

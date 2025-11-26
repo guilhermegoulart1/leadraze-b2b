@@ -16,8 +16,10 @@ import {
   BookOpen,
   Globe
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const ProfileDetailsModal = ({ profile, loading, onClose }) => {
+  const { t } = useTranslation('modals');
   if (!profile && !loading) return null;
 
   return (
@@ -25,7 +27,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900">Detalhes do Perfil</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('profileDetails.title')}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -38,7 +40,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center">
             <Loader className="w-12 h-12 text-purple-600 animate-spin mb-4" />
-            <p className="text-gray-600">Carregando detalhes do perfil...</p>
+            <p className="text-gray-600">{t('profileDetails.loadingDetails')}</p>
           </div>
         ) : profile ? (
           <div className="p-6 space-y-6">
@@ -49,10 +51,9 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                   i
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 mb-1">Conexão de segundo grau</p>
+                  <p className="text-sm font-medium text-blue-900 mb-1">{t('profileDetails.secondDegreeConnection')}</p>
                   <p className="text-xs text-blue-700">
-                    Este perfil não é uma conexão direta. O LinkedIn limita as informações disponíveis para perfis de segundo grau.
-                    Para ver informações completas (experiência, educação, habilidades), envie uma solicitação de conexão primeiro.
+                    {t('profileDetails.secondDegreeInfo')}
                   </p>
                 </div>
               </div>
@@ -79,13 +80,13 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                   <h3 className="text-2xl font-bold text-gray-900">
                     {profile.first_name && profile.last_name
                       ? `${profile.first_name} ${profile.last_name}`
-                      : profile.name || profile.full_name || 'Nome não disponível'}
+                      : profile.name || profile.full_name || t('profileDetails.nameNotAvailable')}
                   </h3>
                   {(profile.verified || profile.is_premium) && (
                     <div className="flex items-center gap-1">
                       {profile.verified && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full" title="Perfil verificado">
-                          ✓ Verificado
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full" title={t('profileDetails.verified')}>
+                          ✓ {t('profileDetails.verified')}
                         </span>
                       )}
                       {profile.is_premium && (
@@ -114,14 +115,14 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                   {(profile.connections || profile.connections_count) && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Users className="w-4 h-4" />
-                      {profile.connections || profile.connections_count} conexões
+                      {profile.connections || profile.connections_count} {t('profileDetails.connections')}
                     </div>
                   )}
 
                   {profile.follower_count && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Users className="w-4 h-4" />
-                      {profile.follower_count} seguidores
+                      {profile.follower_count} {t('profileDetails.followers')}
                     </div>
                   )}
 
@@ -133,7 +134,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                       className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
                     >
                       <Linkedin className="w-4 h-4" />
-                      Ver no LinkedIn
+                      {t('profileDetails.viewOnLinkedIn')}
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
@@ -150,14 +151,14 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                         : 'bg-gray-100 text-gray-800'
                     }`}>
                       {profile.network_distance === 'FIRST_DEGREE'
-                        ? '1º grau - Conexão direta'
+                        ? t('profileDetails.firstDegree')
                         : profile.network_distance === 'SECOND_DEGREE'
-                        ? '2º grau'
+                        ? t('profileDetails.secondDegree')
                         : profile.network_distance === 'THIRD_DEGREE'
-                        ? '3º grau'
-                        : 'Fora da rede'}
+                        ? t('profileDetails.thirdDegree')
+                        : t('profileDetails.outOfNetwork')}
                       {profile.shared_connections_count > 0 &&
-                        ` • ${profile.shared_connections_count} conexão${profile.shared_connections_count > 1 ? 'ões' : ''} em comum`
+                        ` • ${profile.shared_connections_count} ${profile.shared_connections_count > 1 ? t('profileDetails.sharedConnections') : t('profileDetails.sharedConnection')}`
                       }
                     </span>
                   </div>
@@ -170,7 +171,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-purple-600" />
-                  Sobre
+                  {t('profileDetails.about')}
                 </h4>
                 <p className="text-gray-700 whitespace-pre-wrap">
                   {profile.summary || profile.description || profile.about}
@@ -183,7 +184,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-purple-600" />
-                  Cargo Atual
+                  {t('profileDetails.currentPosition')}
                 </h4>
                 <div className="space-y-3">
                   {profile.current_positions.map((position, index) => (
@@ -197,7 +198,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                       )}
                       {(position.start_date || position.duration) && (
                         <div className="text-sm text-gray-600 mt-1">
-                          {position.start_date && `Desde ${position.start_date}`}
+                          {position.start_date && `${t('profileDetails.since')} ${position.start_date}`}
                           {position.duration && ` • ${position.duration}`}
                         </div>
                       )}
@@ -215,7 +216,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-purple-600" />
-                  Experiência
+                  {t('profileDetails.experience')}
                 </h4>
                 <div className="space-y-3">
                   {profile.experiences.map((exp, index) => (
@@ -251,7 +252,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Award className="w-5 h-5 text-purple-600" />
-                  Formação
+                  {t('profileDetails.education')}
                 </h4>
                 <div className="space-y-3">
                   {profile.education.map((edu, index) => (
@@ -278,7 +279,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
             {profile.skills && profile.skills.length > 0 && (
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                  Habilidades
+                  {t('profileDetails.skills')}
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {profile.skills.map((skill, index) => (
@@ -298,7 +299,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Globe className="w-5 h-5 text-purple-600" />
-                  Idiomas
+                  {t('profileDetails.languages')}
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {profile.languages.map((lang, index) => (
@@ -323,11 +324,10 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
                   <Users className="w-8 h-8 text-gray-400" />
                 </div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                  Informações adicionais não disponíveis
+                  {t('profileDetails.additionalInfoUnavailable')}
                 </h4>
                 <p className="text-xs text-gray-600 max-w-md mx-auto">
-                  Experiências, formação e habilidades só ficam disponíveis quando você se conecta diretamente com este perfil.
-                  Envie uma solicitação de conexão para acessar o perfil completo.
+                  {t('profileDetails.additionalInfoMessage')}
                 </p>
               </div>
             )}
@@ -336,7 +336,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
             {(profile.email || profile.phone || profile.website) && (
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                  Informações de Contato
+                  {t('profileDetails.contactInfo')}
                 </h4>
                 <div className="space-y-2">
                   {profile.email && (
@@ -370,7 +370,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
             {/* Raw Data Debug (optional - can be removed in production) */}
             {process.env.NODE_ENV === 'development' && (
               <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Dados Brutos (Debug)</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('profileDetails.rawData')}</h4>
                 <pre className="text-xs text-gray-600 overflow-auto max-h-60">
                   {JSON.stringify(profile, null, 2)}
                 </pre>
@@ -379,7 +379,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
           </div>
         ) : (
           <div className="p-12 text-center text-gray-600">
-            Nenhum perfil selecionado
+            {t('profileDetails.noProfileSelected')}
           </div>
         )}
 
@@ -389,7 +389,7 @@ const ProfileDetailsModal = ({ profile, loading, onClose }) => {
             onClick={onClose}
             className="w-full px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors"
           >
-            Fechar
+            {t('profileDetails.close')}
           </button>
         </div>
       </div>

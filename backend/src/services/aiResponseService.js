@@ -45,7 +45,8 @@ async function generateResponse(params) {
   const {
     conversation_id,
     lead_message,
-    conversation_history = [],
+    conversation_history = [],      // Legacy support
+    conversation_context = null,    // New format with summary + recent messages
     ai_agent,
     lead_data = {},
     context = {}
@@ -97,11 +98,17 @@ async function generateResponse(params) {
     const messages = buildConversationMessages({
       systemPrompt,
       conversation_history,
+      conversation_context,  // New format
       lead_message,
       ai_agent
     });
 
-    console.log(`📝 Mensagens preparadas: ${messages.length} no contexto`);
+    if (conversation_context?.stats) {
+      console.log(`📝 Mensagens preparadas: ${messages.length} no contexto ` +
+                  `(tokens: ${conversation_context.stats.totalTokens})`);
+    } else {
+      console.log(`📝 Mensagens preparadas: ${messages.length} no contexto`);
+    }
 
     // Chamar OpenAI
     const completion = await openai.chat.completions.create({
@@ -199,7 +206,7 @@ Responda de forma natural, como se fosse uma conversa real no LinkedIn. Evite so
 /**
  * Construir array de mensagens para contexto da IA
  */
-function buildConversationMessages({ systemPrompt, conversation_history, lead_message, ai_agent }) {
+function buildConversationMessages({ systemPrompt, conversation_history, conversation_context, lead_message, ai_agent }) {
   const messages = [
     {
       role: 'system',
@@ -207,14 +214,39 @@ function buildConversationMessages({ systemPrompt, conversation_history, lead_me
     }
   ];
 
-  // Adicionar histórico da conversa (últimas 10 mensagens)
-  const recentHistory = conversation_history.slice(-10);
-
-  for (const msg of recentHistory) {
+  // Use new optimized context if available
+  if (conversation_context && conversation_context.summary) {
+    // Add summary as a system message
     messages.push({
-      role: msg.sender_type === 'ai' ? 'assistant' : 'user',
-      content: msg.content
+      role: 'system',
+      content: `CONTEXTO DA CONVERSA (resumo das mensagens anteriores):\n${conversation_context.summary}`
     });
+
+    // Add recent messages in full
+    for (const msg of conversation_context.recentMessages) {
+      messages.push({
+        role: msg.sender_type === 'ai' ? 'assistant' : 'user',
+        content: msg.content
+      });
+    }
+  } else if (conversation_context && conversation_context.recentMessages) {
+    // No summary yet, just use recent messages
+    for (const msg of conversation_context.recentMessages) {
+      messages.push({
+        role: msg.sender_type === 'ai' ? 'assistant' : 'user',
+        content: msg.content
+      });
+    }
+  } else {
+    // Fallback to old format (legacy support)
+    const recentHistory = conversation_history.slice(-10);
+
+    for (const msg of recentHistory) {
+      messages.push({
+        role: msg.sender_type === 'ai' ? 'assistant' : 'user',
+        content: msg.content
+      });
+    }
   }
 
   // Adicionar mensagem atual do lead

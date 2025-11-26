@@ -42,10 +42,13 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import LeadDetailModal from '../components/LeadDetailModal';
 
 const LeadsPage = () => {
   const { t } = useTranslation('leads');
+  const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,7 +116,15 @@ const LeadsPage = () => {
   );
 
   const getLeadsByStage = (stage) => {
-    return filteredLeads.filter(lead => lead.status === stage);
+    return filteredLeads
+      .filter(lead => lead.status === stage)
+      .sort((a, b) => {
+        // Sort by display_order if exists, otherwise by created_at desc
+        if (a.display_order !== undefined && b.display_order !== undefined) {
+          return a.display_order - b.display_order;
+        }
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
   };
 
   const handleDragEnd = async (result) => {
@@ -122,27 +133,91 @@ const LeadsPage = () => {
     // Dropped outside the list
     if (!destination) return;
 
-    // No movement
-    if (source.droppableId === destination.droppableId) return;
+    // No movement at all
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) return;
 
-    const leadId = parseInt(draggableId.replace('lead-', ''));
+    const leadId = draggableId.replace('lead-', ''); // UUID string, not parseInt
     const newStatus = destination.droppableId;
+    const sourceStatus = source.droppableId;
 
-    // Optimistic update
-    setLeads(prevLeads =>
-      prevLeads.map(lead =>
-        lead.id === leadId ? { ...lead, status: newStatus } : lead
-      )
-    );
+    // Get sorted leads for source column
+    const sourceColumnLeads = getLeadsByStage(sourceStatus);
+    const movedLead = sourceColumnLeads[source.index];
+    if (!movedLead) return;
 
-    // Update on backend
-    try {
-      await api.updateLeadStatus(leadId, newStatus);
-      console.log(`✅ Lead ${leadId} movido para ${newStatus}`);
-    } catch (error) {
-      console.error('Erro ao atualizar lead:', error);
-      // Revert on error
-      loadLeads();
+    // Optimistic update with proper reordering
+    setLeads(prevLeads => {
+      const newLeads = [...prevLeads];
+
+      // If same column, reorder within column
+      if (sourceStatus === newStatus) {
+        const columnLeads = newLeads
+          .filter(l => l.status === sourceStatus)
+          .sort((a, b) => {
+            if (a.display_order !== undefined && b.display_order !== undefined) {
+              return a.display_order - b.display_order;
+            }
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
+
+        // Remove from old position and insert at new position
+        const [removed] = columnLeads.splice(source.index, 1);
+        columnLeads.splice(destination.index, 0, removed);
+
+        // Update display_order for all items in column
+        columnLeads.forEach((lead, idx) => {
+          const globalIdx = newLeads.findIndex(l => l.id === lead.id);
+          if (globalIdx !== -1) {
+            newLeads[globalIdx] = { ...newLeads[globalIdx], display_order: idx };
+          }
+        });
+      } else {
+        // Moving between columns
+        const leadGlobalIdx = newLeads.findIndex(l => String(l.id) === String(leadId));
+        if (leadGlobalIdx !== -1) {
+          newLeads[leadGlobalIdx] = {
+            ...newLeads[leadGlobalIdx],
+            status: newStatus,
+            display_order: destination.index
+          };
+        }
+
+        // Update display_order for destination column
+        const destColumnLeads = newLeads
+          .filter(l => l.status === newStatus && String(l.id) !== String(leadId))
+          .sort((a, b) => {
+            if (a.display_order !== undefined && b.display_order !== undefined) {
+              return a.display_order - b.display_order;
+            }
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
+
+        // Insert at position and reorder
+        destColumnLeads.splice(destination.index, 0, newLeads[leadGlobalIdx]);
+        destColumnLeads.forEach((lead, idx) => {
+          const globalIdx = newLeads.findIndex(l => l.id === lead.id);
+          if (globalIdx !== -1) {
+            newLeads[globalIdx] = { ...newLeads[globalIdx], display_order: idx };
+          }
+        });
+      }
+
+      return newLeads;
+    });
+
+    // Update on backend only if status changed
+    if (sourceStatus !== newStatus) {
+      try {
+        await api.updateLeadStatus(leadId, newStatus);
+        console.log(`✅ Lead ${leadId} movido para ${newStatus}`);
+      } catch (error) {
+        console.error('Erro ao atualizar lead:', error);
+        // Revert on error
+        loadLeads();
+      }
     }
   };
 
@@ -176,8 +251,8 @@ const LeadsPage = () => {
     }
   });
 
-  // Lead Card Component
-  const LeadCard = ({ lead, index }) => {
+  // Lead Card Component - memoized for drag performance
+  const LeadCard = React.memo(({ lead, index }) => {
     const stage = pipelineStages[lead.status] || pipelineStages.leads;
     const profilePicture = lead.profile_picture || null;
     const isOrganic = lead.campaign_name?.toLowerCase().includes('organic');
@@ -190,9 +265,14 @@ const LeadsPage = () => {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`bg-white rounded-lg border border-gray-200 p-3 mb-2.5 hover:shadow-lg transition-all cursor-move group ${
-              snapshot.isDragging ? 'shadow-2xl ring-2 ring-blue-400 rotate-2' : 'shadow-sm'
+            className={`bg-white rounded-lg border p-3 cursor-move group overflow-hidden ${
+              snapshot.isDragging
+                ? 'shadow-xl ring-2 ring-blue-400 border-blue-300'
+                : 'shadow-sm border-gray-200 hover:shadow-md'
             }`}
+            style={{
+              ...provided.draggableProps.style,
+            }}
           >
             <div className="flex items-start gap-3">
               {/* Avatar */}
@@ -217,22 +297,22 @@ const LeadsPage = () => {
               </div>
 
               {/* Info */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <h4 className="text-sm font-semibold text-gray-900 truncate mb-1">
                   {lead.name}
                 </h4>
 
                 {lead.title && (
-                  <p className="text-xs text-gray-600 truncate flex items-center gap-1.5 mb-0.5">
-                    <Briefcase className="w-3 h-3 text-gray-400" />
-                    {lead.title}
+                  <p className="text-xs text-gray-600 mb-0.5 flex items-center gap-1.5 min-w-0">
+                    <Briefcase className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="truncate">{lead.title}</span>
                   </p>
                 )}
 
                 {lead.company && (
-                  <p className="text-xs text-gray-500 truncate flex items-center gap-1.5 mb-0.5">
-                    <Building className="w-3 h-3 text-gray-400" />
-                    {lead.company}
+                  <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1.5 min-w-0">
+                    <Building className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="truncate">{lead.company}</span>
                   </p>
                 )}
               </div>
@@ -252,8 +332,8 @@ const LeadsPage = () => {
 
             {/* Campaign & Draft Badge */}
             {!isOrganic && lead.campaign_name && (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 border border-purple-200 rounded max-w-full">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 overflow-hidden">
+                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 border border-purple-200 rounded min-w-0 max-w-full">
                   <FileText className="w-2.5 h-2.5 text-purple-600 flex-shrink-0" />
                   <span className="text-purple-700 font-medium text-[10px] leading-tight truncate">
                     {lead.campaign_name}
@@ -364,7 +444,7 @@ const LeadsPage = () => {
         )}
       </Draggable>
     );
-  };
+  });
 
   // Kanban Column
   const KanbanColumn = ({ stage, stageKey }) => {
@@ -373,7 +453,7 @@ const LeadsPage = () => {
     const count = stageLeads.length;
 
     return (
-      <div className="flex-1 min-w-[320px] flex flex-col">
+      <div className="flex-1 min-w-[300px] max-w-[340px] flex flex-col">
         {/* Column Header */}
         <div className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -396,8 +476,10 @@ const LeadsPage = () => {
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className={`flex-1 rounded-lg p-2 transition-colors overflow-y-auto scrollbar-thin ${
-                snapshot.isDraggingOver ? 'bg-blue-50 ring-2 ring-blue-300' : 'bg-gray-50'
+              className={`flex-1 rounded-lg p-2 overflow-y-auto scrollbar-thin ${
+                snapshot.isDraggingOver
+                  ? 'bg-blue-50 ring-2 ring-blue-300'
+                  : 'bg-gray-50'
               }`}
               style={{
                 maxHeight: 'calc(100vh - 280px)',
@@ -405,11 +487,17 @@ const LeadsPage = () => {
               }}
             >
               {stageLeads.length > 0 ? (
-                stageLeads.map((lead, index) => (
-                  <LeadCard key={lead.id} lead={lead} index={index} />
-                ))
+                <div className="space-y-2">
+                  {stageLeads.map((lead, index) => (
+                    <LeadCard key={lead.id} lead={lead} index={index} />
+                  ))}
+                </div>
               ) : (
-                <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+                <div className={`flex items-center justify-center h-32 text-sm border-2 border-dashed rounded-lg ${
+                  snapshot.isDraggingOver
+                    ? 'border-blue-400 bg-blue-100 text-blue-600'
+                    : 'border-gray-300 text-gray-400'
+                }`}>
                   {snapshot.isDraggingOver ? t('messages.dropHere') : t('messages.noLeads')}
                 </div>
               )}
@@ -651,337 +739,6 @@ const LeadsPage = () => {
     );
   };
 
-  // Lead Details Modal Component
-  const LeadDetailsModal = ({ lead, onClose }) => {
-    if (!lead) return null;
-
-    const stage = pipelineStages[lead.status] || pipelineStages.leads;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 flex items-start justify-between">
-            <div className="flex items-start gap-4 flex-1">
-              {lead.profile_picture ? (
-                <img src={lead.profile_picture} alt={lead.name} className="w-16 h-16 rounded-full border-2 border-white object-cover" />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-2xl font-bold border-2 border-white">
-                  {lead.name?.charAt(0) || '?'}
-                </div>
-              )}
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold">{lead.name}</h2>
-                {lead.title && <p className="text-blue-100 mt-1">{lead.title}</p>}
-                {lead.company && (
-                  <div className="flex items-center gap-1.5 mt-1 text-blue-100">
-                    <Building className="w-4 h-4" />
-                    <span>{lead.company}</span>
-                  </div>
-                )}
-                {lead.location && (
-                  <div className="flex items-center gap-1.5 mt-1 text-blue-100">
-                    <MapPin className="w-4 h-4" />
-                    <span>{lead.location}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <button onClick={onClose} className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="overflow-y-auto max-h-[calc(90vh-140px)] p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Main Info */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Status & Badges */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.statusClassification')}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-${stage.color}-100 text-${stage.color}-700`}>
-                      {stage.label}
-                    </span>
-                    {lead.is_premium && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded-full">
-                        <Crown className="w-4 h-4 text-amber-600" />
-                        <span className="text-amber-700 font-semibold text-sm">{t('badges.linkedInPremium')}</span>
-                      </div>
-                    )}
-                    {lead.is_creator && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-300 rounded-full">
-                        <Star className="w-4 h-4 text-blue-600" />
-                        <span className="text-blue-700 font-semibold text-sm">{t('badges.creatorMode')}</span>
-                      </div>
-                    )}
-                    {lead.is_influencer && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-300 rounded-full">
-                        <Star className="w-4 h-4 text-purple-600 fill-purple-600" />
-                        <span className="text-purple-700 font-semibold text-sm">{t('badges.linkedInInfluencer')}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Network Stats */}
-                {(lead.connections_count > 0 || lead.follower_count > 0) && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.networkReach')}</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {lead.connections_count > 0 && (
-                        <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-center gap-2 text-gray-600 mb-1">
-                            <Users className="w-4 h-4" />
-                            <span className="text-xs font-medium">{t('modal.connections')}</span>
-                          </div>
-                          <p className="text-2xl font-bold text-gray-900">{lead.connections_count.toLocaleString()}</p>
-                        </div>
-                      )}
-                      {lead.follower_count > 0 && (
-                        <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-center gap-2 text-gray-600 mb-1">
-                            <UserCheck className="w-4 h-4" />
-                            <span className="text-xs font-medium">{t('modal.followers')}</span>
-                          </div>
-                          <p className="text-2xl font-bold text-gray-900">{lead.follower_count.toLocaleString()}</p>
-                        </div>
-                      )}
-                    </div>
-                    {lead.network_distance && (
-                      <div className="mt-3 text-sm text-gray-600">
-                        <span className="font-medium">{t('modal.networkDistance')}</span> {lead.network_distance.replace('_', ' ')}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* About Section */}
-                {lead.about && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                      <FileTextIcon className="w-4 h-4" />
-                      {t('modal.about')}
-                    </h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{lead.about}</p>
-                  </div>
-                )}
-
-                {/* Experience */}
-                {lead.experience && Array.isArray(lead.experience) && lead.experience.length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                      <Briefcase className="w-4 h-4" />
-                      {t('modal.experience')}
-                    </h3>
-                    <div className="space-y-3">
-                      {lead.experience.map((exp, idx) => (
-                        <div key={idx} className="bg-white rounded-lg p-3 border border-gray-200">
-                          <p className="font-semibold text-gray-900">{exp.title || exp.position}</p>
-                          {exp.company && <p className="text-sm text-gray-600">{exp.company}</p>}
-                          {(exp.start_date || exp.end_date) && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {exp.start_date} - {exp.end_date || t('modal.present')}
-                            </p>
-                          )}
-                          {exp.description && <p className="text-sm text-gray-700 mt-2">{exp.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Education */}
-                {lead.education && Array.isArray(lead.education) && lead.education.length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4" />
-                      {t('modal.education')}
-                    </h3>
-                    <div className="space-y-3">
-                      {lead.education.map((edu, idx) => (
-                        <div key={idx} className="bg-white rounded-lg p-3 border border-gray-200">
-                          <p className="font-semibold text-gray-900">{edu.school || edu.institution}</p>
-                          {edu.degree && <p className="text-sm text-gray-600">{edu.degree}</p>}
-                          {edu.field_of_study && <p className="text-sm text-gray-600">{edu.field_of_study}</p>}
-                          {(edu.start_date || edu.end_date) && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {edu.start_date} - {edu.end_date}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Skills */}
-                {lead.skills && Array.isArray(lead.skills) && lead.skills.length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.skills')}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {lead.skills.map((skill, idx) => (
-                        <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                          {typeof skill === 'string' ? skill : skill.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Certifications */}
-                {lead.certifications && Array.isArray(lead.certifications) && lead.certifications.length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                      <Award className="w-4 h-4" />
-                      {t('modal.certifications')}
-                    </h3>
-                    <div className="space-y-2">
-                      {lead.certifications.map((cert, idx) => (
-                        <div key={idx} className="bg-white rounded-lg p-3 border border-gray-200">
-                          <p className="font-semibold text-gray-900 text-sm">{cert.name || cert.title}</p>
-                          {cert.issuer && <p className="text-xs text-gray-600">{cert.issuer}</p>}
-                          {cert.date && <p className="text-xs text-gray-500">{cert.date}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Languages */}
-                {lead.languages && Array.isArray(lead.languages) && lead.languages.length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                      <Languages className="w-4 h-4" />
-                      {t('modal.languages')}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {lead.languages.map((lang, idx) => (
-                        <span key={idx} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                          {typeof lang === 'string' ? lang : `${lang.name}${lang.proficiency ? ` (${lang.proficiency})` : ''}`}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column - Contact & Meta */}
-              <div className="space-y-6">
-                {/* Contact Information */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.contact')}</h3>
-                  <div className="space-y-3">
-                    {lead.email && (
-                      <div className="flex items-start gap-2">
-                        <Mail className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <a href={`mailto:${lead.email}`} className="text-sm text-blue-600 hover:underline break-all">
-                            {lead.email}
-                          </a>
-                          {lead.email_source && (
-                            <p className="text-xs text-gray-500">{t('modal.source')} {lead.email_source}</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {lead.phone && (
-                      <div className="flex items-start gap-2">
-                        <Phone className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <a href={`tel:${lead.phone}`} className="text-sm text-emerald-600 hover:underline">
-                            {lead.phone}
-                          </a>
-                          {lead.phone_source && (
-                            <p className="text-xs text-gray-500">{t('modal.source')} {lead.phone_source}</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {lead.public_identifier && (
-                      <div className="flex items-start gap-2">
-                        <Linkedin className="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0" />
-                        <a
-                          href={`https://www.linkedin.com/in/${lead.public_identifier}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-700 hover:underline break-all"
-                        >
-                          linkedin.com/in/{lead.public_identifier}
-                        </a>
-                      </div>
-                    )}
-                    {lead.websites && Array.isArray(lead.websites) && lead.websites.length > 0 && (
-                      <div className="space-y-2">
-                        {lead.websites.map((website, idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <Globe className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                            <a
-                              href={website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-purple-600 hover:underline break-all"
-                            >
-                              {website}
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Campaign Info */}
-                {lead.campaign_name && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.campaign')}</h3>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
-                      <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                      <span className="text-sm text-purple-700 font-medium">{lead.campaign_name}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Metadata */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3">{t('modal.information')}</h3>
-                  <div className="space-y-2 text-sm">
-                    {lead.created_at && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Clock className="w-4 h-4" />
-                        <span>{t('modal.addedOn')} {new Date(lead.created_at).toLocaleDateString('pt-BR')}</span>
-                      </div>
-                    )}
-                    {lead.full_profile_fetched_at && (
-                      <div className="text-xs text-gray-500">
-                        {t('modal.enrichedOn')} {new Date(lead.full_profile_fetched_at).toLocaleDateString('pt-BR')}
-                      </div>
-                    )}
-                    {lead.score && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-600">{t('modal.qualificationScore')}</span>
-                          <span className="text-xs font-bold text-blue-600">{lead.score}/100</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full"
-                            style={{ width: `${lead.score}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -1097,7 +854,14 @@ const LeadsPage = () => {
 
       {/* Lead Details Modal */}
       {selectedLead && (
-        <LeadDetailsModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
+        <LeadDetailModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onNavigateToConversation={(leadId, channel) => {
+            setSelectedLead(null);
+            navigate(`/conversations?lead=${leadId}&channel=${channel}`);
+          }}
+        />
       )}
     </div>
   );

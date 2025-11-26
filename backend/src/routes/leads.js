@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const leadController = require('../controllers/leadController');
+const leadCommentsRouter = require('./leadComments');
 const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
 
@@ -42,5 +43,12 @@ router.delete('/:id', leadController.deleteLead);
 
 // Obter leads de uma campanha específica
 router.get('/campaign/:campaignId', leadController.getCampaignLeads);
+
+// ================================
+// COMENTÁRIOS EM LEADS
+// ================================
+
+// Mount comments routes under /leads/:leadId/comments
+router.use('/:leadId/comments', leadCommentsRouter);
 
 module.exports = router;

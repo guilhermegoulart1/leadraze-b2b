@@ -150,14 +150,28 @@ router.get('/locations', async (req, res) => {
     );
 
     const locations = unipileResponse.items || unipileResponse.data || [];
-    
-    // Processar localizações para formato { value, label }
-    const processedLocations = locations.map(location => ({
-      value: location.id || location.value || location.urn_id || `${location.name}_${Date.now()}`,
-      label: location.name || location.title || location.label || location.displayName || 'Localização sem nome',
-      country: location.country || location.countryCode || null,
-      state: location.state || location.region || null
-    }));
+
+    // Processar localizações para formato { value, label, country }
+    const processedLocations = locations.map(location => {
+      const label = location.name || location.title || location.label || location.displayName || 'Localização sem nome';
+
+      // Extrair país do nome se não vier separado
+      // Exemplo: "São Paulo, São Paulo, Brazil" -> country = "Brazil"
+      let country = location.country || location.countryCode || null;
+
+      if (!country && label.includes(',')) {
+        const parts = label.split(',');
+        // Último elemento geralmente é o país
+        country = parts[parts.length - 1].trim();
+      }
+
+      return {
+        value: location.id || location.value || location.urn_id || `${location.name}_${Date.now()}`,
+        label,
+        country,
+        state: location.state || location.region || null
+      };
+    });
 
     console.log(`✅ Processadas ${processedLocations.length} localizações`);
 

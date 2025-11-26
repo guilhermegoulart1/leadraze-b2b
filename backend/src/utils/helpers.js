@@ -78,7 +78,10 @@ const LEAD_STATUS = {
   ACCEPTED: 'accepted',
   QUALIFYING: 'qualifying',
   QUALIFIED: 'qualified',
-  DISCARDED: 'discarded'
+  DISCARDED: 'discarded',
+  SCHEDULED: 'scheduled',
+  WON: 'won',
+  LOST: 'lost'
 };
 
 const CAMPAIGN_STATUS = {

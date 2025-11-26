@@ -1,0 +1,42 @@
+{
+  "welcome": {
+    "subject": "Bem-vindo ao LeadRaze!",
+    "greeting": "Bem-vindo!"
+  },
+  "password-reset": {
+    "subject": "Redefinir Senha - LeadRaze",
+    "greeting": "Solicitação de Redefinição de Senha"
+  },
+  "invite-user": {
+    "subject": "Você foi convidado para o LeadRaze",
+    "greeting": "Convite para Equipe"
+  },
+  "invoice": {
+    "subject": "Sua Fatura do LeadRaze",
+    "greeting": "Fatura Disponível"
+  },
+  "payment-failed": {
+    "subject": "Falha no Pagamento - Ação Necessária",
+    "greeting": "Problema no Pagamento"
+  },
+  "payment-success": {
+    "subject": "Pagamento Confirmado - LeadRaze",
+    "greeting": "Obrigado!"
+  },
+  "trial-ending": {
+    "subject": "Seu Período de Teste Termina em Breve - LeadRaze",
+    "greeting": "Período de Teste Acabando"
+  },
+  "subscription-canceled": {
+    "subject": "Assinatura Cancelada - LeadRaze",
+    "greeting": "Lamentamos Vê-lo Partir"
+  },
+  "lead-collected": {
+    "subject": "Novos Leads Coletados - LeadRaze",
+    "greeting": "Novos Leads!"
+  },
+  "campaign-completed": {
+    "subject": "Campanha Concluída - LeadRaze",
+    "greeting": "Campanha Finalizada"
+  }
+}

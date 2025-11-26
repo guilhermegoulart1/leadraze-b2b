@@ -45,7 +45,10 @@
       "Bash(cmd /c \"taskkill /F /IM node.exe /T >nul 2>&1 && ping -n 2 127.0.0.1 >nul && cd backend && npm run dev\")",
       "Bash(echo:*)",
       "Bash(tasklist:*)",
-      "Bash(cmd //c \"taskkill /F /PID 148188\")"
+      "Bash(cmd //c \"taskkill /F /PID 148188\")",
+      "Bash(del:*)",
+      "Bash(xargs ls:*)",
+      "Bash(cmd /c \"del c:\\leadraze-b2b\\backend\\scripts\\check-lead-status.js\")"
     ],
     "deny": [],
     "ask": []

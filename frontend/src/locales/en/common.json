@@ -45,5 +45,8 @@
     "lastMonth": "Last month",
     "thisWeek": "This week",
     "thisMonth": "This month"
-  }
+  },
+  "conversation": "conversation",
+  "conversations": "conversations",
+  "filters": "Filters"
 }

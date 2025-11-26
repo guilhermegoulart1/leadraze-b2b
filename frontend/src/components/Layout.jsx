@@ -4,7 +4,7 @@ import {
   Home, Search, Award, BarChart3, MessageCircle,
   Bot, Lightbulb, Settings, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
-  ChevronDown, Users, Shield, Lock, Linkedin, MapPin
+  ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -258,6 +258,14 @@ const Layout = () => {
                 >
                   <Settings className="w-4 h-4" />
                   <span>{t('userMenu.settings')}</span>
+                </Link>
+                <Link
+                  to="/billing"
+                  className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                  onClick={() => setShowUserMenu(false)}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>{t('userMenu.billing', 'Billing')}</span>
                 </Link>
                 <Link
                   to="/linkedin-accounts"

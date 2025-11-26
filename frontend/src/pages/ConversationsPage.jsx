@@ -347,6 +347,7 @@ const ConversationsPage = () => {
           loadConversations();
           loadStats();
         }}
+        onConversationUpdated={handleConversationUpdated}
       />
 
       {/* Details Panel - Direita (opcional) */}

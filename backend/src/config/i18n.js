@@ -15,7 +15,7 @@ i18next
     supportedLngs: ['en', 'pt', 'es'],
 
     // Namespaces
-    ns: ['errors', 'messages'],
+    ns: ['errors', 'messages', 'emails'],
     defaultNS: 'messages',
 
     // Backend configuration

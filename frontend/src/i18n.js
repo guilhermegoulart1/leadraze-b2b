@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-// Import translations
+// Import translations - English
 import enCommon from './locales/en/common.json';
 import enAuth from './locales/en/auth.json';
 import enNavigation from './locales/en/navigation.json';
@@ -10,7 +10,21 @@ import enDashboard from './locales/en/dashboard.json';
 import enCampaigns from './locales/en/campaigns.json';
 import enLeads from './locales/en/leads.json';
 import enContacts from './locales/en/contacts.json';
+import enAgents from './locales/en/agents.json';
+import enAiagents from './locales/en/aiagents.json';
+import enUsers from './locales/en/users.json';
+import enLinkedinaccounts from './locales/en/linkedinaccounts.json';
+import enAnalytics from './locales/en/analytics.json';
+import enConversations from './locales/en/conversations.json';
+import enActivationagents from './locales/en/activationagents.json';
+import enActivationcampaigns from './locales/en/activationcampaigns.json';
+import enSearch from './locales/en/search.json';
+import enGooglemaps from './locales/en/googlemaps.json';
+import enSettings from './locales/en/settings.json';
+import enLinkedin from './locales/en/linkedin.json';
+import enModals from './locales/en/modals.json';
 
+// Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
 import ptAuth from './locales/pt/auth.json';
 import ptNavigation from './locales/pt/navigation.json';
@@ -18,7 +32,21 @@ import ptDashboard from './locales/pt/dashboard.json';
 import ptCampaigns from './locales/pt/campaigns.json';
 import ptLeads from './locales/pt/leads.json';
 import ptContacts from './locales/pt/contacts.json';
+import ptAgents from './locales/pt/agents.json';
+import ptAiagents from './locales/pt/aiagents.json';
+import ptUsers from './locales/pt/users.json';
+import ptLinkedinaccounts from './locales/pt/linkedinaccounts.json';
+import ptAnalytics from './locales/pt/analytics.json';
+import ptConversations from './locales/pt/conversations.json';
+import ptActivationagents from './locales/pt/activationagents.json';
+import ptActivationcampaigns from './locales/pt/activationcampaigns.json';
+import ptSearch from './locales/pt/search.json';
+import ptGooglemaps from './locales/pt/googlemaps.json';
+import ptSettings from './locales/pt/settings.json';
+import ptLinkedin from './locales/pt/linkedin.json';
+import ptModals from './locales/pt/modals.json';
 
+// Import translations - Spanish
 import esCommon from './locales/es/common.json';
 import esAuth from './locales/es/auth.json';
 import esNavigation from './locales/es/navigation.json';
@@ -26,6 +54,19 @@ import esDashboard from './locales/es/dashboard.json';
 import esCampaigns from './locales/es/campaigns.json';
 import esLeads from './locales/es/leads.json';
 import esContacts from './locales/es/contacts.json';
+import esAgents from './locales/es/agents.json';
+import esAiagents from './locales/es/aiagents.json';
+import esUsers from './locales/es/users.json';
+import esLinkedinaccounts from './locales/es/linkedinaccounts.json';
+import esAnalytics from './locales/es/analytics.json';
+import esConversations from './locales/es/conversations.json';
+import esActivationagents from './locales/es/activationagents.json';
+import esActivationcampaigns from './locales/es/activationcampaigns.json';
+import esSearch from './locales/es/search.json';
+import esGooglemaps from './locales/es/googlemaps.json';
+import esSettings from './locales/es/settings.json';
+import esLinkedin from './locales/es/linkedin.json';
+import esModals from './locales/es/modals.json';
 
 // Translation resources
 const resources = {
@@ -37,6 +78,19 @@ const resources = {
     campaigns: enCampaigns,
     leads: enLeads,
     contacts: enContacts,
+    agents: enAgents,
+    aiagents: enAiagents,
+    users: enUsers,
+    linkedinaccounts: enLinkedinaccounts,
+    analytics: enAnalytics,
+    conversations: enConversations,
+    activationagents: enActivationagents,
+    activationcampaigns: enActivationcampaigns,
+    search: enSearch,
+    googlemaps: enGooglemaps,
+    settings: enSettings,
+    linkedin: enLinkedin,
+    modals: enModals,
   },
   pt: {
     common: ptCommon,
@@ -46,6 +100,19 @@ const resources = {
     campaigns: ptCampaigns,
     leads: ptLeads,
     contacts: ptContacts,
+    agents: ptAgents,
+    aiagents: ptAiagents,
+    users: ptUsers,
+    linkedinaccounts: ptLinkedinaccounts,
+    analytics: ptAnalytics,
+    conversations: ptConversations,
+    activationagents: ptActivationagents,
+    activationcampaigns: ptActivationcampaigns,
+    search: ptSearch,
+    googlemaps: ptGooglemaps,
+    settings: ptSettings,
+    linkedin: ptLinkedin,
+    modals: ptModals,
   },
   es: {
     common: esCommon,
@@ -55,6 +122,19 @@ const resources = {
     campaigns: esCampaigns,
     leads: esLeads,
     contacts: esContacts,
+    agents: esAgents,
+    aiagents: esAiagents,
+    users: esUsers,
+    linkedinaccounts: esLinkedinaccounts,
+    analytics: esAnalytics,
+    conversations: esConversations,
+    activationagents: esActivationagents,
+    activationcampaigns: esActivationcampaigns,
+    search: esSearch,
+    googlemaps: esGooglemaps,
+    settings: esSettings,
+    linkedin: esLinkedin,
+    modals: esModals,
   },
 };
 
@@ -68,7 +148,11 @@ i18n
     resources,
     fallbackLng: 'en', // English as default
     defaultNS: 'common',
-    ns: ['common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts'],
+    ns: [
+      'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
+      'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals'
+    ],
 
     // Language detection configuration
     detection: {

@@ -66,3 +66,19 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
 }
+
+/* Kanban Drag & Drop Styles */
+/* Placeholder - shows where the card will be dropped */
+[data-rfd-placeholder-context-id] > div {
+  background: #dbeafe !important;
+  border: 2px dashed #3b82f6 !important;
+  border-radius: 0.5rem !important;
+  opacity: 0.6 !important;
+}
+
+/* IMPORTANT: Disable all transitions during drag for performance */
+[data-rfd-drag-handle-context-id] {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}

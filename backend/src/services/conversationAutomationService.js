@@ -4,6 +4,7 @@ const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const aiResponseService = require('./aiResponseService');
 const contactExtractionService = require('./contactExtractionService');
+const conversationSummaryService = require('./conversationSummaryService');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -82,8 +83,13 @@ async function processIncomingMessage(params) {
       console.error('⚠️ Erro ao extrair contatos (continuando):', error.message);
     }
 
-    // Buscar histórico da conversa
-    const conversationHistory = await getConversationHistory(conversation_id);
+    // Buscar contexto otimizado da conversa (resumo + mensagens recentes)
+    const conversationContext = await getConversationContext(conversation_id);
+
+    console.log(`📊 Context stats: ${conversationContext.stats.totalMessages} total messages, ` +
+                `${conversationContext.stats.recentMessagesCount} recent, ` +
+                `${conversationContext.stats.totalTokens} tokens ` +
+                `(summary: ${conversationContext.stats.hasSummary ? 'YES' : 'NO'})`);
 
     // Gerar resposta usando IA
     console.log(`🤖 Gerando resposta IA...`);
@@ -91,7 +97,7 @@ async function processIncomingMessage(params) {
     const aiResponse = await aiResponseService.generateResponse({
       conversation_id,
       lead_message: message_content,
-      conversation_history,
+      conversation_context: conversationContext, // New format with summary
       ai_agent: conversation.ai_agent,
       lead_data: conversation.lead_data,
       context: {
@@ -356,6 +362,7 @@ async function getConversationDetails(conversationId) {
 
 /**
  * Buscar histórico de mensagens da conversa
+ * DEPRECATED: Use getConversationContext() instead for better performance
  */
 async function getConversationHistory(conversationId, limit = 20) {
   const result = await db.query(
@@ -372,6 +379,35 @@ async function getConversationHistory(conversationId, limit = 20) {
   );
 
   return result.rows || [];
+}
+
+/**
+ * Get optimized conversation context with progressive summary
+ * Uses summary for old messages + recent messages in full
+ * @param {string} conversationId
+ * @returns {Promise<object>} Context with summary and recent messages
+ */
+async function getConversationContext(conversationId) {
+  try {
+    const context = await conversationSummaryService.getContextForAI(conversationId);
+    return context;
+  } catch (error) {
+    console.error('⚠️ Error getting conversation context, falling back to basic history:', error.message);
+    // Fallback to old method if summary service fails
+    const messages = await getConversationHistory(conversationId, 20);
+    return {
+      summary: null,
+      recentMessages: messages,
+      stats: {
+        totalMessages: messages.length,
+        recentMessagesCount: messages.length,
+        summaryTokens: 0,
+        recentTokens: 0,
+        totalTokens: 0,
+        hasSummary: false,
+      }
+    };
+  }
 }
 
 /**
@@ -524,5 +560,6 @@ module.exports = {
   disableAIForConversation,
   enableAIForConversation,
   getConversationDetails,
-  getConversationHistory
+  getConversationHistory,
+  getConversationContext
 };

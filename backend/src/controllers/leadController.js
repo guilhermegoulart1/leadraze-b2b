@@ -566,13 +566,11 @@ const getCampaignLeads = async (req, res) => {
 
     console.log(`📋 Buscando leads da campanha ${campaignId}`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 4);
-
-    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY)
+    // Nota: sector filter é aplicado aos leads, não à campanha
     const campaign = await db.query(
-      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3 ${sectorFilter}`,
-      [campaignId, userId, accountId, ...sectorParams]
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3`,
+      [campaignId, userId, accountId]
     );
 
     if (campaign.rows.length === 0) {

@@ -8,10 +8,11 @@ import {
 import api from '../services/api';
 
 const LEAD_STATUS_OPTIONS = [
-  { value: 'leads', label: 'Lead', color: 'gray' },
-  { value: 'invite_sent', label: 'Convite Enviado', color: 'blue' },
-  { value: 'qualifying', label: 'Qualificando', color: 'yellow' },
-  { value: 'qualified', label: 'Qualificado', color: 'green' },
+  { value: 'leads', label: 'Prospecção', color: 'gray' },
+  { value: 'invite_sent', label: 'Convite', color: 'blue' },
+  { value: 'qualifying', label: 'Qualificação', color: 'yellow' },
+  { value: 'accepted', label: 'Em Andamento', color: 'purple' },
+  { value: 'qualified', label: 'Ganho', color: 'green' },
   { value: 'discarded', label: 'Descartado', color: 'red' }
 ];
 
@@ -21,6 +22,7 @@ const getStatusColorClasses = (color, isActive = false) => {
       gray: 'bg-gray-100 text-gray-900 border-gray-300',
       blue: 'bg-blue-100 text-blue-900 border-blue-300',
       yellow: 'bg-yellow-100 text-yellow-900 border-yellow-300',
+      purple: 'bg-purple-100 text-purple-900 border-purple-300',
       green: 'bg-green-100 text-green-900 border-green-300',
       red: 'bg-red-100 text-red-900 border-red-300'
     };
@@ -50,6 +52,11 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
   const [showAssignMenu, setShowAssignMenu] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
+  // Sector assignment states
+  const [sectors, setSectors] = useState([]);
+  const [showSectorMenu, setShowSectorMenu] = useState(false);
+  const [assigningSector, setAssigningSector] = useState(false);
+
   const TAG_COLORS = [
     { name: 'blue', class: 'bg-blue-100 text-blue-700' },
     { name: 'green', class: 'bg-green-100 text-green-700' },
@@ -69,6 +76,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
 
       loadConversation();
       loadUsers();
+      loadSectors();
     } else {
       // Limpar quando não há conversa selecionada
       setConversation(null);
@@ -88,6 +96,20 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showAssignMenu]);
+
+  // Close sector menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSectorMenu && !event.target.closest('.relative')) {
+        setShowSectorMenu(false);
+      }
+    };
+
+    if (showSectorMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSectorMenu]);
 
   const loadConversation = async () => {
     try {
@@ -169,6 +191,61 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
       alert('Erro ao desatribuir conversa');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const loadSectors = async () => {
+    try {
+      const response = await api.getSectors();
+      if (response.success) {
+        const sectorsList = Array.isArray(response.data) ? response.data : (response.data?.sectors || []);
+        setSectors(sectorsList);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar setores:', error);
+      setSectors([]);
+    }
+  };
+
+  const handleAssignSector = async (sectorId) => {
+    try {
+      setAssigningSector(true);
+      const response = await api.assignSectorToConversation(conversationId, sectorId);
+      if (response.success) {
+        // Reload conversation to get updated sector assignment
+        await loadConversation();
+        setShowSectorMenu(false);
+        // Notify parent to refresh conversations list
+        if (onConversationUpdated) {
+          onConversationUpdated();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao atribuir setor:', error);
+      alert('Erro ao atribuir setor');
+    } finally {
+      setAssigningSector(false);
+    }
+  };
+
+  const handleUnassignSector = async () => {
+    try {
+      setAssigningSector(true);
+      const response = await api.unassignSectorFromConversation(conversationId);
+      if (response.success) {
+        // Reload conversation to get updated sector assignment
+        await loadConversation();
+        setShowSectorMenu(false);
+        // Notify parent to refresh conversations list
+        if (onConversationUpdated) {
+          onConversationUpdated();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao desatribuir setor:', error);
+      alert('Erro ao desatribuir setor');
+    } finally {
+      setAssigningSector(false);
     }
   };
 
@@ -352,6 +429,60 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                         }`}
                       >
                         {user.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Setor */}
+              <div className="relative">
+                <p className="text-xs text-gray-500 mb-1">Setor</p>
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <button
+                    onClick={() => setShowSectorMenu(!showSectorMenu)}
+                    className="text-sm text-gray-900 hover:text-purple-600 transition-colors flex items-center gap-1"
+                    disabled={assigningSector}
+                  >
+                    {assigningSector ? 'Atualizando...' : (conversation?.sector_name || 'Não atribuído')}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Dropdown menu */}
+                {showSectorMenu && (
+                  <div className="absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-48 overflow-y-auto">
+                    {conversation?.sector_id && (
+                      <>
+                        <button
+                          onClick={handleUnassignSector}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          ✕ Desatribuir
+                        </button>
+                        <div className="border-t border-gray-100 my-1"></div>
+                      </>
+                    )}
+                    {sectors.map((sector) => (
+                      <button
+                        key={sector.id}
+                        onClick={() => handleAssignSector(sector.id)}
+                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                          conversation?.sector_id === sector.id
+                            ? 'bg-purple-50 text-purple-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {sector.color && (
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: sector.color }}
+                            ></div>
+                          )}
+                          <span>{sector.name}</span>
+                        </div>
                       </button>
                     ))}
                   </div>

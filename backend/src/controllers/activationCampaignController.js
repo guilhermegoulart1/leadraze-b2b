@@ -7,6 +7,7 @@ const {
   ForbiddenError
 } = require('../utils/errors');
 const { getAccessibleSectorIds } = require('../middleware/permissions');
+const { startCampaignInvites, cancelCampaignInvites } = require('../workers/linkedinInviteWorker');
 
 // ================================
 // HELPER: Build sector filter for activation campaign queries
@@ -633,14 +634,28 @@ const startCampaign = async (req, res) => {
       [id]
     );
 
-    // TODO: Aqui seria iniciado o processo de ativação via queue/worker
-    // Por enquanto, apenas atualizar o status
+    // Iniciar processo de envio de convites via worker (LinkedIn)
+    let invitesScheduled = 0;
+    if (campaign.activate_linkedin && campaign.linkedin_agent_active) {
+      try {
+        console.log('🚀 Iniciando envio de convites do LinkedIn via worker...');
+        const result = await startCampaignInvites(id, {
+          dailyLimit: campaign.daily_limit || 100
+        });
+        invitesScheduled = result.scheduled || 0;
+        console.log(`✅ ${invitesScheduled} convites do LinkedIn agendados`);
+      } catch (workerError) {
+        console.error('⚠️ Erro ao iniciar worker de convites:', workerError);
+        // Não falhar a ativação da campanha se worker der erro
+      }
+    }
 
     console.log(`✅ Campanha de ativação iniciada com sucesso`);
 
     sendSuccess(res, {
       message: 'Campanha iniciada com sucesso',
-      campaign_id: id
+      campaign_id: id,
+      linkedin_invites_scheduled: invitesScheduled
     });
 
   } catch (error) {
@@ -688,9 +703,24 @@ const pauseCampaign = async (req, res) => {
       [id]
     );
 
+    // Cancelar convites pendentes do LinkedIn
+    let invitesCanceled = 0;
+    try {
+      console.log('🛑 Cancelando convites pendentes do LinkedIn...');
+      const result = await cancelCampaignInvites(id);
+      invitesCanceled = result.canceled || 0;
+      console.log(`✅ ${invitesCanceled} convites cancelados`);
+    } catch (cancelError) {
+      console.error('⚠️ Erro ao cancelar convites:', cancelError);
+      // Não falhar a pausa da campanha se cancelamento der erro
+    }
+
     console.log(`✅ Campanha pausada com sucesso`);
 
-    sendSuccess(res, { message: 'Campanha pausada com sucesso' });
+    sendSuccess(res, {
+      message: 'Campanha pausada com sucesso',
+      linkedin_invites_canceled: invitesCanceled
+    });
 
   } catch (error) {
     console.error('❌ Erro ao pausar campanha:', error);

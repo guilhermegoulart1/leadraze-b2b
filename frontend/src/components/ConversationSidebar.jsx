@@ -1,7 +1,8 @@
 // frontend/src/components/ConversationSidebar.jsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  Search, Bot, User, Clock, MessageSquare, Trash2, CheckCircle, Filter, ChevronDown, UserCircle
+  Search, Bot, User, Clock, MessageSquare, Trash2, CheckCircle, Filter, ChevronDown, UserCircle, Building2
 } from 'lucide-react';
 import QuickViewTabs from './QuickViewTabs';
 import AdvancedFiltersPanel from './AdvancedFiltersPanel';
@@ -29,8 +30,10 @@ const ConversationSidebar = ({
   onRemoveFilter,
   onClearAllFilters
 }) => {
+  const { t, i18n } = useTranslation('conversations');
+
   const formatLastMessageTime = (timestamp) => {
-    if (!timestamp) return 'Nunca';
+    if (!timestamp) return '';
 
     const date = new Date(timestamp);
     const now = new Date();
@@ -41,17 +44,17 @@ const ConversationSidebar = ({
     // Se for hoje, mostrar horário
     const isToday = date.toDateString() === now.toDateString();
     if (isToday) {
-      if (diffMins < 1) return 'Agora';
+      if (diffMins < 1) return t('time.now');
       if (diffMins < 60) return `${diffMins}m`;
       // Se foi hoje mas há mais de 1h, mostrar horário completo
-      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
     }
 
     // Se foi ontem
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
-      return 'Ontem';
+      return t('time.yesterday');
     }
 
     // Se foi esta semana
@@ -61,11 +64,11 @@ const ConversationSidebar = ({
 
     // Se foi este ano, não mostrar o ano
     if (date.getFullYear() === now.getFullYear()) {
-      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+      return date.toLocaleDateString(i18n.language, { day: '2-digit', month: 'short' });
     }
 
     // Se foi ano passado ou anterior, mostrar ano
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+    return date.toLocaleDateString(i18n.language, { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   // Calcular contagem de filtros ativos
@@ -80,7 +83,7 @@ const ConversationSidebar = ({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar conversas..."
+            placeholder={t('search.placeholder')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7229f7] focus:border-transparent"
@@ -103,7 +106,7 @@ const ConversationSidebar = ({
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Filter className="w-4 h-4" />
-            Filtros
+            {t('filters.channel')}
             {activeFiltersCount > 0 && (
               <span className="px-1.5 py-0.5 bg-[#7229f7] text-white text-xs font-medium rounded-full">
                 {activeFiltersCount}
@@ -115,7 +118,7 @@ const ConversationSidebar = ({
           </button>
 
           <span className="text-xs text-gray-500">
-            {conversations.length} {conversations.length === 1 ? 'conversa' : 'conversas'}
+            {conversations.length} {conversations.length === 1 ? t('common:conversation') : t('common:conversations')}
           </span>
         </div>
 
@@ -151,13 +154,13 @@ const ConversationSidebar = ({
             <MessageSquare className="w-12 h-12 text-gray-300 mb-3" />
             <p className="text-sm text-gray-600 font-medium">
               {searchQuery || activeFiltersCount > 0
-                ? 'Nenhuma conversa encontrada'
-                : 'Nenhuma conversa ainda'}
+                ? t('search.noResults')
+                : t('messages.noConversations')}
             </p>
             <p className="text-xs text-gray-500 mt-1">
               {searchQuery || activeFiltersCount > 0
-                ? 'Tente ajustar os filtros'
-                : 'Conversas aparecerão aqui'}
+                ? t('search.tryDifferent')
+                : t('messages.startFirst')}
             </p>
           </div>
         ) : (
@@ -241,39 +244,49 @@ const ConversationSidebar = ({
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        {/* AI Status Badge */}
+                        {/* AI Status Badge - Only Icon */}
                         <div
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`flex items-center justify-center p-1 rounded-full ${
                             conversation.status === 'ai_active'
                               ? 'bg-purple-50 text-[#7229f7]'
                               : 'bg-gray-100 text-gray-600'
                           }`}
+                          title={conversation.status === 'ai_active' ? 'IA Ativa' : 'Manual'}
                         >
                           {conversation.status === 'ai_active' ? (
-                            <>
-                              <Bot className="w-3 h-3" />
-                              IA
-                            </>
+                            <Bot className="w-3 h-3" />
                           ) : (
-                            <>
-                              <User className="w-3 h-3" />
-                              Manual
-                            </>
+                            <User className="w-3 h-3" />
                           )}
                         </div>
 
                         {/* Assignment Badge */}
                         <div
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                             conversation.assigned_user_name
                               ? 'bg-blue-50 text-blue-700'
                               : 'bg-gray-100 text-gray-500'
                           }`}
                           title={conversation.assigned_user_name || 'Não atribuída'}
                         >
-                          <UserCircle className="w-3 h-3" />
-                          <span className="truncate max-w-[80px]">
+                          <UserCircle className="w-2.5 h-2.5" />
+                          <span className="truncate max-w-[60px]">
                             {conversation.assigned_user_name || 'Não atribuída'}
+                          </span>
+                        </div>
+
+                        {/* Sector Badge */}
+                        <div
+                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                            conversation.sector_name
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                          title={conversation.sector_name || 'Sem setor'}
+                        >
+                          <Building2 className="w-2.5 h-2.5" />
+                          <span className="truncate max-w-[60px]">
+                            {conversation.sector_name || 'Sem setor'}
                           </span>
                         </div>
                       </div>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="{{language}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{subject}}</title>
+  <style type="text/css">
+    /* Reset styles */
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    table, td {
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    img {
+      -ms-interpolation-mode: bicubic;
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+
+    /* Base styles */
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background-color: #f4f4f7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .email-wrapper {
+      width: 100%;
+      background-color: #f4f4f7;
+      padding: 30px 0;
+    }
+
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .email-header {
+      text-align: center;
+      padding: 30px 20px;
+    }
+
+    .email-logo {
+      font-size: 28px;
+      font-weight: bold;
+      color: #3B82F6;
+      text-decoration: none;
+    }
+
+    .email-body {
+      background-color: #ffffff;
+      padding: 40px 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .email-footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #6B7280;
+      font-size: 13px;
+    }
+
+    .email-footer a {
+      color: #6B7280;
+      text-decoration: underline;
+    }
+
+    /* Typography */
+    h1 {
+      margin: 0 0 20px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #1F2937;
+      line-height: 1.3;
+    }
+
+    p {
+      margin: 0 0 16px;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #374151;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+
+    .btn-primary {
+      background-color: #3B82F6;
+      color: #ffffff !important;
+    }
+
+    .btn-danger {
+      background-color: #EF4444;
+      color: #ffffff !important;
+    }
+
+    .btn-success {
+      background-color: #10B981;
+      color: #ffffff !important;
+    }
+
+    /* Alert boxes */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+
+    .alert-warning {
+      background-color: #FEF3C7;
+      border-left: 4px solid #F59E0B;
+      color: #92400E;
+    }
+
+    .alert-info {
+      background-color: #DBEAFE;
+      border-left: 4px solid #3B82F6;
+      color: #1E40AF;
+    }
+
+    .alert-success {
+      background-color: #D1FAE5;
+      border-left: 4px solid #10B981;
+      color: #065F46;
+    }
+
+    /* Responsive */
+    @media only screen and (max-width: 620px) {
+      .email-container {
+        width: 100% !important;
+        padding: 0 15px;
+      }
+      .email-body {
+        padding: 30px 20px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="email-container">
+      <!-- Header -->
+      <div class="email-header">
+        <a href="{{appUrl}}" class="email-logo">{{appName}}</a>
+      </div>
+
+      <!-- Body -->
+      <div class="email-body">
+        {{{content}}}
+      </div>
+
+      <!-- Footer -->
+      <div class="email-footer">
+        <p>&copy; {{year}} {{appName}}. All rights reserved.</p>
+        <p>
+          <a href="{{appUrl}}">Visit our website</a> |
+          <a href="mailto:{{supportEmail}}">Contact Support</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 12px; color: #9CA3AF;">
+          This email was sent to you because you have an account with {{appName}}.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

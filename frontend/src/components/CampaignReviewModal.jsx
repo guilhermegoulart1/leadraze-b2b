@@ -4,9 +4,11 @@ import {
   X, CheckCircle, Users, Sparkles, MessageSquare, Play,
   ArrowLeft, Loader, AlertCircle, Trash2
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
 const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
+  const { t } = useTranslation('modals');
   const [leads, setLeads] = useState([]);
   const [aiAgent, setAiAgent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +40,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       setSelectedLeads(new Set());
 
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +52,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       await onActivate(campaign.id);
       onClose();
     } catch (error) {
-      console.error('Erro ao ativar campanha:', error);
+      console.error('Error activating campaign:', error);
     } finally {
       setIsActivating(false);
     }
@@ -77,7 +79,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const handleDeleteSelected = async () => {
     if (selectedLeads.size === 0) return;
 
-    if (!confirm(`Tem certeza que deseja excluir ${selectedLeads.size} lead(s)?`)) {
+    if (!confirm(t('campaignReview.confirmDeleteLeads', { count: selectedLeads.size }))) {
       return;
     }
 
@@ -93,8 +95,8 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       setLeads(leads.filter(lead => !selectedLeads.has(lead.id)));
       setSelectedLeads(new Set());
     } catch (error) {
-      console.error('Erro ao excluir leads:', error);
-      alert('Erro ao excluir alguns leads. Por favor, tente novamente.');
+      console.error('Error deleting leads:', error);
+      alert(t('campaignReview.deleteLeadsError'));
     }
   };
 
@@ -113,7 +115,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{campaign?.name}</h2>
-                <p className="text-sm text-gray-600">Revisão de campanha e leads coletados</p>
+                <p className="text-sm text-gray-600">{t('campaignReview.subtitle')}</p>
               </div>
             </div>
             <button
@@ -131,7 +133,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Carregando dados da campanha...</p>
+                <p className="text-gray-600">{t('campaignReview.loadingData')}</p>
               </div>
             </div>
           ) : (
@@ -143,7 +145,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                     <div className="flex items-center gap-2 mb-2">
                       <Users className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-900">Leads Coletados</span>
+                      <span className="text-sm font-medium text-blue-900">{t('campaignReview.leadsCollected')}</span>
                     </div>
                     <p className="text-2xl font-bold text-blue-600">{leads.length}</p>
                   </div>
@@ -151,7 +153,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                   <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
                     <div className="flex items-center gap-2 mb-2">
                       <Sparkles className="w-5 h-5 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-900">Meta Inicial</span>
+                      <span className="text-sm font-medium text-purple-900">{t('campaignReview.initialGoal')}</span>
                     </div>
                     <p className="text-2xl font-bold text-purple-600">{campaign?.target_profiles_count || 0}</p>
                   </div>
@@ -160,7 +162,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                     <div className="flex items-center gap-2 mb-2">
                       <Trash2 className={`w-5 h-5 ${selectedLeads.size > 0 ? 'text-red-600' : 'text-gray-400'}`} />
                       <span className={`text-sm font-medium ${selectedLeads.size > 0 ? 'text-red-900' : 'text-gray-500'}`}>
-                        Para Excluir
+                        {t('campaignReview.toDelete')}
                       </span>
                     </div>
                     <p className={`text-2xl font-bold ${selectedLeads.size > 0 ? 'text-red-600' : 'text-gray-400'}`}>
@@ -180,7 +182,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{aiAgent.name}</h3>
                         <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                          Agente IA
+                          {t('campaignReview.aiAgent')}
                         </span>
                       </div>
                       {aiAgent.description && (
@@ -192,7 +194,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                         <div className="bg-white rounded-lg p-4 border border-purple-200">
                           <div className="flex items-center gap-2 mb-2">
                             <MessageSquare className="w-4 h-4 text-purple-600" />
-                            <span className="text-sm font-medium text-gray-700">Mensagem que será enviada:</span>
+                            <span className="text-sm font-medium text-gray-700">{t('campaignReview.messageToSend')}</span>
                           </div>
                           <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                             {aiAgent.system_prompt}
@@ -211,21 +213,21 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                 <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900">Leads Coletados</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">{t('campaignReview.leadsCollectedTitle')}</h3>
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
                         {leads.length}
                       </span>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mb-2">
-                    Selecione leads para excluir antes de ativar a campanha
+                    {t('campaignReview.selectLeadsToDelete')}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={toggleAll}
                       className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      {selectedLeads.size === leads.length ? 'Desmarcar' : 'Selecionar'} todos
+                      {selectedLeads.size === leads.length ? t('campaignReview.unselectAll') : t('campaignReview.selectAll')} {t('campaignReview.all')}
                     </button>
                     {selectedLeads.size > 0 && (
                       <>
@@ -235,7 +237,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                           className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
                         >
                           <Trash2 className="w-3 h-3" />
-                          Excluir {selectedLeads.size}
+                          {t('campaignReview.delete')} {selectedLeads.size}
                         </button>
                       </>
                     )}
@@ -247,7 +249,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                   {leads.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <AlertCircle className="w-12 h-12 text-gray-400 mb-3" />
-                      <p className="text-gray-600">Nenhum lead coletado ainda</p>
+                      <p className="text-gray-600">{t('campaignReview.noLeadsCollected')}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100">
@@ -291,7 +293,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
                                     className="flex-shrink-0 p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                                    title="Ver perfil no LinkedIn"
+                                    title={t('campaignReview.viewLinkedInProfile')}
                                   >
                                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                                       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
@@ -322,18 +324,18 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
               className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
             >
               <ArrowLeft className="w-4 h-4" />
-              Voltar
+              {t('campaignReview.back')}
             </button>
 
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-600">
                 {selectedLeads.size > 0 ? (
                   <>
-                    <span className="font-medium text-red-600">{selectedLeads.size}</span> lead(s) selecionado(s) para exclusão
+                    <span className="font-medium text-red-600">{selectedLeads.size}</span> {t('campaignReview.leadsSelectedForDeletion')}
                   </>
                 ) : (
                   <>
-                    <span className="font-medium text-blue-600">{leads.length}</span> lead(s) serão ativados
+                    <span className="font-medium text-blue-600">{leads.length}</span> {t('campaignReview.leadsWillBeActivated')}
                   </>
                 )}
               </div>
@@ -345,12 +347,12 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                 {isActivating ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    Ativando...
+                    {t('campaignReview.activating')}
                   </>
                 ) : (
                   <>
                     <Play className="w-4 h-4" />
-                    Ativar Campanha
+                    {t('campaignReview.activateCampaign')}
                   </>
                 )}
               </button>

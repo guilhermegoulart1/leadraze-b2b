@@ -21,11 +21,13 @@ async function processJobs() {
   isProcessing = true;
 
   try {
-    // Buscar jobs pendentes
+    // Buscar jobs pendentes (com account_id da campanha)
     const result = await db.query(
-      `SELECT * FROM bulk_collection_jobs 
-       WHERE status = 'pending' 
-       ORDER BY created_at ASC 
+      `SELECT bcj.*, c.account_id
+       FROM bulk_collection_jobs bcj
+       JOIN campaigns c ON bcj.campaign_id = c.id
+       WHERE bcj.status = 'pending'
+       ORDER BY bcj.created_at ASC
        LIMIT 1`
     );
 
@@ -72,27 +74,42 @@ async function processJob(job) {
     // ===== TRADUÇÃO AUTOMÁTICA BASEADA NO PAÍS =====
     let translatedFilters = searchFilters;
 
-    // Detectar país a partir do location ID
-    if (searchFilters.location && Array.isArray(searchFilters.location) && searchFilters.location.length > 0) {
+    // Detectar país - primeiro verifica se já veio do frontend
+    let detectedCountry = null;
+    let locationName = null;
+
+    if (searchFilters.location_data && searchFilters.location_data.country) {
+      // País já veio do frontend - usar diretamente
+      detectedCountry = searchFilters.location_data.country;
+      locationName = searchFilters.location_data.label;
+      console.log(`\n🌍 === PAÍS DO FRONTEND ===`);
+      console.log(`📍 País: ${detectedCountry}`);
+      console.log(`📌 Localização: ${locationName}`);
+    } else if (searchFilters.location && Array.isArray(searchFilters.location) && searchFilters.location.length > 0) {
+      // Fallback: detectar país a partir do location ID
       const firstLocationId = searchFilters.location[0];
 
-      console.log(`\n🌍 === DETECTANDO PAÍS ===`);
+      console.log(`\n🌍 === DETECTANDO PAÍS VIA API ===`);
       const locationInfo = await getCountryFromLocationId(firstLocationId, job.unipile_account_id);
 
       if (locationInfo && locationInfo.country) {
-        console.log(`📍 País detectado: ${locationInfo.country}`);
-        console.log(`📌 Localização completa: ${locationInfo.locationName}`);
-
-        // Traduzir termos para a língua do país
-        translatedFilters = await translateSearchTerms(searchFilters, locationInfo.country);
-
-        console.log(`\n✅ Filtros traduzidos para ${locationInfo.country}:`);
-        console.log('  Keywords:', translatedFilters.keywords);
-        console.log('  Industries:', translatedFilters.industries);
-        console.log('  Job Titles:', translatedFilters.job_titles?.slice(0, 5), '...');
-      } else {
-        console.log('⚠️ Não foi possível detectar o país, usando filtros originais');
+        detectedCountry = locationInfo.country;
+        locationName = locationInfo.locationName;
+        console.log(`📍 País detectado: ${detectedCountry}`);
+        console.log(`📌 Localização completa: ${locationName}`);
       }
+    }
+
+    if (detectedCountry) {
+      // Traduzir termos para a língua do país
+      translatedFilters = await translateSearchTerms(searchFilters, detectedCountry);
+
+      console.log(`\n✅ Filtros traduzidos para ${detectedCountry}:`);
+      console.log('  Keywords:', translatedFilters.keywords);
+      console.log('  Industries:', translatedFilters.industries);
+      console.log('  Job Titles:', translatedFilters.job_titles?.slice(0, 5), '...');
+    } else {
+      console.log('⚠️ Não foi possível detectar o país, usando filtros originais');
     }
 
     // Loop de coleta
@@ -289,17 +306,18 @@ async function saveProfiles(profiles, job) {
         }
       });
 
-      // Inserir lead com campos expandidos
+      // Inserir lead com campos expandidos (inclui account_id para multi-tenancy)
       const insertQuery = `INSERT INTO leads
-         (campaign_id, linkedin_profile_id, provider_id, name, title, company,
+         (account_id, campaign_id, linkedin_profile_id, provider_id, name, title, company,
           location, profile_url, profile_picture, headline, status, score,
           email, phone, email_captured_at, phone_captured_at, email_source, phone_source,
           public_identifier, network_distance, profile_picture_large,
           connections_count, follower_count, is_premium, member_urn)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-                 $19, $20, $21, $22, $23, $24, $25)`;
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                 $20, $21, $22, $23, $24, $25, $26)`;
 
       const insertValues = [
+        job.account_id, // account_id para multi-tenancy
         job.campaign_id,
         profileId,
         profile.provider_id || profile.id,

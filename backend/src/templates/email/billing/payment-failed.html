@@ -1,0 +1,43 @@
+<h1>Payment Failed ⚠️</h1>
+
+<p>Hi {{name}},</p>
+
+<p>We were unable to process your payment of <strong>{{amount}}</strong> for your {{appName}} subscription.</p>
+
+<div class="alert alert-warning">
+  <strong>Action Required:</strong> Please update your payment method to avoid service interruption.
+</div>
+
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+  <tr style="background-color: #F9FAFB;">
+    <td style="padding: 12px; border: 1px solid #E5E7EB;"><strong>Amount</strong></td>
+    <td style="padding: 12px; border: 1px solid #E5E7EB;">{{amount}}</td>
+  </tr>
+  <tr>
+    <td style="padding: 12px; border: 1px solid #E5E7EB;"><strong>Card Ending</strong></td>
+    <td style="padding: 12px; border: 1px solid #E5E7EB;">****{{lastFourDigits}}</td>
+  </tr>
+  <tr style="background-color: #F9FAFB;">
+    <td style="padding: 12px; border: 1px solid #E5E7EB;"><strong>Next Retry</strong></td>
+    <td style="padding: 12px; border: 1px solid #E5E7EB;">{{retryDate}}</td>
+  </tr>
+</table>
+
+<p style="text-align: center; margin: 30px 0;">
+  <a href="{{updatePaymentUrl}}" class="btn btn-danger">Update Payment Method</a>
+</p>
+
+<p><strong>Why did my payment fail?</strong></p>
+<ul style="color: #6B7280;">
+  <li>Insufficient funds</li>
+  <li>Expired card</li>
+  <li>Card declined by issuing bank</li>
+  <li>Incorrect billing information</li>
+</ul>
+
+<p>If you believe this is an error, please contact your bank or our support team.</p>
+
+<p>
+  Best regards,<br>
+  The {{appName}} Billing Team
+</p>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import ContactAvatar from './ContactAvatar';
 
 const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
   const { t } = useTranslation();
@@ -75,17 +76,11 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
-                    {contact.profile_picture ? (
-                      <img
-                        src={contact.profile_picture}
-                        alt={contact.name}
-                        className="w-16 h-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-xl">
-                        {contact.name?.charAt(0)?.toUpperCase() || '?'}
-                      </div>
-                    )}
+                    <ContactAvatar
+                      photoUrl={contact.profile_picture || (contact.source === 'google_maps' && contact.custom_fields?.photos?.[0])}
+                      name={contact.name}
+                      size="xl"
+                    />
                     <div>
                       <h2 className="text-xl font-bold text-gray-900">{contact.name}</h2>
                       {contact.title && (

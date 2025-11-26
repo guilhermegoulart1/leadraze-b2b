@@ -77,4 +77,27 @@ router.post('/:id/assign', conversationController.assignConversation);
 // Desatribuir conversa
 router.post('/:id/unassign', conversationController.unassignConversation);
 
+// ================================
+// ATRIBUIÇÃO DE SETOR
+// ================================
+
+// Atribuir conversa a um setor
+router.post('/:id/assign-sector', conversationController.assignSectorToConversation);
+
+// Desatribuir setor da conversa
+router.post('/:id/unassign-sector', conversationController.unassignSectorFromConversation);
+
+// ================================
+// RESUMO DE CONVERSAS (PROGRESSIVE SUMMARY)
+// ================================
+
+// Obter resumo e estatísticas de contexto
+router.get('/:id/summary', conversationController.getSummaryStats);
+
+// Gerar resumo manualmente
+router.post('/:id/summary/generate', conversationController.generateSummary);
+
+// Atualizar resumo incrementalmente
+router.post('/:id/summary/update', conversationController.updateSummary);
+
 module.exports = router;

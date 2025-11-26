@@ -1,5 +1,6 @@
 // frontend/src/components/SearchResults.jsx
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Loader,
   Search,
@@ -28,6 +29,7 @@ const SearchResults = ({
   onLoadMore,
   onBulkCollection
 }) => {
+  const { t } = useTranslation('search');
   const [viewMode, setViewMode] = useState('table'); // 'table' ou 'grid'
 
   // Card View Component
@@ -113,10 +115,10 @@ const SearchResults = ({
                     {profile.name}
                   </h3>
                   {profile.is_premium && (
-                    <Crown className="w-4 h-4 text-amber-500 flex-shrink-0" title="Membro Premium" />
+                    <Crown className="w-4 h-4 text-amber-500 flex-shrink-0" title={t('table.premiumMember')} />
                   )}
                   {profile.verified && (
-                    <BadgeCheck className="w-4 h-4 text-blue-500 flex-shrink-0" title="Perfil Verificado" />
+                    <BadgeCheck className="w-4 h-4 text-blue-500 flex-shrink-0" title={t('table.verifiedProfile')} />
                   )}
                 </div>
 
@@ -148,14 +150,14 @@ const SearchResults = ({
                       <div className="flex items-center gap-2">
                         {(profile.connections || profile.connections_count) && (
                           <span>
-                            <span className="font-medium text-gray-700">{profile.connections || profile.connections_count}</span> conexões
+                            <span className="font-medium text-gray-700">{profile.connections || profile.connections_count}</span> {t('table.connectionsLabel')}
                           </span>
                         )}
                         {profile.follower_count && (
                           <>
                             {(profile.connections || profile.connections_count) && <span>•</span>}
                             <span>
-                              <span className="font-medium text-gray-700">{profile.follower_count}</span> seguidores
+                              <span className="font-medium text-gray-700">{profile.follower_count}</span> {t('table.followersLabel')}
                             </span>
                           </>
                         )}
@@ -174,7 +176,7 @@ const SearchResults = ({
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Ver perfil no LinkedIn"
+                    title={t('table.viewProfile')}
                   >
                     <Linkedin className="w-5 h-5 text-blue-600" />
                   </a>
@@ -268,10 +270,10 @@ const SearchResults = ({
                   {profile.name}
                 </div>
                 {profile.is_premium && (
-                  <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title="Membro Premium" />
+                  <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title={t('table.premiumMember')} />
                 )}
                 {profile.verified && (
-                  <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" title="Perfil Verificado" />
+                  <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" title={t('table.verifiedProfile')} />
                 )}
               </div>
               {title && (
@@ -298,19 +300,19 @@ const SearchResults = ({
               <div className="flex items-center gap-1.5 text-xs text-gray-600">
                 <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="font-medium">{profile.connections || profile.connections_count}</span>
-                <span className="text-gray-500">conexões</span>
+                <span className="text-gray-500">{t('table.connectionsLabel')}</span>
               </div>
             )}
             {profile.follower_count && (
               <div className="flex items-center gap-1.5 text-xs text-gray-600">
                 <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="font-medium">{profile.follower_count}</span>
-                <span className="text-gray-500">seguidores</span>
+                <span className="text-gray-500">{t('table.followersLabel')}</span>
               </div>
             )}
             {!profile.connections && !profile.connections_count && !profile.follower_count && (
-              <span className="text-xs text-gray-400" title="Informação não disponível">
-                Não disponível
+              <span className="text-xs text-gray-400" title={t('table.notAvailable')}>
+                {t('table.notAvailable')}
               </span>
             )}
           </div>
@@ -325,7 +327,7 @@ const SearchResults = ({
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center justify-center p-2 hover:bg-gray-200 rounded-lg transition-colors"
-              title="Ver no LinkedIn"
+              title={t('table.viewOnLinkedin')}
             >
               <Linkedin className="w-4 h-4 text-blue-600" />
             </a>
@@ -340,8 +342,8 @@ const SearchResults = ({
       <div className="flex-1 flex items-center justify-center bg-white">
         <div className="text-center">
           <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Buscando perfis...</h3>
-          <p className="text-sm text-gray-500">Isso pode levar alguns segundos</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('results.loading')}</h3>
+          <p className="text-sm text-gray-500">{t('results.loadingHint')}</p>
         </div>
       </div>
     );
@@ -353,10 +355,10 @@ const SearchResults = ({
         <div className="text-center max-w-md px-6">
           <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Nenhum perfil encontrado
+            {t('results.noResults')}
           </h3>
           <p className="text-sm text-gray-600">
-            Configure os filtros na barra lateral e clique em "Buscar Perfis" para começar
+            {t('results.noResultsHint')}
           </p>
         </div>
       </div>
@@ -369,10 +371,10 @@ const SearchResults = ({
       <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Resultados da Busca</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t('results.title')}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              {results.length} {results.length === 1 ? 'perfil encontrado' : 'perfis encontrados'}
-              {selectedProfiles.length > 0 && ` • ${selectedProfiles.length} selecionado${selectedProfiles.length !== 1 ? 's' : ''}`}
+              {results.length === 1 ? t('results.foundSingular', { count: results.length }) : t('results.found', { count: results.length })}
+              {selectedProfiles.length > 0 && ` • ${selectedProfiles.length === 1 ? t('results.selectedSingular', { count: selectedProfiles.length }) : t('results.selected', { count: selectedProfiles.length })}`}
             </p>
           </div>
 
@@ -386,7 +388,7 @@ const SearchResults = ({
                     ? 'bg-white text-purple-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
-                title="Visualização em tabela"
+                title={t('results.tableView')}
               >
                 <List className="w-4 h-4" />
               </button>
@@ -397,7 +399,7 @@ const SearchResults = ({
                     ? 'bg-white text-purple-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
-                title="Visualização em grade"
+                title={t('results.gridView')}
               >
                 <Grid className="w-4 h-4" />
               </button>
@@ -410,7 +412,7 @@ const SearchResults = ({
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium transition-all shadow-sm"
               >
                 <Zap className="w-4 h-4" />
-                Coleta em Lote
+                {t('results.bulkCollection')}
               </button>
             )}
           </div>
@@ -435,16 +437,16 @@ const SearchResults = ({
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '60px' }}></th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '320px' }}>
-                  Perfil
+                  {t('table.profile')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '220px' }}>
-                  Localização
+                  {t('table.location')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '180px' }}>
-                  Conexões / Seguidores
+                  {t('table.connections')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase" style={{ width: '100px' }}>
-                  Ações
+                  {t('table.actions')}
                 </th>
               </tr>
             </thead>
@@ -465,11 +467,11 @@ const SearchResults = ({
               className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium transition-all shadow-sm"
             >
               {loadingMore && <Loader className="w-5 h-5 animate-spin" />}
-              <span>{loadingMore ? 'Carregando...' : 'Carregar Mais Resultados'}</span>
+              <span>{loadingMore ? t('results.loadingMore') : t('results.loadMore')}</span>
               {!loadingMore && <ArrowRight className="w-5 h-5" />}
             </button>
             <p className="text-sm text-gray-500 mt-3">
-              Mostrando {results.length} perfis • Clique para carregar mais
+              {t('results.showingProfiles', { count: results.length })}
             </p>
           </div>
         )}
@@ -477,7 +479,7 @@ const SearchResults = ({
         {/* End of Results */}
         {!hasMoreResults && results.length > 0 && (
           <div className="py-6 text-center text-gray-500 border-t border-gray-200">
-            <p className="text-sm">✓ Todos os perfis foram carregados</p>
+            <p className="text-sm">✓ {t('results.allLoaded')}</p>
           </div>
         )}
       </div>

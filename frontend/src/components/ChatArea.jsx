@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 
-const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed }) => {
+const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -216,6 +216,11 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       // ✅ Atualizar apenas se ainda for a conversa selecionada
       if (currentConversationIdRef.current === conversationId && conversation) {
         setConversation({ ...conversation, status: newStatus });
+      }
+
+      // ✅ Atualizar lista de conversas na sidebar
+      if (onConversationUpdated) {
+        onConversationUpdated();
       }
     } catch (error) {
       console.error('Erro ao alternar modo IA:', error);

@@ -52,11 +52,23 @@ const LOCATION_COUNTRY_FALLBACK = {
   // Portugal
   '105015875': 'Portugal',
 
-  // Brasil - principais cidades
+  // Brasil - principais cidades e regiões
   '90000056': 'Brazil',
   '90009725': 'Brazil', // São Paulo
   '90009731': 'Brazil', // Rio de Janeiro
   '90009713': 'Brazil', // Belo Horizonte
+  '105871508': 'Brazil', // São Paulo Metropolitan Area
+  '104746682': 'Brazil', // São Paulo (outro ID)
+  '106359675': 'Brazil', // São Paulo, São Paulo
+  '103644278': 'Brazil', // Brasil (país)
+  '101163065': 'Brazil', // Rio de Janeiro Metropolitan Area
+  '100364837': 'Brazil', // Curitiba
+  '106057199': 'Brazil', // Brasília
+  '100992141': 'Brazil', // Porto Alegre
+  '104223633': 'Brazil', // Recife
+  '103379807': 'Brazil', // Salvador
+  '105197158': 'Brazil', // Fortaleza
+  '104295995': 'Brazil', // Campinas
 };
 
 // ================================
@@ -64,12 +76,30 @@ const LOCATION_COUNTRY_FALLBACK = {
 // ================================
 async function getCountryFromLocationId(locationId, unipileAccountId) {
   try {
+    console.log(`🔍 Tentando identificar país do location ID: ${locationId}`);
+    console.log(`🔍 DEBUG - Tipo do locationId: ${typeof locationId}`);
+    console.log(`🔍 DEBUG - locationId como string: "${String(locationId)}"`);
+    console.log(`🔍 DEBUG - Chaves do fallback: ${Object.keys(LOCATION_COUNTRY_FALLBACK).slice(0, 10).join(', ')}...`);
+    console.log(`🔍 DEBUG - Fallback tem a chave? ${LOCATION_COUNTRY_FALLBACK.hasOwnProperty(String(locationId))}`);
+
+    // ESTRATÉGIA 1: Usar mapeamento de fallback PRIMEIRO (API é bugada e retorna dados errados)
+    const locationIdStr = String(locationId);
+    if (LOCATION_COUNTRY_FALLBACK[locationIdStr]) {
+      const country = LOCATION_COUNTRY_FALLBACK[locationIdStr];
+      console.log(`✅ [Fallback] Location ID ${locationIdStr} mapeado para: ${country}`);
+
+      return {
+        locationId,
+        locationName: country,
+        country,
+        source: 'fallback'
+      };
+    }
+
+    // ESTRATÉGIA 2: Tentar buscar na API Unipile (apenas se não tiver no fallback)
     const dsn = process.env.UNIPILE_DSN;
     const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
 
-    console.log(`🔍 Tentando identificar país do location ID: ${locationId}`);
-
-    // ESTRATÉGIA 1: Tentar buscar na API Unipile
     try {
       const url = `https://${dsn}/api/v1/linkedin/search/parameters`;
 
@@ -108,23 +138,10 @@ async function getCountryFromLocationId(locationId, unipileAccountId) {
         };
       }
     } catch (apiError) {
-      console.log(`⚠️ API Unipile não retornou dados para o location ID, tentando fallback...`);
+      console.log(`⚠️ API Unipile não retornou dados para o location ID, usando padrão...`);
     }
 
-    // ESTRATÉGIA 2: Usar mapeamento de fallback
-    if (LOCATION_COUNTRY_FALLBACK[locationId]) {
-      const country = LOCATION_COUNTRY_FALLBACK[locationId];
-      console.log(`✅ [Fallback] Location ID ${locationId} mapeado para: ${country}`);
-
-      return {
-        locationId,
-        locationName: country,
-        country,
-        source: 'fallback'
-      };
-    }
-
-    // ESTRATÉGIA 3: Assumir Brasil como padrão
+    // ESTRATÉGIA 3: Assumir Brasil como padrão (maioria dos usuários são BR)
     console.warn(`⚠️ Location ID ${locationId} desconhecido, assumindo Brasil como padrão`);
     return {
       locationId,

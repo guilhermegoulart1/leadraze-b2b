@@ -101,5 +101,14 @@
   "mockData": {
     "leadsConversion": "{{leads}} leads • {{rate}}% conversión",
     "responded": "Respondió {{count}}x"
+  },
+  "funnel": {
+    "prospecting": "Prospección",
+    "invite": "Invitación",
+    "qualifying": "Calificación",
+    "inProgress": "En Progreso",
+    "won": "Ganado",
+    "discarded": "Descartado",
+    "conversionFromPrevious": "{{rate}}% conversión de la etapa anterior"
   }
 }

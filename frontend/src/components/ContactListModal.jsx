@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, List } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
+  const { t } = useTranslation('modals');
   const isEditing = !!list;
 
   const [formData, setFormData] = useState({
@@ -42,7 +44,7 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Nome da lista é obrigatório';
+      newErrors.name = t('contactList.nameRequired');
     }
 
     setErrors(newErrors);
@@ -59,8 +61,8 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
       await onSave(formData);
       onClose();
     } catch (error) {
-      console.error('Erro ao salvar lista:', error);
-      setErrors({ submit: error.message || 'Erro ao salvar lista' });
+      console.error('Error saving list:', error);
+      setErrors({ submit: error.message || t('contactList.saveError') });
     } finally {
       setSaving(false);
     }
@@ -78,7 +80,7 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
               <List className="w-5 h-5 text-purple-600" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900">
-              {isEditing ? 'Editar Lista' : 'Nova Lista'}
+              {isEditing ? t('contactList.editTitle') : t('contactList.createTitle')}
             </h2>
           </div>
           <button
@@ -95,7 +97,7 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
             {/* Nome */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome da Lista *
+                {t('contactList.nameLabel')}
               </label>
               <input
                 type="text"
@@ -105,7 +107,7 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                   errors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Ex: Leads Q4 2024"
+                placeholder={t('contactList.namePlaceholder')}
               />
               {errors.name && (
                 <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -115,7 +117,7 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
             {/* Descrição */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Descrição
+                {t('contactList.descriptionLabel')}
               </label>
               <textarea
                 name="description"
@@ -123,7 +125,7 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
                 onChange={handleChange}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                placeholder="Descreva o objetivo desta lista..."
+                placeholder={t('contactList.descriptionPlaceholder')}
               />
             </div>
 
@@ -142,14 +144,14 @@ const ContactListModal = ({ isOpen, onClose, onSave, list = null }) => {
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               disabled={saving}
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={saving}
             >
-              {saving ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Lista'}
+              {saving ? t('contactList.saving') : isEditing ? t('contactList.saveChanges') : t('contactList.createList')}
             </button>
           </div>
         </form>

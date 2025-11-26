@@ -1,6 +1,7 @@
 // backend/src/controllers/conversationController.js
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
+const conversationSummaryService = require('../services/conversationSummaryService');
 const { sendSuccess, sendError } = require('../utils/responses');
 const {
   ValidationError,
@@ -40,6 +41,7 @@ const getConversations = async (req, res) => {
       status,
       campaign_id,
       linkedin_account_id,
+      lead_id,
       search,
       page = 1,
       limit = 50
@@ -87,6 +89,13 @@ const getConversations = async (req, res) => {
       paramIndex++;
     }
 
+    // Filtro por lead_id (para modal de lead)
+    if (lead_id) {
+      whereConditions.push(`conv.lead_id = $${paramIndex}`);
+      queryParams.push(lead_id);
+      paramIndex++;
+    }
+
     // Busca por nome do lead
     if (search) {
       whereConditions.push(`l.name ILIKE $${paramIndex}`);
@@ -112,13 +121,17 @@ const getConversations = async (req, res) => {
         la.profile_name as account_name,
         ai.name as ai_agent_name,
         assigned_user.name as assigned_user_name,
-        assigned_user.email as assigned_user_email
+        assigned_user.email as assigned_user_email,
+        s.id as sector_id,
+        s.name as sector_name,
+        s.color as sector_color
       FROM conversations conv
       INNER JOIN leads l ON conv.lead_id = l.id
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
       LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
+      LEFT JOIN sectors s ON conv.sector_id = s.id
       WHERE ${whereClause}
       ORDER BY conv.last_message_at DESC NULLS LAST, conv.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -190,13 +203,17 @@ const getConversation = async (req, res) => {
         la.linkedin_username,
         la.unipile_account_id,
         ai.name as ai_agent_name,
-        assigned_user.name as assigned_user_name
+        assigned_user.name as assigned_user_name,
+        s.id as sector_id,
+        s.name as sector_name,
+        s.color as sector_color
       FROM conversations conv
       INNER JOIN leads l ON conv.lead_id = l.id
       INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
       LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
+      LEFT JOIN sectors s ON conv.sector_id = s.id
       WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
     `;
 
@@ -1025,6 +1042,283 @@ const unassignConversation = async (req, res) => {
   }
 };
 
+// ================================
+// 15. ASSIGN SECTOR TO CONVERSATION
+// ================================
+const assignSectorToConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sector_id } = req.body;
+    const accountId = req.user.account_id;
+    const userId = req.user.id;
+
+    console.log(`📌 Atribuindo setor ${sector_id} à conversa ${id}`);
+
+    // Validate sector_id
+    if (!sector_id) {
+      throw new ValidationError('sector_id é obrigatório');
+    }
+
+    // Verify sector exists and belongs to same account
+    const sectorQuery = `
+      SELECT s.id, s.name
+      FROM sectors s
+      WHERE s.id = $1 AND s.account_id = $2
+    `;
+    const sectorResult = await db.query(sectorQuery, [sector_id, accountId]);
+
+    if (sectorResult.rows.length === 0) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    // Verify conversation exists and user has access to it
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
+      userId,
+      accountId,
+      4
+    );
+
+    const convQuery = `
+      SELECT conv.*
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1
+        AND camp.account_id = $2
+        AND camp.user_id = $3
+        ${sectorFilter}
+    `;
+    const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversa não encontrada');
+    }
+
+    // Assign sector to conversation
+    const updateQuery = `
+      UPDATE conversations
+      SET sector_id = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING *
+    `;
+    const result = await db.query(updateQuery, [sector_id, id]);
+
+    console.log(`✅ Setor atribuído à conversa`);
+
+    sendSuccess(res, result.rows[0], 'Setor atribuído com sucesso');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 16. UNASSIGN SECTOR FROM CONVERSATION
+// ================================
+const unassignSectorFromConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+    const userId = req.user.id;
+
+    console.log(`📌 Desatribuindo setor da conversa ${id}`);
+
+    // Verify conversation exists and user has access to it
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
+      userId,
+      accountId,
+      4
+    );
+
+    const convQuery = `
+      SELECT conv.*
+      FROM conversations conv
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1
+        AND camp.account_id = $2
+        AND camp.user_id = $3
+        ${sectorFilter}
+    `;
+    const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversa não encontrada');
+    }
+
+    // Unassign sector from conversation
+    const updateQuery = `
+      UPDATE conversations
+      SET sector_id = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await db.query(updateQuery, [id]);
+
+    console.log(`✅ Setor desatribuído da conversa`);
+
+    sendSuccess(res, result.rows[0], 'Setor desatribuído com sucesso');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// CONVERSATION SUMMARY ENDPOINTS
+// ================================
+
+/**
+ * Get conversation summary and context stats
+ * GET /api/conversations/:id/summary
+ */
+const getSummaryStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Verify access to conversation
+    const sectorFilter = await buildSectorFilter(userId, accountId, 3);
+    const conversation = await db.findOne('conversations', {
+      id,
+      user_id: accountId,
+      ...sectorFilter.conditions
+    });
+
+    if (!conversation) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    // Get context with summary
+    const context = await conversationSummaryService.getContextForAI(id);
+
+    return sendSuccess(res, {
+      conversation_id: id,
+      summary: context.summary,
+      stats: context.stats,
+      recent_messages_preview: context.recentMessages.slice(0, 5).map(m => ({
+        sender_type: m.sender_type,
+        content: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : ''),
+        sent_at: m.sent_at
+      }))
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Generate or regenerate summary for a conversation
+ * POST /api/conversations/:id/summary/generate
+ */
+const generateSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { force = false } = req.body;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Verify access to conversation
+    const sectorFilter = await buildSectorFilter(userId, accountId, 3);
+    const conversation = await db.findOne('conversations', {
+      id,
+      user_id: accountId,
+      ...sectorFilter.conditions
+    });
+
+    if (!conversation) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    // Check if summary already exists
+    if (conversation.context_summary && !force) {
+      return sendSuccess(res, {
+        message: 'Summary already exists. Use force=true to regenerate.',
+        summary: conversation.context_summary,
+        stats: {
+          tokenCount: conversation.summary_token_count,
+          updatedAt: conversation.summary_updated_at,
+          messagesCount: conversation.messages_count
+        }
+      });
+    }
+
+    // Generate summary
+    console.log(`📝 Generating summary for conversation ${id} (forced: ${force})`);
+    const result = await conversationSummaryService.generateInitialSummary(id);
+
+    if (!result) {
+      return sendSuccess(res, {
+        message: 'Not enough messages to generate summary (minimum 20 required)',
+        messagesCount: conversation.messages_count || 0
+      });
+    }
+
+    return sendSuccess(res, {
+      message: 'Summary generated successfully',
+      summary: result.summary,
+      stats: {
+        tokenCount: result.tokenCount,
+        messagesSummarized: result.messagesSummarized,
+        lastMessageId: result.lastMessageId
+      }
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Update summary incrementally (manually trigger)
+ * POST /api/conversations/:id/summary/update
+ */
+const updateSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Verify access to conversation
+    const sectorFilter = await buildSectorFilter(userId, accountId, 3);
+    const conversation = await db.findOne('conversations', {
+      id,
+      user_id: accountId,
+      ...sectorFilter.conditions
+    });
+
+    if (!conversation) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    // Process conversation for summary update
+    const result = await conversationSummaryService.processConversation(id);
+
+    if (!result) {
+      return sendSuccess(res, {
+        message: 'Summary update not needed or not enough messages',
+        current: {
+          summary: conversation.context_summary,
+          messagesCount: conversation.messages_count
+        }
+      });
+    }
+
+    return sendSuccess(res, {
+      message: 'Summary updated successfully',
+      summary: result.summary,
+      stats: {
+        tokenCount: result.tokenCount,
+        messagesSummarized: result.messagesSummarized,
+        wasCompressed: result.wasCompressed
+      }
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getConversations,
   getConversation,
@@ -1039,5 +1333,11 @@ module.exports = {
   reopenConversation,
   deleteConversation,
   assignConversation,
-  unassignConversation
+  unassignConversation,
+  assignSectorToConversation,
+  unassignSectorFromConversation,
+  // Summary endpoints
+  getSummaryStats,
+  generateSummary,
+  updateSummary
 };

@@ -45,7 +45,13 @@
     "reopen": "Reabrir",
     "viewContact": "Ver Contato",
     "assignTo": "Atribuir a",
-    "addNote": "Adicionar nota"
+    "addNote": "Adicionar nota",
+    "sector": "Setor",
+    "noSector": "Sem setor",
+    "notAssignedSector": "Não atribuído",
+    "assignSector": "Atribuir setor",
+    "unassignSector": "Desatribuir setor",
+    "updating": "Atualizando..."
   },
   "statusLabels": {
     "open": "Abertas",

@@ -45,7 +45,13 @@
     "reopen": "Reopen",
     "viewContact": "View Contact",
     "assignTo": "Assign to",
-    "addNote": "Add note"
+    "addNote": "Add note",
+    "sector": "Sector",
+    "noSector": "No sector",
+    "notAssignedSector": "Not assigned",
+    "assignSector": "Assign sector",
+    "unassignSector": "Unassign sector",
+    "updating": "Updating..."
   },
   "statusLabels": {
     "open": "Open",

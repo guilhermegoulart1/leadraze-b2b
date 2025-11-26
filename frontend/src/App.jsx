@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { BillingProvider } from './contexts/BillingContext';
 
 // Páginas
 import LoginPage from './pages/LoginPage';
@@ -26,9 +27,12 @@ import SectorsPage from './pages/SectorsPage';
 import ActivationAgentsPage from './pages/ActivationAgentsPage';
 import ActivationCampaignsPage from './pages/ActivationCampaignsPage';
 import ContactListsPage from './pages/ContactListsPage';
+import PricingPage from './pages/PricingPage';
+import BillingPage from './pages/BillingPage';
 
 // Layout
 import Layout from './components/Layout';
+import SubscriptionBlockOverlay from './components/SubscriptionBlockOverlay';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -65,12 +69,17 @@ function AppRoutes() {
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/auth/error" element={<AuthErrorPage />} />
 
+      {/* Pricing - acessível para todos */}
+      <Route path="/pricing" element={<PricingPage />} />
+
       {/* Rotas protegidas */}
       <Route
         path="/"
         element={
           <ProtectedRoute>
-            <Layout />
+            <SubscriptionBlockOverlay>
+              <Layout />
+            </SubscriptionBlockOverlay>
           </ProtectedRoute>
         }
       >
@@ -94,6 +103,7 @@ function AppRoutes() {
         <Route path="activation-agents" element={<ActivationAgentsPage />} />
         <Route path="activation-campaigns" element={<ActivationCampaignsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
+        <Route path="billing" element={<BillingPage />} />
       </Route>
 
       {/* 404 */}
@@ -106,7 +116,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <BillingProvider>
+          <AppRoutes />
+        </BillingProvider>
       </AuthProvider>
     </Router>
   );
