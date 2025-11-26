@@ -183,6 +183,26 @@ class EmailService {
   }
 
   /**
+   * Send welcome email with password setup link (for users created via Stripe checkout)
+   */
+  async sendWelcomeWithPasswordSetup(user, setupUrl, accountId) {
+    return this.queueEmail({
+      template: 'welcome',
+      to: { email: user.email, name: user.name },
+      data: {
+        name: user.name,
+        dashboardUrl: setupUrl, // Use password setup URL instead of dashboard
+        isNewAccount: true,
+        setupPasswordUrl: setupUrl
+      },
+      language: user.preferred_language || 'en',
+      priority: 1,
+      accountId,
+      category: 'transactional'
+    });
+  }
+
+  /**
    * Send password reset email
    */
   async sendPasswordReset(user, resetToken, accountId) {

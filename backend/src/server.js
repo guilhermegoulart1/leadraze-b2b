@@ -10,6 +10,9 @@ const conversationSyncWorker = require('./workers/conversationSyncWorker');
 // ✅ Import webhook worker to register job processors
 require('./workers/webhookWorker');
 
+// ✅ Import email worker to process email queue
+require('./workers/emailWorker');
+
 // ✅ Import Google Maps Agent processor
 const { registerGoogleMapsAgentProcessor } = require('./queues/processors/googleMapsAgentProcessor');
 

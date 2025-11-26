@@ -1,18 +1,18 @@
 {
   "welcome": {
-    "subject": "Bem-vindo ao LeadRaze!",
+    "subject": "Bem-vindo ao GetRaze - Ative sua conta!",
     "greeting": "Bem-vindo!"
   },
   "password-reset": {
-    "subject": "Redefinir Senha - LeadRaze",
+    "subject": "Redefinir Senha - GetRaze",
     "greeting": "Solicitação de Redefinição de Senha"
   },
   "invite-user": {
-    "subject": "Você foi convidado para o LeadRaze",
+    "subject": "Você foi convidado para o GetRaze",
     "greeting": "Convite para Equipe"
   },
   "invoice": {
-    "subject": "Sua Fatura do LeadRaze",
+    "subject": "Sua Fatura do GetRaze",
     "greeting": "Fatura Disponível"
   },
   "payment-failed": {
@@ -20,23 +20,23 @@
     "greeting": "Problema no Pagamento"
   },
   "payment-success": {
-    "subject": "Pagamento Confirmado - LeadRaze",
+    "subject": "Pagamento Confirmado - GetRaze",
     "greeting": "Obrigado!"
   },
   "trial-ending": {
-    "subject": "Seu Período de Teste Termina em Breve - LeadRaze",
+    "subject": "Seu Período de Teste Termina em Breve - GetRaze",
     "greeting": "Período de Teste Acabando"
   },
   "subscription-canceled": {
-    "subject": "Assinatura Cancelada - LeadRaze",
+    "subject": "Assinatura Cancelada - GetRaze",
     "greeting": "Lamentamos Vê-lo Partir"
   },
   "lead-collected": {
-    "subject": "Novos Leads Coletados - LeadRaze",
+    "subject": "Novos Leads Coletados - GetRaze",
     "greeting": "Novos Leads!"
   },
   "campaign-completed": {
-    "subject": "Campanha Concluída - LeadRaze",
+    "subject": "Campanha Concluída - GetRaze",
     "greeting": "Campanha Finalizada"
   }
 }

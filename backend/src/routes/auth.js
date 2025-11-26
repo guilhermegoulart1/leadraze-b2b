@@ -16,6 +16,11 @@ router.post('/register', authLimiter, authController.register);
 // Login
 router.post('/login', authLimiter, authController.login);
 
+// Password Reset
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.get('/validate-reset-token', authController.validateResetToken);
+router.post('/reset-password', authController.resetPassword);
+
 // Google OAuth
 router.get('/google',
   passport.authenticate('google', { 

@@ -20,6 +20,14 @@ const stripeWebhookController = require('../controllers/stripeWebhookController'
  */
 router.get('/plans', billingController.getPlans);
 
+/**
+ * POST /api/billing/checkout-guest
+ * Create Stripe Checkout session for new customers (no auth required)
+ * Account will be created automatically after successful payment via webhook
+ * Body: { extraChannels?: number, extraUsers?: number }
+ */
+router.post('/checkout-guest', billingController.createGuestCheckoutSession);
+
 // ============================================
 // Webhook Route (special handling for raw body)
 // This route must be registered in app.js with raw body parser

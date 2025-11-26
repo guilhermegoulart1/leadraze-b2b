@@ -10,6 +10,8 @@ const billingService = require('../services/billingService');
 const emailService = require('../services/emailService');
 const { CREDIT_PACKAGES, getPlanByPriceId } = require('../config/stripe');
 const db = require('../config/database');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 /**
  * Handle Stripe webhook
@@ -122,35 +124,178 @@ async function processEvent(event) {
  * Handle checkout.session.completed
  */
 async function handleCheckoutCompleted(session) {
-  const accountId = session.metadata?.account_id;
+  const isGuest = session.metadata?.is_guest === 'true';
+  let accountId = session.metadata?.account_id;
+
+  // Handle GUEST checkout - create account from Stripe data
+  if (isGuest && !accountId) {
+    console.log('🆕 Processing guest checkout - creating account...');
+
+    // Get customer data from Stripe
+    const customerEmail = session.customer_details?.email || session.customer_email;
+    const customerName = session.customer_details?.name || customerEmail?.split('@')[0] || 'User';
+    const customerPhone = session.customer_details?.phone || null;
+    const customerAddress = session.customer_details?.address || null;
+    const stripeCustomerId = session.customer;
+
+    if (!customerEmail) {
+      console.error('❌ Guest checkout missing customer email');
+      return;
+    }
+
+    console.log(`📋 Customer data: email=${customerEmail}, name=${customerName}, phone=${customerPhone}`);
+    if (customerAddress) {
+      console.log(`📍 Address: ${customerAddress.line1}, ${customerAddress.city}, ${customerAddress.state}, ${customerAddress.country}`);
+    }
+
+    // Check if user already exists with this email
+    const existingUser = await db.query(
+      'SELECT id, account_id FROM users WHERE email = $1',
+      [customerEmail.toLowerCase()]
+    );
+
+    if (existingUser.rows.length > 0) {
+      // User exists - use their account
+      accountId = existingUser.rows[0].account_id;
+      console.log(`✅ Found existing account for ${customerEmail}: ${accountId}`);
+
+      // Update Stripe customer ID if needed
+      await db.query(
+        'UPDATE accounts SET stripe_customer_id = $1 WHERE id = $2 AND stripe_customer_id IS NULL',
+        [stripeCustomerId, accountId]
+      );
+
+      // Update phone if provided and not already set
+      if (customerPhone) {
+        await db.query(
+          'UPDATE users SET phone = $1 WHERE id = $2 AND phone IS NULL',
+          [customerPhone, existingUser.rows[0].id]
+        );
+      }
+    } else {
+      // Create new account and user
+      const result = await createAccountFromStripe({
+        email: customerEmail,
+        name: customerName,
+        phone: customerPhone,
+        address: customerAddress,
+        stripeCustomerId,
+        extraChannels: parseInt(session.metadata?.extra_channels) || 0,
+        extraUsers: parseInt(session.metadata?.extra_users) || 0
+      });
+
+      accountId = result.accountId;
+      console.log(`✅ Created new account for ${customerEmail}: ${accountId}`);
+    }
+
+    // Update subscription metadata with account_id for future events
+    if (session.subscription) {
+      const { stripe } = require('../config/stripe');
+      await stripe.subscriptions.update(session.subscription, {
+        metadata: {
+          account_id: accountId,
+          extra_channels: session.metadata?.extra_channels || '0',
+          extra_users: session.metadata?.extra_users || '0'
+        }
+      });
+    }
+  }
+
   if (!accountId) {
     console.error('Checkout session missing account_id in metadata');
     return;
   }
 
-  // Handle credit purchase
+  // Handle credit purchase (one-time purchases NEVER expire)
   if (session.mode === 'payment' && session.metadata?.credit_package) {
     const packageKey = session.metadata.credit_package;
     const creditPackage = CREDIT_PACKAGES[packageKey];
+    const neverExpires = session.metadata?.never_expires === 'true';
 
     if (creditPackage) {
-      await billingService.addCreditPackage({
+      await stripeService.addCreditsToAccount(
         accountId,
-        creditType: 'gmaps',
-        credits: creditPackage.credits,
-        validityDays: creditPackage.validityDays,
-        source: 'purchase',
-        stripeCheckoutSessionId: session.id,
-        pricePaidCents: session.amount_total,
-        currency: session.currency?.toUpperCase() || 'USD'
-      });
+        creditPackage.credits,
+        neverExpires,
+        'purchase_onetime',
+        {
+          checkoutSessionId: session.id,
+          paymentIntentId: session.payment_intent
+        }
+      );
 
-      console.log(`Added ${creditPackage.credits} credits to account ${accountId}`);
+      console.log(`Added ${creditPackage.credits} credits to account ${accountId} (never expires: ${neverExpires})`);
     }
   }
 
-  // For subscriptions, the subscription.created event will handle the rest
-  console.log(`Checkout completed for account ${accountId}`);
+  console.log(`✅ Checkout completed for account ${accountId}`);
+}
+
+/**
+ * Create account and user from Stripe checkout data
+ */
+async function createAccountFromStripe({ email, name, phone, address, stripeCustomerId, extraChannels, extraUsers }) {
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Generate slug from name
+    const baseSlug = name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    // Add random suffix to ensure uniqueness
+    const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
+
+    // Create account
+    const accountResult = await client.query(`
+      INSERT INTO accounts (name, slug, stripe_customer_id, subscription_status)
+      VALUES ($1, $2, $3, 'pending')
+      RETURNING id
+    `, [name, uniqueSlug, stripeCustomerId]);
+
+    const accountId = accountResult.rows[0].id;
+
+    // Generate password reset token (user will set password via email)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Create temporary password (will be replaced when user sets their password)
+    const tempPassword = crypto.randomBytes(16).toString('hex');
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    // Create admin user (with phone and billing address if provided)
+    await client.query(`
+      INSERT INTO users (account_id, email, password_hash, name, phone, billing_address, role, is_active, password_reset_token, password_reset_expires)
+      VALUES ($1, $2, $3, $4, $5, $6, 'admin', true, $7, $8)
+    `, [accountId, email.toLowerCase(), passwordHash, name, phone, address ? JSON.stringify(address) : null, resetTokenHash, resetTokenExpiry]);
+
+    await client.query('COMMIT');
+
+    // Send welcome email with password setup link
+    try {
+      const setupUrl = `${process.env.FRONTEND_URL}/set-password?token=${resetToken}`;
+      await emailService.sendWelcomeWithPasswordSetup({
+        email,
+        name
+      }, setupUrl, accountId);
+      console.log(`📧 Sent welcome email to ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError.message);
+    }
+
+    return { accountId, email, resetToken };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**

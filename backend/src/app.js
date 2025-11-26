@@ -24,6 +24,14 @@ app.use(cors({
   credentials: true
 }));
 
+// ✅ Stripe webhook - DEVE vir ANTES do express.json()
+// Stripe requires raw body for signature verification
+app.post('/api/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  require('./controllers/stripeWebhookController').handleWebhook
+);
+console.log('✅ Stripe webhook route loaded (raw body - before json parser)');
+
 // ✅ Middleware especial para capturar raw body do webhook Unipile
 // DEVE vir ANTES do express.json/urlencoded
 app.use('/api/webhooks/unipile', express.raw({ type: '*/*', limit: '10mb' }), (req, res, next) => {
@@ -150,6 +158,19 @@ try {
   console.log('✅ Auth routes loaded');
 } catch (error) {
   console.error('❌ Error loading auth routes:', error.message);
+}
+
+// ================================
+// BILLING ROUTES (MUST BE BEFORE KNOWLEDGE ROUTES)
+// Knowledge routes are mounted at /api with authenticateToken,
+// which would catch /api/billing/* if we don't register billing first
+// Stripe webhook is registered before express.json() middleware at the top
+// ================================
+try {
+  app.use('/api/billing', require('./routes/billing'));
+  console.log('✅ Billing routes loaded');
+} catch (error) {
+  console.error('❌ Error loading billing routes:', error.message);
 }
 
 try {
@@ -281,26 +302,6 @@ try {
   console.log('✅ Unified agents routes loaded');
 } catch (error) {
   console.error('❌ Error loading unified agents routes:', error.message);
-}
-
-// ================================
-// BILLING ROUTES
-// ================================
-
-// Stripe webhook needs raw body for signature verification
-// Must be before express.json() - handled separately
-app.post('/api/billing/webhook',
-  express.raw({ type: 'application/json' }),
-  require('./controllers/stripeWebhookController').handleWebhook
-);
-console.log('✅ Stripe webhook route loaded (raw body)');
-
-// Billing routes (authenticated)
-try {
-  app.use('/api/billing', require('./routes/billing'));
-  console.log('✅ Billing routes loaded');
-} catch (error) {
-  console.error('❌ Error loading billing routes:', error.message);
 }
 
 // ================================

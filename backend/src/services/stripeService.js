@@ -3,12 +3,58 @@
  *
  * Wrapper for Stripe SDK operations
  * Handles customer creation, subscriptions, checkout sessions, and webhooks
+ *
+ * Modelo:
+ * - Plano Base: R$ 297/mês (1 canal, 2 usuários, 200 créditos/mês)
+ * - Add-ons recorrentes: Canal (+R$ 147/mês), Usuário (+R$ 27/mês)
+ * - Créditos avulsos: não expiram
  */
 
-const { stripe, PLANS, ADDONS, CREDIT_PACKAGES, TRIAL_CONFIG, getPlanByPriceId } = require('../config/stripe');
+const {
+  stripe,
+  PLANS,
+  ADDONS,
+  CREDIT_PACKAGES,
+  TRIAL_CONFIG,
+  getPlanByPriceId,
+  getAddonByPriceId,
+  getCreditPackageByPriceId
+} = require('../config/stripe');
 const db = require('../config/database');
 
+// Launch promotion: 70% OFF first month
+const LAUNCH_COUPON = {
+  id: '70OFF',
+  percentOff: 70,
+  duration: 'once', // Only first month
+  name: '70% OFF - Launch Promotion'
+};
+
 class StripeService {
+  /**
+   * Get or create the launch coupon in Stripe
+   */
+  async getOrCreateLaunchCoupon() {
+    try {
+      // Try to retrieve existing coupon
+      const coupon = await stripe.coupons.retrieve(LAUNCH_COUPON.id);
+      return coupon.id;
+    } catch (error) {
+      // Coupon doesn't exist, create it
+      if (error.code === 'resource_missing') {
+        const coupon = await stripe.coupons.create({
+          id: LAUNCH_COUPON.id,
+          percent_off: LAUNCH_COUPON.percentOff,
+          duration: LAUNCH_COUPON.duration,
+          name: LAUNCH_COUPON.name,
+          currency: 'brl'
+        });
+        console.log(`✅ Created launch coupon: ${coupon.id}`);
+        return coupon.id;
+      }
+      throw error;
+    }
+  }
   /**
    * Create or get Stripe customer for an account
    */
@@ -42,13 +88,16 @@ class StripeService {
   }
 
   /**
-   * Create checkout session for subscription
+   * Create checkout session for subscription (Base plan + add-ons)
+   * Supports configuring extra channels and users upfront
    */
   async createCheckoutSession(options) {
     const {
       accountId,
       customerId,
       priceId,
+      extraChannels = 0,
+      extraUsers = 0,
       successUrl,
       cancelUrl,
       mode = 'subscription',
@@ -56,45 +105,63 @@ class StripeService {
       metadata = {}
     } = options;
 
+    // Build line items array
+    const lineItems = [
+      {
+        price: priceId,
+        quantity: 1
+      }
+    ];
+
+    // Add extra channels if requested
+    if (extraChannels > 0 && ADDONS.channel.priceId) {
+      lineItems.push({
+        price: ADDONS.channel.priceId,
+        quantity: extraChannels
+      });
+    }
+
+    // Add extra users if requested
+    if (extraUsers > 0 && ADDONS.user.priceId) {
+      lineItems.push({
+        price: ADDONS.user.priceId,
+        quantity: extraUsers
+      });
+    }
+
+    // Get or create launch coupon for 70% OFF first month
+    const couponId = await this.getOrCreateLaunchCoupon();
+
     const sessionConfig = {
       customer: customerId,
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1
-        }
-      ],
+      line_items: lineItems,
       mode,
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
         account_id: accountId,
+        extra_channels: extraChannels.toString(),
+        extra_users: extraUsers.toString(),
         ...metadata
       },
-      // Allow customer to change currency at checkout
-      currency_options: {
-        usd: { enabled: true },
-        eur: { enabled: true },
-        brl: { enabled: true }
-      },
-      // Allow promotion codes
-      allow_promotion_codes: true,
+      // Apply 70% OFF launch coupon
+      discounts: [{ coupon: couponId }],
       // Billing address collection
-      billing_address_collection: 'auto'
+      billing_address_collection: 'auto',
+      // Default to BRL
+      currency: 'brl'
     };
 
-    // Add trial for subscriptions if not already subscribed
-    if (mode === 'subscription' && trialDays > 0) {
-      const hasSubscription = await this.hasActiveSubscription(accountId);
-      if (!hasSubscription) {
-        sessionConfig.subscription_data = {
-          trial_period_days: trialDays,
-          metadata: {
-            account_id: accountId
-          }
-        };
-      }
+    // Add subscription metadata (no trial - using 70% OFF first month instead)
+    if (mode === 'subscription') {
+      sessionConfig.subscription_data = {
+        metadata: {
+          account_id: accountId,
+          extra_channels: extraChannels.toString(),
+          extra_users: extraUsers.toString()
+        }
+      };
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
@@ -102,7 +169,90 @@ class StripeService {
   }
 
   /**
+   * Create checkout session for GUEST (no account yet)
+   * Stripe will collect customer email
+   * Account will be created after successful payment via webhook
+   */
+  async createGuestCheckoutSession(options) {
+    const {
+      priceId,
+      extraChannels = 0,
+      extraUsers = 0,
+      successUrl,
+      cancelUrl,
+      metadata = {}
+    } = options;
+
+    // Build line items array
+    const lineItems = [
+      {
+        price: priceId,
+        quantity: 1
+      }
+    ];
+
+    // Add extra channels if requested
+    if (extraChannels > 0 && ADDONS.channel.priceId) {
+      lineItems.push({
+        price: ADDONS.channel.priceId,
+        quantity: extraChannels
+      });
+    }
+
+    // Add extra users if requested
+    if (extraUsers > 0 && ADDONS.user.priceId) {
+      lineItems.push({
+        price: ADDONS.user.priceId,
+        quantity: extraUsers
+      });
+    }
+
+    // Get or create launch coupon for 70% OFF first month
+    const couponId = await this.getOrCreateLaunchCoupon();
+
+    const sessionConfig = {
+      // NO customer - Stripe will automatically create one for subscription mode
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'subscription',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      // Note: customer_creation is only for payment mode
+      // For subscription mode, Stripe auto-creates customer when not provided
+      // Apply 70% OFF launch coupon
+      discounts: [{ coupon: couponId }],
+      // Collect phone number (required)
+      phone_number_collection: {
+        enabled: true
+      },
+      // Billing address collection (required - includes name)
+      billing_address_collection: 'required',
+      // Default to BRL
+      currency: 'brl',
+      // Store metadata for webhook processing
+      metadata: {
+        is_guest: 'true',
+        extra_channels: extraChannels.toString(),
+        extra_users: extraUsers.toString(),
+        ...metadata
+      },
+      subscription_data: {
+        metadata: {
+          is_guest: 'true',
+          extra_channels: extraChannels.toString(),
+          extra_users: extraUsers.toString(),
+          ...metadata
+        }
+      }
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+    return session;
+  }
+
+  /**
    * Create checkout session for one-time credit purchase
+   * Credits purchased this way NEVER expire
    */
   async createCreditsCheckoutSession(options) {
     const {
@@ -130,15 +280,71 @@ class StripeService {
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
+      currency: 'brl',
       metadata: {
         account_id: accountId,
         credit_package: packageKey,
         credits: creditPackage.credits.toString(),
-        validity_days: creditPackage.validityDays.toString()
+        never_expires: 'true'  // One-time purchases never expire
       }
     });
 
     return session;
+  }
+
+  /**
+   * Add credits to account after successful payment
+   * @param {string} accountId - Account UUID
+   * @param {number} credits - Number of credits
+   * @param {boolean} neverExpires - If true, credits never expire
+   * @param {string} source - Source of credits (purchase_onetime, subscription, bonus)
+   * @param {object} stripeData - Stripe payment data for reference
+   */
+  async addCreditsToAccount(accountId, credits, neverExpires = false, source = 'purchase_onetime', stripeData = {}) {
+    const expiresAt = neverExpires
+      ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000) // 100 years
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    const result = await db.query(`
+      INSERT INTO credit_packages (
+        account_id,
+        stripe_payment_intent_id,
+        stripe_checkout_session_id,
+        credit_type,
+        initial_credits,
+        remaining_credits,
+        expires_at,
+        never_expires,
+        status,
+        source
+      ) VALUES ($1, $2, $3, 'gmaps', $4, $4, $5, $6, 'active', $7)
+      RETURNING id
+    `, [
+      accountId,
+      stripeData.paymentIntentId || null,
+      stripeData.checkoutSessionId || null,
+      credits,
+      expiresAt,
+      neverExpires,
+      source
+    ]);
+
+    console.log(`✅ Added ${credits} credits to account ${accountId} (expires: ${neverExpires ? 'never' : expiresAt})`);
+
+    return result.rows[0];
+  }
+
+  /**
+   * Add monthly credits from subscription renewal
+   */
+  async addMonthlyCredits(accountId, credits) {
+    return this.addCreditsToAccount(
+      accountId,
+      credits,
+      false, // Monthly credits expire
+      'subscription',
+      {}
+    );
   }
 
   /**
@@ -204,7 +410,7 @@ class StripeService {
   }
 
   /**
-   * Add subscription item (add-on)
+   * Add subscription item (add-on: channel or user)
    */
   async addSubscriptionItem(subscriptionId, priceId, quantity = 1) {
     return stripe.subscriptionItems.create({
@@ -269,10 +475,65 @@ class StripeService {
   }
 
   /**
+   * Get available credits for an account
+   */
+  async getAvailableCredits(accountId) {
+    const result = await db.query(
+      'SELECT get_available_credits($1, $2) as credits',
+      [accountId, 'gmaps']
+    );
+    return result.rows[0]?.credits || 0;
+  }
+
+  /**
+   * Get credit breakdown for an account
+   */
+  async getCreditBreakdown(accountId) {
+    const result = await db.query(`
+      SELECT
+        id,
+        credit_type,
+        initial_credits,
+        remaining_credits,
+        expires_at,
+        never_expires,
+        source,
+        purchased_at,
+        status
+      FROM credit_packages
+      WHERE account_id = $1
+        AND status = 'active'
+        AND (never_expires = true OR expires_at > NOW())
+      ORDER BY never_expires ASC, expires_at ASC
+    `, [accountId]);
+
+    return {
+      packages: result.rows,
+      total: result.rows.reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
+      expiring: result.rows.filter(pkg => !pkg.never_expires).reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
+      permanent: result.rows.filter(pkg => pkg.never_expires).reduce((sum, pkg) => sum + pkg.remaining_credits, 0)
+    };
+  }
+
+  /**
    * Get plan details from price ID
    */
   getPlanFromPriceId(priceId) {
     return getPlanByPriceId(priceId);
+  }
+
+  /**
+   * Get addon details from price ID
+   */
+  getAddonFromPriceId(priceId) {
+    return getAddonByPriceId(priceId);
+  }
+
+  /**
+   * Get credit package details from price ID
+   */
+  getCreditPackageFromPriceId(priceId) {
+    return getCreditPackageByPriceId(priceId);
   }
 }
 

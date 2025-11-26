@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useBilling } from '../contexts/BillingContext';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
-// Modal para avisar que atingiu o limite de usuários
+// Modal para avisar que atingiu o limite de usuarios
 export const UserLimitModal = ({ isOpen, onClose }) => {
+  const { t } = useTranslation('billing');
   const { addExtraUser, subscription } = useBilling();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -32,10 +34,10 @@ export const UserLimitModal = ({ isOpen, onClose }) => {
         </div>
 
         <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-          User Limit Reached
+          {t('modals.userLimit.title')}
         </h3>
         <p className="text-gray-600 text-center mb-6">
-          You've reached your plan's user limit. Add an extra user seat or upgrade your plan.
+          {t('modals.userLimit.message')}
         </p>
 
         <div className="space-y-3">
@@ -44,7 +46,7 @@ export const UserLimitModal = ({ isOpen, onClose }) => {
             disabled={loading}
             className="w-full bg-purple-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-purple-700 disabled:opacity-50"
           >
-            {loading ? 'Adding...' : 'Add Extra User ($5/month)'}
+            {loading ? '...' : t('modals.userLimit.addUser')}
           </button>
 
           <button
@@ -54,14 +56,14 @@ export const UserLimitModal = ({ isOpen, onClose }) => {
             }}
             className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-50"
           >
-            Upgrade Plan
+            {t('modals.userLimit.upgradePlan')}
           </button>
 
           <button
             onClick={onClose}
             className="w-full text-gray-500 py-2 hover:text-gray-700"
           >
-            Cancel
+            {t('modals.userLimit.cancel')}
           </button>
         </div>
       </div>
@@ -71,6 +73,7 @@ export const UserLimitModal = ({ isOpen, onClose }) => {
 
 // Modal para avisar que atingiu o limite de canais
 export const ChannelLimitModal = ({ isOpen, onClose }) => {
+  const { t } = useTranslation('billing');
   const { addExtraChannel, subscription } = useBilling();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -99,10 +102,10 @@ export const ChannelLimitModal = ({ isOpen, onClose }) => {
         </div>
 
         <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-          Channel Limit Reached
+          {t('modals.channelLimit.title')}
         </h3>
         <p className="text-gray-600 text-center mb-6">
-          You've reached your plan's LinkedIn channel limit. Add an extra channel or upgrade your plan.
+          {t('modals.channelLimit.message')}
         </p>
 
         <div className="space-y-3">
@@ -111,7 +114,7 @@ export const ChannelLimitModal = ({ isOpen, onClose }) => {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Adding...' : 'Add Extra Channel ($30/month)'}
+            {loading ? '...' : t('modals.channelLimit.addChannel')}
           </button>
 
           <button
@@ -121,14 +124,14 @@ export const ChannelLimitModal = ({ isOpen, onClose }) => {
             }}
             className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-50"
           >
-            Upgrade Plan
+            {t('modals.channelLimit.upgradePlan')}
           </button>
 
           <button
             onClick={onClose}
             className="w-full text-gray-500 py-2 hover:text-gray-700"
           >
-            Cancel
+            {t('modals.channelLimit.cancel')}
           </button>
         </div>
       </div>
@@ -136,8 +139,9 @@ export const ChannelLimitModal = ({ isOpen, onClose }) => {
   );
 };
 
-// Modal para avisar que não tem créditos suficientes
+// Modal para avisar que nao tem creditos suficientes
 export const CreditsModal = ({ isOpen, onClose, requiredCredits = 1 }) => {
+  const { t } = useTranslation('billing');
   const { credits, purchaseCredits } = useBilling();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -166,19 +170,27 @@ export const CreditsModal = ({ isOpen, onClose, requiredCredits = 1 }) => {
         </div>
 
         <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-          Insufficient Credits
+          {t('modals.insufficientCredits.title')}
         </h3>
         <p className="text-gray-600 text-center mb-2">
-          You need <strong>{requiredCredits}</strong> credits but only have <strong>{credits?.available || 0}</strong>.
+          {t('modals.insufficientCredits.message', { required: requiredCredits, available: credits?.available || 0 }).split('<strong>').map((part, i) => {
+            if (i === 0) return part;
+            const [bold, rest] = part.split('</strong>');
+            return <React.Fragment key={i}><strong>{bold}</strong>{rest}</React.Fragment>;
+          })}
         </p>
-        <p className="text-gray-500 text-sm text-center mb-6">
-          Purchase additional Google Maps credits to continue.
+        <p className="text-gray-500 text-sm text-center mb-2">
+          {t('modals.insufficientCredits.subtitle')}
+        </p>
+        <p className="text-green-600 text-sm font-medium text-center mb-6">
+          {t('modals.insufficientCredits.neverExpire')}
         </p>
 
         <div className="space-y-3 mb-4">
           {[
-            { id: 'credits_1000', amount: 1000, price: 50 },
-            { id: 'credits_2500', amount: 2500, price: 100 }
+            { id: 'credits-500', amount: 500, price: 47 },
+            { id: 'credits-1000', amount: 1000, price: 87 },
+            { id: 'credits-2500', amount: 2500, price: 197 }
           ].map((pkg) => (
             <button
               key={pkg.id}
@@ -187,10 +199,10 @@ export const CreditsModal = ({ isOpen, onClose, requiredCredits = 1 }) => {
               className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50"
             >
               <div className="text-left">
-                <p className="font-semibold text-gray-900">{pkg.amount.toLocaleString()} credits</p>
-                <p className="text-sm text-gray-500">Valid for 30 days</p>
+                <p className="font-semibold text-gray-900">{pkg.amount.toLocaleString()} {t('purchaseModal.credits')}</p>
+                <p className="text-sm text-green-500">{t('modals.insufficientCredits.neverExpireLabel')}</p>
               </div>
-              <p className="text-xl font-bold text-gray-900">${pkg.price}</p>
+              <p className="text-xl font-bold text-gray-900">R$ {pkg.price}</p>
             </button>
           ))}
         </div>
@@ -199,15 +211,16 @@ export const CreditsModal = ({ isOpen, onClose, requiredCredits = 1 }) => {
           onClick={onClose}
           className="w-full text-gray-500 py-2 hover:text-gray-700"
         >
-          Cancel
+          {t('purchaseModal.cancel')}
         </button>
       </div>
     </div>
   );
 };
 
-// Modal de upgrade genérico
+// Modal de upgrade generico
 export const UpgradeModal = ({ isOpen, onClose, feature }) => {
+  const { t } = useTranslation('billing');
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -222,12 +235,12 @@ export const UpgradeModal = ({ isOpen, onClose, feature }) => {
         </div>
 
         <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-          Upgrade Required
+          {t('modals.upgrade.title')}
         </h3>
         <p className="text-gray-600 text-center mb-6">
           {feature
-            ? `To access ${feature}, please upgrade your subscription.`
-            : 'This feature requires a higher plan. Upgrade to unlock more capabilities.'
+            ? t('modals.upgrade.messageWithFeature', { feature })
+            : t('modals.upgrade.messageGeneric')
           }
         </p>
 
@@ -239,14 +252,14 @@ export const UpgradeModal = ({ isOpen, onClose, feature }) => {
             }}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700"
           >
-            View Plans
+            {t('modals.upgrade.viewPlans')}
           </button>
 
           <button
             onClick={onClose}
             className="w-full text-gray-500 py-2 hover:text-gray-700"
           >
-            Maybe Later
+            {t('modals.upgrade.maybeLater')}
           </button>
         </div>
       </div>

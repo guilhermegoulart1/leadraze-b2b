@@ -86,6 +86,24 @@ class ApiService {
     localStorage.removeItem('user');
   }
 
+  async validateResetToken(token) {
+    return this.request(`/auth/validate-reset-token?token=${token}`);
+  }
+
+  async resetPassword(token, password) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    });
+  }
+
+  async requestPasswordReset(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   // ================================
   // CAMPAIGNS
   // ================================
@@ -1240,6 +1258,13 @@ class ApiService {
 
   async createCheckoutSession(data) {
     return this.request('/billing/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createGuestCheckoutSession(data) {
+    return this.request('/billing/checkout-guest', {
       method: 'POST',
       body: JSON.stringify(data),
     });

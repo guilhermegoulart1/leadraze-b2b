@@ -1,0 +1,215 @@
+{
+  "title": "Cobranca & Assinatura",
+  "subtitle": "Gerencie sua assinatura, uso e detalhes de cobranca",
+
+  "currentPlan": {
+    "title": "Plano Atual",
+    "subtitle": "Detalhes da sua assinatura",
+    "plan": "Plano",
+    "monthlyPrice": "Preco Mensal",
+    "month": "mes",
+    "nextBillingDate": "Proxima Cobranca",
+    "extraChannels": "+R$ {{amount}} por {{count}} canal(is) extra(s)",
+    "extraUsers": "+R$ {{amount}} por {{count}} usuario(s) extra(s)",
+    "trialEnds": "Teste termina em {{days}} dias",
+    "accessUntil": "Acesso ate {{date}}",
+    "manageInStripe": "Gerenciar no Stripe",
+    "changePlan": "Alterar Plano",
+    "cancelSubscription": "Cancelar Assinatura",
+    "reactivateSubscription": "Reativar Assinatura",
+    "noSubscription": "Voce nao tem uma assinatura ativa",
+    "viewPlans": "Ver Planos"
+  },
+
+  "status": {
+    "active": "Ativo",
+    "trialing": "Teste",
+    "past_due": "Pagamento Atrasado",
+    "canceled": "Cancelado",
+    "unpaid": "Nao Pago",
+    "trial_expired": "Teste Expirado"
+  },
+
+  "usage": {
+    "title": "Uso",
+    "linkedinChannels": "Canais LinkedIn",
+    "teamMembers": "Membros da Equipe",
+    "aiAgents": "Agentes IA",
+    "unlimited": "Ilimitado",
+    "addChannel": "+ Adicionar Canal (R$ 147/mes)",
+    "addUser": "+ Adicionar Usuario (R$ 27/mes)",
+    "adding": "Adicionando..."
+  },
+
+  "credits": {
+    "title": "Creditos Google Maps",
+    "subtitle": "Creditos para buscas de leads no Google Maps",
+    "buyMore": "Comprar Mais Creditos",
+    "available": "Creditos Disponiveis",
+    "monthlyCredits": "Creditos Mensais",
+    "purchasedCredits": "Creditos Comprados",
+    "neverExpire": "(nunca expiram)",
+    "monthlyExpire": "Creditos Mensais Expiram",
+    "expireOn": "{{amount}} em {{date}}"
+  },
+
+  "invoices": {
+    "title": "Historico de Cobrancas",
+    "date": "Data",
+    "description": "Descricao",
+    "amount": "Valor",
+    "status": "Status",
+    "view": "Ver",
+    "noInvoices": "Nenhuma fatura ainda",
+    "subscription": "Assinatura",
+    "paid": "pago",
+    "open": "aberto"
+  },
+
+  "cancelModal": {
+    "title": "Cancelar Assinatura?",
+    "message": "Tem certeza que deseja cancelar? Voce perdera acesso a:",
+    "item1": "Todas as suas campanhas e automacoes",
+    "item2": "Dados de leads e conversas",
+    "item3": "Creditos restantes do Google Maps",
+    "note": "Seus dados serao mantidos por 30 dias apos o cancelamento. Voce pode reativar a qualquer momento para recupera-los.",
+    "keepSubscription": "Manter Assinatura",
+    "yesCancel": "Sim, Cancelar",
+    "canceling": "Cancelando..."
+  },
+
+  "purchaseModal": {
+    "title": "Comprar Creditos Google Maps",
+    "subtitle": "Compre creditos adicionais para buscas de leads no Google Maps.",
+    "neverExpireNote": "Creditos comprados nunca expiram!",
+    "perThousand": "R$ {{price}} por 1.000",
+    "credits": "creditos",
+    "cancel": "Cancelar"
+  },
+
+  "modals": {
+    "userLimit": {
+      "title": "Limite de Usuarios Atingido",
+      "message": "Voce atingiu o limite de usuarios do seu plano. Adicione um usuario extra ou faca upgrade do plano.",
+      "addUser": "Adicionar Usuario Extra (R$ 27/mes)",
+      "upgradePlan": "Fazer Upgrade",
+      "cancel": "Cancelar"
+    },
+    "channelLimit": {
+      "title": "Limite de Canais Atingido",
+      "message": "Voce atingiu o limite de canais LinkedIn do seu plano. Adicione um canal extra ou faca upgrade do plano.",
+      "addChannel": "Adicionar Canal Extra (R$ 147/mes)",
+      "upgradePlan": "Fazer Upgrade",
+      "cancel": "Cancelar"
+    },
+    "insufficientCredits": {
+      "title": "Creditos Insuficientes",
+      "message": "Voce precisa de <strong>{{required}}</strong> creditos mas so tem <strong>{{available}}</strong>.",
+      "subtitle": "Compre creditos adicionais do Google Maps para continuar.",
+      "neverExpire": "Creditos comprados nunca expiram!",
+      "neverExpireLabel": "Nunca expiram"
+    },
+    "upgrade": {
+      "title": "Upgrade Necessario",
+      "messageWithFeature": "Para acessar {{feature}}, faca upgrade da sua assinatura.",
+      "messageGeneric": "Este recurso requer um plano superior. Faca upgrade para desbloquear mais recursos.",
+      "viewPlans": "Ver Planos",
+      "maybeLater": "Talvez Depois"
+    }
+  },
+
+  "pricing": {
+    "title": "Escolha Seu Plano",
+    "subtitle": "Escale sua geracao de leads com o plano certo para seu negocio",
+    "back": "Voltar",
+    "currency": "Moeda",
+    "monthly": "Mensal",
+    "yearly": "Anual",
+    "savePercent": "(Economize 20%)",
+    "mostPopular": "Mais Popular",
+    "currentPlan": "Plano Atual",
+    "perMonth": "/mes",
+    "perYear": "/ano",
+    "billedAnnually": "{{price}}/mes cobrado anualmente",
+    "getStarted": "Comecar",
+    "switchPlan": "Trocar Plano",
+    "processing": "Processando...",
+    "whatsIncluded": "O que esta incluso:",
+    "linkedinChannels": "{{count}} canais LinkedIn",
+    "teamMembers": "{{count}} membros da equipe",
+    "monthlyCredits": "{{count}} creditos Google Maps/mes",
+    "aiLeadGeneration": "Geracao de leads com IA",
+    "campaignAutomation": "Automacao de campanhas",
+    "aiAgents": "{{count}} agentes IA",
+    "prioritySupport": "Suporte prioritario",
+    "customIntegrations": "Integracoes personalizadas",
+    "dedicatedManager": "Gerente de conta dedicado",
+    "needMore": "Precisa de Mais?",
+    "addons": {
+      "extraChannel": {
+        "title": "Canal LinkedIn Extra",
+        "description": "Adicione mais contas LinkedIn para escalar seu alcance",
+        "price": "R$ 147"
+      },
+      "extraUser": {
+        "title": "Membro da Equipe Extra",
+        "description": "Convide membros adicionais para colaborar",
+        "price": "R$ 27"
+      },
+      "credits": {
+        "title": "Creditos Google Maps",
+        "description": "Compre creditos adicionais que <strong>nunca expiram</strong>",
+        "price": "R$ 87",
+        "perThousand": "/1.000 creditos"
+      }
+    },
+    "faq": {
+      "title": "Perguntas Frequentes",
+      "q1": "Posso mudar de plano depois?",
+      "a1": "Sim! Voce pode fazer upgrade ou downgrade do seu plano a qualquer momento. As mudancas entram em vigor imediatamente e o valor sera proporcional.",
+      "q2": "O que acontece com meus dados se eu cancelar?",
+      "a2": "Seus dados sao mantidos por 30 dias apos o cancelamento. Durante esse periodo, voce pode reativar sua assinatura para recuperar tudo.",
+      "q3": "Os creditos do Google Maps expiram?",
+      "a3": "Os creditos mensais inclusos no seu plano renovam a cada ciclo de cobranca e expiram no final do periodo. Creditos comprados NUNCA expiram - eles ficam na sua conta ate serem usados!",
+      "q4": "Existe um periodo de teste gratuito?",
+      "a4": "Sim! Todas as novas contas ganham 7 dias de teste gratuito com acesso completo a todos os recursos."
+    }
+  },
+
+  "checkout": {
+    "title": "Configure Seu Plano",
+    "subtitle": "Ajuste os controles para suas necessidades",
+    "backToPricing": "Voltar",
+    "canceled": "Seu checkout foi cancelado. Voce pode tentar novamente ou modificar sua selecao.",
+    "perMonth": "mes",
+    "firstMonth": "primeiro mes",
+    "then": "depois",
+    "error": "Ocorreu um erro. Por favor, tente novamente.",
+    "processing": "Processando...",
+    "subscribe": "Assinar Agora",
+    "limitedOffer": "Oferta limitada",
+    "stripeSecure": "Pagamento seguro via Stripe",
+    "channel": "canal",
+    "channels": "canais",
+    "users": "usuarios",
+    "linkedinChannels": "Canais",
+    "channelDescription": "LinkedIn, WhatsApp, Email (1 incluso)",
+    "teamMembers": "Membros da Equipe",
+    "userDescription": "Acesso a plataforma (2 inclusos)",
+    "basePlanIncluded": "Plano base (1 canal + 2 usuarios)",
+    "extraChannel": "canal extra",
+    "extraChannels": "canais extras",
+    "extraUser": "usuario extra",
+    "extraUsers": "usuarios extras",
+    "allPlansInclude": "Todos os planos incluem:",
+    "feature1": "Agentes de IA Ilimitados",
+    "feature2": "200 leads Google Maps",
+    "feature3": "CRM Completo",
+    "feature4": "Sistema de atendimento integrado",
+    "feature5": "Acesso a API",
+    "trial": {
+      "badge": "7 dias de teste gratis",
+      "description": "Teste todos os recursos gratis. Cancele quando quiser."
+    }
+  }
+}

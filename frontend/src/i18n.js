@@ -23,6 +23,7 @@ import enGooglemaps from './locales/en/googlemaps.json';
 import enSettings from './locales/en/settings.json';
 import enLinkedin from './locales/en/linkedin.json';
 import enModals from './locales/en/modals.json';
+import enBilling from './locales/en/billing.json';
 
 // Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
@@ -45,6 +46,7 @@ import ptGooglemaps from './locales/pt/googlemaps.json';
 import ptSettings from './locales/pt/settings.json';
 import ptLinkedin from './locales/pt/linkedin.json';
 import ptModals from './locales/pt/modals.json';
+import ptBilling from './locales/pt/billing.json';
 
 // Import translations - Spanish
 import esCommon from './locales/es/common.json';
@@ -67,6 +69,7 @@ import esGooglemaps from './locales/es/googlemaps.json';
 import esSettings from './locales/es/settings.json';
 import esLinkedin from './locales/es/linkedin.json';
 import esModals from './locales/es/modals.json';
+import esBilling from './locales/es/billing.json';
 
 // Translation resources
 const resources = {
@@ -91,6 +94,7 @@ const resources = {
     settings: enSettings,
     linkedin: enLinkedin,
     modals: enModals,
+    billing: enBilling,
   },
   pt: {
     common: ptCommon,
@@ -113,6 +117,7 @@ const resources = {
     settings: ptSettings,
     linkedin: ptLinkedin,
     modals: ptModals,
+    billing: ptBilling,
   },
   es: {
     common: esCommon,
@@ -135,6 +140,7 @@ const resources = {
     settings: esSettings,
     linkedin: esLinkedin,
     modals: esModals,
+    billing: esBilling,
   },
 };
 
@@ -151,7 +157,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing'
     ],
 
     // Language detection configuration

@@ -135,57 +135,76 @@ class EmailTemplateService {
   _getFallbackTemplate(templateName) {
     const fallbacks = {
       'welcome': Handlebars.compile(`
-        <h1>Welcome to LeadRaze, {{name}}!</h1>
-        <p>Your account has been created successfully.</p>
-        <p><a href="{{dashboardUrl}}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Go to Dashboard</a></p>
+        {{#if isNewAccount}}
+        <h1>Bem-vindo ao GetRaze, {{name}}!</h1>
+        <p>Sua assinatura foi ativada com sucesso! Estamos muito felizes em ter voce conosco.</p>
+        <p>Para acessar sua conta, voce precisa criar uma senha. Clique no botao abaixo:</p>
+        <p style="margin: 30px 0;">
+          <a href="{{setupPasswordUrl}}" style="background-color: #6366F1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">Criar Minha Senha</a>
+        </p>
+        <p style="color: #666; font-size: 14px;">Este link expira em 24 horas. Apos criar sua senha, voce tera acesso completo ao dashboard.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        <h3>O que voce pode fazer no GetRaze:</h3>
+        <ul style="color: #555;">
+          <li>Conectar sua conta do LinkedIn para prospecao automatizada</li>
+          <li>Criar campanhas inteligentes de outreach</li>
+          <li>Usar IA para personalizar suas mensagens</li>
+          <li>Buscar leads no Google Maps e outras fontes</li>
+        </ul>
+        <p>Qualquer duvida, estamos a disposicao!</p>
+        {{else}}
+        <h1>Bem-vindo ao GetRaze, {{name}}!</h1>
+        <p>Sua conta foi criada com sucesso.</p>
+        <p><a href="{{dashboardUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Acessar Dashboard</a></p>
+        {{/if}}
       `),
       'password-reset': Handlebars.compile(`
-        <h1>Password Reset Request</h1>
-        <p>Hi {{name}},</p>
-        <p>You requested to reset your password. Click the button below:</p>
-        <p><a href="{{resetUrl}}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reset Password</a></p>
-        <p>This link expires in {{expiryHours}} hours.</p>
+        <h1>Redefinicao de Senha</h1>
+        <p>Ola {{name}},</p>
+        <p>Voce solicitou a redefinicao da sua senha. Clique no botao abaixo:</p>
+        <p><a href="{{resetUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Redefinir Senha</a></p>
+        <p style="color: #666; font-size: 14px;">Este link expira em {{expiryHours}} horas.</p>
       `),
       'invoice': Handlebars.compile(`
-        <h1>Invoice #{{invoiceNumber}}</h1>
-        <p>Hi {{name}},</p>
-        <p>Your invoice for {{amount}} {{currency}} is ready.</p>
-        <p><a href="{{invoiceUrl}}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Invoice</a></p>
+        <h1>Fatura #{{invoiceNumber}}</h1>
+        <p>Ola {{name}},</p>
+        <p>Sua fatura de {{amount}} {{currency}} esta disponivel.</p>
+        <p><a href="{{invoiceUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver Fatura</a></p>
       `),
       'payment-failed': Handlebars.compile(`
-        <h1>Payment Failed</h1>
-        <p>Hi {{name}},</p>
-        <p>We couldn't process your payment of {{amount}}.</p>
-        <p>Please update your payment method to continue using LeadRaze.</p>
-        <p><a href="{{updatePaymentUrl}}" style="background-color: #EF4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Update Payment Method</a></p>
+        <h1>Falha no Pagamento</h1>
+        <p>Ola {{name}},</p>
+        <p>Nao conseguimos processar seu pagamento de {{amount}}.</p>
+        <p>Por favor, atualize sua forma de pagamento para continuar usando o GetRaze.</p>
+        <p><a href="{{updatePaymentUrl}}" style="background-color: #EF4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Atualizar Pagamento</a></p>
       `),
       'trial-ending': Handlebars.compile(`
-        <h1>Your Trial Ends Soon</h1>
-        <p>Hi {{name}},</p>
-        <p>Your free trial ends in {{daysRemaining}} days.</p>
-        <p>Upgrade now to keep your data and continue using LeadRaze.</p>
-        <p><a href="{{upgradeUrl}}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Upgrade Now</a></p>
+        <h1>Seu Trial Esta Acabando</h1>
+        <p>Ola {{name}},</p>
+        <p>Seu periodo de teste gratuito termina em {{daysRemaining}} dias.</p>
+        <p>Faca upgrade agora para manter seus dados e continuar usando o GetRaze.</p>
+        <p><a href="{{upgradeUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Fazer Upgrade</a></p>
       `),
       'subscription-canceled': Handlebars.compile(`
-        <h1>Subscription Canceled</h1>
-        <p>Hi {{name}},</p>
-        <p>Your subscription has been canceled and will end on {{endDate}}.</p>
-        <p><strong>Important:</strong> Your data will be retained for {{dataRetentionDays}} days after cancellation.</p>
-        <p>Changed your mind? You can reactivate anytime.</p>
-        <p><a href="{{reactivateUrl}}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reactivate Subscription</a></p>
+        <h1>Assinatura Cancelada</h1>
+        <p>Ola {{name}},</p>
+        <p>Sua assinatura foi cancelada e terminara em {{endDate}}.</p>
+        <p><strong>Importante:</strong> Seus dados serao mantidos por {{dataRetentionDays}} dias apos o cancelamento.</p>
+        <p>Mudou de ideia? Voce pode reativar a qualquer momento.</p>
+        <p><a href="{{reactivateUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reativar Assinatura</a></p>
       `),
       'invite-user': Handlebars.compile(`
-        <h1>You've Been Invited!</h1>
-        <p>{{inviterName}} has invited you to join their team on LeadRaze.</p>
-        <p><a href="{{inviteUrl}}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Accept Invitation</a></p>
+        <h1>Voce foi convidado!</h1>
+        <p>{{inviterName}} convidou voce para fazer parte do time no GetRaze.</p>
+        <p><a href="{{inviteUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Aceitar Convite</a></p>
       `),
       'payment-success': Handlebars.compile(`
-        <h1>Payment Successful</h1>
-        <p>Hi {{name}},</p>
-        <p>Your payment of {{amount}} for {{planName}} was successful.</p>
-        <p>Next billing date: {{nextBillingDate}}</p>
+        <h1>Pagamento Confirmado!</h1>
+        <p>Ola {{name}},</p>
+        <p>Seu pagamento de {{amount}} para o plano {{planName}} foi confirmado com sucesso.</p>
+        <p>Proxima cobranca: {{nextBillingDate}}</p>
         {{#if invoiceUrl}}
-        <p><a href="{{invoiceUrl}}">View Invoice</a></p>
+        <p><a href="{{invoiceUrl}}" style="color: #6366F1;">Ver Fatura</a></p>
         {{/if}}
       `)
     };
@@ -213,14 +232,15 @@ class EmailTemplateService {
     .header { text-align: center; padding: 20px 0; }
     .content { background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
-    a { color: #3B82F6; }
+    a { color: #6366F1; }
     h1 { color: #1F2937; margin-top: 0; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2 style="color: #3B82F6; margin: 0;">{{appName}}</h2>
+      <h2 style="color: #6366F1; margin: 0;">{{appName}}</h2>
+      <p style="color: #888; margin: 5px 0 0 0; font-size: 12px;">Deals Drop</p>
     </div>
     <div class="content">
       {{{content}}}
@@ -260,40 +280,40 @@ class EmailTemplateService {
   _getDefaultTranslations(templateName) {
     const defaults = {
       'welcome': {
-        subject: 'Welcome to LeadRaze!',
-        greeting: 'Welcome!'
+        subject: 'Bem-vindo ao GetRaze - Ative sua conta!',
+        greeting: 'Bem-vindo!'
       },
       'password-reset': {
-        subject: 'Reset Your Password',
-        greeting: 'Password Reset Request'
+        subject: 'Redefinir sua Senha - GetRaze',
+        greeting: 'Redefinicao de Senha'
       },
       'invoice': {
-        subject: 'Your Invoice is Ready',
-        greeting: 'New Invoice'
+        subject: 'Sua Fatura GetRaze esta Pronta',
+        greeting: 'Nova Fatura'
       },
       'payment-failed': {
-        subject: 'Payment Failed - Action Required',
-        greeting: 'Payment Issue'
+        subject: 'Falha no Pagamento - Acao Necessaria',
+        greeting: 'Problema no Pagamento'
       },
       'trial-ending': {
-        subject: 'Your Trial Ends Soon',
-        greeting: 'Trial Ending'
+        subject: 'Seu Periodo de Teste Esta Acabando - GetRaze',
+        greeting: 'Trial Acabando'
       },
       'subscription-canceled': {
-        subject: 'Subscription Canceled',
-        greeting: 'We\'re Sorry to See You Go'
+        subject: 'Assinatura Cancelada - GetRaze',
+        greeting: 'Ate logo!'
       },
       'invite-user': {
-        subject: 'You\'ve Been Invited to LeadRaze',
-        greeting: 'Team Invitation'
+        subject: 'Voce foi convidado para o GetRaze!',
+        greeting: 'Convite de Equipe'
       },
       'payment-success': {
-        subject: 'Payment Successful',
-        greeting: 'Thank You!'
+        subject: 'Pagamento Confirmado - GetRaze',
+        greeting: 'Obrigado!'
       }
     };
 
-    return defaults[templateName] || { subject: 'LeadRaze Notification', greeting: 'Hello' };
+    return defaults[templateName] || { subject: 'GetRaze - Notificacao', greeting: 'Ola' };
   }
 
   /**
@@ -308,9 +328,9 @@ class EmailTemplateService {
       ...data,
       ...translations,
       year: new Date().getFullYear(),
-      appName: 'LeadRaze',
-      appUrl: process.env.FRONTEND_URL || 'https://leadraze.com',
-      supportEmail: process.env.EMAIL_REPLY_TO || 'support@leadraze.com'
+      appName: 'GetRaze | Deals Drop',
+      appUrl: process.env.FRONTEND_URL || 'https://getraze.co',
+      supportEmail: process.env.EMAIL_REPLY_TO || 'suporte@getraze.co'
     };
 
     // Load and render template

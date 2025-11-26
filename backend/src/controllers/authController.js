@@ -1,13 +1,15 @@
 // backend/src/controllers/authController.js
 const db = require('../config/database');
+const crypto = require('crypto');
 const { hashPassword, comparePassword, generateToken } = require('../utils/helpers');
 const { sendSuccess, sendError } = require('../utils/responses');
-const { 
-  ValidationError, 
-  UnauthorizedError, 
+const {
+  ValidationError,
+  UnauthorizedError,
   ConflictError,
-  NotFoundError 
+  NotFoundError
 } = require('../utils/errors');
+const emailService = require('../services/emailService');
 
 // ================================
 // REGISTER
@@ -222,10 +224,140 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// ================================
+// FORGOT PASSWORD
+// ================================
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new ValidationError('Email is required');
+    }
+
+    // Find user
+    const user = await db.findOne('users', { email: email.toLowerCase() });
+
+    // Always return success (don't reveal if email exists)
+    if (!user) {
+      return sendSuccess(res, null, 'If the email exists, a reset link has been sent');
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Save token to user
+    await db.query(`
+      UPDATE users SET
+        password_reset_token = $1,
+        password_reset_expires = $2
+      WHERE id = $3
+    `, [resetTokenHash, resetTokenExpiry, user.id]);
+
+    // Send email
+    try {
+      await emailService.sendPasswordReset(user, resetToken, user.account_id);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+    }
+
+    sendSuccess(res, null, 'If the email exists, a reset link has been sent');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// VALIDATE RESET TOKEN
+// ================================
+const validateResetToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      throw new ValidationError('Token is required');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid token
+    const result = await db.query(`
+      SELECT id, email FROM users
+      WHERE password_reset_token = $1
+        AND password_reset_expires > NOW()
+    `, [tokenHash]);
+
+    if (result.rows.length === 0) {
+      throw new UnauthorizedError('Invalid or expired token');
+    }
+
+    const user = result.rows[0];
+    sendSuccess(res, { valid: true, email: user.email }, 'Token is valid');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// RESET PASSWORD
+// ================================
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      throw new ValidationError('Token and password are required');
+    }
+
+    if (password.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid token
+    const result = await db.query(`
+      SELECT id, email, account_id FROM users
+      WHERE password_reset_token = $1
+        AND password_reset_expires > NOW()
+    `, [tokenHash]);
+
+    if (result.rows.length === 0) {
+      throw new UnauthorizedError('Invalid or expired token');
+    }
+
+    const user = result.rows[0];
+
+    // Hash new password
+    const passwordHash = await hashPassword(password);
+
+    // Update password and clear reset token
+    await db.query(`
+      UPDATE users SET
+        password_hash = $1,
+        password_reset_token = NULL,
+        password_reset_expires = NULL
+      WHERE id = $2
+    `, [passwordHash, user.id]);
+
+    sendSuccess(res, { email: user.email }, 'Password reset successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   register,
   login,
   googleCallback,
   getProfile,
-  updateProfile
+  updateProfile,
+  forgotPassword,
+  validateResetToken,
+  resetPassword
 };

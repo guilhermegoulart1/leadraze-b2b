@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useBilling } from '../contexts/BillingContext';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
 const BillingPage = () => {
+  const { t } = useTranslation('billing');
   const {
     subscription,
     usage,
@@ -50,21 +52,21 @@ const BillingPage = () => {
     }
   };
 
-  const currentPlan = plans.find(p => p.id === subscription?.planId);
+  const currentPlan = Array.isArray(plans) ? plans.find(p => p.id === subscription?.planId) : null;
 
   const getStatusBadge = (status) => {
     const badges = {
-      active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Active' },
-      trialing: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Trial' },
-      past_due: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Past Due' },
-      canceled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Canceled' },
-      unpaid: { bg: 'bg-red-100', text: 'text-red-700', label: 'Unpaid' },
-      trial_expired: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Trial Expired' }
+      active: { bg: 'bg-green-100', text: 'text-green-700' },
+      trialing: { bg: 'bg-blue-100', text: 'text-blue-700' },
+      past_due: { bg: 'bg-amber-100', text: 'text-amber-700' },
+      canceled: { bg: 'bg-red-100', text: 'text-red-700' },
+      unpaid: { bg: 'bg-red-100', text: 'text-red-700' },
+      trial_expired: { bg: 'bg-gray-100', text: 'text-gray-700' }
     };
     const badge = badges[status] || badges.active;
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
-        {badge.label}
+        {t(`status.${status}`)}
       </span>
     );
   };
@@ -82,8 +84,8 @@ const BillingPage = () => {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">Billing & Subscription</h1>
-          <p className="text-gray-600 mt-1">Manage your subscription, usage, and billing details</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
+          <p className="text-gray-600 mt-1">{t('subtitle')}</p>
         </div>
       </div>
 
@@ -92,8 +94,8 @@ const BillingPage = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Current Plan</h2>
-              <p className="text-gray-500 text-sm">Your subscription details</p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('currentPlan.title')}</h2>
+              <p className="text-gray-500 text-sm">{t('currentPlan.subtitle')}</p>
             </div>
             <div className="flex items-center gap-3">
               {subscription && getStatusBadge(subscription.status)}
@@ -102,7 +104,7 @@ const BillingPage = () => {
                 disabled={actionLoading === 'portal'}
                 className="text-blue-600 hover:text-blue-700 text-sm font-medium"
               >
-                {actionLoading === 'portal' ? 'Opening...' : 'Manage in Stripe'}
+                {actionLoading === 'portal' ? '...' : t('currentPlan.manageInStripe')}
               </button>
             </div>
           </div>
@@ -111,42 +113,42 @@ const BillingPage = () => {
             <div className="grid md:grid-cols-3 gap-6">
               {/* Plan info */}
               <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">Plan</p>
-                <p className="text-xl font-bold text-gray-900">{currentPlan?.name || 'Unknown'}</p>
+                <p className="text-sm text-gray-500 mb-1">{t('currentPlan.plan')}</p>
+                <p className="text-xl font-bold text-gray-900">{currentPlan?.name || 'Base'}</p>
                 {subscription.status === 'trialing' && subscription.daysUntilEnd && (
                   <p className="text-sm text-blue-600 mt-2">
-                    Trial ends in {subscription.daysUntilEnd} days
+                    {t('currentPlan.trialEnds', { days: subscription.daysUntilEnd })}
                   </p>
                 )}
                 {subscription.status === 'canceled' && subscription.daysUntilEnd && (
                   <p className="text-sm text-red-600 mt-2">
-                    Access until {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                    {t('currentPlan.accessUntil', { date: new Date(subscription.currentPeriodEnd).toLocaleDateString() })}
                   </p>
                 )}
               </div>
 
               {/* Price */}
               <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">Monthly Price</p>
+                <p className="text-sm text-gray-500 mb-1">{t('currentPlan.monthlyPrice')}</p>
                 <p className="text-xl font-bold text-gray-900">
-                  ${currentPlan?.price || 0}
-                  <span className="text-sm font-normal text-gray-500">/month</span>
+                  R$ {currentPlan?.price || 297}
+                  <span className="text-sm font-normal text-gray-500">/{t('currentPlan.month')}</span>
                 </p>
                 {subscription.extraChannels > 0 && (
                   <p className="text-sm text-gray-600 mt-1">
-                    +${subscription.extraChannels * 30} for {subscription.extraChannels} extra channel(s)
+                    {t('currentPlan.extraChannels', { amount: subscription.extraChannels * 147, count: subscription.extraChannels })}
                   </p>
                 )}
                 {subscription.extraUsers > 0 && (
                   <p className="text-sm text-gray-600">
-                    +${subscription.extraUsers * 5} for {subscription.extraUsers} extra user(s)
+                    {t('currentPlan.extraUsers', { amount: subscription.extraUsers * 27, count: subscription.extraUsers })}
                   </p>
                 )}
               </div>
 
               {/* Next billing */}
               <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">Next Billing Date</p>
+                <p className="text-sm text-gray-500 mb-1">{t('currentPlan.nextBillingDate')}</p>
                 <p className="text-xl font-bold text-gray-900">
                   {subscription.currentPeriodEnd
                     ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
@@ -156,12 +158,12 @@ const BillingPage = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">You don't have an active subscription</p>
+              <p className="text-gray-500 mb-4">{t('currentPlan.noSubscription')}</p>
               <button
                 onClick={() => navigate('/pricing')}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700"
               >
-                View Plans
+                {t('currentPlan.viewPlans')}
               </button>
             </div>
           )}
@@ -173,14 +175,14 @@ const BillingPage = () => {
                 onClick={() => navigate('/pricing')}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm"
               >
-                Change Plan
+                {t('currentPlan.changePlan')}
               </button>
               {subscription.status !== 'canceled' ? (
                 <button
                   onClick={() => setShowCancelModal(true)}
                   className="text-red-600 hover:text-red-700 font-medium text-sm"
                 >
-                  Cancel Subscription
+                  {t('currentPlan.cancelSubscription')}
                 </button>
               ) : (
                 <button
@@ -188,7 +190,7 @@ const BillingPage = () => {
                   disabled={actionLoading === 'reactivate'}
                   className="text-green-600 hover:text-green-700 font-medium text-sm"
                 >
-                  {actionLoading === 'reactivate' ? 'Reactivating...' : 'Reactivate Subscription'}
+                  {actionLoading === 'reactivate' ? '...' : t('currentPlan.reactivateSubscription')}
                 </button>
               )}
             </div>
@@ -197,12 +199,12 @@ const BillingPage = () => {
 
         {/* Usage Stats */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Usage</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('usage.title')}</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {/* Channels */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">LinkedIn Channels</p>
+                <p className="text-sm font-medium text-gray-700">{t('usage.linkedinChannels')}</p>
                 <p className="text-sm text-gray-500">
                   {usage?.channels?.used || 0} / {usage?.channels?.limit || 0}
                 </p>
@@ -224,7 +226,7 @@ const BillingPage = () => {
                   disabled={actionLoading === 'addChannel'}
                   className="text-blue-600 text-sm mt-2 hover:underline"
                 >
-                  {actionLoading === 'addChannel' ? 'Adding...' : '+ Add Channel ($30/mo)'}
+                  {actionLoading === 'addChannel' ? t('usage.adding') : t('usage.addChannel')}
                 </button>
               )}
             </div>
@@ -232,7 +234,7 @@ const BillingPage = () => {
             {/* Users */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">Team Members</p>
+                <p className="text-sm font-medium text-gray-700">{t('usage.teamMembers')}</p>
                 <p className="text-sm text-gray-500">
                   {usage?.users?.used || 0} / {usage?.users?.limit || 0}
                 </p>
@@ -254,7 +256,7 @@ const BillingPage = () => {
                   disabled={actionLoading === 'addUser'}
                   className="text-purple-600 text-sm mt-2 hover:underline"
                 >
-                  {actionLoading === 'addUser' ? 'Adding...' : '+ Add User ($5/mo)'}
+                  {actionLoading === 'addUser' ? t('usage.adding') : t('usage.addUser')}
                 </button>
               )}
             </div>
@@ -262,9 +264,9 @@ const BillingPage = () => {
             {/* AI Agents */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">AI Agents</p>
+                <p className="text-sm font-medium text-gray-700">{t('usage.aiAgents')}</p>
                 <p className="text-sm text-gray-500">
-                  {usage?.aiAgents?.used || 0} / {usage?.aiAgents?.limit || 'Unlimited'}
+                  {usage?.aiAgents?.used || 0} / {usage?.aiAgents?.limit || t('usage.unlimited')}
                 </p>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -288,14 +290,14 @@ const BillingPage = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Google Maps Credits</h2>
-              <p className="text-gray-500 text-sm">Credits for Google Maps lead searches</p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('credits.title')}</h2>
+              <p className="text-gray-500 text-sm">{t('credits.subtitle')}</p>
             </div>
             <button
               onClick={() => setShowCreditsModal(true)}
               className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
             >
-              Buy More Credits
+              {t('credits.buyMore')}
             </button>
           </div>
 
@@ -309,7 +311,7 @@ const BillingPage = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-green-700">Available Credits</p>
+                  <p className="text-sm text-green-700">{t('credits.available')}</p>
                   <p className="text-3xl font-bold text-green-800">
                     {credits?.available?.toLocaleString() || 0}
                   </p>
@@ -320,22 +322,23 @@ const BillingPage = () => {
             {/* Credit breakdown */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Monthly Allowance</span>
+                <span className="text-gray-600">{t('credits.monthlyCredits')}</span>
                 <span className="font-medium text-gray-900">
-                  {credits?.monthly?.toLocaleString() || 0} credits
+                  {credits?.expiring?.toLocaleString() || credits?.monthly?.toLocaleString() || 0} {t('purchaseModal.credits')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Purchased Credits</span>
-                <span className="font-medium text-gray-900">
-                  {credits?.purchased?.toLocaleString() || 0} credits
+                <span className="text-gray-600">{t('credits.purchasedCredits')}</span>
+                <span className="font-medium text-green-600">
+                  {credits?.permanent?.toLocaleString() || credits?.purchased?.toLocaleString() || 0} {t('purchaseModal.credits')}
+                  <span className="text-xs text-green-500 ml-1">{t('credits.neverExpire')}</span>
                 </span>
               </div>
               {credits?.nextExpiry && (
                 <div className="flex items-center justify-between text-amber-600">
-                  <span>Next Expiry</span>
+                  <span>{t('credits.monthlyExpire')}</span>
                   <span className="font-medium">
-                    {credits.expiringAmount} on {new Date(credits.nextExpiry).toLocaleDateString()}
+                    {t('credits.expireOn', { amount: credits.expiringAmount || credits.expiring, date: new Date(credits.nextExpiry).toLocaleDateString() })}
                   </span>
                 </div>
               )}
@@ -345,16 +348,16 @@ const BillingPage = () => {
 
         {/* Invoices */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Billing History</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('invoices.title')}</h2>
           {invoices.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="text-left text-sm text-gray-500 border-b">
-                    <th className="pb-3 font-medium">Date</th>
-                    <th className="pb-3 font-medium">Description</th>
-                    <th className="pb-3 font-medium">Amount</th>
-                    <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium">{t('invoices.date')}</th>
+                    <th className="pb-3 font-medium">{t('invoices.description')}</th>
+                    <th className="pb-3 font-medium">{t('invoices.amount')}</th>
+                    <th className="pb-3 font-medium">{t('invoices.status')}</th>
                     <th className="pb-3 font-medium"></th>
                   </tr>
                 </thead>
@@ -364,9 +367,9 @@ const BillingPage = () => {
                       <td className="py-4 text-gray-900">
                         {new Date(invoice.created_at).toLocaleDateString()}
                       </td>
-                      <td className="py-4 text-gray-600">{invoice.description || 'Subscription'}</td>
+                      <td className="py-4 text-gray-600">{invoice.description || t('invoices.subscription')}</td>
                       <td className="py-4 font-medium text-gray-900">
-                        ${(invoice.amount / 100).toFixed(2)}
+                        R$ {(invoice.amount / 100).toFixed(2)}
                       </td>
                       <td className="py-4">
                         <span
@@ -378,7 +381,7 @@ const BillingPage = () => {
                               : 'bg-gray-100 text-gray-700'
                           }`}
                         >
-                          {invoice.status}
+                          {t(`invoices.${invoice.status}`)}
                         </span>
                       </td>
                       <td className="py-4 text-right">
@@ -389,7 +392,7 @@ const BillingPage = () => {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"
                           >
-                            View
+                            {t('invoices.view')}
                           </a>
                         )}
                       </td>
@@ -399,7 +402,7 @@ const BillingPage = () => {
               </table>
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">No invoices yet</p>
+            <p className="text-gray-500 text-center py-8">{t('invoices.noInvoices')}</p>
           )}
         </div>
       </div>
@@ -408,33 +411,33 @@ const BillingPage = () => {
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Cancel Subscription?</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">{t('cancelModal.title')}</h3>
             <p className="text-gray-600 mb-4">
-              Are you sure you want to cancel? You'll lose access to:
+              {t('cancelModal.message')}
             </p>
             <ul className="text-gray-600 text-sm space-y-2 mb-6">
               <li className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                All your campaigns and automation
+                {t('cancelModal.item1')}
               </li>
               <li className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Lead data and conversations
+                {t('cancelModal.item2')}
               </li>
               <li className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Remaining Google Maps credits
+                {t('cancelModal.item3')}
               </li>
             </ul>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-amber-800">
-                <strong>Note:</strong> Your data will be retained for 30 days after cancellation. You can reactivate anytime to recover it.
+                <strong>Note:</strong> {t('cancelModal.note')}
               </p>
             </div>
             <div className="flex gap-3">
@@ -442,7 +445,7 @@ const BillingPage = () => {
                 onClick={() => setShowCancelModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
               >
-                Keep Subscription
+                {t('cancelModal.keepSubscription')}
               </button>
               <button
                 onClick={async () => {
@@ -452,7 +455,7 @@ const BillingPage = () => {
                 disabled={actionLoading === 'cancel'}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50"
               >
-                {actionLoading === 'cancel' ? 'Canceling...' : 'Yes, Cancel'}
+                {actionLoading === 'cancel' ? t('cancelModal.canceling') : t('cancelModal.yesCancel')}
               </button>
             </div>
           </div>
@@ -463,16 +466,20 @@ const BillingPage = () => {
       {showCreditsModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Purchase Google Maps Credits</h3>
-            <p className="text-gray-600 mb-6">
-              Buy additional credits for Google Maps lead searches. Credits are valid for 30 days after purchase.
+            <h3 className="text-xl font-bold text-gray-900 mb-4">{t('purchaseModal.title')}</h3>
+            <p className="text-gray-600 mb-2">
+              {t('purchaseModal.subtitle')}
+            </p>
+            <p className="text-green-600 text-sm font-medium mb-6">
+              {t('purchaseModal.neverExpireNote')}
             </p>
 
             <div className="space-y-3 mb-6">
               {[
-                { id: 'credits_1000', amount: 1000, price: 50 },
-                { id: 'credits_2500', amount: 2500, price: 100 },
-                { id: 'credits_5000', amount: 5000, price: 175 }
+                { id: 'credits-500', amount: 500, price: 47 },
+                { id: 'credits-1000', amount: 1000, price: 87 },
+                { id: 'credits-2500', amount: 2500, price: 197 },
+                { id: 'credits-5000', amount: 5000, price: 297 }
               ].map((pkg) => (
                 <button
                   key={pkg.id}
@@ -481,13 +488,13 @@ const BillingPage = () => {
                     setShowCreditsModal(false);
                   }}
                   disabled={actionLoading === 'purchase'}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-colors"
                 >
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">{pkg.amount.toLocaleString()} credits</p>
-                    <p className="text-sm text-gray-500">${(pkg.price / pkg.amount * 1000).toFixed(0)} per 1,000</p>
+                    <p className="font-semibold text-gray-900">{pkg.amount.toLocaleString()} {t('purchaseModal.credits')}</p>
+                    <p className="text-sm text-gray-500">{t('purchaseModal.perThousand', { price: Math.round(pkg.price / pkg.amount * 1000) })}</p>
                   </div>
-                  <p className="text-xl font-bold text-gray-900">${pkg.price}</p>
+                  <p className="text-xl font-bold text-gray-900">R$ {pkg.price}</p>
                 </button>
               ))}
             </div>
@@ -496,7 +503,7 @@ const BillingPage = () => {
               onClick={() => setShowCreditsModal(false)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
             >
-              Cancel
+              {t('purchaseModal.cancel')}
             </button>
           </div>
         </div>

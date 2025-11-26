@@ -24,6 +24,7 @@ export const BillingProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [subscription, setSubscription] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [addons, setAddons] = useState({ recurring: [], credits: [] });
   const [usage, setUsage] = useState(null);
   const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,8 +49,14 @@ export const BillingProvider = ({ children }) => {
   const fetchPlans = useCallback(async () => {
     try {
       const response = await api.getPlans();
-      if (response.success) {
-        setPlans(response.data);
+      if (response.success && response.data) {
+        // Handle new structure: { plans: [], addons: { recurring: [], credits: [] } }
+        if (Array.isArray(response.data)) {
+          setPlans(response.data);
+        } else {
+          setPlans(response.data.plans || []);
+          setAddons(response.data.addons || { recurring: [], credits: [] });
+        }
       }
     } catch (err) {
       console.error('Error fetching plans:', err);
@@ -137,7 +144,7 @@ export const BillingProvider = ({ children }) => {
   }, [subscription]);
 
   // Create checkout session
-  const createCheckout = async (planId, currency = 'usd') => {
+  const createCheckout = async (planId, currency = 'brl') => {
     try {
       const response = await api.createCheckoutSession({ planId, currency });
       if (response.success && response.data.url) {
@@ -151,7 +158,7 @@ export const BillingProvider = ({ children }) => {
   };
 
   // Purchase credits
-  const purchaseCredits = async (packageId, currency = 'usd') => {
+  const purchaseCredits = async (packageId, currency = 'brl') => {
     try {
       const response = await api.purchaseCredits({ packageId, currency });
       if (response.success && response.data.url) {
@@ -317,6 +324,7 @@ export const BillingProvider = ({ children }) => {
     // State
     subscription,
     plans,
+    addons,
     usage,
     credits,
     loading,

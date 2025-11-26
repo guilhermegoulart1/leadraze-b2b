@@ -1,18 +1,18 @@
 {
   "welcome": {
-    "subject": "Welcome to LeadRaze!",
+    "subject": "Welcome to GetRaze - Activate Your Account!",
     "greeting": "Welcome!"
   },
   "password-reset": {
-    "subject": "Reset Your Password - LeadRaze",
+    "subject": "Reset Your Password - GetRaze",
     "greeting": "Password Reset Request"
   },
   "invite-user": {
-    "subject": "You've Been Invited to LeadRaze",
+    "subject": "You've Been Invited to GetRaze",
     "greeting": "Team Invitation"
   },
   "invoice": {
-    "subject": "Your Invoice from LeadRaze",
+    "subject": "Your Invoice from GetRaze",
     "greeting": "Invoice Ready"
   },
   "payment-failed": {
@@ -20,23 +20,23 @@
     "greeting": "Payment Issue"
   },
   "payment-success": {
-    "subject": "Payment Successful - LeadRaze",
+    "subject": "Payment Successful - GetRaze",
     "greeting": "Thank You!"
   },
   "trial-ending": {
-    "subject": "Your Trial Ends Soon - LeadRaze",
+    "subject": "Your Trial Ends Soon - GetRaze",
     "greeting": "Trial Ending"
   },
   "subscription-canceled": {
-    "subject": "Subscription Canceled - LeadRaze",
+    "subject": "Subscription Canceled - GetRaze",
     "greeting": "We're Sorry to See You Go"
   },
   "lead-collected": {
-    "subject": "New Leads Collected - LeadRaze",
+    "subject": "New Leads Collected - GetRaze",
     "greeting": "New Leads!"
   },
   "campaign-completed": {
-    "subject": "Campaign Completed - LeadRaze",
+    "subject": "Campaign Completed - GetRaze",
     "greeting": "Campaign Finished"
   }
 }

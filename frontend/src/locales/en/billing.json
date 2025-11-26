@@ -1,0 +1,215 @@
+{
+  "title": "Billing & Subscription",
+  "subtitle": "Manage your subscription, usage, and billing details",
+
+  "currentPlan": {
+    "title": "Current Plan",
+    "subtitle": "Your subscription details",
+    "plan": "Plan",
+    "monthlyPrice": "Monthly Price",
+    "month": "month",
+    "nextBillingDate": "Next Billing Date",
+    "extraChannels": "+R$ {{amount}} for {{count}} extra channel(s)",
+    "extraUsers": "+R$ {{amount}} for {{count}} extra user(s)",
+    "trialEnds": "Trial ends in {{days}} days",
+    "accessUntil": "Access until {{date}}",
+    "manageInStripe": "Manage in Stripe",
+    "changePlan": "Change Plan",
+    "cancelSubscription": "Cancel Subscription",
+    "reactivateSubscription": "Reactivate Subscription",
+    "noSubscription": "You don't have an active subscription",
+    "viewPlans": "View Plans"
+  },
+
+  "status": {
+    "active": "Active",
+    "trialing": "Trial",
+    "past_due": "Past Due",
+    "canceled": "Canceled",
+    "unpaid": "Unpaid",
+    "trial_expired": "Trial Expired"
+  },
+
+  "usage": {
+    "title": "Usage",
+    "linkedinChannels": "LinkedIn Channels",
+    "teamMembers": "Team Members",
+    "aiAgents": "AI Agents",
+    "unlimited": "Unlimited",
+    "addChannel": "+ Add Channel (R$ 147/mo)",
+    "addUser": "+ Add User (R$ 27/mo)",
+    "adding": "Adding..."
+  },
+
+  "credits": {
+    "title": "Google Maps Credits",
+    "subtitle": "Credits for Google Maps lead searches",
+    "buyMore": "Buy More Credits",
+    "available": "Available Credits",
+    "monthlyCredits": "Monthly Credits",
+    "purchasedCredits": "Purchased Credits",
+    "neverExpire": "(never expire)",
+    "monthlyExpire": "Monthly Credits Expire",
+    "expireOn": "{{amount}} on {{date}}"
+  },
+
+  "invoices": {
+    "title": "Billing History",
+    "date": "Date",
+    "description": "Description",
+    "amount": "Amount",
+    "status": "Status",
+    "view": "View",
+    "noInvoices": "No invoices yet",
+    "subscription": "Subscription",
+    "paid": "paid",
+    "open": "open"
+  },
+
+  "cancelModal": {
+    "title": "Cancel Subscription?",
+    "message": "Are you sure you want to cancel? You'll lose access to:",
+    "item1": "All your campaigns and automation",
+    "item2": "Lead data and conversations",
+    "item3": "Remaining Google Maps credits",
+    "note": "Your data will be retained for 30 days after cancellation. You can reactivate anytime to recover it.",
+    "keepSubscription": "Keep Subscription",
+    "yesCancel": "Yes, Cancel",
+    "canceling": "Canceling..."
+  },
+
+  "purchaseModal": {
+    "title": "Purchase Google Maps Credits",
+    "subtitle": "Buy additional credits for Google Maps lead searches.",
+    "neverExpireNote": "Purchased credits never expire!",
+    "perThousand": "R$ {{price}} per 1,000",
+    "credits": "credits",
+    "cancel": "Cancel"
+  },
+
+  "modals": {
+    "userLimit": {
+      "title": "User Limit Reached",
+      "message": "You've reached your plan's user limit. Add an extra user seat or upgrade your plan.",
+      "addUser": "Add Extra User (R$ 27/month)",
+      "upgradePlan": "Upgrade Plan",
+      "cancel": "Cancel"
+    },
+    "channelLimit": {
+      "title": "Channel Limit Reached",
+      "message": "You've reached your plan's LinkedIn channel limit. Add an extra channel or upgrade your plan.",
+      "addChannel": "Add Extra Channel (R$ 147/month)",
+      "upgradePlan": "Upgrade Plan",
+      "cancel": "Cancel"
+    },
+    "insufficientCredits": {
+      "title": "Insufficient Credits",
+      "message": "You need <strong>{{required}}</strong> credits but only have <strong>{{available}}</strong>.",
+      "subtitle": "Purchase additional Google Maps credits to continue.",
+      "neverExpire": "Purchased credits never expire!",
+      "neverExpireLabel": "Never expire"
+    },
+    "upgrade": {
+      "title": "Upgrade Required",
+      "messageWithFeature": "To access {{feature}}, please upgrade your subscription.",
+      "messageGeneric": "This feature requires a higher plan. Upgrade to unlock more capabilities.",
+      "viewPlans": "View Plans",
+      "maybeLater": "Maybe Later"
+    }
+  },
+
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Scale your lead generation with the right plan for your business",
+    "back": "Back",
+    "currency": "Currency",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "savePercent": "(Save 20%)",
+    "mostPopular": "Most Popular",
+    "currentPlan": "Current Plan",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "billedAnnually": "{{price}}/month billed annually",
+    "getStarted": "Get Started",
+    "switchPlan": "Switch Plan",
+    "processing": "Processing...",
+    "whatsIncluded": "What's included:",
+    "linkedinChannels": "{{count}} LinkedIn channels",
+    "teamMembers": "{{count}} team members",
+    "monthlyCredits": "{{count}} Google Maps credits/month",
+    "aiLeadGeneration": "AI-powered lead generation",
+    "campaignAutomation": "Campaign automation",
+    "aiAgents": "{{count}} AI agents",
+    "prioritySupport": "Priority support",
+    "customIntegrations": "Custom integrations",
+    "dedicatedManager": "Dedicated account manager",
+    "needMore": "Need More?",
+    "addons": {
+      "extraChannel": {
+        "title": "Extra LinkedIn Channel",
+        "description": "Add more LinkedIn accounts to scale your outreach",
+        "price": "R$ 147"
+      },
+      "extraUser": {
+        "title": "Extra Team Member",
+        "description": "Invite additional team members to collaborate",
+        "price": "R$ 27"
+      },
+      "credits": {
+        "title": "Google Maps Credits",
+        "description": "Purchase additional credits that <strong>never expire</strong>",
+        "price": "R$ 87",
+        "perThousand": "/1,000 credits"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "q1": "Can I change plans later?",
+      "a1": "Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate your billing.",
+      "q2": "What happens to my data if I cancel?",
+      "a2": "Your data is retained for 30 days after cancellation. During this time, you can reactivate your subscription to recover everything.",
+      "q3": "Do Google Maps credits expire?",
+      "a3": "Monthly credits included in your plan renew each billing cycle and expire at the end of the period. Purchased credit packs NEVER expire - they stay in your account until used!",
+      "q4": "Is there a free trial?",
+      "a4": "Yes! All new accounts get a 7-day free trial with full access to all features."
+    }
+  },
+
+  "checkout": {
+    "title": "Configure Your Plan",
+    "subtitle": "Adjust the sliders to match your needs",
+    "backToPricing": "Back",
+    "canceled": "Your checkout was canceled. You can try again or modify your selection.",
+    "perMonth": "mo",
+    "firstMonth": "first month",
+    "then": "then",
+    "error": "An error occurred. Please try again.",
+    "processing": "Processing...",
+    "subscribe": "Subscribe Now",
+    "limitedOffer": "Limited offer",
+    "stripeSecure": "Secure payment powered by Stripe",
+    "channel": "channel",
+    "channels": "channels",
+    "users": "users",
+    "linkedinChannels": "Channels",
+    "channelDescription": "LinkedIn, WhatsApp, Email (1 included)",
+    "teamMembers": "Team Members",
+    "userDescription": "Access to the platform (2 included)",
+    "basePlanIncluded": "Base plan (1 channel + 2 users)",
+    "extraChannel": "extra channel",
+    "extraChannels": "extra channels",
+    "extraUser": "extra user",
+    "extraUsers": "extra users",
+    "allPlansInclude": "All plans include:",
+    "feature1": "Unlimited AI Agents",
+    "feature2": "200 Google Maps leads",
+    "feature3": "Complete CRM",
+    "feature4": "Integrated support system",
+    "feature5": "API Access",
+    "trial": {
+      "badge": "7-day free trial",
+      "description": "Try all features free. Cancel anytime."
+    }
+  }
+}

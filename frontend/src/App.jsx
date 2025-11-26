@@ -28,6 +28,9 @@ import ActivationAgentsPage from './pages/ActivationAgentsPage';
 import ActivationCampaignsPage from './pages/ActivationCampaignsPage';
 import ContactListsPage from './pages/ContactListsPage';
 import PricingPage from './pages/PricingPage';
+import CheckoutPage from './pages/CheckoutPage';
+import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import BillingPage from './pages/BillingPage';
 
 // Layout
@@ -71,6 +74,22 @@ function AppRoutes() {
 
       {/* Pricing - acessível para todos */}
       <Route path="/pricing" element={<PricingPage />} />
+
+      {/* Checkout Success - acessível para todos */}
+      <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+
+      {/* Set Password - para novos usuários criados via Stripe */}
+      <Route path="/set-password" element={<SetPasswordPage />} />
+
+      {/* Checkout - protegido mas sem bloqueio de subscription */}
+      <Route
+        path="/checkout"
+        element={
+          <ProtectedRoute>
+            <CheckoutPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Rotas protegidas */}
       <Route

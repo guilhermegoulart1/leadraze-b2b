@@ -1,366 +1,258 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useBilling } from '../contexts/BillingContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
-const CURRENCIES = [
-  { code: 'usd', symbol: '$', name: 'USD' },
-  { code: 'eur', symbol: '€', name: 'EUR' },
-  { code: 'brl', symbol: 'R$', name: 'BRL' }
-];
+// Prices in cents (BRL)
+const PRICES = {
+  basePlan: 29700, // R$ 297 (includes 1 channel, 2 users)
+  extraChannel: 14700, // R$ 147
+  extraUser: 2700, // R$ 27
+};
+
+// Launch promotion
+const LAUNCH_DISCOUNT = 0.70; // 70% OFF first month
 
 const PricingPage = () => {
-  const { plans, subscription, createCheckout, loading } = useBilling();
-  const { isAuthenticated } = useAuth();
+  const { t } = useTranslation('billing');
   const navigate = useNavigate();
-  const [selectedCurrency, setSelectedCurrency] = useState('usd');
-  const [billingPeriod, setBillingPeriod] = useState('monthly');
-  const [checkoutLoading, setCheckoutLoading] = useState(null);
+  const { isAuthenticated } = useAuth();
+  const { subscription, loading: billingLoading } = useBilling();
 
-  const handleSelectPlan = async (planId) => {
-    if (!isAuthenticated) {
-      navigate('/login?redirect=/pricing');
+  const [channels, setChannels] = useState(1);
+  const [users, setUsers] = useState(2);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Calculate price
+  const extraChannels = Math.max(0, channels - 1);
+  const extraUsers = Math.max(0, users - 2);
+  const monthlyTotal = PRICES.basePlan + (extraChannels * PRICES.extraChannel) + (extraUsers * PRICES.extraUser);
+  const firstMonthTotal = Math.round(monthlyTotal * (1 - LAUNCH_DISCOUNT));
+
+  const formatPrice = (cents) => {
+    return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
+  const handleCheckout = async () => {
+    // If already authenticated with active subscription, go to billing
+    if (isAuthenticated && subscription?.status && ['active', 'trialing'].includes(subscription.status)) {
+      navigate('/billing');
       return;
     }
 
-    setCheckoutLoading(planId);
+    setLoading(true);
+    setError(null);
+
     try {
-      await createCheckout(planId, selectedCurrency);
+      // Use guest checkout for unauthenticated users
+      // Use regular checkout for authenticated users without subscription
+      const response = isAuthenticated
+        ? await api.createCheckoutSession({ extraChannels, extraUsers })
+        : await api.createGuestCheckoutSession({ extraChannels, extraUsers });
+
+      if (response.success && response.data.url) {
+        window.location.href = response.data.url;
+      } else {
+        setError(t('checkout.error'));
+      }
     } catch (err) {
       console.error('Checkout error:', err);
+      setError(err.response?.data?.message || t('checkout.error'));
     } finally {
-      setCheckoutLoading(null);
+      setLoading(false);
     }
   };
 
-  const formatPrice = (price, currency) => {
-    const curr = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
-    return `${curr.symbol}${price}`;
-  };
-
-  const currentPlanId = subscription?.planId;
-
-  if (loading) {
+  if (billingLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-white">
+      {/* Minimal Header */}
+      <div className="border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="text-gray-500 hover:text-gray-900 text-sm font-medium flex items-center gap-1"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back
+            {t('checkout.backToPricing')}
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Choose Your Plan</h1>
-          <p className="text-gray-600 mt-2">Scale your lead generation with the right plan for your business</p>
+          <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            {t('checkout.stripeSecure')}
+          </div>
         </div>
       </div>
 
-      {/* Currency & Billing Toggle */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12">
-          {/* Currency selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Currency:</span>
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              {CURRENCIES.map(curr => (
-                <button
-                  key={curr.code}
-                  onClick={() => setSelectedCurrency(curr.code)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    selectedCurrency === curr.code
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {curr.name}
-                </button>
-              ))}
-            </div>
+      <div className="max-w-lg mx-auto px-6 py-10">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">{t('checkout.title')}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t('checkout.subtitle')}</p>
+        </div>
+
+        {/* Main Card */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          {/* Discount Banner */}
+          <div className="bg-gradient-to-r from-purple-600 to-purple-500 px-6 py-3 text-center">
+            <span className="text-white text-lg font-bold">70% OFF {t('checkout.firstMonth')}</span>
+            <span className="ml-2 bg-white/20 text-white text-xs font-medium px-2 py-0.5 rounded-full">{t('checkout.limitedOffer')}</span>
           </div>
 
-          {/* Billing period toggle */}
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${billingPeriod === 'monthly' ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-              Monthly
-            </span>
-            <button
-              onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
-              className={`relative w-14 h-7 rounded-full transition-colors ${
-                billingPeriod === 'yearly' ? 'bg-blue-600' : 'bg-gray-300'
-              }`}
-            >
-              <div
-                className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                  billingPeriod === 'yearly' ? 'translate-x-8' : 'translate-x-1'
-                }`}
+          {/* Price Header */}
+          <div className="bg-gray-50 px-6 py-5 border-b border-gray-200">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold text-gray-900">R$ {formatPrice(firstMonthTotal)}</span>
+              <span className="text-gray-400 text-lg line-through">R$ {formatPrice(monthlyTotal)}</span>
+            </div>
+            <p className="text-gray-500 text-xs mt-1">
+              {t('checkout.firstMonth')} · {t('checkout.then')} R$ {formatPrice(monthlyTotal)}/{t('checkout.perMonth')}
+            </p>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Channels */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-900">{t('checkout.linkedinChannels')}</span>
+                <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{channels}</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={channels}
+                onChange={(e) => setChannels(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #0a2540 0%, #0a2540 ${((channels - 1) / 9) * 100}%, #e5e7eb ${((channels - 1) / 9) * 100}%, #e5e7eb 100%)`
+                }}
               />
-            </button>
-            <span className={`text-sm ${billingPeriod === 'yearly' ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-              Yearly
-              <span className="ml-1 text-green-600 font-medium">(Save 20%)</span>
-            </span>
-          </div>
-        </div>
+              <div className="flex justify-between mt-1 text-xs text-gray-400">
+                <span>1</span>
+                <span>10</span>
+              </div>
+            </div>
 
-        {/* Plans grid */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan, index) => {
-            const isPopular = index === 1; // Middle plan is popular
-            const isCurrent = currentPlanId === plan.id;
-            const price = billingPeriod === 'yearly'
-              ? Math.round(plan.price * 10) // 12 months - 2 months free
-              : plan.price;
+            {/* Users */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-900">{t('checkout.teamMembers')}</span>
+                <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{users}</span>
+              </div>
+              <input
+                type="range"
+                min="2"
+                max="20"
+                value={users}
+                onChange={(e) => setUsers(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #0a2540 0%, #0a2540 ${((users - 2) / 18) * 100}%, #e5e7eb ${((users - 2) / 18) * 100}%, #e5e7eb 100%)`
+                }}
+              />
+              <div className="flex justify-between mt-1 text-xs text-gray-400">
+                <span>2</span>
+                <span>20</span>
+              </div>
+            </div>
 
-            return (
-              <div
-                key={plan.id}
-                className={`relative bg-white rounded-2xl shadow-lg border-2 transition-transform hover:scale-105 ${
-                  isPopular ? 'border-blue-500' : 'border-gray-100'
-                } ${isCurrent ? 'ring-2 ring-green-500' : ''}`}
-              >
-                {/* Popular badge */}
-                {isPopular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-medium">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-
-                {/* Current plan badge */}
-                {isCurrent && (
-                  <div className="absolute -top-4 right-4">
-                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-                      Current Plan
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-8">
-                  {/* Plan name */}
-                  <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                  <p className="text-gray-500 mt-1 text-sm">{plan.description || 'Perfect for getting started'}</p>
-
-                  {/* Price */}
-                  <div className="mt-6 mb-8">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-gray-900">
-                        {formatPrice(price, selectedCurrency)}
-                      </span>
-                      <span className="text-gray-500">
-                        /{billingPeriod === 'yearly' ? 'year' : 'month'}
-                      </span>
-                    </div>
-                    {billingPeriod === 'yearly' && (
-                      <p className="text-sm text-green-600 mt-1">
-                        {formatPrice(Math.round(price / 12), selectedCurrency)}/month billed annually
-                      </p>
-                    )}
-                  </div>
-
-                  {/* CTA Button */}
-                  <button
-                    onClick={() => handleSelectPlan(plan.id)}
-                    disabled={isCurrent || checkoutLoading === plan.id}
-                    className={`w-full py-3 px-6 rounded-xl font-semibold transition-colors ${
-                      isCurrent
-                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        : isPopular
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                    }`}
-                  >
-                    {checkoutLoading === plan.id ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Processing...
-                      </span>
-                    ) : isCurrent ? (
-                      'Current Plan'
-                    ) : subscription ? (
-                      'Switch Plan'
-                    ) : (
-                      'Get Started'
-                    )}
-                  </button>
-
-                  {/* Features */}
-                  <div className="mt-8 space-y-4">
-                    <div className="border-t pt-6">
-                      <h4 className="font-semibold text-gray-900 mb-4">What's included:</h4>
-                      <ul className="space-y-3">
-                        <li className="flex items-start gap-3">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-gray-600">
-                            <strong className="text-gray-900">{plan.limits?.channels || 1}</strong> LinkedIn channels
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-gray-600">
-                            <strong className="text-gray-900">{plan.limits?.users || 1}</strong> team members
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-gray-600">
-                            <strong className="text-gray-900">{plan.limits?.monthlyCredits?.toLocaleString() || 500}</strong> Google Maps credits/month
-                          </span>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-gray-600">AI-powered lead generation</span>
-                        </li>
-                        <li className="flex items-start gap-3">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-gray-600">Campaign automation</span>
-                        </li>
-                        {plan.limits?.aiAgents && (
-                          <li className="flex items-start gap-3">
-                            <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span className="text-gray-600">
-                              <strong className="text-gray-900">{plan.limits.aiAgents}</strong> AI agents
-                            </span>
-                          </li>
-                        )}
-                        {index > 0 && (
-                          <li className="flex items-start gap-3">
-                            <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span className="text-gray-600">Priority support</span>
-                          </li>
-                        )}
-                        {index === 2 && (
-                          <>
-                            <li className="flex items-start gap-3">
-                              <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              <span className="text-gray-600">Custom integrations</span>
-                            </li>
-                            <li className="flex items-start gap-3">
-                              <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              <span className="text-gray-600">Dedicated account manager</span>
-                            </li>
-                          </>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
+            {/* Breakdown */}
+            <div className="border-t border-gray-100 pt-4 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>{t('checkout.basePlanIncluded')}</span>
+                <span>R$ {formatPrice(PRICES.basePlan)}</span>
+              </div>
+              {extraChannels > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>+{extraChannels} {extraChannels === 1 ? t('checkout.extraChannel') : t('checkout.extraChannels')}</span>
+                  <span>R$ {formatPrice(extraChannels * PRICES.extraChannel)}</span>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Add-ons section */}
-        <div className="mt-20 max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Need More?</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Extra Channel */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Extra LinkedIn Channel</h3>
-              <p className="text-gray-500 text-sm mb-4">Add more LinkedIn accounts to scale your outreach</p>
-              <p className="text-2xl font-bold text-gray-900">$30<span className="text-sm font-normal text-gray-500">/month</span></p>
+              )}
+              {extraUsers > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>+{extraUsers} {extraUsers === 1 ? t('checkout.extraUser') : t('checkout.extraUsers')}</span>
+                  <span>R$ {formatPrice(extraUsers * PRICES.extraUser)}</span>
+                </div>
+              )}
             </div>
 
-            {/* Extra User */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
+            {error && (
+              <div className="bg-red-50 text-red-700 rounded-md px-3 py-2 text-sm">
+                {error}
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Extra Team Member</h3>
-              <p className="text-gray-500 text-sm mb-4">Invite additional team members to collaborate</p>
-              <p className="text-2xl font-bold text-gray-900">$5<span className="text-sm font-normal text-gray-500">/month</span></p>
-            </div>
+            )}
 
-            {/* Extra Credits */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Google Maps Credits</h3>
-              <p className="text-gray-500 text-sm mb-4">Purchase additional credits (valid for 30 days)</p>
-              <p className="text-2xl font-bold text-gray-900">$50<span className="text-sm font-normal text-gray-500">/1,000 credits</span></p>
-            </div>
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="mt-20 max-w-3xl mx-auto pb-20">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Frequently Asked Questions</h2>
-          <div className="space-y-4">
-            {[
-              {
-                q: 'Can I change plans later?',
-                a: 'Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we\'ll prorate your billing.'
-              },
-              {
-                q: 'What happens to my data if I cancel?',
-                a: 'Your data is retained for 30 days after cancellation. During this time, you can reactivate your subscription to recover everything.'
-              },
-              {
-                q: 'Do Google Maps credits expire?',
-                a: 'Monthly credits included in your plan renew each billing cycle. Purchased credit packs expire 30 days after purchase.'
-              },
-              {
-                q: 'Is there a free trial?',
-                a: 'Yes! All new accounts get a 14-day free trial with access to all Professional plan features.'
-              }
-            ].map((faq, i) => (
-              <details key={i} className="bg-white rounded-xl border border-gray-200 p-6 group">
-                <summary className="font-semibold text-gray-900 cursor-pointer list-none flex items-center justify-between">
-                  {faq.q}
-                  <svg className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            {/* CTA */}
+            <button
+              onClick={handleCheckout}
+              disabled={loading}
+              className="w-full bg-purple-600 text-white py-3 px-4 rounded-md font-semibold text-base hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                </summary>
-                <p className="text-gray-600 mt-4">{faq.a}</p>
-              </details>
-            ))}
+                  {t('checkout.processing')}
+                </span>
+              ) : (
+                t('checkout.subscribe')
+              )}
+            </button>
           </div>
+        </div>
+
+        {/* Features */}
+        <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-gray-500">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <span key={i} className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {t(`checkout.feature${i}`)}
+            </span>
+          ))}
         </div>
       </div>
+
+      {/* Slider styles */}
+      <style>{`
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          border: 2px solid #0a2540;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          border: 2px solid #0a2540;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+      `}</style>
     </div>
   );
 };

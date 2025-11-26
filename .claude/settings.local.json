@@ -48,7 +48,9 @@
       "Bash(cmd //c \"taskkill /F /PID 148188\")",
       "Bash(del:*)",
       "Bash(xargs ls:*)",
-      "Bash(cmd /c \"del c:\\leadraze-b2b\\backend\\scripts\\check-lead-status.js\")"
+      "Bash(cmd /c \"del c:\\leadraze-b2b\\backend\\scripts\\check-lead-status.js\")",
+      "Bash(cmd //c \"taskkill /F /PID 61852\")",
+      "Bash(cmd //c \"taskkill /F /IM node.exe /T 2>nul\")"
     ],
     "deny": [],
     "ask": []
