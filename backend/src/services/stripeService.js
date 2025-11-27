@@ -4,10 +4,10 @@
  * Wrapper for Stripe SDK operations
  * Handles customer creation, subscriptions, checkout sessions, and webhooks
  *
- * Modelo:
- * - Plano Base: R$ 297/mês (1 canal, 2 usuários, 200 créditos/mês)
- * - Add-ons recorrentes: Canal (+R$ 147/mês), Usuário (+R$ 27/mês)
- * - Créditos avulsos: não expiram
+ * Pricing model (USD):
+ * - Base Plan: $55/month (1 channel, 2 users, 200 credits/month)
+ * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
+ * - One-time credits: never expire
  */
 
 const {
@@ -46,8 +46,8 @@ class StripeService {
           id: LAUNCH_COUPON.id,
           percent_off: LAUNCH_COUPON.percentOff,
           duration: LAUNCH_COUPON.duration,
-          name: LAUNCH_COUPON.name,
-          currency: 'brl'
+          name: LAUNCH_COUPON.name
+          // Note: currency is not needed for percentage-off coupons
         });
         console.log(`✅ Created launch coupon: ${coupon.id}`);
         return coupon.id;
@@ -148,9 +148,8 @@ class StripeService {
       // Apply 70% OFF launch coupon
       discounts: [{ coupon: couponId }],
       // Billing address collection
-      billing_address_collection: 'auto',
-      // Default to BRL
-      currency: 'brl'
+      billing_address_collection: 'auto'
+      // Note: currency is determined by the Stripe price IDs (USD)
     };
 
     // Add subscription metadata (no trial - using 70% OFF first month instead)
@@ -227,8 +226,7 @@ class StripeService {
       },
       // Billing address collection (required - includes name)
       billing_address_collection: 'required',
-      // Default to BRL
-      currency: 'brl',
+      // Note: currency is determined by the Stripe price IDs (USD)
       // Store metadata for webhook processing
       metadata: {
         is_guest: 'true',
@@ -280,7 +278,7 @@ class StripeService {
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
-      currency: 'brl',
+      // Note: currency is determined by the Stripe price IDs (USD)
       metadata: {
         account_id: accountId,
         credit_package: packageKey,

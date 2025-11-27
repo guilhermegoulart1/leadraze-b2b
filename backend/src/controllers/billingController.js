@@ -3,10 +3,10 @@
  *
  * Handles billing-related API requests
  *
- * Modelo:
- * - Plano Base único: R$ 297/mês (1 canal, 2 usuários, 200 créditos/mês)
- * - Add-ons recorrentes: Canal (+R$ 147/mês), Usuário (+R$ 27/mês)
- * - Créditos avulsos: não expiram
+ * Pricing model (USD):
+ * - Base Plan: $55/month (1 channel, 2 users, 200 credits/month)
+ * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
+ * - One-time credits: never expire
  */
 
 const stripeService = require('../services/stripeService');
@@ -67,8 +67,8 @@ exports.getPlans = async (req, res) => {
       description: plan.description,
       priceMonthly: plan.price_monthly_cents,
       priceYearly: plan.price_yearly_cents,
-      priceMonthlyFormatted: `R$ ${(plan.price_monthly_cents / 100).toFixed(2)}`,
-      priceYearlyFormatted: `R$ ${(plan.price_yearly_cents / 100).toFixed(2)}`,
+      priceMonthlyFormatted: `$${(plan.price_monthly_cents / 100).toFixed(2)}`,
+      priceYearlyFormatted: `$${(plan.price_yearly_cents / 100).toFixed(2)}`,
       limits: {
         maxChannels: plan.max_channels,
         maxUsers: plan.max_users,
@@ -96,7 +96,7 @@ exports.getPlans = async (req, res) => {
       description: addon.description,
       type: addon.addon_type,
       price: addon.price_cents,
-      priceFormatted: `R$ ${(addon.price_cents / 100).toFixed(2)}`,
+      priceFormatted: `$${(addon.price_cents / 100).toFixed(2)}`,
       billingType: addon.billing_type,
       creditsAmount: addon.credits_amount,
       creditsExpire: addon.credits_expire
@@ -183,7 +183,7 @@ exports.getCredits = async (req, res) => {
           name: pkg.name,
           credits: pkg.credits,
           price: pkg.price,
-          priceFormatted: `R$ ${(pkg.price / 100).toFixed(2)}`,
+          priceFormatted: `$${(pkg.price / 100).toFixed(2)}`,
           expires: pkg.expires
         }))
       }
@@ -452,7 +452,7 @@ exports.getInvoices = async (req, res) => {
         number: inv.number,
         status: inv.status,
         amount: inv.total_cents ? (inv.total_cents / 100).toFixed(2) : '0.00',
-        amountFormatted: inv.total_cents ? `R$ ${(inv.total_cents / 100).toFixed(2)}` : 'R$ 0,00',
+        amountFormatted: inv.total_cents ? `$${(inv.total_cents / 100).toFixed(2)}` : '$0.00',
         currency: inv.currency,
         periodStart: inv.period_start,
         periodEnd: inv.period_end,
@@ -565,7 +565,7 @@ exports.addExtraChannel = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Extra channel added. You will be charged R$ 147/month.'
+      message: 'Extra channel added. You will be charged $27/month.'
     });
   } catch (error) {
     console.error('Error adding extra channel:', error);
@@ -699,7 +699,7 @@ exports.addExtraUser = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Extra user added. You will be charged R$ 27/month.'
+      message: 'Extra user added. You will be charged $3/month.'
     });
   } catch (error) {
     console.error('Error adding extra user:', error);

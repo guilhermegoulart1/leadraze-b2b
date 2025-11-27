@@ -269,7 +269,7 @@ export default function ChatWidget() {
               </div>
               <div>
                 <h3 className="text-white font-semibold">
-                  {selectedAgent ? selectedAgent.name : 'Raze AI'}
+                  {selectedAgent ? selectedAgent.name : 'GetRaze AI'}
                 </h3>
                 <p className="text-purple-200 text-sm">
                   {widgetState === 'selection' && 'How can we help you?'}
