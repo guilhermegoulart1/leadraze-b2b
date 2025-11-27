@@ -583,7 +583,7 @@ exports.addExtraChannel = async (req, res) => {
  */
 exports.createGuestCheckoutSession = async (req, res) => {
   try {
-    const { extraChannels = 0, extraUsers = 0 } = req.body;
+    const { extraChannels = 0, extraUsers = 0, successUrl, cancelUrl } = req.body;
 
     // Validate inputs
     const channels = Math.max(0, Math.min(10, parseInt(extraChannels) || 0));
@@ -598,13 +598,17 @@ exports.createGuestCheckoutSession = async (req, res) => {
       });
     }
 
+    // Use provided URLs or fall back to defaults
+    const finalSuccessUrl = successUrl || `${process.env.FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
+    const finalCancelUrl = cancelUrl || `${process.env.FRONTEND_URL}/pricing?canceled=true`;
+
     // Create checkout session WITHOUT customer (Stripe will collect email)
     const session = await stripeService.createGuestCheckoutSession({
       priceId: plan.priceIdMonthly,
       extraChannels: channels,
       extraUsers: users,
-      successUrl: `${process.env.FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${process.env.FRONTEND_URL}/pricing?canceled=true`,
+      successUrl: finalSuccessUrl,
+      cancelUrl: finalCancelUrl,
       metadata: {
         is_guest: 'true',
         plan_type: 'base',

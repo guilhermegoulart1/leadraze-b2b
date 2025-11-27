@@ -24,7 +24,7 @@ router.get('/plans', billingController.getPlans);
  * POST /api/billing/checkout-guest
  * Create Stripe Checkout session for new customers (no auth required)
  * Account will be created automatically after successful payment via webhook
- * Body: { extraChannels?: number, extraUsers?: number }
+ * Body: { extraChannels?: number, extraUsers?: number, successUrl?: string, cancelUrl?: string }
  */
 router.post('/checkout-guest', billingController.createGuestCheckoutSession);
 

@@ -14,10 +14,10 @@ export const translations = {
       title: 'What if your CRM',
       titleHighlight: 'did the hunting for you?',
       subtitle: "The world's first self-prospecting CRM. AI agents find leads, start conversations, and fill your pipeline while you focus on closing deals.",
-      cta: 'Start Free Trial',
+      cta: 'Get Started',
       watchDemo: 'Watch Demo',
       noCreditCard: 'No credit card required',
-      freeTrial: '14-day free trial',
+      trialInfo: '70% OFF first month',
       cancelAnytime: 'Cancel anytime'
     },
     features: {
@@ -83,20 +83,20 @@ export const translations = {
       limitedOffer: 'Limited Time Offer',
       then: 'Then',
       perMonth: '/month',
-      channels: 'LinkedIn Channels',
+      channels: 'Channels',
       users: 'Team Members',
-      basePlan: 'Base Plan (1 channel, 2 users)',
+      basePlan: 'Base Plan (1 channel, 2 users, 200 credits)',
       extraChannel: 'Extra Channel',
       extraChannels: 'Extra Channels',
       extraUser: 'Extra User',
       extraUsers: 'Extra Users',
-      cta: 'Start 14-Day Free Trial',
+      cta: 'Subscribe Now',
       features: {
         agents: 'Unlimited AI Agents',
         linkedin: 'LinkedIn Automation',
         email: 'Email Campaigns',
-        crm: 'CRM Integrations',
-        analytics: 'Analytics Dashboard'
+        credits: '200 Google Maps Credits/mo',
+        support: 'Priority Support'
       },
       secure: 'Secure checkout with Stripe',
       cancel: 'Cancel anytime',
@@ -107,7 +107,7 @@ export const translations = {
     faq: {
       badge: 'FAQ',
       title: 'Frequently asked questions',
-      subtitle: "Everything you need to know about Raze. Can't find an answer? Chat with us.",
+      subtitle: "Everything you need to know about GetRaze. Can't find an answer? Chat with us.",
       stillQuestions: 'Still have questions?',
       teamHelp: 'Our team is here to help you get started.',
       contactSupport: 'Contact Support'
@@ -131,10 +131,10 @@ export const translations = {
       rights: 'All rights reserved.'
     },
     chat: {
-      title: 'Raze AI',
-      subtitle: 'Ask me anything about Raze',
+      title: 'GetRaze AI',
+      subtitle: 'Ask me anything about GetRaze',
       placeholder: 'Type your message...',
-      greeting: "Hi! I'm Raze AI. I can answer questions about our platform, pricing, and features. How can I help you today?"
+      greeting: "Hi! I'm GetRaze AI. I can answer questions about our platform, pricing, and features. How can I help you today?"
     },
     featureShowcase: {
       card1Title: 'Multi-channel Outreach',
@@ -168,10 +168,10 @@ export const translations = {
       title: 'E se seu CRM',
       titleHighlight: 'fizesse a prospecção por você?',
       subtitle: 'O primeiro CRM do mundo que prospecta sozinho. Agentes de IA encontram leads, iniciam conversas e enchem seu pipeline enquanto você foca em fechar negócios.',
-      cta: 'Começar Teste Grátis',
+      cta: 'Começar Agora',
       watchDemo: 'Ver Demo',
       noCreditCard: 'Sem cartão de crédito',
-      freeTrial: '14 dias grátis',
+      trialInfo: '70% OFF no primeiro mês',
       cancelAnytime: 'Cancele quando quiser'
     },
     features: {
@@ -237,20 +237,20 @@ export const translations = {
       limitedOffer: 'Oferta Limitada',
       then: 'Depois',
       perMonth: '/mês',
-      channels: 'Canais LinkedIn',
+      channels: 'Canais',
       users: 'Membros do Time',
-      basePlan: 'Plano Base (1 canal, 2 usuários)',
+      basePlan: 'Plano Base (1 canal, 2 usuários, 200 créditos)',
       extraChannel: 'Canal Extra',
       extraChannels: 'Canais Extras',
       extraUser: 'Usuário Extra',
       extraUsers: 'Usuários Extras',
-      cta: 'Começar 14 Dias Grátis',
+      cta: 'Assinar Agora',
       features: {
         agents: 'Agentes IA Ilimitados',
         linkedin: 'Automação LinkedIn',
         email: 'Campanhas de Email',
-        crm: 'Integrações CRM',
-        analytics: 'Dashboard Analytics'
+        credits: '200 Créditos Google Maps/mês',
+        support: 'Suporte Prioritário'
       },
       secure: 'Checkout seguro com Stripe',
       cancel: 'Cancele quando quiser',
@@ -261,7 +261,7 @@ export const translations = {
     faq: {
       badge: 'FAQ',
       title: 'Perguntas frequentes',
-      subtitle: 'Tudo que você precisa saber sobre a Raze. Não encontrou resposta? Fale conosco.',
+      subtitle: 'Tudo que você precisa saber sobre a GetRaze. Não encontrou resposta? Fale conosco.',
       stillQuestions: 'Ainda tem dúvidas?',
       teamHelp: 'Nossa equipe está aqui para ajudar você a começar.',
       contactSupport: 'Falar com Suporte'
@@ -285,10 +285,10 @@ export const translations = {
       rights: 'Todos os direitos reservados.'
     },
     chat: {
-      title: 'Raze IA',
-      subtitle: 'Pergunte qualquer coisa sobre a Raze',
+      title: 'GetRaze IA',
+      subtitle: 'Pergunte qualquer coisa sobre a GetRaze',
       placeholder: 'Digite sua mensagem...',
-      greeting: 'Olá! Sou a Raze IA. Posso responder perguntas sobre nossa plataforma, preços e recursos. Como posso ajudar?'
+      greeting: 'Olá! Sou a GetRaze IA. Posso responder perguntas sobre nossa plataforma, preços e recursos. Como posso ajudar?'
     },
     featureShowcase: {
       card1Title: 'Prospecção Multicanal',
@@ -322,10 +322,10 @@ export const translations = {
       title: '¿Y si tu CRM',
       titleHighlight: 'hiciera la prospección por ti?',
       subtitle: 'El primer CRM del mundo que prospecta solo. Agentes de IA encuentran leads, inician conversaciones y llenan tu pipeline mientras te enfocas en cerrar negocios.',
-      cta: 'Empezar Prueba Gratis',
+      cta: 'Empezar Ahora',
       watchDemo: 'Ver Demo',
       noCreditCard: 'Sin tarjeta de crédito',
-      freeTrial: '14 días gratis',
+      trialInfo: '70% OFF primer mes',
       cancelAnytime: 'Cancela cuando quieras'
     },
     features: {
@@ -391,20 +391,20 @@ export const translations = {
       limitedOffer: 'Oferta Limitada',
       then: 'Después',
       perMonth: '/mes',
-      channels: 'Canales LinkedIn',
+      channels: 'Canales',
       users: 'Miembros del Equipo',
-      basePlan: 'Plan Base (1 canal, 2 usuarios)',
+      basePlan: 'Plan Base (1 canal, 2 usuarios, 200 créditos)',
       extraChannel: 'Canal Extra',
       extraChannels: 'Canales Extras',
       extraUser: 'Usuario Extra',
       extraUsers: 'Usuarios Extras',
-      cta: 'Empezar 14 Días Gratis',
+      cta: 'Suscribirse Ahora',
       features: {
         agents: 'Agentes IA Ilimitados',
         linkedin: 'Automatización LinkedIn',
         email: 'Campañas de Email',
-        crm: 'Integraciones CRM',
-        analytics: 'Dashboard Analytics'
+        credits: '200 Créditos Google Maps/mes',
+        support: 'Soporte Prioritario'
       },
       secure: 'Checkout seguro con Stripe',
       cancel: 'Cancela cuando quieras',
@@ -415,7 +415,7 @@ export const translations = {
     faq: {
       badge: 'FAQ',
       title: 'Preguntas frecuentes',
-      subtitle: 'Todo lo que necesitas saber sobre Raze. ¿No encontraste respuesta? Habla con nosotros.',
+      subtitle: 'Todo lo que necesitas saber sobre GetRaze. ¿No encontraste respuesta? Habla con nosotros.',
       stillQuestions: '¿Aún tienes preguntas?',
       teamHelp: 'Nuestro equipo está aquí para ayudarte a empezar.',
       contactSupport: 'Contactar Soporte'
@@ -439,10 +439,10 @@ export const translations = {
       rights: 'Todos los derechos reservados.'
     },
     chat: {
-      title: 'Raze IA',
-      subtitle: 'Pregunta cualquier cosa sobre Raze',
+      title: 'GetRaze IA',
+      subtitle: 'Pregunta cualquier cosa sobre GetRaze',
       placeholder: 'Escribe tu mensaje...',
-      greeting: '¡Hola! Soy Raze IA. Puedo responder preguntas sobre nuestra plataforma, precios y funciones. ¿Cómo puedo ayudarte?'
+      greeting: '¡Hola! Soy GetRaze IA. Puedo responder preguntas sobre nuestra plataforma, precios y funciones. ¿Cómo puedo ayudarte?'
     },
     featureShowcase: {
       card1Title: 'Prospección Multicanal',
