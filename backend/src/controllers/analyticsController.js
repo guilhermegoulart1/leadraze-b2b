@@ -20,13 +20,15 @@ const getDashboard = async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - periodDays);
 
-    // 1. Totais gerais
+    // 1. Totais gerais (com invite_sent para cálculo de taxa)
     const totalsQuery = `
-      SELECT 
+      SELECT
         (SELECT COUNT(*) FROM campaigns WHERE user_id = $1) as total_campaigns,
         (SELECT COUNT(*) FROM campaigns WHERE user_id = $1 AND status = 'active') as active_campaigns,
         (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1) as total_leads,
         (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1 AND l.status = 'qualified') as qualified_leads,
+        (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1 AND l.status = 'invite_sent') as invite_sent,
+        (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1 AND l.status = 'accepted') as accepted,
         (SELECT COUNT(*) FROM conversations WHERE user_id = $1) as total_conversations,
         (SELECT COUNT(*) FROM conversations WHERE user_id = $1 AND ai_active = true) as ai_conversations,
         (SELECT COUNT(*) FROM linkedin_accounts WHERE user_id = $1) as linkedin_accounts
@@ -128,7 +130,7 @@ const getDashboard = async (req, res) => {
 
     // 7. Métricas de IA
     const aiMetricsQuery = `
-      SELECT 
+      SELECT
         COUNT(*) FILTER (WHERE ai_active = true) as ai_active,
         COUNT(*) FILTER (WHERE manual_control_taken = true) as manual_control,
         COUNT(DISTINCT ai_agent_id) as agents_in_use
@@ -138,6 +140,63 @@ const getDashboard = async (req, res) => {
 
     const aiMetrics = await db.query(aiMetricsQuery, [userId]);
 
+    // 8. Métricas de Mensagens/Conversação
+    const messagesMetricsQuery = `
+      SELECT
+        COUNT(*) as total_messages,
+        COUNT(*) FILTER (WHERE m.sender_type = 'ai') as ai_messages,
+        COUNT(*) FILTER (WHERE m.sender_type = 'lead') as lead_messages
+      FROM messages m
+      JOIN conversations conv ON m.conversation_id = conv.id
+      WHERE conv.user_id = $1
+    `;
+    const messagesMetrics = await db.query(messagesMetricsQuery, [userId]);
+    const msgMetrics = messagesMetrics.rows[0];
+
+    const totalConvs = parseInt(totals.total_conversations) || 1;
+    const conversationMetrics = {
+      total_messages: parseInt(msgMetrics.total_messages) || 0,
+      ai_messages: parseInt(msgMetrics.ai_messages) || 0,
+      lead_messages: parseInt(msgMetrics.lead_messages) || 0,
+      avg_messages_per_lead: totalConvs > 0 ? ((parseInt(msgMetrics.total_messages) || 0) / totalConvs).toFixed(1) : 0
+    };
+
+    // 9. Leads mais engajados (mais mensagens)
+    const engagedLeadsQuery = `
+      SELECT
+        l.id,
+        l.name,
+        l.title,
+        l.company,
+        COUNT(m.id) as message_count,
+        COUNT(m.id) FILTER (WHERE m.sender_type = 'lead') as lead_responses
+      FROM leads l
+      JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN conversations conv ON conv.lead_id = l.id
+      LEFT JOIN messages m ON m.conversation_id = conv.id
+      WHERE c.user_id = $1 AND conv.id IS NOT NULL
+      GROUP BY l.id, l.name, l.title, l.company
+      ORDER BY message_count DESC
+      LIMIT 5
+    `;
+    const engagedLeads = await db.query(engagedLeadsQuery, [userId]);
+
+    // 10. Performance por período (para o gráfico de linha)
+    const performanceQuery = `
+      SELECT
+        DATE(l.created_at) as date,
+        COUNT(*) as leads,
+        COUNT(*) FILTER (WHERE l.status = 'qualified') as qualified,
+        COUNT(DISTINCT conv.id) as conversations
+      FROM leads l
+      JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN conversations conv ON conv.lead_id = l.id
+      WHERE c.user_id = $1 AND l.created_at >= $2
+      GROUP BY DATE(l.created_at)
+      ORDER BY date ASC
+    `;
+    const performanceData = await db.query(performanceQuery, [userId, startDate]);
+
     const dashboard = {
       period_days: periodDays,
       totals: {
@@ -145,6 +204,8 @@ const getDashboard = async (req, res) => {
         active_campaigns: parseInt(totals.active_campaigns),
         leads: parseInt(totals.total_leads),
         qualified_leads: parseInt(totals.qualified_leads),
+        invite_sent: parseInt(totals.invite_sent),
+        accepted: parseInt(totals.accepted),
         conversations: parseInt(totals.total_conversations),
         ai_conversations: parseInt(totals.ai_conversations),
         linkedin_accounts: parseInt(totals.linkedin_accounts)
@@ -157,7 +218,10 @@ const getDashboard = async (req, res) => {
       conversations_by_status: conversations,
       activity_chart: activityResult.rows,
       top_campaigns: topCampaigns.rows,
-      ai_metrics: aiMetrics.rows[0]
+      ai_metrics: aiMetrics.rows[0],
+      conversation_metrics: conversationMetrics,
+      most_engaged_leads: engagedLeads.rows,
+      performance_over_time: performanceData.rows
     };
 
     console.log('✅ Dashboard compilado');

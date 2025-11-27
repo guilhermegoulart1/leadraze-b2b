@@ -1,0 +1,64 @@
+{
+  "title": "Website Agents",
+  "subtitle": "Manage AI chatbots for your institutional website",
+  "tabs": {
+    "agents": "Agents",
+    "knowledge": "Knowledge Base",
+    "conversations": "Conversations",
+    "stats": "Statistics"
+  },
+  "agents": {
+    "configure": "Configure Agent",
+    "name": "Name",
+    "avatarUrl": "Avatar URL",
+    "welcomeMessage": "Welcome Message",
+    "systemPrompt": "System Prompt",
+    "personality": "Personality",
+    "tone": "Tone",
+    "responseLength": "Response Length",
+    "language": "Language",
+    "active": "Active",
+    "activeDescription": "Enable this agent on the website",
+    "save": "Save Changes"
+  },
+  "knowledge": {
+    "title": "Knowledge Base",
+    "add": "Add Knowledge",
+    "edit": "Edit Knowledge",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "allTypes": "All Types",
+    "allAgents": "All Agents",
+    "empty": "No knowledge items yet",
+    "type": "Type",
+    "agentKey": "Agent (optional)",
+    "shared": "Shared (Both Agents)",
+    "category": "Category",
+    "categoryPlaceholder": "e.g., Getting Started, Pricing, Features",
+    "question": "Question",
+    "answer": "Answer",
+    "content": "Content"
+  },
+  "conversations": {
+    "title": "Chat Conversations",
+    "allAgents": "All Agents",
+    "allStatus": "All Status",
+    "escalated": "Escalated",
+    "notEscalated": "Not Escalated",
+    "escalatedBadge": "Escalated",
+    "empty": "No conversations yet",
+    "view": "Conversation Details",
+    "contactForm": "Contact Form Submitted"
+  },
+  "stats": {
+    "totalConversations": "Total Conversations",
+    "totalMessages": "Total Messages",
+    "escalated": "Escalated",
+    "avgMessages": "Avg Messages",
+    "byAgent": "Statistics by Agent",
+    "noData": "No statistics available yet"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save"
+  }
+}

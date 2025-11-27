@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Search, Award, BarChart3, MessageCircle,
-  Bot, Lightbulb, Settings, LogOut,
+  Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
-  ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard
+  ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
+  Mail, Settings, Globe
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import LanguageSelector from './LanguageSelector';
 import api from '../services/api';
+import OnboardingChecklist from './OnboardingChecklist';
 
 const Layout = () => {
   const location = useLocation();
@@ -68,6 +69,10 @@ const Layout = () => {
     { section: t('sections.activation') },
     { path: '/activation-campaigns', label: t('menu.campaigns'), icon: Award },
     { path: '/contact-lists', label: t('menu.contactLists'), icon: Users },
+
+    // Emails
+    { section: t('sections.emails', 'EMAILS') },
+    { path: '/email-settings', label: t('menu.settings', 'Configurações'), icon: Settings },
 
     // CRM
     { section: t('sections.crm') },
@@ -238,94 +243,124 @@ const Layout = () => {
               />
               <div
                 className={`
-                  absolute bottom-full mb-2 ${isCollapsed ? 'left-full ml-2' : 'left-0 right-0 mx-2'}
-                  bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20
-                  min-w-[180px]
+                  absolute bottom-full mb-2 left-0
+                  bg-white border border-gray-200 rounded-xl shadow-xl z-20
+                  min-w-[240px] overflow-hidden
                 `}
               >
-                <Link
-                  to="/profile"
-                  className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <User className="w-4 h-4" />
-                  <span>{t('userMenu.profile')}</span>
-                </Link>
-                <Link
-                  to="/settings"
-                  className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>{t('userMenu.settings')}</span>
-                </Link>
-                <Link
-                  to="/billing"
-                  className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span>{t('userMenu.billing', 'Billing')}</span>
-                </Link>
-                <Link
-                  to="/linkedin-accounts"
-                  className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <Linkedin className="w-4 h-4" />
-                  <span>{t('userMenu.channels')}</span>
-                </Link>
 
-                {/* Language Selector */}
-                <div className="px-2 py-1">
-                  <LanguageSelector variant="compact" />
+                {/* User Header */}
+                <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-white border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    {user?.profile_picture ? (
+                      <img
+                        src={user.profile_picture}
+                        alt={user.name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-purple-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-purple-200">
+                        {getUserInitials()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Section */}
+                <div className="py-1">
+                  <Link
+                    to="/profile"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <User className="w-4 h-4 text-gray-400" />
+                    <span>{t('userMenu.profile')}</span>
+                  </Link>
+                  <Link
+                    to="/billing"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <CreditCard className="w-4 h-4 text-gray-400" />
+                    <span>{t('userMenu.billing', 'Billing')}</span>
+                  </Link>
+                  <Link
+                    to="/linkedin-accounts"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Linkedin className="w-4 h-4 text-gray-400" />
+                    <span>{t('userMenu.channels')}</span>
+                  </Link>
                 </div>
 
                 {/* Admin & Supervisor Links */}
                 {(isAdmin || isSupervisor) && (
                   <>
-                    <div className="border-t border-gray-200 my-1" />
-                    {(hasPermission('users:view:all') || hasPermission('users:view:team')) && (
-                      <Link
-                        to="/users"
-                        className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                        onClick={() => setShowUserMenu(false)}
-                      >
-                        <Shield className="w-4 h-4" />
-                        <span>{t('userMenu.users')}</span>
-                      </Link>
-                    )}
-                    {hasPermission('sectors:view') && (
-                      <Link
-                        to="/sectors"
-                        className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                        onClick={() => setShowUserMenu(false)}
-                      >
-                        <Users className="w-4 h-4" />
-                        <span>{t('userMenu.sectors')}</span>
-                      </Link>
-                    )}
-                    {hasPermission('permissions:manage') && (
-                      <Link
-                        to="/permissions"
-                        className="flex items-center space-x-2.5 px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                        onClick={() => setShowUserMenu(false)}
-                      >
-                        <Lock className="w-4 h-4" />
-                        <span>{t('userMenu.permissions')}</span>
-                      </Link>
-                    )}
+                    <div className="border-t border-gray-100 mx-3" />
+                    <div className="py-1">
+                      <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                        Administracao
+                      </p>
+                      {(hasPermission('users:view:all') || hasPermission('users:view:team')) && (
+                        <Link
+                          to="/users"
+                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Shield className="w-4 h-4 text-gray-400" />
+                          <span>{t('userMenu.users')}</span>
+                        </Link>
+                      )}
+                      {hasPermission('sectors:view') && (
+                        <Link
+                          to="/sectors"
+                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span>{t('userMenu.sectors')}</span>
+                        </Link>
+                      )}
+                      {hasPermission('permissions:manage') && (
+                        <Link
+                          to="/permissions"
+                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Lock className="w-4 h-4 text-gray-400" />
+                          <span>{t('userMenu.permissions')}</span>
+                        </Link>
+                      )}
+                      {isAdmin && (
+                        <Link
+                          to="/website-agents"
+                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Globe className="w-4 h-4 text-gray-400" />
+                          <span>{t('userMenu.websiteAgents', 'Website Agents')}</span>
+                        </Link>
+                      )}
+                    </div>
                   </>
                 )}
 
-                <div className="border-t border-gray-200 my-1" />
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center space-x-2.5 px-3 py-2 hover:bg-red-50 text-red-600 text-sm"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>{t('userMenu.logout')}</span>
-                </button>
+                {/* Logout */}
+                <div className="border-t border-gray-100 mx-3" />
+                <div className="py-1">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center space-x-3 px-4 py-2.5 hover:bg-red-50 text-red-600 text-sm transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>{t('userMenu.logout')}</span>
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -405,6 +440,9 @@ const Layout = () => {
           <Outlet context={{ refreshUnreadCount: loadConversationStats }} />
         </main>
       </div>
+
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist />
     </div>
   );
 };

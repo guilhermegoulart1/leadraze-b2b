@@ -18,9 +18,15 @@ const app = express();
 // Security
 app.use(helmet());
 
-// CORS
+// CORS - allow frontend app and www site
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.WWW_URL || 'http://localhost:4321',
+    'https://getraze.co',
+    'https://www.getraze.co',
+    'https://app.getraze.co'
+  ],
   credentials: true
 }));
 
@@ -150,6 +156,28 @@ try {
 }
 
 // ================================
+// PUBLIC WEBSITE CHAT (NO AUTH REQUIRED)
+// ================================
+// CORS for website chat - allow requests from www site
+app.use('/api/public/website-chat', cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.WWW_URL || 'http://localhost:4321',
+    'https://getraze.co',
+    'https://www.getraze.co'
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
+try {
+  app.use('/api/public/website-chat', require('./routes/publicWebsiteChat'));
+  console.log('✅ Public website chat routes loaded (no auth)');
+} catch (error) {
+  console.error('❌ Error loading public website chat routes:', error.message);
+}
+
+// ================================
 // ROUTES
 // ================================
 
@@ -237,6 +265,13 @@ try {
 }
 
 try {
+  app.use('/api/email-settings', require('./routes/emailSettings'));
+  console.log('✅ Email settings routes loaded');
+} catch (error) {
+  console.error('❌ Error loading email settings routes:', error.message);
+}
+
+try {
   app.use('/api/permissions', require('./routes/permissions'));
   console.log('✅ Permissions management routes loaded');
 } catch (error) {
@@ -302,6 +337,14 @@ try {
   console.log('✅ Unified agents routes loaded');
 } catch (error) {
   console.error('❌ Error loading unified agents routes:', error.message);
+}
+
+// Website Agents Admin (for managing sales/support chatbots)
+try {
+  app.use('/api/website-agents', require('./routes/websiteAgentsAdmin'));
+  console.log('✅ Website agents admin routes loaded');
+} catch (error) {
+  console.error('❌ Error loading website agents admin routes:', error.message);
 }
 
 // ================================

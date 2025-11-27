@@ -40,8 +40,8 @@ class SubscriptionService {
    */
   async syncFromStripe(stripeSubscription, accountId) {
     const planInfo = getPlanByPriceId(stripeSubscription.items.data[0]?.price?.id);
-    const planType = planInfo?.type || 'starter';
-    const planLimits = PLANS[planType]?.limits || PLANS.starter.limits;
+    const planType = planInfo?.slug || 'base';
+    const planLimits = PLANS[planType]?.limits || PLANS.base.limits;
 
     const data = {
       account_id: accountId,
@@ -178,7 +178,8 @@ class SubscriptionService {
   async calculateLimits(accountId) {
     const subscription = await this.getSubscription(accountId);
     if (!subscription) {
-      return PLANS.free.limits;
+      // Return base plan limits as default for users without subscription
+      return PLANS.base.limits;
     }
 
     const items = await this.getSubscriptionItems(subscription.id);

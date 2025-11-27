@@ -13,6 +13,10 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
   const [profiles, setProfiles] = useState(null);
   const [error, setError] = useState('');
 
+  // Email settings state
+  const [emailSignatures, setEmailSignatures] = useState([]);
+  const [emailTemplates, setEmailTemplates] = useState([]);
+
   // Avatar state
   const [avatarSeed, setAvatarSeed] = useState(Math.floor(Math.random() * 70) + 1);
   const [avatarUrl, setAvatarUrl] = useState(`https://i.pravatar.cc/200?img=${Math.floor(Math.random() * 70) + 1}`);
@@ -41,6 +45,26 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
       loadProfiles();
     }
   }, [isOpen]);
+
+  // Load email settings when wizard opens
+  useEffect(() => {
+    if (isOpen) {
+      loadEmailSettings();
+    }
+  }, [isOpen]);
+
+  const loadEmailSettings = async () => {
+    try {
+      const [signaturesRes, templatesRes] = await Promise.all([
+        api.getEmailSignatures(),
+        api.getEmailTemplates(),
+      ]);
+      setEmailSignatures(signaturesRes.signatures || []);
+      setEmailTemplates(templatesRes.templates || []);
+    } catch (err) {
+      console.error('Erro ao carregar configurações de email:', err);
+    }
+  };
 
   // Prefill form if editing
   useEffect(() => {
@@ -122,7 +146,7 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
     switch (formData.agent_type) {
       case 'linkedin': return 7; // Avatar+Nome+Tipo, Produtos, Negócio, Perfil, Escalação, Response Length, Review
       case 'google_maps': return 7; // Avatar+Nome+Tipo, Localização, Nicho, Filtros, Ações, Response Length, Review
-      case 'email':
+      case 'email': return 6; // Avatar+Nome+Tipo, Personalidade, Mensagens, Email Config, Response Length, Review
       case 'whatsapp': return 5; // Avatar+Nome+Tipo, Personalidade, Mensagens, Response Length, Review
       default: return 1;
     }
@@ -1054,7 +1078,227 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
             </div>
           )}
 
-          {(formData.agent_type === 'email' || formData.agent_type === 'whatsapp') && currentStep === 4 && (
+          {/* EMAIL CONFIG STEP (only for email) */}
+          {formData.agent_type === 'email' && currentStep === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Configurações de Email
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Personalize como seus emails serão enviados
+                </p>
+              </div>
+
+              {/* Signature Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assinatura de Email
+                </label>
+                <select
+                  value={formData.config.email_config?.signature_id || ''}
+                  onChange={(e) => updateConfig('email_config', {
+                    ...formData.config.email_config,
+                    signature_id: e.target.value || null,
+                    include_signature: !!e.target.value
+                  })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Sem assinatura</option>
+                  {emailSignatures.map((sig) => (
+                    <option key={sig.id} value={sig.id}>{sig.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Configure assinaturas em Configurações &gt; Email
+                </p>
+              </div>
+
+              {/* Template Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Template Base (opcional)
+                </label>
+                <select
+                  value={formData.config.email_config?.template_id || ''}
+                  onChange={(e) => updateConfig('email_config', {
+                    ...formData.config.email_config,
+                    template_id: e.target.value || null
+                  })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Nenhum template</option>
+                  {emailTemplates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Include Logo */}
+              <div className="flex items-center justify-between py-3 border-t border-gray-200">
+                <div>
+                  <span className="text-sm font-medium text-gray-900">Incluir Logo da Empresa</span>
+                  <p className="text-xs text-gray-500">Adiciona o logo no cabeçalho do email</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={formData.config.email_config?.include_logo !== false}
+                    onChange={(e) => updateConfig('email_config', {
+                      ...formData.config.email_config,
+                      include_logo: e.target.checked
+                    })}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+
+              {/* Greeting Style */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estilo de Saudação
+                </label>
+                <select
+                  value={formData.config.email_config?.greeting_style || 'name'}
+                  onChange={(e) => updateConfig('email_config', {
+                    ...formData.config.email_config,
+                    greeting_style: e.target.value
+                  })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="name">Pelo Nome (Olá João)</option>
+                  <option value="title">Pelo Cargo (Prezado Diretor)</option>
+                  <option value="generic">Genérico (Olá!)</option>
+                  <option value="formal">Formal (Prezado(a) Senhor(a))</option>
+                </select>
+              </div>
+
+              {/* Closing Style */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estilo de Encerramento
+                </label>
+                <select
+                  value={formData.config.email_config?.closing_style || 'best_regards'}
+                  onChange={(e) => updateConfig('email_config', {
+                    ...formData.config.email_config,
+                    closing_style: e.target.value
+                  })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="best_regards">Atenciosamente</option>
+                  <option value="thanks">Obrigado(a)</option>
+                  <option value="sincerely">Cordialmente</option>
+                  <option value="warm_regards">Abraços</option>
+                  <option value="cheers">Até mais</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+              </div>
+
+              {/* Custom Closing (if selected) */}
+              {formData.config.email_config?.closing_style === 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Encerramento Personalizado
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.config.email_config?.custom_closing || ''}
+                    onChange={(e) => updateConfig('email_config', {
+                      ...formData.config.email_config,
+                      custom_closing: e.target.value
+                    })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Ex: Com carinho,"
+                  />
+                </div>
+              )}
+
+              {/* Personalization Level */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Nível de Personalização
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'low', label: 'Básico', desc: 'Nome apenas' },
+                    { value: 'medium', label: 'Moderado', desc: 'Nome + empresa' },
+                    { value: 'high', label: 'Alto', desc: 'Contextualizado' }
+                  ].map(({ value, label, desc }) => {
+                    const isSelected = (formData.config.email_config?.personalization_level || 'medium') === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => updateConfig('email_config', {
+                          ...formData.config.email_config,
+                          personalization_level: value
+                        })}
+                        className={`p-3 border-2 rounded-lg transition-all ${
+                          isSelected
+                            ? 'border-purple-600 bg-purple-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <p className={`font-medium ${
+                          isSelected ? 'text-purple-900' : 'text-gray-900'
+                        }`}>
+                          {label}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RESPONSE LENGTH STEP */}
+          {formData.agent_type === 'whatsapp' && currentStep === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Tamanho das Respostas
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Configure o tamanho das mensagens
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
+                  { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
+                  { value: 'long', label: 'Longas', desc: '4-6 linhas' }
+                ].map(({ value, label, desc }) => {
+                  const isSelected = formData.response_length === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => updateField('response_length', value)}
+                      className={`p-3 border-2 rounded-lg transition-all ${
+                        isSelected
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <p className={`font-medium ${
+                        isSelected ? 'text-purple-900' : 'text-gray-900'
+                      }`}>
+                        {label}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {formData.agent_type === 'email' && currentStep === 5 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -1152,6 +1396,42 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
                     <p className="text-sm text-green-700 mt-1">
                       Raio: {formData.config.location.radius} km
                     </p>
+                  </div>
+                )}
+
+                {formData.agent_type === 'email' && (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Configurações de Email</h4>
+                    <div className="space-y-1 text-sm text-blue-800">
+                      <p>
+                        <span className="text-blue-600">Assinatura:</span>{' '}
+                        {formData.config.email_config?.signature_id
+                          ? emailSignatures.find(s => s.id === formData.config.email_config.signature_id)?.name || 'Selecionada'
+                          : 'Nenhuma'}
+                      </p>
+                      <p>
+                        <span className="text-blue-600">Logo:</span>{' '}
+                        {formData.config.email_config?.include_logo !== false ? 'Incluído' : 'Não incluído'}
+                      </p>
+                      <p>
+                        <span className="text-blue-600">Saudação:</span>{' '}
+                        {formData.config.email_config?.greeting_style === 'name' && 'Pelo Nome'}
+                        {formData.config.email_config?.greeting_style === 'title' && 'Pelo Cargo'}
+                        {formData.config.email_config?.greeting_style === 'generic' && 'Genérico'}
+                        {formData.config.email_config?.greeting_style === 'formal' && 'Formal'}
+                        {!formData.config.email_config?.greeting_style && 'Pelo Nome'}
+                      </p>
+                      <p>
+                        <span className="text-blue-600">Encerramento:</span>{' '}
+                        {formData.config.email_config?.closing_style === 'best_regards' && 'Atenciosamente'}
+                        {formData.config.email_config?.closing_style === 'thanks' && 'Obrigado(a)'}
+                        {formData.config.email_config?.closing_style === 'sincerely' && 'Cordialmente'}
+                        {formData.config.email_config?.closing_style === 'warm_regards' && 'Abraços'}
+                        {formData.config.email_config?.closing_style === 'cheers' && 'Até mais'}
+                        {formData.config.email_config?.closing_style === 'custom' && (formData.config.email_config?.custom_closing || 'Personalizado')}
+                        {!formData.config.email_config?.closing_style && 'Atenciosamente'}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

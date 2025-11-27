@@ -1,0 +1,30 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import Hero from '../../components/sections/Hero.astro';
+import Features from '../../components/sections/Features.astro';
+import Benefits from '../../components/sections/Benefits.astro';
+import Testimonials from '../../components/sections/Testimonials.astro';
+import Pricing from '../../components/sections/Pricing.astro';
+import FAQ from '../../components/sections/FAQ.astro';
+import ChatWidget from '../../components/ChatWidget';
+---
+
+<Layout title="Raze - Generación de Leads B2B con Inteligencia Artificial">
+  <Header />
+
+  <main>
+    <Hero />
+    <Features />
+    <Benefits />
+    <Testimonials />
+    <Pricing />
+    <FAQ />
+  </main>
+
+  <Footer />
+
+  <!-- AI Chat Widget -->
+  <ChatWidget client:idle />
+</Layout>

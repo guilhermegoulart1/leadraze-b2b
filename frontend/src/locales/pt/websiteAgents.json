@@ -1,0 +1,64 @@
+{
+  "title": "Agentes do Site",
+  "subtitle": "Gerencie chatbots de IA para seu site institucional",
+  "tabs": {
+    "agents": "Agentes",
+    "knowledge": "Base de Conhecimento",
+    "conversations": "Conversas",
+    "stats": "Estatísticas"
+  },
+  "agents": {
+    "configure": "Configurar Agente",
+    "name": "Nome",
+    "avatarUrl": "URL do Avatar",
+    "welcomeMessage": "Mensagem de Boas-vindas",
+    "systemPrompt": "Prompt do Sistema",
+    "personality": "Personalidade",
+    "tone": "Tom",
+    "responseLength": "Tamanho da Resposta",
+    "language": "Idioma",
+    "active": "Ativo",
+    "activeDescription": "Habilitar este agente no site",
+    "save": "Salvar Alterações"
+  },
+  "knowledge": {
+    "title": "Base de Conhecimento",
+    "add": "Adicionar Conhecimento",
+    "edit": "Editar Conhecimento",
+    "confirmDelete": "Tem certeza que deseja excluir este item?",
+    "allTypes": "Todos os Tipos",
+    "allAgents": "Todos os Agentes",
+    "empty": "Nenhum item de conhecimento ainda",
+    "type": "Tipo",
+    "agentKey": "Agente (opcional)",
+    "shared": "Compartilhado (Ambos os Agentes)",
+    "category": "Categoria",
+    "categoryPlaceholder": "ex: Primeiros Passos, Preços, Funcionalidades",
+    "question": "Pergunta",
+    "answer": "Resposta",
+    "content": "Conteúdo"
+  },
+  "conversations": {
+    "title": "Conversas do Chat",
+    "allAgents": "Todos os Agentes",
+    "allStatus": "Todos os Status",
+    "escalated": "Escalados",
+    "notEscalated": "Não Escalados",
+    "escalatedBadge": "Escalado",
+    "empty": "Nenhuma conversa ainda",
+    "view": "Detalhes da Conversa",
+    "contactForm": "Formulário de Contato Enviado"
+  },
+  "stats": {
+    "totalConversations": "Total de Conversas",
+    "totalMessages": "Total de Mensagens",
+    "escalated": "Escalados",
+    "avgMessages": "Média de Mensagens",
+    "byAgent": "Estatísticas por Agente",
+    "noData": "Nenhuma estatística disponível ainda"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Salvar"
+  }
+}

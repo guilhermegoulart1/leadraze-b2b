@@ -1,0 +1,39 @@
+---
+import { getTranslation } from '../../i18n/translations';
+import PricingCalculator from '../PricingCalculator';
+
+const locale = Astro.currentLocale || 'en';
+const t = getTranslation(locale);
+---
+
+<section id="pricing" class="py-20 lg:py-32 bg-gradient-to-b from-white to-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <span class="text-primary-600 font-semibold text-sm uppercase tracking-wider">{t.pricing.badge}</span>
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-3 mb-4">
+        {t.pricing.title}
+      </h2>
+      <p class="text-lg text-gray-600">
+        {t.pricing.subtitle}
+      </p>
+    </div>
+
+    <!-- Pricing Calculator (React Island) -->
+    <PricingCalculator client:visible locale={locale} />
+
+    <!-- FAQ Teaser -->
+    <div class="mt-16 text-center">
+      <p class="text-gray-500">
+        {t.pricing.haveQuestions}{' '}
+        <a href="#faq" class="text-primary-600 font-medium hover:underline">
+          {t.pricing.checkFaq}
+        </a>
+        {' '}ou{' '}
+        <a href="#" class="text-primary-600 font-medium hover:underline">
+          {t.pricing.chatWithUs}
+        </a>
+      </p>
+    </div>
+  </div>
+</section>

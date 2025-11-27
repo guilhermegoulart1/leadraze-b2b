@@ -9,6 +9,15 @@ const path = require('path');
 const Handlebars = require('handlebars');
 const i18next = require('../config/i18n');
 
+// Lazy load to avoid circular dependencies
+let emailBrandingService = null;
+const getEmailBrandingService = () => {
+  if (!emailBrandingService) {
+    emailBrandingService = require('./emailBrandingService');
+  }
+  return emailBrandingService;
+};
+
 class EmailTemplateService {
   constructor() {
     this.templateCache = new Map();
@@ -136,7 +145,7 @@ class EmailTemplateService {
     const fallbacks = {
       'welcome': Handlebars.compile(`
         {{#if isNewAccount}}
-        <h1>Bem-vindo ao GetRaze, {{name}}!</h1>
+        <h1>Bem-vindo à GetRaze, {{name}}!</h1>
         <p>Sua assinatura foi ativada com sucesso! Estamos muito felizes em ter voce conosco.</p>
         <p>Para acessar sua conta, voce precisa criar uma senha. Clique no botao abaixo:</p>
         <p style="margin: 30px 0;">
@@ -153,7 +162,7 @@ class EmailTemplateService {
         </ul>
         <p>Qualquer duvida, estamos a disposicao!</p>
         {{else}}
-        <h1>Bem-vindo ao GetRaze, {{name}}!</h1>
+        <h1>Bem-vindo à GetRaze, {{name}}!</h1>
         <p>Sua conta foi criada com sucesso.</p>
         <p><a href="{{dashboardUrl}}" style="background-color: #6366F1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Acessar Dashboard</a></p>
         {{/if}}
@@ -280,7 +289,7 @@ class EmailTemplateService {
   _getDefaultTranslations(templateName) {
     const defaults = {
       'welcome': {
-        subject: 'Bem-vindo ao GetRaze - Ative sua conta!',
+        subject: 'Bem-vindo à GetRaze - Ative sua conta!',
         greeting: 'Bem-vindo!'
       },
       'password-reset': {
@@ -318,10 +327,48 @@ class EmailTemplateService {
 
   /**
    * Render email template
+   * @param {string} templateName - Name of the template
+   * @param {Object} data - Data to render in template
+   * @param {string} language - Language code (en, pt, es)
+   * @param {Object} options - Additional options
+   * @param {string} options.accountId - Account ID for branding
+   * @param {string} options.userId - User ID for signature
+   * @param {boolean} options.includeSignature - Whether to include signature (default: false for transactional)
+   * @param {string} options.formatPreference - 'html', 'text', or 'both' (default: 'both')
    */
-  async render(templateName, data, language = 'en') {
+  async render(templateName, data, language = 'en', options = {}) {
+    const {
+      accountId,
+      userId,
+      includeSignature = false,
+      formatPreference = 'both',
+    } = options;
+
     // Get translations
     const translations = await this._getTranslations(templateName, language);
+
+    // Get branding if accountId provided
+    let branding = null;
+    let signature = null;
+
+    if (accountId) {
+      try {
+        const brandingService = getEmailBrandingService();
+        branding = await brandingService.getEffectiveBranding(accountId);
+
+        if (includeSignature) {
+          const signatureData = await brandingService.getEffectiveSignature(accountId, userId);
+          if (signatureData) {
+            signature = {
+              html: brandingService.renderSignatureHtml(signatureData),
+              text: brandingService.renderSignatureText(signatureData),
+            };
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading branding/signature:', error.message);
+      }
+    }
 
     // Merge data with translations and common variables
     const templateData = {
@@ -330,12 +377,21 @@ class EmailTemplateService {
       year: new Date().getFullYear(),
       appName: 'GetRaze | Deals Drop',
       appUrl: process.env.FRONTEND_URL || 'https://getraze.co',
-      supportEmail: process.env.EMAIL_REPLY_TO || 'suporte@getraze.co'
+      supportEmail: process.env.EMAIL_REPLY_TO || 'suporte@getraze.co',
+      // Branding
+      companyLogo: branding?.company_logo_url || null,
+      primaryColor: branding?.branding?.primary_color || '#6366F1',
+      headerColor: branding?.branding?.header_color || '#3B82F6',
     };
 
     // Load and render template
     const template = await this._loadTemplate(templateName);
-    const htmlContent = template(templateData);
+    let htmlContent = template(templateData);
+
+    // Append signature if provided
+    if (signature?.html) {
+      htmlContent += `<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">${signature.html}</div>`;
+    }
 
     // Load and apply layout
     const layout = await this._loadLayout();
@@ -345,12 +401,117 @@ class EmailTemplateService {
     });
 
     // Generate plain text version
-    const text = this._htmlToText(htmlContent);
+    let text = this._htmlToText(htmlContent);
+    if (signature?.text) {
+      text += `\n\n---\n${signature.text}`;
+    }
+
+    // Return based on format preference
+    const result = {
+      subject: translations.subject || templateName,
+    };
+
+    if (formatPreference === 'html' || formatPreference === 'both') {
+      result.html = finalHtml;
+    }
+    if (formatPreference === 'text' || formatPreference === 'both') {
+      result.text = text;
+    }
+
+    return result;
+  }
+
+  /**
+   * Render AI agent email response
+   * This is a simpler render for AI-generated content that includes branding and signature
+   * @param {string} aiContent - AI-generated HTML content
+   * @param {Object} options - Rendering options
+   */
+  async renderAIResponse(aiContent, options = {}) {
+    const {
+      accountId,
+      userId,
+      agentId,
+      includeSignature = true,
+      includeLogo = true,
+      leadName = '',
+      subject = '',
+    } = options;
+
+    let branding = null;
+    let signature = null;
+
+    if (accountId) {
+      try {
+        const brandingService = getEmailBrandingService();
+        branding = await brandingService.getEffectiveBranding(accountId);
+
+        if (includeSignature) {
+          // Get agent-specific signature or default
+          let signatureData = null;
+          if (agentId) {
+            const agentConfig = await brandingService.getAgentEmailConfig(agentId);
+            if (agentConfig.signature_id) {
+              signatureData = await brandingService.getSignatureById(agentConfig.signature_id, accountId);
+            }
+          }
+          // Fall back to effective signature
+          if (!signatureData) {
+            signatureData = await brandingService.getEffectiveSignature(accountId, userId);
+          }
+          if (signatureData) {
+            signature = {
+              html: brandingService.renderSignatureHtml(signatureData),
+              text: brandingService.renderSignatureText(signatureData),
+            };
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading branding/signature for AI response:', error.message);
+      }
+    }
+
+    // Build the email HTML
+    let emailHtml = '';
+
+    // Add logo header if configured
+    if (includeLogo && branding?.company_logo_url) {
+      emailHtml += `
+        <div style="margin-bottom: 20px;">
+          <img src="${branding.company_logo_url}" alt="Logo" style="max-height: 60px; max-width: 200px;" />
+        </div>
+      `;
+    }
+
+    // Add AI content
+    emailHtml += `<div class="email-content">${aiContent}</div>`;
+
+    // Add signature
+    if (signature?.html) {
+      emailHtml += `<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">${signature.html}</div>`;
+    }
+
+    // Apply layout
+    const layout = await this._loadLayout();
+    const finalHtml = layout({
+      subject,
+      content: emailHtml,
+      year: new Date().getFullYear(),
+      appName: 'GetRaze | Deals Drop',
+      appUrl: process.env.FRONTEND_URL || 'https://getraze.co',
+      primaryColor: branding?.branding?.primary_color || '#6366F1',
+    });
+
+    // Generate plain text
+    let text = this._htmlToText(aiContent);
+    if (signature?.text) {
+      text += `\n\n---\n${signature.text}`;
+    }
 
     return {
-      subject: translations.subject || templateName,
+      subject,
       html: finalHtml,
-      text
+      text,
     };
   }
 

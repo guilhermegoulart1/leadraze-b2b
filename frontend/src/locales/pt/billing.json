@@ -9,8 +9,8 @@
     "monthlyPrice": "Preco Mensal",
     "month": "mes",
     "nextBillingDate": "Proxima Cobranca",
-    "extraChannels": "+R$ {{amount}} por {{count}} canal(is) extra(s)",
-    "extraUsers": "+R$ {{amount}} por {{count}} usuario(s) extra(s)",
+    "extraChannels": "+${{amount}} por {{count}} canal(is) extra(s)",
+    "extraUsers": "+${{amount}} por {{count}} usuario(s) extra(s)",
     "trialEnds": "Teste termina em {{days}} dias",
     "accessUntil": "Acesso ate {{date}}",
     "manageInStripe": "Gerenciar no Stripe",
@@ -36,8 +36,8 @@
     "teamMembers": "Membros da Equipe",
     "aiAgents": "Agentes IA",
     "unlimited": "Ilimitado",
-    "addChannel": "+ Adicionar Canal (R$ 147/mes)",
-    "addUser": "+ Adicionar Usuario (R$ 27/mes)",
+    "addChannel": "+ Adicionar Canal ($27/mes)",
+    "addUser": "+ Adicionar Usuario ($3/mes)",
     "adding": "Adicionando..."
   },
 
@@ -82,7 +82,7 @@
     "title": "Comprar Creditos Google Maps",
     "subtitle": "Compre creditos adicionais para buscas de leads no Google Maps.",
     "neverExpireNote": "Creditos comprados nunca expiram!",
-    "perThousand": "R$ {{price}} por 1.000",
+    "perThousand": "${{price}} por 1.000",
     "credits": "creditos",
     "cancel": "Cancelar"
   },
@@ -91,14 +91,14 @@
     "userLimit": {
       "title": "Limite de Usuarios Atingido",
       "message": "Voce atingiu o limite de usuarios do seu plano. Adicione um usuario extra ou faca upgrade do plano.",
-      "addUser": "Adicionar Usuario Extra (R$ 27/mes)",
+      "addUser": "Adicionar Usuario Extra ($3/mes)",
       "upgradePlan": "Fazer Upgrade",
       "cancel": "Cancelar"
     },
     "channelLimit": {
       "title": "Limite de Canais Atingido",
       "message": "Voce atingiu o limite de canais LinkedIn do seu plano. Adicione um canal extra ou faca upgrade do plano.",
-      "addChannel": "Adicionar Canal Extra (R$ 147/mes)",
+      "addChannel": "Adicionar Canal Extra ($27/mes)",
       "upgradePlan": "Fazer Upgrade",
       "cancel": "Cancelar"
     },
@@ -149,17 +149,17 @@
       "extraChannel": {
         "title": "Canal LinkedIn Extra",
         "description": "Adicione mais contas LinkedIn para escalar seu alcance",
-        "price": "R$ 147"
+        "price": "$27"
       },
       "extraUser": {
         "title": "Membro da Equipe Extra",
         "description": "Convide membros adicionais para colaborar",
-        "price": "R$ 27"
+        "price": "$3"
       },
       "credits": {
         "title": "Creditos Google Maps",
         "description": "Compre creditos adicionais que <strong>nunca expiram</strong>",
-        "price": "R$ 87",
+        "price": "$17",
         "perThousand": "/1.000 creditos"
       }
     },

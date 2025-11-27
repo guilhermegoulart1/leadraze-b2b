@@ -1,0 +1,64 @@
+{
+  "title": "Agentes del Sitio",
+  "subtitle": "Gestiona chatbots de IA para tu sitio institucional",
+  "tabs": {
+    "agents": "Agentes",
+    "knowledge": "Base de Conocimiento",
+    "conversations": "Conversaciones",
+    "stats": "Estadísticas"
+  },
+  "agents": {
+    "configure": "Configurar Agente",
+    "name": "Nombre",
+    "avatarUrl": "URL del Avatar",
+    "welcomeMessage": "Mensaje de Bienvenida",
+    "systemPrompt": "Prompt del Sistema",
+    "personality": "Personalidad",
+    "tone": "Tono",
+    "responseLength": "Longitud de Respuesta",
+    "language": "Idioma",
+    "active": "Activo",
+    "activeDescription": "Habilitar este agente en el sitio",
+    "save": "Guardar Cambios"
+  },
+  "knowledge": {
+    "title": "Base de Conocimiento",
+    "add": "Agregar Conocimiento",
+    "edit": "Editar Conocimiento",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este elemento?",
+    "allTypes": "Todos los Tipos",
+    "allAgents": "Todos los Agentes",
+    "empty": "Aún no hay elementos de conocimiento",
+    "type": "Tipo",
+    "agentKey": "Agente (opcional)",
+    "shared": "Compartido (Ambos Agentes)",
+    "category": "Categoría",
+    "categoryPlaceholder": "ej: Primeros Pasos, Precios, Funcionalidades",
+    "question": "Pregunta",
+    "answer": "Respuesta",
+    "content": "Contenido"
+  },
+  "conversations": {
+    "title": "Conversaciones del Chat",
+    "allAgents": "Todos los Agentes",
+    "allStatus": "Todos los Estados",
+    "escalated": "Escalados",
+    "notEscalated": "No Escalados",
+    "escalatedBadge": "Escalado",
+    "empty": "Aún no hay conversaciones",
+    "view": "Detalles de la Conversación",
+    "contactForm": "Formulario de Contacto Enviado"
+  },
+  "stats": {
+    "totalConversations": "Total de Conversaciones",
+    "totalMessages": "Total de Mensajes",
+    "escalated": "Escalados",
+    "avgMessages": "Promedio de Mensajes",
+    "byAgent": "Estadísticas por Agente",
+    "noData": "Aún no hay estadísticas disponibles"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  }
+}

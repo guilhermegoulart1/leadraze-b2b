@@ -1,0 +1,97 @@
+---
+import { getTranslation } from '../../i18n/translations';
+
+const locale = Astro.currentLocale || 'en';
+const t = getTranslation(locale);
+
+const features = [
+  {
+    icon: 'linkedin',
+    key: 'linkedin',
+    color: 'blue'
+  },
+  {
+    icon: 'email',
+    key: 'email',
+    color: 'purple'
+  },
+  {
+    icon: 'ai',
+    key: 'ai',
+    color: 'green'
+  },
+  {
+    icon: 'analytics',
+    key: 'analytics',
+    color: 'orange'
+  },
+  {
+    icon: 'integrations',
+    key: 'integrations',
+    color: 'pink'
+  },
+  {
+    icon: 'personalization',
+    key: 'personalization',
+    color: 'cyan'
+  }
+];
+
+const getIconSvg = (icon: string) => {
+  const icons = {
+    linkedin: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
+    email: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
+    ai: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />',
+    analytics: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />',
+    integrations: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />',
+    personalization: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+  };
+  return icons[icon] || icons.ai;
+};
+
+const getColorClasses = (color: string) => {
+  const colors = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+    purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
+    green: { bg: 'bg-green-100', text: 'text-green-600' },
+    orange: { bg: 'bg-orange-100', text: 'text-orange-600' },
+    pink: { bg: 'bg-pink-100', text: 'text-pink-600' },
+    cyan: { bg: 'bg-cyan-100', text: 'text-cyan-600' }
+  };
+  return colors[color] || colors.purple;
+};
+---
+
+<section id="features" class="py-20 lg:py-32 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <span class="text-primary-600 font-semibold text-sm uppercase tracking-wider">{t.features.badge}</span>
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-3 mb-4">
+        {t.features.title}
+      </h2>
+      <p class="text-lg text-gray-600">
+        {t.features.subtitle}
+      </p>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {features.map((feature) => {
+        const colorClasses = getColorClasses(feature.color);
+        const featureData = t.features[feature.key];
+        return (
+          <div class="group p-6 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300 bg-white">
+            <div class={`w-12 h-12 ${colorClasses.bg} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
+              <svg class={`w-6 h-6 ${colorClasses.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Fragment set:html={getIconSvg(feature.icon)} />
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">{featureData.title}</h3>
+            <p class="text-gray-600">{featureData.description}</p>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>

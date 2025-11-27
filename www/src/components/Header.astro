@@ -1,0 +1,162 @@
+---
+import { getTranslation } from '../i18n/translations';
+
+const currentLocale = Astro.currentLocale || 'en';
+const t = getTranslation(currentLocale);
+
+const navItems = [
+  { href: '#features', label: t.nav.features },
+  { href: '#benefits', label: t.nav.benefits },
+  { href: '#testimonials', label: t.nav.testimonials },
+  { href: '#pricing', label: t.nav.pricing },
+  { href: '#faq', label: t.nav.faq },
+];
+
+const languages = [
+  { code: 'en', href: '/', label: 'English', flagUrl: 'https://flagcdn.com/w40/us.png' },
+  { code: 'pt-br', href: '/pt-br/', label: 'Português', flagUrl: 'https://flagcdn.com/w40/br.png' },
+  { code: 'es', href: '/es/', label: 'Español', flagUrl: 'https://flagcdn.com/w40/es.png' },
+];
+
+const currentLang = languages.find(l => l.code === currentLocale) || languages[0];
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <!-- Logo -->
+      <a href="/" class="flex items-center">
+        <img src="/logo_getraze.png" alt="GetRaze" class="h-8" />
+      </a>
+
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex items-center gap-8">
+        {navItems.map((item) => (
+          <a
+            href={item.href}
+            class="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors"
+          >
+            {item.label}
+          </a>
+        ))}
+      </div>
+
+      <!-- Right side: Language Dropdown + Login -->
+      <div class="hidden md:flex items-center gap-3">
+        <!-- Language Dropdown -->
+        <div class="relative" id="lang-dropdown">
+          <button
+            id="lang-btn"
+            class="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Select language"
+          >
+            <img src={currentLang.flagUrl} alt={currentLang.label} class="w-6 h-4 object-cover rounded-sm" />
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div
+            id="lang-menu"
+            class="hidden absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 min-w-[160px]"
+          >
+            {languages.map((lang) => (
+              <a
+                href={lang.href}
+                class={`flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors ${currentLocale === lang.code ? 'bg-gray-50' : ''}`}
+              >
+                <img src={lang.flagUrl} alt={lang.label} class="w-6 h-4 object-cover rounded-sm" />
+                <span class="text-sm text-gray-700">{lang.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <!-- Login Button -->
+        <a
+          href="https://app.getraze.co/login"
+          class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors"
+        >
+          {t.nav.login}
+        </a>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <button
+        id="mobile-menu-btn"
+        class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        aria-label="Toggle menu"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Navigation -->
+    <div id="mobile-menu" class="hidden md:hidden pb-4">
+      <div class="flex flex-col gap-4 pt-4 border-t border-gray-100">
+        {navItems.map((item) => (
+          <a
+            href={item.href}
+            class="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors"
+          >
+            {item.label}
+          </a>
+        ))}
+        <div class="flex flex-col gap-3 pt-4 border-t border-gray-100">
+          <!-- Language Selector Mobile -->
+          <div class="flex items-center justify-center gap-3">
+            {languages.map((lang) => (
+              <a
+                href={lang.href}
+                class={`flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${currentLocale === lang.code ? 'bg-gray-100 ring-2 ring-primary-500' : ''}`}
+                title={lang.label}
+              >
+                <img src={lang.flagUrl} alt={lang.label} class="w-8 h-5 object-cover rounded-sm" />
+              </a>
+            ))}
+          </div>
+          <a
+            href="https://app.getraze.co/login"
+            class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors text-center"
+          >
+            {t.nav.login}
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<script>
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const langBtn = document.getElementById('lang-btn');
+  const langMenu = document.getElementById('lang-menu');
+
+  // Mobile menu toggle
+  mobileMenuBtn?.addEventListener('click', () => {
+    mobileMenu?.classList.toggle('hidden');
+  });
+
+  // Close mobile menu when clicking a link
+  mobileMenu?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      mobileMenu?.classList.add('hidden');
+    });
+  });
+
+  // Language dropdown toggle
+  langBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langMenu?.classList.toggle('hidden');
+  });
+
+  // Close language dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('lang-dropdown');
+    if (dropdown && !dropdown.contains(e.target as Node)) {
+      langMenu?.classList.add('hidden');
+    }
+  });
+</script>

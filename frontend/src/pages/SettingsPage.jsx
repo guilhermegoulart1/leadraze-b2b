@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Lock, Bell, CreditCard, Database, Shield } from 'lucide-react';
+import { User, Lock, Bell, CreditCard, Database, Shield, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { EmailSettingsTab } from '../components/email-settings';
 
 const SettingsPage = () => {
   const { t } = useTranslation('settings');
@@ -10,6 +11,7 @@ const SettingsPage = () => {
 
   const tabs = [
     { id: 'profile', label: t('tabs.profile'), icon: User },
+    { id: 'email', label: t('tabs.email', 'Email'), icon: Mail },
     { id: 'security', label: t('tabs.security'), icon: Lock },
     { id: 'notifications', label: t('tabs.notifications'), icon: Bell },
     { id: 'billing', label: t('tabs.billing'), icon: CreditCard },
@@ -238,6 +240,11 @@ const SettingsPage = () => {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Email Tab */}
+          {activeTab === 'email' && (
+            <EmailSettingsTab />
           )}
 
           {/* Other tabs placeholder */}

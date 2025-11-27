@@ -5,9 +5,11 @@ import api from '../services/api';
 import UnifiedAgentWizard from '../components/UnifiedAgentWizard';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
+import { useOnboarding } from '../contexts/OnboardingContext';
 
 const AgentsPage = () => {
   const { t } = useTranslation(['agents', 'common']);
+  const { completeStep } = useOnboarding();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -19,6 +21,13 @@ const AgentsPage = () => {
   useEffect(() => {
     loadAgents();
   }, []);
+
+  // Completar step do onboarding quando houver agente configurado
+  useEffect(() => {
+    if (agents.length > 0) {
+      completeStep('configure_agent');
+    }
+  }, [agents, completeStep]);
 
   const loadAgents = async () => {
     try {

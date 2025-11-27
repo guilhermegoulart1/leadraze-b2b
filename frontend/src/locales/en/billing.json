@@ -9,8 +9,8 @@
     "monthlyPrice": "Monthly Price",
     "month": "month",
     "nextBillingDate": "Next Billing Date",
-    "extraChannels": "+R$ {{amount}} for {{count}} extra channel(s)",
-    "extraUsers": "+R$ {{amount}} for {{count}} extra user(s)",
+    "extraChannels": "+${{amount}} for {{count}} extra channel(s)",
+    "extraUsers": "+${{amount}} for {{count}} extra user(s)",
     "trialEnds": "Trial ends in {{days}} days",
     "accessUntil": "Access until {{date}}",
     "manageInStripe": "Manage in Stripe",
@@ -36,8 +36,8 @@
     "teamMembers": "Team Members",
     "aiAgents": "AI Agents",
     "unlimited": "Unlimited",
-    "addChannel": "+ Add Channel (R$ 147/mo)",
-    "addUser": "+ Add User (R$ 27/mo)",
+    "addChannel": "+ Add Channel ($27/mo)",
+    "addUser": "+ Add User ($3/mo)",
     "adding": "Adding..."
   },
 
@@ -82,7 +82,7 @@
     "title": "Purchase Google Maps Credits",
     "subtitle": "Buy additional credits for Google Maps lead searches.",
     "neverExpireNote": "Purchased credits never expire!",
-    "perThousand": "R$ {{price}} per 1,000",
+    "perThousand": "${{price}} per 1,000",
     "credits": "credits",
     "cancel": "Cancel"
   },
@@ -91,14 +91,14 @@
     "userLimit": {
       "title": "User Limit Reached",
       "message": "You've reached your plan's user limit. Add an extra user seat or upgrade your plan.",
-      "addUser": "Add Extra User (R$ 27/month)",
+      "addUser": "Add Extra User ($3/month)",
       "upgradePlan": "Upgrade Plan",
       "cancel": "Cancel"
     },
     "channelLimit": {
       "title": "Channel Limit Reached",
       "message": "You've reached your plan's LinkedIn channel limit. Add an extra channel or upgrade your plan.",
-      "addChannel": "Add Extra Channel (R$ 147/month)",
+      "addChannel": "Add Extra Channel ($27/month)",
       "upgradePlan": "Upgrade Plan",
       "cancel": "Cancel"
     },
@@ -149,17 +149,17 @@
       "extraChannel": {
         "title": "Extra LinkedIn Channel",
         "description": "Add more LinkedIn accounts to scale your outreach",
-        "price": "R$ 147"
+        "price": "$27"
       },
       "extraUser": {
         "title": "Extra Team Member",
         "description": "Invite additional team members to collaborate",
-        "price": "R$ 27"
+        "price": "$3"
       },
       "credits": {
         "title": "Google Maps Credits",
         "description": "Purchase additional credits that <strong>never expire</strong>",
-        "price": "R$ 87",
+        "price": "$17",
         "perThousand": "/1,000 credits"
       }
     },

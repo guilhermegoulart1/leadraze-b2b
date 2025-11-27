@@ -17,6 +17,16 @@ router.put('/language',
   userController.updateLanguage
 );
 
+// Get current user's profile (any authenticated user)
+router.get('/profile',
+  userController.getProfile
+);
+
+// Update current user's profile (any authenticated user)
+router.put('/profile',
+  userController.updateProfile
+);
+
 // List all users (admin only)
 router.get('/',
   checkPermission('users:view'),

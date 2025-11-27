@@ -1,10 +1,12 @@
 // frontend/src/components/ChatArea.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Send, Bot, User, Loader, AlertCircle, Linkedin,
+  Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
   ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw
 } from 'lucide-react';
 import api from '../services/api';
+import EmailComposer from './EmailComposer';
+import EmailMessage from './EmailMessage';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const [conversation, setConversation] = useState(null);
@@ -433,8 +435,15 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             )}
           </button>
 
-          {/* LinkedIn Link */}
-          {conversation?.lead_profile_url && (
+          {/* Channel Indicator */}
+          {conversation?.channel === 'email' || conversation?.source === 'email' ? (
+            <div
+              className="p-2 text-blue-600 bg-blue-50 rounded-lg"
+              title="Conversa por Email"
+            >
+              <Mail className="w-5 h-5" />
+            </div>
+          ) : conversation?.lead_profile_url ? (
             <a
               href={conversation.lead_profile_url}
               target="_blank"
@@ -444,7 +453,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             >
               <Linkedin className="w-5 h-5" />
             </a>
-          )}
+          ) : null}
 
           {/* Options Menu */}
           <div className="relative" ref={optionsMenuRef}>
@@ -531,7 +540,25 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             {messages.map((message, index) => {
               const isUser = message.sender_type === 'user' || message.type === 'outgoing';
               const isAI = message.sender_type === 'ai';
+              const isEmailChannel = conversation?.channel === 'email' ||
+                                     conversation?.source === 'email' ||
+                                     message.channel === 'email';
 
+              // Use EmailMessage component for email channels
+              if (isEmailChannel) {
+                return (
+                  <EmailMessage
+                    key={message.id || index}
+                    message={message}
+                    isOutgoing={isUser}
+                    senderName={isUser ? 'Você' : (isAI ? 'IA' : conversation?.lead_name)}
+                    senderType={isUser ? 'user' : (isAI ? 'ai' : 'lead')}
+                    timestamp={message.sent_at || message.date}
+                  />
+                );
+              }
+
+              // Regular chat message rendering for non-email channels
               return (
                 <div
                   key={message.id || index}
@@ -594,54 +621,102 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
-        {error && (
-          <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
-            <AlertCircle className="w-4 h-4" />
-            {error}
-          </div>
-        )}
+      {(() => {
+        const isEmailChannel = conversation?.channel === 'email' ||
+                               conversation?.source === 'email';
 
-        <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-          <div className="flex-1">
-            <textarea
-              ref={textareaRef}
-              value={newMessage}
-              onChange={handleTextareaChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Digite sua mensagem... (Enter para enviar)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-              rows="1"
-              style={{ maxHeight: '120px' }}
+        // Email Composer for email channels
+        if (isEmailChannel) {
+          return (
+            <EmailComposer
+              onSend={async (emailData) => {
+                try {
+                  setIsSending(true);
+                  setError(null);
+
+                  const response = await api.sendMessage(conversationId, emailData.text_content || emailData.html_content, {
+                    html_content: emailData.html_content,
+                    subject: emailData.subject,
+                    attachments: emailData.attachments
+                  });
+
+                  if (response.success) {
+                    const sentMessage = {
+                      id: response.data.id || Date.now(),
+                      content: emailData.text_content,
+                      html_content: emailData.html_content,
+                      sender_type: 'user',
+                      sent_at: new Date().toISOString(),
+                      channel: 'email',
+                      ...response.data
+                    };
+                    setMessages([...messages, sentMessage]);
+                  }
+                } catch (err) {
+                  console.error('Erro ao enviar email:', err);
+                  setError('Falha ao enviar email');
+                } finally {
+                  setIsSending(false);
+                }
+              }}
               disabled={isSending}
+              placeholder="Escreva sua resposta..."
             />
-          </div>
+          );
+        }
 
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isSending}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
-          >
-            {isSending ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" />
-                <span>Enviando...</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" />
-                <span>Enviar</span>
-              </>
+        // Regular chat input for other channels
+        return (
+          <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+            {error && (
+              <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
             )}
-          </button>
-        </form>
 
-        <p className="text-xs text-gray-500 mt-2">
-          {conversation?.status === 'ai_active'
-            ? 'A IA está monitorando esta conversa e responderá automaticamente'
-            : 'Você está no controle manual desta conversa'}
-        </p>
-      </div>
+            <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+              <div className="flex-1">
+                <textarea
+                  ref={textareaRef}
+                  value={newMessage}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Digite sua mensagem... (Enter para enviar)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  rows="1"
+                  style={{ maxHeight: '120px' }}
+                  disabled={isSending}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || isSending}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
+              >
+                {isSending ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    <span>Enviar</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="text-xs text-gray-500 mt-2">
+              {conversation?.status === 'ai_active'
+                ? 'A IA está monitorando esta conversa e responderá automaticamente'
+                : 'Você está no controle manual desta conversa'}
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 };

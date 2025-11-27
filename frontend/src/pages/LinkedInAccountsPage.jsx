@@ -3,9 +3,11 @@ import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Br
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
+import { useOnboarding } from '../contexts/OnboardingContext';
 
 const LinkedInAccountsPage = () => {
   const { t } = useTranslation(['linkedinaccounts', 'common']);
+  const { completeStep } = useOnboarding();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshingAccounts, setRefreshingAccounts] = useState({});
@@ -16,6 +18,14 @@ const LinkedInAccountsPage = () => {
   useEffect(() => {
     loadAccounts();
   }, []);
+
+  // Completar step do onboarding quando houver conta conectada
+  useEffect(() => {
+    const hasActiveAccount = accounts.some(acc => acc.status === 'connected');
+    if (hasActiveAccount) {
+      completeStep('connect_linkedin');
+    }
+  }, [accounts, completeStep]);
 
   // Determinar tipo de conta LinkedIn
   const getAccountType = (account) => {

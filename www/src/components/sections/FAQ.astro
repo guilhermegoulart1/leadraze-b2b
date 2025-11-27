@@ -1,0 +1,129 @@
+---
+import { getTranslation } from '../../i18n/translations';
+
+const locale = Astro.currentLocale || 'en';
+const t = getTranslation(locale);
+
+const faqs = [
+  {
+    question: "How does the 14-day free trial work?",
+    answer: "You get full access to all features for 14 days without entering a credit card. At the end of the trial, you can choose to subscribe or let your account expire. No strings attached."
+  },
+  {
+    question: "What's included in a LinkedIn channel?",
+    answer: "Each LinkedIn channel represents one LinkedIn account you can connect. You can automate connection requests, messages, and engagement from each connected account. The base plan includes 1 channel, and you can add more as needed."
+  },
+  {
+    question: "Can I cancel my subscription anytime?",
+    answer: "Yes, absolutely. You can cancel your subscription at any time from your billing settings. Your access will continue until the end of your current billing period, and you won't be charged again."
+  },
+  {
+    question: "Is my LinkedIn account safe?",
+    answer: "Safety is our top priority. We use intelligent rate limiting, human-like behavior patterns, and respect LinkedIn's guidelines. Our system mimics natural user behavior to keep your account safe while maximizing results."
+  },
+  {
+    question: "Do you offer refunds?",
+    answer: "We offer a 14-day money-back guarantee. If you're not satisfied with Raze within the first 14 days of your paid subscription, contact us for a full refund."
+  },
+  {
+    question: "What CRM integrations do you support?",
+    answer: "We integrate with HubSpot, Salesforce, Pipedrive, and many more through our native integrations and Zapier. If you need a specific integration, let us know and we'll work on it."
+  },
+  {
+    question: "How do AI agents work?",
+    answer: "Our AI agents are trained to handle conversations with your leads. They can qualify prospects, answer common questions, and book meetings on your calendar. You can customize their personality and knowledge base to match your brand."
+  },
+  {
+    question: "Can I use Raze for my agency/clients?",
+    answer: "Yes! Many agencies use Raze to manage outreach for multiple clients. Each client can have their own channels and campaigns, and you can manage everything from a single dashboard."
+  }
+];
+---
+
+<section id="faq" class="py-20 lg:py-32 bg-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <span class="text-primary-600 font-semibold text-sm uppercase tracking-wider">{t.faq.badge}</span>
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-3 mb-4">
+        {t.faq.title}
+      </h2>
+      <p class="text-lg text-gray-600">
+        {t.faq.subtitle}
+      </p>
+    </div>
+
+    <!-- FAQ Accordion -->
+    <div class="space-y-4" id="faq-accordion">
+      {faqs.map((faq, index) => (
+        <div class="faq-item border border-gray-200 rounded-xl overflow-hidden hover:border-primary-200 transition-colors">
+          <button
+            class="faq-trigger w-full px-6 py-5 text-left flex items-center justify-between gap-4 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset"
+            aria-expanded="false"
+            data-index={index}
+          >
+            <span class="font-semibold text-gray-900">{faq.question}</span>
+            <svg
+              class="faq-icon w-5 h-5 text-gray-400 transition-transform flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="faq-content hidden px-6 pb-5">
+            <p class="text-gray-600 leading-relaxed">{faq.answer}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Contact CTA -->
+    <div class="mt-12 text-center p-8 bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl">
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">{t.faq.stillQuestions}</h3>
+      <p class="text-gray-600 mb-4">{t.faq.teamHelp}</p>
+      <a
+        href="mailto:support@getraze.co"
+        class="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary-700 transition-colors"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        {t.faq.contactSupport}
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const triggers = document.querySelectorAll('.faq-trigger');
+
+    triggers.forEach((trigger) => {
+      trigger.addEventListener('click', () => {
+        const item = trigger.closest('.faq-item');
+        const content = item?.querySelector('.faq-content');
+        const icon = item?.querySelector('.faq-icon');
+        const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+
+        // Close all other items
+        triggers.forEach((otherTrigger) => {
+          if (otherTrigger !== trigger) {
+            const otherItem = otherTrigger.closest('.faq-item');
+            const otherContent = otherItem?.querySelector('.faq-content');
+            const otherIcon = otherItem?.querySelector('.faq-icon');
+            otherTrigger.setAttribute('aria-expanded', 'false');
+            otherContent?.classList.add('hidden');
+            otherIcon?.classList.remove('rotate-180');
+          }
+        });
+
+        // Toggle current item
+        trigger.setAttribute('aria-expanded', (!isExpanded).toString());
+        content?.classList.toggle('hidden', isExpanded);
+        icon?.classList.toggle('rotate-180', !isExpanded);
+      });
+    });
+  });
+</script>

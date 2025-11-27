@@ -206,7 +206,7 @@ const BillingPage = () => {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-700">{t('usage.linkedinChannels')}</p>
                 <p className="text-sm text-gray-500">
-                  {usage?.channels?.used || 0} / {usage?.channels?.limit || 0}
+                  {usage?.usage?.channels || 0} / {usage?.limits?.maxChannels || 0}
                 </p>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -214,13 +214,13 @@ const BillingPage = () => {
                   className="bg-blue-600 h-2 rounded-full transition-all"
                   style={{
                     width: `${Math.min(
-                      ((usage?.channels?.used || 0) / (usage?.channels?.limit || 1)) * 100,
+                      ((usage?.usage?.channels || 0) / (usage?.limits?.maxChannels || 1)) * 100,
                       100
                     )}%`
                   }}
                 />
               </div>
-              {usage?.channels?.used >= usage?.channels?.limit && (
+              {(usage?.usage?.channels || 0) >= (usage?.limits?.maxChannels || 1) && (usage?.limits?.maxChannels || 0) > 0 && (
                 <button
                   onClick={() => handleAction(addExtraChannel, 'addChannel')}
                   disabled={actionLoading === 'addChannel'}
@@ -236,7 +236,7 @@ const BillingPage = () => {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-700">{t('usage.teamMembers')}</p>
                 <p className="text-sm text-gray-500">
-                  {usage?.users?.used || 0} / {usage?.users?.limit || 0}
+                  {usage?.usage?.users || 0} / {usage?.limits?.maxUsers || 0}
                 </p>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -244,13 +244,13 @@ const BillingPage = () => {
                   className="bg-purple-600 h-2 rounded-full transition-all"
                   style={{
                     width: `${Math.min(
-                      ((usage?.users?.used || 0) / (usage?.users?.limit || 1)) * 100,
+                      ((usage?.usage?.users || 0) / (usage?.limits?.maxUsers || 1)) * 100,
                       100
                     )}%`
                   }}
                 />
               </div>
-              {usage?.users?.used >= usage?.users?.limit && (
+              {(usage?.usage?.users || 0) >= (usage?.limits?.maxUsers || 1) && (usage?.limits?.maxUsers || 0) > 0 && (
                 <button
                   onClick={() => handleAction(addExtraUser, 'addUser')}
                   disabled={actionLoading === 'addUser'}
@@ -266,20 +266,13 @@ const BillingPage = () => {
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-700">{t('usage.aiAgents')}</p>
                 <p className="text-sm text-gray-500">
-                  {usage?.aiAgents?.used || 0} / {usage?.aiAgents?.limit || t('usage.unlimited')}
+                  {usage?.usage?.aiAgents || 0} / {t('usage.unlimited')}
                 </p>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-green-600 h-2 rounded-full transition-all"
-                  style={{
-                    width: usage?.aiAgents?.limit
-                      ? `${Math.min(
-                          ((usage?.aiAgents?.used || 0) / usage.aiAgents.limit) * 100,
-                          100
-                        )}%`
-                      : '30%'
-                  }}
+                  style={{ width: '30%' }}
                 />
               </div>
             </div>
@@ -313,7 +306,7 @@ const BillingPage = () => {
                 <div>
                   <p className="text-sm text-green-700">{t('credits.available')}</p>
                   <p className="text-3xl font-bold text-green-800">
-                    {credits?.available?.toLocaleString() || 0}
+                    {credits?.total?.toLocaleString() || 0}
                   </p>
                 </div>
               </div>
@@ -365,11 +358,11 @@ const BillingPage = () => {
                   {invoices.map((invoice) => (
                     <tr key={invoice.id} className="text-sm">
                       <td className="py-4 text-gray-900">
-                        {new Date(invoice.created_at).toLocaleDateString()}
+                        {invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : '-'}
                       </td>
                       <td className="py-4 text-gray-600">{invoice.description || t('invoices.subscription')}</td>
                       <td className="py-4 font-medium text-gray-900">
-                        R$ {(invoice.amount / 100).toFixed(2)}
+                        {invoice.amountFormatted || `R$ ${invoice.amount}`}
                       </td>
                       <td className="py-4">
                         <span
@@ -385,9 +378,9 @@ const BillingPage = () => {
                         </span>
                       </td>
                       <td className="py-4 text-right">
-                        {invoice.invoice_url && (
+                        {invoice.invoiceUrl && (
                           <a
-                            href={invoice.invoice_url}
+                            href={invoice.invoiceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"

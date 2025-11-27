@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Lock, Mail, Check, X } from 'lucide-react';
+import { Lock, Mail, Check, X, Eye, EyeOff } from 'lucide-react';
 import api from '../services/api';
 
 const SetPasswordPage = () => {
@@ -12,12 +12,23 @@ const SetPasswordPage = () => {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [validating, setValidating] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+
+  // Password strength validation
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  const passwordsMatch = password && password === confirmPassword;
+  const isPasswordStrong = hasMinLength && hasUppercase && hasLowercase && hasNumber;
 
   useEffect(() => {
     if (!token) {
@@ -54,8 +65,8 @@ const SetPasswordPage = () => {
       return;
     }
 
-    if (password.length < 8) {
-      setError('A senha deve ter pelo menos 8 caracteres');
+    if (!isPasswordStrong) {
+      setError('A senha deve ter pelo menos 8 caracteres, uma letra maiúscula, uma minúscula e um número');
       return;
     }
 
@@ -181,7 +192,7 @@ const SetPasswordPage = () => {
           {/* Main Content */}
           <div className="relative z-10">
             <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-              Bem-vindo ao GetRaze!
+              Bem-vindo à GetRaze!
             </h1>
             <p className="text-purple-100 text-lg">
               Configure sua senha para acessar a plataforma<br />
@@ -272,14 +283,21 @@ const SetPasswordPage = () => {
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:bg-white transition-all outline-none"
-                  placeholder="Mínimo 8 caracteres"
+                  className="w-full pl-10 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:bg-white transition-all outline-none"
+                  placeholder="Senha forte"
                   required
                   minLength={8}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
@@ -293,27 +311,53 @@ const SetPasswordPage = () => {
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:bg-white transition-all outline-none"
+                  className="w-full pl-10 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:bg-white transition-all outline-none"
                   placeholder="Digite a senha novamente"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
             {/* Password Requirements */}
-            <div className="text-sm text-gray-500 space-y-1">
-              <p className={`flex items-center gap-2 ${password.length >= 8 ? 'text-green-600' : ''}`}>
-                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${password.length >= 8 ? 'bg-green-100' : 'bg-gray-100'}`}>
-                  {password.length >= 8 && <Check className="w-3 h-3" />}
+            <div className="text-sm text-gray-500 space-y-1.5 bg-gray-50 rounded-xl p-4">
+              <p className="font-medium text-gray-700 mb-2">Requisitos da senha:</p>
+              <p className={`flex items-center gap-2 ${hasMinLength ? 'text-green-600' : ''}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${hasMinLength ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  {hasMinLength && <Check className="w-3 h-3" />}
                 </span>
                 Pelo menos 8 caracteres
               </p>
-              <p className={`flex items-center gap-2 ${password && password === confirmPassword ? 'text-green-600' : ''}`}>
-                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${password && password === confirmPassword ? 'bg-green-100' : 'bg-gray-100'}`}>
-                  {password && password === confirmPassword && <Check className="w-3 h-3" />}
+              <p className={`flex items-center gap-2 ${hasUppercase ? 'text-green-600' : ''}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${hasUppercase ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  {hasUppercase && <Check className="w-3 h-3" />}
+                </span>
+                Uma letra maiúscula
+              </p>
+              <p className={`flex items-center gap-2 ${hasLowercase ? 'text-green-600' : ''}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${hasLowercase ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  {hasLowercase && <Check className="w-3 h-3" />}
+                </span>
+                Uma letra minúscula
+              </p>
+              <p className={`flex items-center gap-2 ${hasNumber ? 'text-green-600' : ''}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${hasNumber ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  {hasNumber && <Check className="w-3 h-3" />}
+                </span>
+                Um número
+              </p>
+              <p className={`flex items-center gap-2 ${passwordsMatch ? 'text-green-600' : ''}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordsMatch ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  {passwordsMatch && <Check className="w-3 h-3" />}
                 </span>
                 Senhas coincidem
               </p>
@@ -322,7 +366,7 @@ const SetPasswordPage = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || password.length < 8 || password !== confirmPassword}
+              disabled={loading || !isPasswordStrong || !passwordsMatch}
               className="w-full bg-purple-600 text-white font-semibold py-3.5 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (

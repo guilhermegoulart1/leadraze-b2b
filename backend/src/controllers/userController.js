@@ -8,6 +8,7 @@ const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
+const storageService = require('../services/storageService');
 
 /**
  * GET /users
@@ -499,6 +500,181 @@ exports.getTeamMembers = async (req, res) => {
         email: supervisor.email
       },
       members: members.rows
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * GET /users/profile
+ * Get current user's profile
+ * Accessible by the user themselves
+ */
+exports.getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await db.query(`
+      SELECT
+        id, email, name, company, role, is_active,
+        avatar_url, profile_picture, preferred_language,
+        timezone, created_at, updated_at
+      FROM users
+      WHERE id = $1
+    `, [userId]);
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    sendSuccess(res, {
+      user: result.rows[0]
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * PUT /users/profile
+ * Update current user's profile
+ * Accessible by the user themselves
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, company, profile_picture, preferred_language, timezone } = req.body;
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex}`);
+      values.push(name);
+      paramIndex++;
+    }
+
+    if (company !== undefined) {
+      updates.push(`company = $${paramIndex}`);
+      values.push(company);
+      paramIndex++;
+    }
+
+    if (profile_picture !== undefined) {
+      // Handle profile picture upload to R2
+      if (profile_picture === null || profile_picture === '') {
+        // Remove profile picture
+        try {
+          await storageService.deleteProfilePicture(userId);
+        } catch (err) {
+          console.warn('Error deleting old profile picture:', err.message);
+        }
+        updates.push(`avatar_url = $${paramIndex}`);
+        values.push(null);
+        paramIndex++;
+        updates.push(`profile_picture = $${paramIndex}`);
+        values.push(null);
+        paramIndex++;
+      } else if (profile_picture.startsWith('data:image/')) {
+        // Upload base64 image to R2
+        try {
+          const { buffer, mimeType } = storageService.base64ToBuffer(profile_picture);
+
+          // Validate size (5MB max)
+          if (buffer.length > 5 * 1024 * 1024) {
+            throw new BadRequestError('Image too large. Maximum size is 5MB.');
+          }
+
+          // Delete old profile picture from R2
+          try {
+            await storageService.deleteProfilePicture(userId);
+          } catch (err) {
+            // Ignore if no old picture exists
+          }
+
+          // Upload to R2
+          const result = await storageService.uploadProfilePicture(
+            userId,
+            buffer,
+            mimeType,
+            'avatar.jpg'
+          );
+
+          // Update avatar_url with R2 URL
+          updates.push(`avatar_url = $${paramIndex}`);
+          values.push(result.url);
+          paramIndex++;
+
+          // Clear legacy base64 field
+          updates.push(`profile_picture = $${paramIndex}`);
+          values.push(null);
+          paramIndex++;
+        } catch (uploadError) {
+          console.error('Error uploading profile picture to R2:', uploadError);
+          // Fallback: Store as base64 if R2 fails (for backwards compatibility)
+          if (profile_picture.length > 5 * 1024 * 1024 * 1.37) {
+            throw new BadRequestError('Image too large. Maximum size is 5MB.');
+          }
+          updates.push(`profile_picture = $${paramIndex}`);
+          values.push(profile_picture);
+          paramIndex++;
+        }
+      } else if (profile_picture.startsWith('http')) {
+        // It's already a URL (from R2 or external)
+        updates.push(`avatar_url = $${paramIndex}`);
+        values.push(profile_picture);
+        paramIndex++;
+      } else {
+        throw new BadRequestError('Invalid image format. Must be a base64 encoded image or URL.');
+      }
+    }
+
+    if (preferred_language !== undefined) {
+      const validLanguages = ['en', 'pt', 'es'];
+      if (!validLanguages.includes(preferred_language)) {
+        throw new BadRequestError(`Invalid language. Must be one of: ${validLanguages.join(', ')}`);
+      }
+      updates.push(`preferred_language = $${paramIndex}`);
+      values.push(preferred_language);
+      paramIndex++;
+    }
+
+    if (timezone !== undefined) {
+      updates.push(`timezone = $${paramIndex}`);
+      values.push(timezone);
+      paramIndex++;
+    }
+
+    if (updates.length === 0) {
+      throw new BadRequestError('No fields to update');
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(userId);
+
+    const query = `
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, email, name, company, role, is_active,
+                avatar_url, profile_picture, preferred_language,
+                timezone, created_at, updated_at
+    `;
+
+    const result = await db.query(query, values);
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('User not found');
+    }
+
+    sendSuccess(res, {
+      message: 'Profile updated successfully',
+      user: result.rows[0]
     });
 
   } catch (error) {

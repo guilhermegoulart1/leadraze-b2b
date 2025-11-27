@@ -3,10 +3,10 @@
  *
  * SDK initialization and plan/addon configuration
  *
- * Modelo de preços:
- * - Plano Base: R$ 297/mês (1 canal, 2 usuários, 200 créditos/mês)
- * - Add-ons recorrentes: Canal (+R$ 147/mês), Usuário (+R$ 27/mês)
- * - Créditos avulsos: não expiram
+ * Pricing model (USD):
+ * - Base Plan: $55/month (1 channel, 2 users, 200 credits/month)
+ * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
+ * - One-time credits: never expire
  */
 
 const Stripe = require('stripe');
@@ -43,23 +43,23 @@ const PLANS = {
     name: 'Base',
     slug: 'base',
     priceIdMonthly: process.env.STRIPE_PRICE_BASE_MONTHLY,
-    priceMonthly: 29700, // R$ 297.00
+    priceMonthly: 5500, // $55.00
     limits: {
       maxChannels: 1,
       maxUsers: 2,
       monthlyGmapsCredits: 200
     },
     features: [
-      '1 canal de comunicação',
-      '2 usuários',
-      '200 créditos Google Maps/mês',
-      'Agentes de IA ilimitados',
-      'Suporte prioritário'
+      '1 communication channel',
+      '2 users',
+      '200 Google Maps credits/month',
+      'Unlimited AI agents',
+      'Priority support'
     ],
     isPublic: true,
     isDefault: true,
     isHighlighted: true,
-    highlightText: 'Plano Único'
+    highlightText: 'Single Plan'
   }
 };
 
@@ -68,18 +68,18 @@ const PLANS = {
  */
 const ADDONS = {
   channel: {
-    name: 'Canal Extra',
+    name: 'Extra Channel',
     slug: 'channel-extra',
     priceId: process.env.STRIPE_PRICE_CHANNEL_EXTRA,
-    price: 14700, // R$ 147.00/month
+    price: 2700, // $27.00/month
     billingType: 'recurring',
     unit: 'channel'
   },
   user: {
-    name: 'Usuário Extra',
+    name: 'Extra User',
     slug: 'user-extra',
     priceId: process.env.STRIPE_PRICE_USER_EXTRA,
-    price: 2700, // R$ 27.00/month
+    price: 300, // $3.00/month
     billingType: 'recurring',
     unit: 'user'
   }
@@ -90,37 +90,37 @@ const ADDONS = {
  */
 const CREDIT_PACKAGES = {
   gmaps_500: {
-    name: '500 Créditos Google Maps',
+    name: '500 Google Maps Credits',
     slug: 'credits-500',
     priceId: process.env.STRIPE_PRICE_CREDITS_500,
-    price: 4700, // R$ 47.00
+    price: 900, // $9.00
     credits: 500,
     expires: false,
     billingType: 'onetime'
   },
   gmaps_1000: {
-    name: '1.000 Créditos Google Maps',
+    name: '1,000 Google Maps Credits',
     slug: 'credits-1000',
     priceId: process.env.STRIPE_PRICE_CREDITS_1000,
-    price: 8700, // R$ 87.00
+    price: 1700, // $17.00
     credits: 1000,
     expires: false,
     billingType: 'onetime'
   },
   gmaps_2500: {
-    name: '2.500 Créditos Google Maps',
+    name: '2,500 Google Maps Credits',
     slug: 'credits-2500',
     priceId: process.env.STRIPE_PRICE_CREDITS_2500,
-    price: 19700, // R$ 197.00
+    price: 3900, // $39.00
     credits: 2500,
     expires: false,
     billingType: 'onetime'
   },
   gmaps_5000: {
-    name: '5.000 Créditos Google Maps',
+    name: '5,000 Google Maps Credits',
     slug: 'credits-5000',
     priceId: process.env.STRIPE_PRICE_CREDITS_5000,
-    price: 29700, // R$ 297.00
+    price: 5500, // $55.00
     credits: 5000,
     expires: false,
     billingType: 'onetime'

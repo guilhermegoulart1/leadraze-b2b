@@ -14,6 +14,7 @@
     "contacts": "Contatos",
     "contactLists": "Listas de Contatos",
     "insights": "Insights",
+    "emails": "Emails",
     "settings": "Configurações",
     "help": "Ajuda",
     "logout": "Sair"
@@ -23,7 +24,8 @@
     "googleMaps": "GOOGLE MAPS",
     "linkedin": "LINKEDIN",
     "activation": "ATIVAÇÃO DE LISTAS",
-    "crm": "CRM"
+    "crm": "CRM",
+    "emails": "EMAILS"
   },
   "userMenu": {
     "profile": "Perfil",

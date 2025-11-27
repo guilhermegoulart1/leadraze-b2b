@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { BillingProvider } from './contexts/BillingContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
 
 // Páginas
 import LoginPage from './pages/LoginPage';
@@ -19,7 +20,6 @@ import AIAgentsPage from './pages/AIAgentsPage';
 import AgentsPage from './pages/AgentsPage';
 import InsightsPage from './pages/InsightsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
-import SettingsPage from './pages/SettingsPage';
 import LinkedInAccountsPage from './pages/LinkedInAccountsPage';
 import UsersPage from './pages/UsersPage';
 import PermissionsPage from './pages/PermissionsPage';
@@ -32,6 +32,9 @@ import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import BillingPage from './pages/BillingPage';
+import ProfilePage from './pages/ProfilePage';
+import EmailSettingsPage from './pages/EmailSettingsPage';
+import WebsiteAgentsPage from './pages/WebsiteAgentsPage';
 
 // Layout
 import Layout from './components/Layout';
@@ -115,7 +118,6 @@ function AppRoutes() {
         <Route path="insights" element={<InsightsPage />} />
         <Route path="linkedin-accounts" element={<LinkedInAccountsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="permissions" element={<PermissionsPage />} />
         <Route path="sectors" element={<SectorsPage />} />
@@ -123,6 +125,9 @@ function AppRoutes() {
         <Route path="activation-campaigns" element={<ActivationCampaignsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
         <Route path="billing" element={<BillingPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="email-settings" element={<EmailSettingsPage />} />
+        <Route path="website-agents" element={<WebsiteAgentsPage />} />
       </Route>
 
       {/* 404 */}
@@ -136,7 +141,9 @@ function App() {
     <Router>
       <AuthProvider>
         <BillingProvider>
-          <AppRoutes />
+          <OnboardingProvider>
+            <AppRoutes />
+          </OnboardingProvider>
         </BillingProvider>
       </AuthProvider>
     </Router>

@@ -105,6 +105,21 @@ class ApiService {
   }
 
   // ================================
+  // USER PROFILE
+  // ================================
+
+  async getUserProfile() {
+    return this.request('/users/profile');
+  }
+
+  async updateUserProfile(data) {
+    return this.request('/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ================================
   // CAMPAIGNS
   // ================================
   
@@ -1342,6 +1357,233 @@ class ApiService {
   async searchUsersForMentions(leadId, query) {
     const params = new URLSearchParams({ query });
     return this.request(`/leads/${leadId}/comments/search-users?${params}`);
+  }
+
+  // ================================
+  // EMAIL SETTINGS
+  // ================================
+
+  // Branding
+  async getEmailBranding() {
+    return this.request('/email-settings/branding');
+  }
+
+  async updateEmailBranding(data) {
+    return this.request('/email-settings/branding', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadCompanyLogo(file) {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const url = `${this.baseURL}/email-settings/logo/upload`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro ao fazer upload do logo');
+    }
+    return data;
+  }
+
+  async deleteCompanyLogo() {
+    return this.request('/email-settings/logo', {
+      method: 'DELETE',
+    });
+  }
+
+  // Signatures
+  async getEmailSignatures(includePersonal = true) {
+    return this.request(`/email-settings/signatures?includePersonal=${includePersonal}`);
+  }
+
+  async getEmailSignature(id) {
+    return this.request(`/email-settings/signatures/${id}`);
+  }
+
+  async createEmailSignature(data) {
+    return this.request('/email-settings/signatures', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateEmailSignature(id, data) {
+    return this.request(`/email-settings/signatures/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEmailSignature(id) {
+    return this.request(`/email-settings/signatures/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setDefaultSignature(id) {
+    return this.request(`/email-settings/signatures/${id}/default`, {
+      method: 'POST',
+    });
+  }
+
+  async uploadSignatureLogo(signatureId, file) {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const url = `${this.baseURL}/email-settings/signatures/${signatureId}/logo`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro ao fazer upload do logo');
+    }
+    return data;
+  }
+
+  // Generic file upload for signature assets (photo or logo)
+  async uploadFile(formData) {
+    const url = `${this.baseURL}/email-settings/signatures/upload`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro ao fazer upload do arquivo');
+    }
+    return data;
+  }
+
+  // Preferences
+  async getEmailPreferences() {
+    return this.request('/email-settings/preferences');
+  }
+
+  async updateEmailPreferences(data) {
+    return this.request('/email-settings/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Templates
+  async getEmailTemplates(category = null) {
+    const params = category ? `?category=${category}` : '';
+    return this.request(`/email-settings/templates${params}`);
+  }
+
+  async getEmailTemplate(id) {
+    return this.request(`/email-settings/templates/${id}`);
+  }
+
+  async createEmailTemplate(data) {
+    return this.request('/email-settings/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateEmailTemplate(id, data) {
+    return this.request(`/email-settings/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEmailTemplate(id) {
+    return this.request(`/email-settings/templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async previewEmailTemplate(id, data = {}) {
+    return this.request(`/email-settings/templates/${id}/preview`, {
+      method: 'POST',
+      body: JSON.stringify({ data }),
+    });
+  }
+
+  // ================================
+  // WEBSITE AGENTS ADMIN
+  // ================================
+
+  async getWebsiteAgents() {
+    return this.request('/website-agents');
+  }
+
+  async getWebsiteAgent(agentKey) {
+    return this.request(`/website-agents/${agentKey}`);
+  }
+
+  async updateWebsiteAgent(agentKey, data) {
+    return this.request(`/website-agents/${agentKey}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWebsiteKnowledge(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/website-agents/knowledge/list${query ? '?' + query : ''}`);
+  }
+
+  async addWebsiteKnowledge(data) {
+    return this.request('/website-agents/knowledge', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateWebsiteKnowledge(id, data) {
+    return this.request(`/website-agents/knowledge/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteWebsiteKnowledge(id) {
+    return this.request(`/website-agents/knowledge/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getWebsiteConversations(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/website-agents/conversations/list${query ? '?' + query : ''}`);
+  }
+
+  async getWebsiteConversation(id) {
+    return this.request(`/website-agents/conversations/${id}`);
+  }
+
+  async getWebsiteStats(days = 30) {
+    return this.request(`/website-agents/stats/overview?days=${days}`);
   }
 
 }

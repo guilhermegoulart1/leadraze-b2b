@@ -42,7 +42,21 @@
     "statusDistribution": "Distribución por Estado",
     "seniorityProfile": "Perfil por Antigüedad",
     "leadsByIndustry": "Leads por Industria",
-    "responseTime": "Tiempo de Respuesta"
+    "responseTime": "Tiempo de Respuesta",
+    "conversationsByStatus": "Conversaciones por Estado",
+    "aiMetrics": "Métricas de IA"
+  },
+  "ai": {
+    "activeConversations": "Conversaciones Activas (IA)",
+    "manualControl": "Control Manual",
+    "agentsInUse": "Agentes en Uso"
+  },
+  "summary": {
+    "title": "Resumen General",
+    "totalCampaigns": "Total de Campañas",
+    "activeCampaigns": "Campañas Activas",
+    "linkedinAccounts": "Cuentas LinkedIn",
+    "aiConversations": "Conversaciones con IA"
   },
   "campaigns": {
     "topCampaigns": "Top Campañas",
