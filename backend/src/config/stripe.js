@@ -90,7 +90,7 @@ const ADDONS = {
  */
 const CREDIT_PACKAGES = {
   gmaps_500: {
-    name: '500 Google Maps Credits',
+    name: '500 Google Maps Credits (1 lead = 1 credit)',
     slug: 'credits-500',
     priceId: process.env.STRIPE_PRICE_CREDITS_500,
     price: 900, // $9.00
@@ -99,7 +99,7 @@ const CREDIT_PACKAGES = {
     billingType: 'onetime'
   },
   gmaps_1000: {
-    name: '1,000 Google Maps Credits',
+    name: '1,000 Google Maps Credits (1 lead = 1 credit)',
     slug: 'credits-1000',
     priceId: process.env.STRIPE_PRICE_CREDITS_1000,
     price: 1700, // $17.00
@@ -108,7 +108,7 @@ const CREDIT_PACKAGES = {
     billingType: 'onetime'
   },
   gmaps_2500: {
-    name: '2,500 Google Maps Credits',
+    name: '2,500 Google Maps Credits (1 lead = 1 credit)',
     slug: 'credits-2500',
     priceId: process.env.STRIPE_PRICE_CREDITS_2500,
     price: 3900, // $39.00
@@ -117,7 +117,7 @@ const CREDIT_PACKAGES = {
     billingType: 'onetime'
   },
   gmaps_5000: {
-    name: '5,000 Google Maps Credits',
+    name: '5,000 Google Maps Credits (1 lead = 1 credit)',
     slug: 'credits-5000',
     priceId: process.env.STRIPE_PRICE_CREDITS_5000,
     price: 5500, // $55.00

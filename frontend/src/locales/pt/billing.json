@@ -43,7 +43,7 @@
 
   "credits": {
     "title": "Creditos Google Maps",
-    "subtitle": "Creditos para buscas de leads no Google Maps",
+    "subtitle": "Creditos para buscas de leads no Google Maps (1 lead = 1 credito)",
     "buyMore": "Comprar Mais Creditos",
     "available": "Creditos Disponiveis",
     "monthlyCredits": "Creditos Mensais",
@@ -80,7 +80,7 @@
 
   "purchaseModal": {
     "title": "Comprar Creditos Google Maps",
-    "subtitle": "Compre creditos adicionais para buscas de leads no Google Maps.",
+    "subtitle": "Compre creditos adicionais para buscas de leads no Google Maps. 1 lead = 1 credito.",
     "neverExpireNote": "Creditos comprados nunca expiram!",
     "perThousand": "${{price}} por 1.000",
     "credits": "creditos",
