@@ -6,92 +6,175 @@ const t = getTranslation(locale);
 
 const testimonials = [
   {
-    quote: "Raze transformed our sales process. We went from 20 demos a month to over 100. The AI agents are incredibly effective at qualifying leads.",
+    quote: "GetRaze transformed our sales process. We went from 20 demos a month to over 100. The AI agents are incredibly effective at qualifying leads.",
     author: "Sarah Chen",
     role: "VP of Sales",
     company: "TechFlow Inc.",
-    rating: 5,
-    avatar: "SC"
+    rating: 4.9,
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face"
   },
   {
     quote: "The LinkedIn automation saved our team countless hours. Now we focus on closing deals instead of sending connection requests.",
     author: "Marcus Johnson",
     role: "Sales Director",
     company: "GrowthMetrics",
-    rating: 5,
-    avatar: "MJ"
+    rating: 5.0,
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face"
   },
   {
     quote: "Best investment we made this year. ROI was positive within the first month. The personalization features are game-changing.",
     author: "Elena Rodriguez",
     role: "Head of Growth",
     company: "ScaleUp.io",
-    rating: 5,
-    avatar: "ER"
+    rating: 4.9,
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face"
+  },
+  {
+    quote: "We tripled our qualified leads in just 2 months. The Google Maps integration is a goldmine for local B2B prospecting.",
+    author: "David Park",
+    role: "CEO",
+    company: "LocalFirst",
+    rating: 5.0,
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
+  },
+  {
+    quote: "The AI conversations feel so natural. Our prospects don't even realize they're talking to a bot until we tell them.",
+    author: "Amanda Foster",
+    role: "Marketing Lead",
+    company: "Nexus Agency",
+    rating: 4.9,
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face"
   }
 ];
 
-const stats = [
-  { value: '10,000+', key: 'leads' },
-  { value: '500+', key: 'customers' },
-  { value: '4.9/5', key: 'rating' },
-  { value: '99.9%', key: 'uptime' }
-];
 ---
 
-<section id="testimonials" class="py-20 lg:py-32 bg-dark text-white">
+<section id="testimonials" class="py-12 lg:py-20 bg-white overflow-hidden">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <!-- Stats Bar -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20 pb-20 border-b border-gray-800">
-      {stats.map((stat) => (
-        <div class="text-center">
-          <div class="text-3xl sm:text-4xl font-bold text-white mb-2">{stat.value}</div>
-          <div class="text-gray-400 text-sm">{t.testimonials.stats[stat.key]}</div>
-        </div>
-      ))}
-    </div>
-
     <!-- Header -->
     <div class="text-center max-w-3xl mx-auto mb-16">
-      <span class="text-primary-400 font-semibold text-sm uppercase tracking-wider">{t.testimonials.badge}</span>
-      <h2 class="text-3xl sm:text-4xl font-bold text-white mt-3 mb-4">
+      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
         {t.testimonials.title}
       </h2>
-      <p class="text-lg text-gray-400">
+      <p class="text-lg text-gray-600">
         {t.testimonials.subtitle}
       </p>
     </div>
 
-    <!-- Testimonials Grid -->
-    <div class="grid md:grid-cols-3 gap-8">
-      {testimonials.map((testimonial) => (
-        <div class="bg-dark-50 rounded-2xl p-8 border border-gray-800 hover:border-primary-500/50 transition-colors">
-          <!-- Stars -->
-          <div class="flex gap-1 mb-4">
-            {Array.from({ length: testimonial.rating }).map(() => (
-              <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            ))}
-          </div>
-
-          <!-- Quote -->
-          <blockquote class="text-gray-300 mb-6 leading-relaxed">
-            "{testimonial.quote}"
-          </blockquote>
-
-          <!-- Author -->
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {testimonial.avatar}
+    <!-- Carousel Container -->
+    <div class="relative">
+      <!-- Carousel Track -->
+      <div class="testimonial-carousel flex gap-6 pb-8" id="testimonialCarousel">
+        {testimonials.map((testimonial, index) => (
+          <div
+            class="testimonial-card flex-shrink-0 w-[340px] bg-white rounded-2xl p-6 border border-gray-200 shadow-lg"
+            style={`transform: rotate(${index % 2 === 0 ? '-2' : '2'}deg);`}
+          >
+            <!-- Author -->
+            <div class="flex flex-col items-center text-center mb-4">
+              <img
+                src={testimonial.avatar}
+                alt={testimonial.author}
+                class="w-16 h-16 rounded-full object-cover mb-3 border-2 border-white shadow-md"
+              />
+              <div class="font-semibold text-gray-900">{testimonial.author}</div>
+              <div class="text-sm text-gray-500">{testimonial.role} at {testimonial.company}</div>
             </div>
-            <div>
-              <div class="font-semibold text-white">{testimonial.author}</div>
-              <div class="text-sm text-gray-400">{testimonial.role} at {testimonial.company}</div>
+
+            <!-- Stars & Rating -->
+            <div class="flex items-center justify-center gap-2 mb-4">
+              <div class="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span class="text-sm text-gray-500">{testimonial.rating}/5</span>
             </div>
+
+            <!-- Quote -->
+            <blockquote class="text-gray-600 text-center text-sm leading-relaxed italic">
+              "{testimonial.quote}"
+            </blockquote>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      <!-- Carousel Navigation Dots -->
+      <div class="flex justify-center gap-2 mt-8">
+        {testimonials.map((_, index) => (
+          <button
+            class="carousel-dot w-8 h-1 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors"
+            data-index={index}
+            aria-label={`Go to testimonial ${index + 1}`}
+          />
+        ))}
+      </div>
     </div>
+
   </div>
 </section>
+
+<style>
+  .testimonial-carousel {
+    animation: scroll 30s linear infinite;
+    width: max-content;
+  }
+
+  .testimonial-carousel:hover {
+    animation-play-state: paused;
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-340px * 5 - 24px * 5));
+    }
+  }
+
+  .testimonial-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .testimonial-card:hover {
+    transform: rotate(0deg) scale(1.02) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+  }
+
+  .carousel-dot.active {
+    background-color: #7229f7;
+    width: 2rem;
+  }
+</style>
+
+<script>
+  // Duplicate testimonials for infinite scroll effect
+  const carousel = document.getElementById('testimonialCarousel');
+  if (carousel) {
+    const cards = carousel.innerHTML;
+    carousel.innerHTML = cards + cards;
+  }
+
+  // Dot navigation (optional enhancement)
+  const dots = document.querySelectorAll('.carousel-dot');
+  dots.forEach((dot, index) => {
+    dot.addEventListener('click', () => {
+      const carousel = document.getElementById('testimonialCarousel');
+      if (carousel) {
+        carousel.style.animation = 'none';
+        carousel.style.transform = `translateX(-${index * (340 + 24)}px)`;
+      }
+      dots.forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+    });
+  });
+
+  // Set first dot as active
+  if (dots.length > 0) {
+    dots[0].classList.add('active');
+  }
+</script>

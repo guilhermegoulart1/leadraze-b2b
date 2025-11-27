@@ -51,7 +51,7 @@ export const translations = {
     },
     benefits: {
       badge: 'Benefits',
-      title: 'Why teams choose Raze',
+      title: 'Why teams choose GetRaze',
       subtitle: 'Join thousands of sales teams who have transformed their outreach with AI-powered automation.',
       cta: 'Start Growing Your Pipeline',
       items: {
@@ -65,8 +65,8 @@ export const translations = {
     },
     testimonials: {
       badge: 'Testimonials',
-      title: 'Trusted by sales teams worldwide',
-      subtitle: 'See what our customers are saying about their experience with Raze.',
+      title: 'Real Results from Real Teams',
+      subtitle: 'See how sales teams are transforming their pipeline with GetRaze.',
       stats: {
         leads: 'Leads Generated',
         customers: 'Happy Customers',
@@ -205,7 +205,7 @@ export const translations = {
     },
     benefits: {
       badge: 'Benefícios',
-      title: 'Por que times escolhem a Raze',
+      title: 'Por que times escolhem a GetRaze',
       subtitle: 'Junte-se a milhares de times de vendas que transformaram sua prospecção com automação de IA.',
       cta: 'Comece a Crescer seu Pipeline',
       items: {
@@ -219,8 +219,8 @@ export const translations = {
     },
     testimonials: {
       badge: 'Depoimentos',
-      title: 'Confiado por times de vendas no mundo todo',
-      subtitle: 'Veja o que nossos clientes dizem sobre a experiência com a Raze.',
+      title: 'Resultados Reais de Times Reais',
+      subtitle: 'Veja como times de vendas estão transformando seu pipeline com GetRaze.',
       stats: {
         leads: 'Leads Gerados',
         customers: 'Clientes Satisfeitos',
@@ -359,7 +359,7 @@ export const translations = {
     },
     benefits: {
       badge: 'Beneficios',
-      title: 'Por qué los equipos eligen Raze',
+      title: 'Por qué los equipos eligen GetRaze',
       subtitle: 'Únete a miles de equipos de ventas que transformaron su prospección con automatización de IA.',
       cta: 'Empieza a Crecer tu Pipeline',
       items: {
@@ -373,8 +373,8 @@ export const translations = {
     },
     testimonials: {
       badge: 'Testimonios',
-      title: 'Confiado por equipos de ventas en todo el mundo',
-      subtitle: 'Ve lo que nuestros clientes dicen sobre su experiencia con Raze.',
+      title: 'Resultados Reales de Equipos Reales',
+      subtitle: 'Ve cómo equipos de ventas están transformando su pipeline con GetRaze.',
       stats: {
         leads: 'Leads Generados',
         customers: 'Clientes Satisfechos',
