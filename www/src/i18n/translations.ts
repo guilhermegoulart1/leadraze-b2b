@@ -13,7 +13,7 @@ export const translations = {
       badge: '70% OFF Launch Promotion',
       title: 'What if your CRM',
       titleHighlight: 'did the hunting for you?',
-      subtitle: 'Automate LinkedIn and email outreach with intelligent AI agents. Generate qualified leads while you sleep and close more deals.',
+      subtitle: "The world's first self-prospecting CRM. AI agents find leads, start conversations, and fill your pipeline while you focus on closing deals.",
       cta: 'Start Free Trial',
       watchDemo: 'Watch Demo',
       noCreditCard: 'No credit card required',
@@ -28,25 +28,25 @@ export const translations = {
         title: 'LinkedIn Automation',
         description: 'Connect multiple LinkedIn accounts and automate personalized outreach campaigns at scale.'
       },
-      email: {
-        title: 'Smart Email Campaigns',
-        description: 'AI-powered email sequences that adapt to recipient behavior and maximize response rates.'
+      maps: {
+        title: 'Daily Leads from Google Maps',
+        description: 'Extract fresh leads every day from Google Maps. Target local businesses by location, category, and more.'
       },
-      ai: {
-        title: 'AI Sales Agents',
-        description: 'Intelligent agents that handle conversations, qualify leads, and book meetings automatically.'
+      warmup: {
+        title: 'Warm Up Your Cold List',
+        description: 'Re-engage dormant contacts with intelligent sequences that rebuild relationships and spark new opportunities.'
       },
-      analytics: {
-        title: 'Real-time Analytics',
-        description: 'Track campaign performance, engagement metrics, and ROI with detailed dashboards.'
+      aiAgents: {
+        title: 'AI Agents for WhatsApp, Email & LinkedIn',
+        description: 'Deploy AI agents across all channels to handle conversations, qualify leads, and book meetings 24/7.'
       },
-      integrations: {
-        title: 'CRM Integrations',
-        description: 'Seamlessly sync leads and data with HubSpot, Salesforce, Pipedrive, and more.'
+      multiUser: {
+        title: 'Integrated Multi-User Support System',
+        description: 'Collaborate seamlessly with your team. Manage conversations, assign leads, and track performance together.'
       },
-      personalization: {
-        title: 'Hyper-Personalization',
-        description: 'Dynamic content that adapts to each prospect using AI-driven insights and data enrichment.'
+      pipeline: {
+        title: 'Never Run Out of Leads Again',
+        description: 'Continuous lead flow on autopilot. Wake up every day to a full pipeline of qualified prospects ready to convert.'
       }
     },
     benefits: {
@@ -135,6 +135,22 @@ export const translations = {
       subtitle: 'Ask me anything about Raze',
       placeholder: 'Type your message...',
       greeting: "Hi! I'm Raze AI. I can answer questions about our platform, pricing, and features. How can I help you today?"
+    },
+    featureShowcase: {
+      card1Title: 'Multi-channel Outreach',
+      card1Description: 'Connect with prospects through LinkedIn, email, and more. All from one unified platform.',
+      card2Title: 'AI Conversations',
+      card2Description: 'Let AI agents handle initial conversations, qualify leads, and book meetings for you.',
+      card3Title: 'Track Performance',
+      card3Description: 'Monitor your outreach campaigns with detailed analytics and conversion tracking.',
+      mainTitle: 'One Platform.',
+      mainTitlePart2: 'Every Channel.',
+      mainTitleHighlight: 'Zero Manual Work.',
+      mainSubtitle: 'LinkedIn, Email, WhatsApp, Google Maps — all connected. AI agents handle prospecting, conversations, and follow-ups automatically.',
+      bigCard1Title: 'Connected Channels, Full Pipeline',
+      bigCard1Description: 'LinkedIn, Email, WhatsApp, and Google Maps feed leads directly into your pipeline. New prospects flow in automatically — no manual work required.',
+      bigCard2Title: 'Track Your Success',
+      bigCard2Description: 'Get detailed insights on campaign performance, team productivity, and conversion rates with beautiful reports.'
     }
   },
   'pt-br': {
@@ -151,7 +167,7 @@ export const translations = {
       badge: '70% OFF Promoção de Lançamento',
       title: 'E se seu CRM',
       titleHighlight: 'fizesse a prospecção por você?',
-      subtitle: 'Automatize prospecção no LinkedIn e email com agentes de IA inteligentes. Gere leads qualificados enquanto você dorme.',
+      subtitle: 'O primeiro CRM do mundo que prospecta sozinho. Agentes de IA encontram leads, iniciam conversas e enchem seu pipeline enquanto você foca em fechar negócios.',
       cta: 'Começar Teste Grátis',
       watchDemo: 'Ver Demo',
       noCreditCard: 'Sem cartão de crédito',
@@ -163,28 +179,28 @@ export const translations = {
       title: 'Tudo que você precisa para escalar sua prospecção',
       subtitle: 'Ferramentas poderosas para automatizar sua geração de leads B2B e fechar mais negócios.',
       linkedin: {
-        title: 'Automação LinkedIn',
+        title: 'Automação do LinkedIn',
         description: 'Conecte múltiplas contas do LinkedIn e automatize campanhas de prospecção personalizadas em escala.'
       },
-      email: {
-        title: 'Campanhas de Email Inteligentes',
-        description: 'Sequências de email com IA que se adaptam ao comportamento do destinatário e maximizam taxas de resposta.'
+      maps: {
+        title: 'Leads Todos os Dias do Google Maps',
+        description: 'Extraia leads frescos todos os dias do Google Maps. Segmente negócios locais por localização, categoria e mais.'
       },
-      ai: {
-        title: 'Agentes de Vendas com IA',
-        description: 'Agentes inteligentes que conduzem conversas, qualificam leads e agendam reuniões automaticamente.'
+      warmup: {
+        title: 'Reaqueça sua Lista Fria',
+        description: 'Reengaje contatos inativos com sequências inteligentes que reconstroem relacionamentos e criam novas oportunidades.'
       },
-      analytics: {
-        title: 'Analytics em Tempo Real',
-        description: 'Acompanhe performance de campanhas, métricas de engajamento e ROI com dashboards detalhados.'
+      aiAgents: {
+        title: 'Agentes de IA para WhatsApp, Email e LinkedIn',
+        description: 'Implante agentes de IA em todos os canais para conduzir conversas, qualificar leads e agendar reuniões 24/7.'
       },
-      integrations: {
-        title: 'Integrações CRM',
-        description: 'Sincronize leads e dados com HubSpot, Salesforce, Pipedrive e mais.'
+      multiUser: {
+        title: 'Sistema de Atendimento MultiUsuário Integrado',
+        description: 'Colabore com seu time de forma integrada. Gerencie conversas, atribua leads e acompanhe performance juntos.'
       },
-      personalization: {
-        title: 'Hiper-Personalização',
-        description: 'Conteúdo dinâmico que se adapta a cada prospect usando insights de IA e enriquecimento de dados.'
+      pipeline: {
+        title: 'Nunca Mais Fique Sem Leads',
+        description: 'Fluxo contínuo de leads no piloto automático. Acorde todos os dias com um pipeline cheio de prospects qualificados prontos para converter.'
       }
     },
     benefits: {
@@ -273,6 +289,22 @@ export const translations = {
       subtitle: 'Pergunte qualquer coisa sobre a Raze',
       placeholder: 'Digite sua mensagem...',
       greeting: 'Olá! Sou a Raze IA. Posso responder perguntas sobre nossa plataforma, preços e recursos. Como posso ajudar?'
+    },
+    featureShowcase: {
+      card1Title: 'Prospecção Multicanal',
+      card1Description: 'Conecte-se com prospects pelo LinkedIn, email e mais. Tudo em uma plataforma unificada.',
+      card2Title: 'Conversas com IA',
+      card2Description: 'Deixe agentes de IA conduzirem conversas iniciais, qualificarem leads e agendarem reuniões para você.',
+      card3Title: 'Acompanhe Performance',
+      card3Description: 'Monitore suas campanhas de prospecção com analytics detalhado e tracking de conversões.',
+      mainTitle: 'Uma Plataforma.',
+      mainTitlePart2: 'Todos os Canais.',
+      mainTitleHighlight: 'Zero Trabalho Manual.',
+      mainSubtitle: 'LinkedIn, Email, WhatsApp, Google Maps — tudo conectado. Agentes de IA cuidam da prospecção, conversas e follow-ups automaticamente.',
+      bigCard1Title: 'Canais Conectados, Pipeline Cheio',
+      bigCard1Description: 'LinkedIn, Email, WhatsApp e Google Maps alimentam seu pipeline diretamente. Novos prospects entram automaticamente — sem trabalho manual.',
+      bigCard2Title: 'Acompanhe seu Sucesso',
+      bigCard2Description: 'Obtenha insights detalhados sobre performance de campanhas, produtividade do time e taxas de conversão com relatórios visuais.'
     }
   },
   es: {
@@ -289,7 +321,7 @@ export const translations = {
       badge: '70% OFF Promoción de Lanzamiento',
       title: '¿Y si tu CRM',
       titleHighlight: 'hiciera la prospección por ti?',
-      subtitle: 'Automatiza la prospección en LinkedIn y email con agentes de IA inteligentes. Genera leads calificados mientras duermes.',
+      subtitle: 'El primer CRM del mundo que prospecta solo. Agentes de IA encuentran leads, inician conversaciones y llenan tu pipeline mientras te enfocas en cerrar negocios.',
       cta: 'Empezar Prueba Gratis',
       watchDemo: 'Ver Demo',
       noCreditCard: 'Sin tarjeta de crédito',
@@ -301,28 +333,28 @@ export const translations = {
       title: 'Todo lo que necesitas para escalar tu prospección',
       subtitle: 'Herramientas poderosas para automatizar tu generación de leads B2B y cerrar más negocios.',
       linkedin: {
-        title: 'Automatización LinkedIn',
+        title: 'Automatización de LinkedIn',
         description: 'Conecta múltiples cuentas de LinkedIn y automatiza campañas de prospección personalizadas a escala.'
       },
-      email: {
-        title: 'Campañas de Email Inteligentes',
-        description: 'Secuencias de email con IA que se adaptan al comportamiento del destinatario y maximizan tasas de respuesta.'
+      maps: {
+        title: 'Leads Diarios de Google Maps',
+        description: 'Extrae leads frescos cada día de Google Maps. Segmenta negocios locales por ubicación, categoría y más.'
       },
-      ai: {
-        title: 'Agentes de Ventas con IA',
-        description: 'Agentes inteligentes que manejan conversaciones, califican leads y agendan reuniones automáticamente.'
+      warmup: {
+        title: 'Reactiva tu Lista Fría',
+        description: 'Reconecta con contactos inactivos usando secuencias inteligentes que reconstruyen relaciones y generan nuevas oportunidades.'
       },
-      analytics: {
-        title: 'Analytics en Tiempo Real',
-        description: 'Rastrea el rendimiento de campañas, métricas de engagement y ROI con dashboards detallados.'
+      aiAgents: {
+        title: 'Agentes de IA para WhatsApp, Email y LinkedIn',
+        description: 'Despliega agentes de IA en todos los canales para manejar conversaciones, calificar leads y agendar reuniones 24/7.'
       },
-      integrations: {
-        title: 'Integraciones CRM',
-        description: 'Sincroniza leads y datos con HubSpot, Salesforce, Pipedrive y más.'
+      multiUser: {
+        title: 'Sistema de Atención MultiUsuario Integrado',
+        description: 'Colabora con tu equipo de forma integrada. Gestiona conversaciones, asigna leads y rastrea el rendimiento juntos.'
       },
-      personalization: {
-        title: 'Hiper-Personalización',
-        description: 'Contenido dinámico que se adapta a cada prospecto usando insights de IA y enriquecimiento de datos.'
+      pipeline: {
+        title: 'Nunca Más Te Quedes Sin Leads',
+        description: 'Flujo continuo de leads en piloto automático. Despierta cada día con un pipeline lleno de prospectos calificados listos para convertir.'
       }
     },
     benefits: {
@@ -411,6 +443,22 @@ export const translations = {
       subtitle: 'Pregunta cualquier cosa sobre Raze',
       placeholder: 'Escribe tu mensaje...',
       greeting: '¡Hola! Soy Raze IA. Puedo responder preguntas sobre nuestra plataforma, precios y funciones. ¿Cómo puedo ayudarte?'
+    },
+    featureShowcase: {
+      card1Title: 'Prospección Multicanal',
+      card1Description: 'Conecta con prospectos a través de LinkedIn, email y más. Todo desde una plataforma unificada.',
+      card2Title: 'Conversaciones con IA',
+      card2Description: 'Deja que los agentes de IA manejen conversaciones iniciales, califiquen leads y agenden reuniones por ti.',
+      card3Title: 'Rastrea el Rendimiento',
+      card3Description: 'Monitorea tus campañas de prospección con analytics detallado y seguimiento de conversiones.',
+      mainTitle: 'Una Plataforma.',
+      mainTitlePart2: 'Todos los Canales.',
+      mainTitleHighlight: 'Cero Trabajo Manual.',
+      mainSubtitle: 'LinkedIn, Email, WhatsApp, Google Maps — todo conectado. Agentes de IA manejan la prospección, conversaciones y seguimientos automáticamente.',
+      bigCard1Title: 'Canales Conectados, Pipeline Lleno',
+      bigCard1Description: 'LinkedIn, Email, WhatsApp y Google Maps alimentan tu pipeline directamente. Nuevos prospectos entran automáticamente — sin trabajo manual.',
+      bigCard2Title: 'Rastrea tu Éxito',
+      bigCard2Description: 'Obtén insights detallados sobre rendimiento de campañas, productividad del equipo y tasas de conversión con reportes visuales.'
     }
   }
 } as const;

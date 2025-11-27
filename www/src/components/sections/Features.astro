@@ -5,60 +5,24 @@ const locale = Astro.currentLocale || 'en';
 const t = getTranslation(locale);
 
 const features = [
-  {
-    icon: 'linkedin',
-    key: 'linkedin',
-    color: 'blue'
-  },
-  {
-    icon: 'email',
-    key: 'email',
-    color: 'purple'
-  },
-  {
-    icon: 'ai',
-    key: 'ai',
-    color: 'green'
-  },
-  {
-    icon: 'analytics',
-    key: 'analytics',
-    color: 'orange'
-  },
-  {
-    icon: 'integrations',
-    key: 'integrations',
-    color: 'pink'
-  },
-  {
-    icon: 'personalization',
-    key: 'personalization',
-    color: 'cyan'
-  }
+  { icon: 'linkedin', key: 'linkedin' },
+  { icon: 'maps', key: 'maps' },
+  { icon: 'warmup', key: 'warmup' },
+  { icon: 'aiAgents', key: 'aiAgents' },
+  { icon: 'multiUser', key: 'multiUser' },
+  { icon: 'pipeline', key: 'pipeline' }
 ];
 
 const getIconSvg = (icon: string) => {
   const icons = {
-    linkedin: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
-    email: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
-    ai: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />',
-    analytics: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />',
-    integrations: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />',
-    personalization: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+    linkedin: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />',
+    maps: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />',
+    warmup: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />',
+    aiAgents: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />',
+    multiUser: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
+    pipeline: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />'
   };
-  return icons[icon] || icons.ai;
-};
-
-const getColorClasses = (color: string) => {
-  const colors = {
-    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
-    purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
-    green: { bg: 'bg-green-100', text: 'text-green-600' },
-    orange: { bg: 'bg-orange-100', text: 'text-orange-600' },
-    pink: { bg: 'bg-pink-100', text: 'text-pink-600' },
-    cyan: { bg: 'bg-cyan-100', text: 'text-cyan-600' }
-  };
-  return colors[color] || colors.purple;
+  return icons[icon] || icons.aiAgents;
 };
 ---
 
@@ -76,19 +40,18 @@ const getColorClasses = (color: string) => {
     </div>
 
     <!-- Features Grid -->
-    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {features.map((feature) => {
-        const colorClasses = getColorClasses(feature.color);
         const featureData = t.features[feature.key];
         return (
-          <div class="group p-6 rounded-2xl border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all duration-300 bg-white">
-            <div class={`w-12 h-12 ${colorClasses.bg} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
-              <svg class={`w-6 h-6 ${colorClasses.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="p-6 rounded-2xl border border-gray-200 bg-white hover:shadow-md transition-shadow duration-300">
+            <div class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-5">
+              <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <Fragment set:html={getIconSvg(feature.icon)} />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">{featureData.title}</h3>
-            <p class="text-gray-600">{featureData.description}</p>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">{featureData.title}</h3>
+            <p class="text-gray-600 text-sm leading-relaxed">{featureData.description}</p>
           </div>
         );
       })}
