@@ -336,6 +336,44 @@ const linkedinInviteQueue = new Bull('linkedin-invites', {
 });
 
 /**
+ * Connection Message Queue - Medium Priority
+ *
+ * Processes direct messages to existing LinkedIn connections
+ * - Randomized timing to avoid blocks
+ * - Rate limited per LinkedIn account
+ * - Jobs added: when connection activation campaign starts
+ * - Jobs processed: with random delays throughout the day
+ */
+const connectionMessageQueue = new Bull('connection-messages', {
+  redis: bullRedisConfig,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 10000 // 10s, 20s, 40s
+    },
+    removeOnComplete: {
+      age: 7 * 24 * 3600, // 7 days
+      count: 1000
+    },
+    removeOnFail: {
+      age: 30 * 24 * 3600, // 30 days
+      count: 5000
+    }
+  },
+  limiter: {
+    max: 150, // Max 150 messages (connections have higher limit)
+    duration: 24 * 60 * 60 * 1000, // per 24 hours
+    groupKey: 'linkedinAccountId' // per LinkedIn account
+  },
+  settings: {
+    stalledInterval: 60000,
+    maxStalledCount: 2,
+    lockDuration: 60000 // 1 minute
+  }
+});
+
+/**
  * Delayed Conversation Starter Queue - Low Priority
  *
  * Starts automated conversations after 5 minutes if lead doesn't respond
@@ -369,7 +407,7 @@ const delayedConversationQueue = new Bull('delayed-conversation', {
 /**
  * Global error handler for all queues
  */
-const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, delayedConversationQueue];
+const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue];
 
 queues.forEach((queue) => {
   queue.on('error', (error) => {
@@ -412,6 +450,7 @@ module.exports = {
   emailQueue,
   billingQueue,
   linkedinInviteQueue,
+  connectionMessageQueue,
   delayedConversationQueue,
   closeAllQueues
 };

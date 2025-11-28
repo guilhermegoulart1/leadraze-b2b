@@ -331,6 +331,14 @@ try {
   console.error('❌ Error loading activation campaigns routes:', error.message);
 }
 
+// Connections (1st degree LinkedIn connections)
+try {
+  app.use('/api/connections', require('./routes/connections'));
+  console.log('✅ Connections routes loaded');
+} catch (error) {
+  console.error('❌ Error loading connections routes:', error.message);
+}
+
 // Unified Agents (LinkedIn, Google Maps, Email, WhatsApp)
 try {
   app.use('/api/agents', require('./routes/agents'));
@@ -355,7 +363,7 @@ try {
   const { createBullBoard } = require('@bull-board/api');
   const { BullAdapter } = require('@bull-board/api/bullAdapter');
   const { ExpressAdapter } = require('@bull-board/express');
-  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, delayedConversationQueue } = require('./queues');
+  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue } = require('./queues');
 
   // Create Express adapter for Bull Board
   const serverAdapter = new ExpressAdapter();
@@ -372,6 +380,7 @@ try {
       new BullAdapter(emailQueue),
       new BullAdapter(billingQueue),
       new BullAdapter(linkedinInviteQueue),
+      new BullAdapter(connectionMessageQueue),
       new BullAdapter(delayedConversationQueue)
     ],
     serverAdapter

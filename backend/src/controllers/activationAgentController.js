@@ -34,14 +34,16 @@ const getActivationAgents = async (req, res) => {
   try {
     const userId = req.user.id;
     const accountId = req.user.account_id;
-    const { activation_type, search, page = 1, limit = 20 } = req.query;
+    // Aceita tanto 'type' quanto 'activation_type' para compatibilidade com frontend
+    const { activation_type, type, search, page = 1, limit = 20 } = req.query;
+    const agentType = activation_type || type; // Frontend envia 'type', aceitar ambos
 
-    console.log(`📋 Listando agentes de ativação do usuário ${userId} (conta ${accountId})`);
+    console.log(`📋 Listando agentes de ativação da conta ${accountId}`);
 
-    // Construir query - MULTI-TENANCY + SECTOR filtering
-    let whereConditions = ['aa.account_id = $1', 'aa.user_id = $2'];
-    let queryParams = [accountId, userId];
-    let paramIndex = 3;
+    // Construir query - MULTI-TENANCY (apenas por account_id, não user_id)
+    let whereConditions = ['aa.account_id = $1'];
+    let queryParams = [accountId];
+    let paramIndex = 2;
 
     // SECTOR FILTER: Add sector filtering
     const { filter: sectorFilter, params: sectorParams } = await buildActivationAgentSectorFilter(userId, accountId, paramIndex);
@@ -60,10 +62,10 @@ const getActivationAgents = async (req, res) => {
       paramIndex++;
     }
 
-    // Filtro por tipo de ativação
-    if (activation_type) {
+    // Filtro por tipo de ativação (aceita 'type' ou 'activation_type')
+    if (agentType) {
       whereConditions.push(`aa.activation_type = $${paramIndex}`);
-      queryParams.push(activation_type);
+      queryParams.push(agentType);
       paramIndex++;
     }
 
@@ -82,7 +84,7 @@ const getActivationAgents = async (req, res) => {
       FROM activation_agents aa
       LEFT JOIN users u ON aa.user_id = u.id
       LEFT JOIN sectors s ON aa.sector_id = s.id
-      LEFT JOIN activation_campaigns ac ON aa.id = ac.agent_id
+      LEFT JOIN activation_campaigns ac ON aa.id = ac.email_agent_id OR aa.id = ac.whatsapp_agent_id OR aa.id = ac.linkedin_agent_id
       WHERE ${whereClause}
       GROUP BY aa.id, u.name, u.email, s.name
       ORDER BY aa.created_at DESC
@@ -146,7 +148,7 @@ const getActivationAgent = async (req, res) => {
       FROM activation_agents aa
       LEFT JOIN users u ON aa.user_id = u.id
       LEFT JOIN sectors s ON aa.sector_id = s.id
-      LEFT JOIN activation_campaigns ac ON aa.id = ac.agent_id
+      LEFT JOIN activation_campaigns ac ON aa.id = ac.email_agent_id OR aa.id = ac.whatsapp_agent_id OR aa.id = ac.linkedin_agent_id
       WHERE aa.id = $1 AND aa.account_id = $3 AND aa.user_id = $2 ${sectorFilter}
       GROUP BY aa.id, u.name, u.email, s.name
     `;

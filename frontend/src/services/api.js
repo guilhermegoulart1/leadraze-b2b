@@ -547,6 +547,25 @@ class ApiService {
     });
   }
 
+  async disconnectLinkedInAccount(accountId) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/disconnect`, {
+      method: 'POST',
+    });
+  }
+
+  async reactivateLinkedInAccount(accountId, username, password) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}/reactivate`, {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+  }
+
+  async deleteLinkedInAccount(accountId) {
+    return this.request(`/profiles/linkedin-accounts/${accountId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async getAccountHealth(accountId) {
     return this.request(`/profiles/linkedin-accounts/${accountId}/health`);
   }
@@ -1165,6 +1184,77 @@ class ApiService {
 
   async getActivationCampaignStats(id) {
     return this.request(`/activation-campaigns/${id}/stats`);
+  }
+
+  // ================================
+  // MY CONNECTIONS (1st Degree LinkedIn)
+  // ================================
+
+  // Listar conexões de 1º grau
+  async getMyConnections(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/connections${query ? '?' + query : ''}`);
+  }
+
+  // Buscar perfil completo de uma conexão
+  async getConnectionFullProfile(providerId, linkedinAccountId) {
+    return this.request(`/connections/${providerId}/profile?linkedin_account_id=${linkedinAccountId}`);
+  }
+
+  // Salvar conexão no CRM
+  async saveConnectionToCRM(linkedinAccountId, profile) {
+    return this.request('/connections/save-to-crm', {
+      method: 'POST',
+      body: JSON.stringify({ linkedin_account_id: linkedinAccountId, profile }),
+    });
+  }
+
+  // Obter limite diário de ativação de conexões
+  async getConnectionDailyLimit() {
+    return this.request('/connections/daily-limit');
+  }
+
+  // Atualizar limite diário
+  async updateConnectionDailyLimit(dailyLimit) {
+    return this.request('/connections/daily-limit', {
+      method: 'PUT',
+      body: JSON.stringify({ daily_limit: dailyLimit }),
+    });
+  }
+
+  // Listar campanhas de conexões
+  async getConnectionCampaigns(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/connections/campaigns${query ? '?' + query : ''}`);
+  }
+
+  // Criar campanha de ativação de conexões
+  async createConnectionCampaign(data) {
+    return this.request('/connections/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Pausar campanha de conexões
+  async pauseConnectionCampaign(id) {
+    return this.request(`/connections/campaigns/${id}/pause`, {
+      method: 'POST',
+    });
+  }
+
+  // Retomar campanha de conexões
+  async resumeConnectionCampaign(id) {
+    return this.request(`/connections/campaigns/${id}/resume`, {
+      method: 'POST',
+    });
+  }
+
+  // Parar campanha de conexões
+  async stopConnectionCampaign(id) {
+    return this.request(`/connections/campaigns/${id}/stop`, {
+      method: 'POST',
+    });
   }
 
   // ==========================================

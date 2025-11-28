@@ -27,8 +27,14 @@ router.get('/linkedin-accounts/:id', profileController.getLinkedInAccount);
 // Atualizar conta
 router.put('/linkedin-accounts/:id', profileController.updateLinkedInAccount);
 
-// Deletar conta
+// Deletar conta (permanente)
 router.delete('/linkedin-accounts/:id', profileController.deleteLinkedInAccount);
+
+// Desconectar conta (soft - mantém histórico)
+router.post('/linkedin-accounts/:id/disconnect', profileController.disconnectLinkedInAccount);
+
+// Reativar conta desconectada
+router.post('/linkedin-accounts/:id/reactivate', profileController.reactivateLinkedInAccount);
 
 // Atualizar dados da conta (refresh)
 router.post('/linkedin-accounts/:id/refresh', profileController.refreshLinkedInAccount);

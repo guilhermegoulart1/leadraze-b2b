@@ -231,14 +231,14 @@ const updateLinkedInAccount = async (req, res) => {
 };
 
 // ================================
-// 5. DELETAR CONTA
+// 5. DELETAR CONTA (PERMANENTE)
 // ================================
 const deleteLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    console.log(`🗑️ Deletando conta ${id}`);
+    console.log(`🗑️ Excluindo conta permanentemente ${id}`);
 
     const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
 
@@ -246,13 +246,215 @@ const deleteLinkedInAccount = async (req, res) => {
       throw new NotFoundError('LinkedIn account not found');
     }
 
+    // Se a conta ainda está ativa na Unipile, desconectar primeiro
+    if (account.status === 'active' && account.unipile_account_id) {
+      try {
+        console.log('📡 Desconectando da Unipile antes de excluir...');
+        await unipileClient.account.disconnectAccount(account.unipile_account_id);
+        console.log('✅ Desconectado da Unipile');
+      } catch (unipileError) {
+        console.warn('⚠️ Erro ao desconectar da Unipile (continuando exclusão):', unipileError.message);
+      }
+    }
+
+    // Deletar histórico de conversas (messages e conversations)
+    // NOTA: Leads são preservados conforme regra de negócio
+    console.log('🗑️ Removendo histórico de conversas...');
+
+    // Primeiro, deletar messages das conversations dessa conta
+    await db.query(
+      `DELETE FROM messages
+       WHERE conversation_id IN (
+         SELECT id FROM conversations WHERE linkedin_account_id = $1
+       )`,
+      [id]
+    );
+
+    // Depois, deletar as conversations
+    await db.query(
+      `DELETE FROM conversations WHERE linkedin_account_id = $1`,
+      [id]
+    );
+
+    // Deletar bulk_collection_jobs relacionados
+    await db.query(
+      `DELETE FROM bulk_collection_jobs WHERE unipile_account_id = $1`,
+      [account.unipile_account_id]
+    );
+
+    // Por fim, deletar a conta
     await db.delete('linkedin_accounts', { id });
 
-    console.log('✅ Conta deletada');
+    console.log('✅ Conta excluída permanentemente (leads preservados)');
 
-    sendSuccess(res, null, 'LinkedIn account deleted successfully');
+    sendSuccess(res, null, 'LinkedIn account deleted permanently. Conversation history removed, leads preserved.');
 
   } catch (error) {
+    console.error('❌ Erro ao excluir conta:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 5A. DESCONECTAR CONTA (SOFT)
+// ================================
+const disconnectLinkedInAccount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🔌 Desconectando conta ${id}`);
+
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    if (account.status === 'disconnected') {
+      throw new ValidationError('Account is already disconnected');
+    }
+
+    if (!account.unipile_account_id) {
+      throw new ValidationError('Account does not have unipile_account_id');
+    }
+
+    // Desconectar da Unipile
+    try {
+      console.log('📡 Desconectando da Unipile...');
+      await unipileClient.account.disconnectAccount(account.unipile_account_id);
+      console.log('✅ Desconectado da Unipile');
+    } catch (unipileError) {
+      // Se a conta não existe na Unipile (404), continuar normalmente
+      // Isso pode acontecer quando a conta Unipile foi trocada ou a conta já foi removida
+      if (unipileError.response?.status === 404) {
+        console.log('⚠️ Conta não encontrada na Unipile (já removida ou conta Unipile trocada) - continuando...');
+      } else {
+        console.error('❌ Erro ao desconectar da Unipile:', unipileError);
+        throw new UnipileError('Failed to disconnect from Unipile', unipileError);
+      }
+    }
+
+    // Atualizar status no banco
+    const updatedAccount = await db.update('linkedin_accounts', {
+      status: 'disconnected',
+      disconnected_at: new Date()
+    }, { id });
+
+    console.log('✅ Conta marcada como desconectada');
+
+    sendSuccess(res, updatedAccount, 'LinkedIn account disconnected successfully. You can reactivate it later.');
+
+  } catch (error) {
+    console.error('❌ Erro ao desconectar conta:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 5B. REATIVAR CONTA DESCONECTADA
+// ================================
+const reactivateLinkedInAccount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password } = req.body;
+    const userId = req.user.id;
+
+    console.log(`🔄 Reativando conta ${id}`);
+
+    if (!username || !password) {
+      throw new ValidationError('Username and password are required to reactivate');
+    }
+
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    if (account.status !== 'disconnected') {
+      throw new ValidationError('Only disconnected accounts can be reactivated');
+    }
+
+    // Verificar se o username corresponde ao da conta original
+    if (account.linkedin_username !== username) {
+      throw new ValidationError('Username must match the original LinkedIn account');
+    }
+
+    if (!unipileClient.isInitialized()) {
+      throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
+    }
+
+    // Reconectar na Unipile
+    try {
+      console.log('📡 Reconectando na Unipile...');
+
+      const response = await unipileClient.account.connectLinkedin({
+        username: username,
+        password: password
+      });
+
+      const newAccountId = response.account_id || response.id;
+
+      if (!newAccountId) {
+        throw new UnipileError('No account ID returned from Unipile');
+      }
+
+      console.log('✅ Reconectado na Unipile, novo account_id:', newAccountId);
+
+      // Aguardar um pouco antes de buscar o perfil
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Buscar dados atualizados do perfil
+      let profileData = null;
+      try {
+        profileData = await unipileClient.users.getOwnProfile(newAccountId);
+        console.log('✅ Perfil atualizado obtido');
+      } catch (profileError) {
+        console.warn('⚠️ Erro ao buscar perfil:', profileError.message);
+      }
+
+      // Atualizar conta no banco
+      const updateData = {
+        unipile_account_id: newAccountId,
+        status: 'active',
+        disconnected_at: null,
+        connected_at: new Date()
+      };
+
+      // Atualizar dados do perfil se disponíveis
+      if (profileData) {
+        updateData.profile_name = profileData.name || `${profileData.first_name} ${profileData.last_name}`.trim() || account.profile_name;
+        updateData.profile_url = profileData.url || account.profile_url;
+        updateData.profile_picture = profileData.profile_picture || profileData.profile_picture_url || account.profile_picture;
+        updateData.organizations = profileData.organizations ? JSON.stringify(profileData.organizations) : account.organizations;
+      }
+
+      const updatedAccount = await db.update('linkedin_accounts', updateData, { id });
+
+      console.log('✅ Conta reativada com sucesso');
+
+      sendSuccess(res, {
+        ...updatedAccount,
+        profile_data: profileData
+      }, 'LinkedIn account reactivated successfully');
+
+    } catch (unipileError) {
+      console.error('❌ Erro ao reconectar na Unipile:', unipileError);
+
+      let errorMessage = 'Failed to reactivate LinkedIn account';
+
+      if (unipileError.response?.data?.type === 'errors/invalid_credentials') {
+        errorMessage = 'Invalid LinkedIn credentials';
+      } else if (unipileError.response?.data?.type === 'errors/checkpoint_error') {
+        errorMessage = 'LinkedIn requires additional verification';
+      }
+
+      throw new UnipileError(errorMessage, unipileError);
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao reativar conta:', error);
     sendError(res, error, error.statusCode || 500);
   }
 };
@@ -1078,6 +1280,8 @@ module.exports = {
   getLinkedInAccount,
   updateLinkedInAccount,
   deleteLinkedInAccount,
+  disconnectLinkedInAccount,
+  reactivateLinkedInAccount,
   refreshLinkedInAccount,
   searchProfiles,
   searchProfilesAdvanced,

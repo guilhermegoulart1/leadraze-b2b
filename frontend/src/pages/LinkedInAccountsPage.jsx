@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin } from 'lucide-react';
+import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin, Power, PowerOff, RotateCcw, X, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
@@ -14,6 +14,14 @@ const LinkedInAccountsPage = () => {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [healthScores, setHealthScores] = useState({});
+
+  // Estados para modais de gerenciamento de conta
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
+  const [accountToManage, setAccountToManage] = useState(null);
+  const [reactivateCredentials, setReactivateCredentials] = useState({ username: '', password: '' });
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     loadAccounts();
@@ -213,6 +221,101 @@ const LinkedInAccountsPage = () => {
     await loadAccounts();
   };
 
+  // ================================
+  // HANDLERS PARA GERENCIAMENTO DE CONTA
+  // ================================
+
+  const handleOpenDisconnectModal = (account) => {
+    setAccountToManage(account);
+    setShowDisconnectModal(true);
+  };
+
+  const handleOpenDeleteModal = (account) => {
+    setAccountToManage(account);
+    setShowDeleteModal(true);
+  };
+
+  const handleOpenReactivateModal = (account) => {
+    setAccountToManage(account);
+    setReactivateCredentials({ username: account.linkedin_username, password: '' });
+    setShowReactivateModal(true);
+  };
+
+  const handleDisconnect = async () => {
+    if (!accountToManage) return;
+
+    try {
+      setActionLoading(true);
+      const response = await api.disconnectLinkedInAccount(accountToManage.id);
+
+      if (response.success) {
+        await loadAccounts();
+        setShowDisconnectModal(false);
+        setAccountToManage(null);
+      } else {
+        alert('Erro ao desconectar conta: ' + (response.message || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      console.error('Erro ao desconectar:', error);
+      alert('Erro ao desconectar conta. Tente novamente.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!accountToManage) return;
+
+    try {
+      setActionLoading(true);
+      const response = await api.deleteLinkedInAccount(accountToManage.id);
+
+      if (response.success) {
+        await loadAccounts();
+        setShowDeleteModal(false);
+        setAccountToManage(null);
+      } else {
+        alert('Erro ao excluir conta: ' + (response.message || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      alert('Erro ao excluir conta. Tente novamente.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!accountToManage || !reactivateCredentials.password) return;
+
+    try {
+      setActionLoading(true);
+      const response = await api.reactivateLinkedInAccount(
+        accountToManage.id,
+        reactivateCredentials.username,
+        reactivateCredentials.password
+      );
+
+      if (response.success) {
+        await loadAccounts();
+        setShowReactivateModal(false);
+        setAccountToManage(null);
+        setReactivateCredentials({ username: '', password: '' });
+      } else {
+        alert('Erro ao reativar conta: ' + (response.message || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      console.error('Erro ao reativar:', error);
+      alert('Erro ao reativar conta. Verifique as credenciais e tente novamente.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Separar contas ativas e desconectadas
+  const activeAccounts = accounts.filter(a => a.status === 'active');
+  const disconnectedAccounts = accounts.filter(a => a.status === 'disconnected');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -268,9 +371,11 @@ const LinkedInAccountsPage = () => {
         </div>
       </div>
 
-      {/* Accounts List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {accounts.map((account) => {
+      {/* Active Accounts List */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Contas Ativas ({activeAccounts.length})</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {activeAccounts.map((account) => {
           const usagePercent = account.daily_limit > 0
             ? ((account.today_sent / account.daily_limit) * 100).toFixed(0)
             : 0;
@@ -417,7 +522,18 @@ const LinkedInAccountsPage = () => {
                   >
                     <RefreshCw className={`w-4 h-4 ${refreshingAccounts[account.id] ? 'animate-spin' : ''}`} />
                   </button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title={t('card.remove')}>
+                  <button
+                    onClick={() => handleOpenDisconnectModal(account)}
+                    className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                    title="Desconectar"
+                  >
+                    <PowerOff className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenDeleteModal(account)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Excluir permanentemente"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -426,7 +542,88 @@ const LinkedInAccountsPage = () => {
             </div>
           );
         })}
+        </div>
       </div>
+
+      {/* Disconnected Accounts Section */}
+      {disconnectedAccounts.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+            <PowerOff className="w-5 h-5 text-gray-500" />
+            Contas Desativadas ({disconnectedAccounts.length})
+          </h2>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-amber-800">
+              <AlertTriangle className="w-4 h-4 inline mr-1" />
+              Contas desativadas ainda contam como slot ativo na sua assinatura. Para liberar o slot, você precisa excluir a conta.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {disconnectedAccounts.map((account) => (
+              <div key={account.id} className="bg-white rounded-lg border border-gray-200 opacity-75">
+                {/* Canal Badge - Desativado */}
+                <div className="bg-gradient-to-r from-gray-500 to-gray-600 px-4 py-2 rounded-t-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-white">
+                    <Linkedin className="w-4 h-4" />
+                    <span className="text-sm font-semibold">{t('channel')}</span>
+                  </div>
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
+                    <PowerOff className="w-3 h-3" />
+                    <span>Desativada</span>
+                  </span>
+                </div>
+
+                <div className="p-5">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1">
+                      {account.profile_picture ? (
+                        <img
+                          src={account.profile_picture}
+                          alt={account.profile_name}
+                          className="w-14 h-14 rounded-full border-2 border-gray-300 grayscale"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                          {account.profile_name?.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-700 truncate">{account.profile_name}</h3>
+                        <p className="text-sm text-gray-500 truncate">@{account.public_identifier || account.linkedin_username}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div className="text-xs text-gray-500 space-y-1 mb-4">
+                    <p>Desconectada em: {account.disconnected_at ? new Date(account.disconnected_at).toLocaleDateString('pt-BR') : '-'}</p>
+                    <p>Conectada originalmente: {new Date(account.connected_at).toLocaleDateString('pt-BR')}</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                    <button
+                      onClick={() => handleOpenReactivateModal(account)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Reativar
+                    </button>
+                    <button
+                      onClick={() => handleOpenDeleteModal(account)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {accounts.length === 0 && (
         <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-300">
@@ -451,6 +648,181 @@ const LinkedInAccountsPage = () => {
           onClose={handleCloseLimitModal}
           onUpdate={handleLimitUpdate}
         />
+      )}
+
+      {/* Modal de Desconectar Conta */}
+      {showDisconnectModal && accountToManage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <PowerOff className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Desconectar Conta</h3>
+                  <p className="text-sm text-gray-500">{accountToManage.profile_name}</p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-amber-800">
+                  <strong>Atenção:</strong> Você poderá reativar esta conta depois. Ela continuará contando como slot ativo na sua assinatura até ser excluída permanentemente.
+                </p>
+              </div>
+
+              <p className="text-gray-600 mb-6">
+                O histórico de conversas e leads serão mantidos. Você precisará das credenciais do LinkedIn para reativar a conta.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDisconnectModal(false);
+                    setAccountToManage(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                  disabled={actionLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  disabled={actionLoading}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors disabled:opacity-50"
+                >
+                  {actionLoading ? 'Desconectando...' : 'Desconectar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Excluir Conta */}
+      {showDeleteModal && accountToManage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Excluir Conta Permanentemente</h3>
+                  <p className="text-sm text-gray-500">{accountToManage.profile_name}</p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-red-800">
+                  <strong>ATENÇÃO:</strong> Esta ação é irreversível! O histórico de conversas será perdido permanentemente.
+                </p>
+              </div>
+
+              <div className="space-y-2 mb-6">
+                <p className="text-gray-600 text-sm flex items-center gap-2">
+                  <span className="text-red-500">✗</span>
+                  Histórico de conversas será excluído
+                </p>
+                <p className="text-gray-600 text-sm flex items-center gap-2">
+                  <span className="text-green-500">✓</span>
+                  Leads serão mantidos no sistema
+                </p>
+                <p className="text-gray-600 text-sm flex items-center gap-2">
+                  <span className="text-green-500">✓</span>
+                  Libera o slot da assinatura
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setAccountToManage(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                  disabled={actionLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={actionLoading}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors disabled:opacity-50"
+                >
+                  {actionLoading ? 'Excluindo...' : 'Excluir Permanentemente'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Reativar Conta */}
+      {showReactivateModal && accountToManage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <RotateCcw className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Reativar Conta</h3>
+                  <p className="text-sm text-gray-500">{accountToManage.profile_name}</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 mb-4">
+                Para reativar esta conta, insira as credenciais do LinkedIn. A conta deve ser a mesma que foi desconectada anteriormente.
+              </p>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Usuário do LinkedIn</label>
+                  <input
+                    type="text"
+                    value={reactivateCredentials.username}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Senha do LinkedIn</label>
+                  <input
+                    type="password"
+                    value={reactivateCredentials.password}
+                    onChange={(e) => setReactivateCredentials(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Digite sua senha"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowReactivateModal(false);
+                    setAccountToManage(null);
+                    setReactivateCredentials({ username: '', password: '' });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                  disabled={actionLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleReactivate}
+                  disabled={actionLoading || !reactivateCredentials.password}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:opacity-50"
+                >
+                  {actionLoading ? 'Reativando...' : 'Reativar Conta'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

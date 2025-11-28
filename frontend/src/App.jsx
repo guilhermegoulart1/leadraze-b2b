@@ -26,6 +26,7 @@ import PermissionsPage from './pages/PermissionsPage';
 import SectorsPage from './pages/SectorsPage';
 import ActivationAgentsPage from './pages/ActivationAgentsPage';
 import ActivationCampaignsPage from './pages/ActivationCampaignsPage';
+import MyConnectionsPage from './pages/MyConnectionsPage';
 import ContactListsPage from './pages/ContactListsPage';
 import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
@@ -123,6 +124,7 @@ function AppRoutes() {
         <Route path="sectors" element={<SectorsPage />} />
         <Route path="activation-agents" element={<ActivationAgentsPage />} />
         <Route path="activation-campaigns" element={<ActivationCampaignsPage />} />
+        <Route path="my-connections" element={<MyConnectionsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="profile" element={<ProfilePage />} />

@@ -58,6 +58,21 @@ const unipileClient = {
       });
 
       return response.data;
+    },
+
+    // Desconectar conta do Unipile
+    disconnectAccount: async (accountId) => {
+      const url = `https://${dsn}/api/v1/accounts/${accountId}`;
+
+      const response = await axios.delete(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      return response.data;
     }
   },
 
@@ -112,9 +127,9 @@ const unipileClient = {
     sendConnectionRequest: async (params) => {
       const { account_id, user_id, message } = params;
       const url = `https://${dsn}/api/v1/users/${user_id}/connection?account_id=${account_id}`;
-      
+
       const body = message ? { message } : {};
-      
+
       const response = await axios.post(url, body, {
         headers: {
           'X-API-KEY': unipileToken,
@@ -122,6 +137,69 @@ const unipileClient = {
         },
         timeout: 15000
       });
+
+      return response.data;
+    },
+
+    // Buscar perfil completo de um usuário (com todas as seções do LinkedIn)
+    getFullProfile: async (accountId, userId) => {
+      const url = `https://${dsn}/api/v1/users/${userId}?account_id=${accountId}&linkedin_sections=*`;
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 30000
+      });
+
+      return response.data;
+    }
+  },
+
+  // ================================
+  // 🔗 CONNECTIONS (1º GRAU)
+  // ================================
+  connections: {
+    // Buscar conexões de 1º grau usando search com filtro network_distance
+    search: async (params) => {
+      const { account_id, limit = 100, cursor, keywords, job_title, industry, location } = params;
+
+      if (!account_id) {
+        throw new Error('account_id is required for connections search');
+      }
+
+      const url = `https://${dsn}/api/v1/linkedin/search?account_id=${account_id}`;
+
+      // Body com filtro de 1º grau (conexões existentes)
+      const body = {
+        api: 'classic', // OBRIGATÓRIO pela API Unipile
+        category: 'people',
+        network_distance: [1], // Apenas 1º grau (já conectados!)
+        limit: limit
+      };
+
+      // Adicionar filtros opcionais
+      if (keywords) body.keywords = keywords;
+      if (job_title) body.job_title = Array.isArray(job_title) ? job_title : [job_title];
+      if (industry) body.industry = Array.isArray(industry) ? industry : [industry];
+      if (location) body.location = location;
+      if (cursor) body.cursor = cursor;
+
+      console.log('🔍 === UNIPILE CONNECTIONS SEARCH ===');
+      console.log('📍 URL:', url);
+      console.log('📦 Body:', JSON.stringify(body, null, 2));
+
+      const response = await axios.post(url, body, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 60000 // Timeout maior para busca de conexões
+      });
+
+      console.log('✅ Conexões encontradas:', response.data.items?.length || 0);
 
       return response.data;
     }

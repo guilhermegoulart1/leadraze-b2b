@@ -69,6 +69,7 @@ const Layout = () => {
     // Ativação de Listas
     { section: t('sections.activation') },
     { path: '/activation-campaigns', label: t('menu.campaigns'), icon: Award },
+    { path: '/my-connections', label: 'Minhas Conexoes', icon: Users },
     { path: '/contact-lists', label: t('menu.contactLists'), icon: Users },
 
     // Emails
