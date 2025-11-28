@@ -77,30 +77,43 @@ class BillingService {
   }
 
   /**
-   * Add monthly credits from subscription
+   * Add monthly credits from subscription (Google Maps + AI)
    */
   async addMonthlyCredits(accountId, planType) {
     const plan = PLANS[planType];
     if (!plan) return null;
 
-    // Expire old monthly credits
+    // Expire old monthly credits (both gmaps and ai)
     await db.query(
       `UPDATE credit_packages
        SET status = 'expired'
        WHERE account_id = $1
-       AND credit_type = 'gmaps_monthly'
+       AND credit_type IN ('gmaps_monthly', 'ai_monthly')
        AND status = 'active'`,
       [accountId]
     );
 
-    // Add new monthly credits
-    return this.addCreditPackage({
+    // Add new monthly Google Maps credits
+    const gmapsPackage = await this.addCreditPackage({
       accountId,
       creditType: 'gmaps_monthly',
       credits: plan.limits.monthlyGmapsCredits,
       validityDays: 30,
       source: 'subscription'
     });
+
+    // Add new monthly AI credits
+    const aiPackage = await this.addCreditPackage({
+      accountId,
+      creditType: 'ai_monthly',
+      credits: plan.limits.monthlyAiCredits || 5000,
+      validityDays: 30,
+      source: 'subscription'
+    });
+
+    console.log(`✅ Added monthly credits for account ${accountId}: ${plan.limits.monthlyGmapsCredits} GMaps, ${plan.limits.monthlyAiCredits || 5000} AI`);
+
+    return { gmapsPackage, aiPackage };
   }
 
   /**
