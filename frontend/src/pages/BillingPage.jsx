@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useBilling } from '../contexts/BillingContext';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Zap, Infinity } from 'lucide-react';
 import api from '../services/api';
 
 const BillingPage = () => {
@@ -26,6 +27,8 @@ const BillingPage = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showAiCreditsModal, setShowAiCreditsModal] = useState(false);
+  const [aiCredits, setAiCredits] = useState(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -40,6 +43,35 @@ const BillingPage = () => {
     };
     fetchInvoices();
   }, []);
+
+  useEffect(() => {
+    const fetchAiCredits = async () => {
+      try {
+        const response = await api.get('/billing/ai-credits');
+        if (response.success) {
+          setAiCredits(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching AI credits:', err);
+      }
+    };
+    fetchAiCredits();
+  }, []);
+
+  const handlePurchaseAiCredits = async (packageKey) => {
+    setActionLoading('purchaseAi');
+    try {
+      const response = await api.post('/billing/ai-credits/purchase', { packageKey });
+      if (response.success && response.data?.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (err) {
+      console.error('Error purchasing AI credits:', err);
+    } finally {
+      setActionLoading(null);
+      setShowAiCreditsModal(false);
+    }
+  };
 
   const handleAction = async (action, actionName) => {
     setActionLoading(actionName);
@@ -279,6 +311,64 @@ const BillingPage = () => {
           </div>
         </div>
 
+        {/* AI Credits */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{t('aiCredits.title', 'AI Agent Credits')}</h2>
+              <p className="text-gray-500 text-sm">{t('aiCredits.subtitle', 'Credits for automated AI agent messages')}</p>
+            </div>
+            <button
+              onClick={() => setShowAiCreditsModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700"
+            >
+              {t('aiCredits.buyMore', 'Buy AI Credits')}
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Available AI Credits */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm text-purple-700">{t('aiCredits.available', 'Available')}</p>
+                  <p className="text-3xl font-bold text-purple-800">
+                    {aiCredits?.total?.toLocaleString() || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Credit breakdown */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">{t('aiCredits.monthlyCredits', 'Monthly credits')}</span>
+                <span className="font-medium text-gray-900">
+                  {aiCredits?.monthly?.remaining?.toLocaleString() || 0} {t('purchaseModal.credits', 'credits')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">{t('aiCredits.purchasedCredits', 'Purchased credits')}</span>
+                <span className="font-medium text-purple-600 flex items-center gap-1">
+                  {aiCredits?.permanent?.toLocaleString() || 0} {t('purchaseModal.credits', 'credits')}
+                  <Infinity className="w-3 h-3 text-purple-500" />
+                </span>
+              </div>
+              {aiCredits?.monthly?.expiresAt && (
+                <div className="flex items-center justify-between text-amber-600">
+                  <span>{t('aiCredits.monthlyExpire', 'Monthly expire')}</span>
+                  <span className="font-medium">
+                    {new Date(aiCredits.monthly.expiresAt).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Google Maps Credits */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start justify-between mb-6">
@@ -497,6 +587,46 @@ const BillingPage = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
             >
               {t('purchaseModal.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Buy AI Credits Modal */}
+      {showAiCreditsModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">{t('aiCredits.purchaseModal.title', 'Buy AI Credits')}</h3>
+            <p className="text-gray-600 mb-2">
+              {t('aiCredits.purchaseModal.subtitle', 'Each AI agent message uses 1 credit')}
+            </p>
+            <p className="text-purple-600 text-sm font-medium mb-6 flex items-center gap-1">
+              <Infinity className="w-4 h-4" />
+              {t('aiCredits.purchaseModal.neverExpireNote', 'Purchased credits never expire')}
+            </p>
+
+            <div className="space-y-3 mb-6">
+              {aiCredits?.purchaseOptions?.map((pkg) => (
+                <button
+                  key={pkg.key}
+                  onClick={() => handlePurchaseAiCredits(pkg.key)}
+                  disabled={actionLoading === 'purchaseAi'}
+                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors disabled:opacity-50"
+                >
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900">{pkg.credits.toLocaleString()} {t('purchaseModal.credits', 'credits')}</p>
+                    <p className="text-sm text-gray-500">${(pkg.price / pkg.credits * 1000 / 100).toFixed(2)}/1k credits</p>
+                  </div>
+                  <p className="text-xl font-bold text-purple-600">{pkg.priceFormatted}</p>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowAiCreditsModal(false)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+            >
+              {t('purchaseModal.cancel', 'Cancel')}
             </button>
           </div>
         </div>

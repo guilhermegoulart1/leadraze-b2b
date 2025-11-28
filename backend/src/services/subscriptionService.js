@@ -60,6 +60,7 @@ class SubscriptionService {
       max_channels: planLimits.maxChannels,
       max_users: planLimits.maxUsers,
       monthly_gmaps_credits: planLimits.monthlyGmapsCredits,
+      monthly_ai_credits: planLimits.monthlyAiCredits || 5000,
       metadata: stripeSubscription.metadata || {}
     };
 
@@ -69,8 +70,8 @@ class SubscriptionService {
         account_id, stripe_customer_id, stripe_subscription_id, stripe_price_id,
         plan_type, status, current_period_start, current_period_end,
         trial_start, trial_end, cancel_at_period_end, canceled_at, ended_at,
-        max_channels, max_users, monthly_gmaps_credits, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        max_channels, max_users, monthly_gmaps_credits, monthly_ai_credits, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       ON CONFLICT (account_id) DO UPDATE SET
         stripe_customer_id = EXCLUDED.stripe_customer_id,
         stripe_subscription_id = EXCLUDED.stripe_subscription_id,
@@ -87,6 +88,7 @@ class SubscriptionService {
         max_channels = EXCLUDED.max_channels,
         max_users = EXCLUDED.max_users,
         monthly_gmaps_credits = EXCLUDED.monthly_gmaps_credits,
+        monthly_ai_credits = EXCLUDED.monthly_ai_credits,
         metadata = EXCLUDED.metadata,
         updated_at = CURRENT_TIMESTAMP
       RETURNING *`,
@@ -96,7 +98,7 @@ class SubscriptionService {
         data.current_period_start, data.current_period_end,
         data.trial_start, data.trial_end, data.cancel_at_period_end,
         data.canceled_at, data.ended_at, data.max_channels,
-        data.max_users, data.monthly_gmaps_credits, JSON.stringify(data.metadata)
+        data.max_users, data.monthly_gmaps_credits, data.monthly_ai_credits, JSON.stringify(data.metadata)
       ]
     );
 
@@ -198,7 +200,8 @@ class SubscriptionService {
     return {
       maxChannels: totalChannels,
       maxUsers: totalUsers,
-      monthlyGmapsCredits: subscription.monthly_gmaps_credits
+      monthlyGmapsCredits: subscription.monthly_gmaps_credits,
+      monthlyAiCredits: subscription.monthly_ai_credits || 5000
     };
   }
 
@@ -252,6 +255,36 @@ class SubscriptionService {
    * Get subscription status for frontend
    */
   async getStatus(accountId) {
+    // ============================================
+    // TEMPORARY BYPASS - Remove after testing
+    // All users get full access temporarily
+    // ============================================
+    const TEMPORARY_BYPASS = false;
+
+    if (TEMPORARY_BYPASS) {
+      const usage = await billingService.getCurrentUsage(accountId);
+      return {
+        status: 'active',
+        planType: 'professional',
+        planName: 'Professional',
+        currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+        trialEnd: null,
+        cancelAtPeriodEnd: false,
+        daysUntilTrialEnd: null,
+        daysUntilDeletion: null,
+        canEdit: true,
+        blockLevel: 'none',
+        limits: {
+          maxChannels: 100,
+          maxUsers: 100,
+          monthlyGmapsCredits: 10000
+        },
+        usage,
+        message: null
+      };
+    }
+    // ============================================
+
     const subscription = await this.getSubscription(accountId);
     const usage = await billingService.getCurrentUsage(accountId);
     const limits = await this.calculateLimits(accountId);

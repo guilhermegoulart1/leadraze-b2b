@@ -137,29 +137,6 @@ const GoogleMapsAgentsPage = () => {
     }
   };
 
-  const handleExecuteAgent = async (agentId) => {
-    try {
-      // Add to executing list immediately
-      setExecutingAgents(prev => new Set([...prev, agentId]));
-
-      // Trigger execution
-      await apiService.executeGoogleMapsAgent(agentId);
-
-      // Reload to get latest status
-      loadAgents();
-    } catch (error) {
-      console.error('❌ Erro ao executar campanha:', error);
-      alert(t('agents.errorExecute'));
-
-      // Remove from executing list if failed
-      setExecutingAgents(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(agentId);
-        return newSet;
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -228,7 +205,6 @@ const GoogleMapsAgentsPage = () => {
                 onPause={handlePauseAgent}
                 onResume={handleResumeAgent}
                 onDelete={handleDeleteAgent}
-                onExecute={handleExecuteAgent}
               />
             ))}
           </div>

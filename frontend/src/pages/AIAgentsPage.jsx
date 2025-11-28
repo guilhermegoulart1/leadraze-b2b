@@ -6,6 +6,7 @@ import api from '../services/api';
 import AIAgentModal from '../components/AIAgentModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
+import AiCreditsCard from '../components/AiCreditsCard';
 
 const AIAgentsPage = () => {
   const { t } = useTranslation(['aiagents', 'common']);
@@ -122,6 +123,11 @@ const AIAgentsPage = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {/* AI Credits Card */}
+        <div className="mb-6">
+          <AiCreditsCard />
+        </div>
+
         {agents.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">

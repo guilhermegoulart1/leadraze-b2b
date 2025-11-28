@@ -1,14 +1,13 @@
 // frontend/src/components/GoogleMapsAgentCard.jsx
 import React from 'react';
 import {
-  Bot,
+  Map,
   MapPin,
   Play,
   Pause,
   Trash2,
   TrendingUp,
   Clock,
-  DollarSign,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -17,7 +16,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExecute }) => {
+const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete }) => {
   const getStatusConfig = (status) => {
     switch (status) {
       case 'active':
@@ -109,7 +108,7 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExecute }) 
             />
           ) : (
             <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-              <Bot className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+              <Map className="w-8 h-8 text-purple-600 dark:text-purple-400" />
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -160,11 +159,11 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExecute }) 
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
             <TrendingUp className="w-3 h-3" />
-            <span>Leads encontrados</span>
+            <span>Encontrados</span>
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
             {agent.total_leads_found || 0}
@@ -174,7 +173,7 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExecute }) 
         <div>
           <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
             <CheckCircle className="w-3 h-3" />
-            <span>Inseridos no CRM</span>
+            <span>No CRM</span>
           </div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
             {agent.leads_inserted || 0}
@@ -184,68 +183,49 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExecute }) 
         <div>
           <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
             <Clock className="w-3 h-3" />
-            <span>Última execução</span>
+            <span>Última exec.</span>
           </div>
           <div className="text-xs text-gray-700 dark:text-gray-300">
             {formatDate(agent.last_execution_at)}
           </div>
         </div>
-
-        <div>
-          <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
-            <DollarSign className="w-3 h-3" />
-            <span>Custo estimado</span>
-          </div>
-          <div className="text-xs text-gray-700 dark:text-gray-300">
-            ${(parseFloat(agent.estimated_cost) || 0).toFixed(4)}
-          </div>
-        </div>
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-end gap-1 pt-4 border-t border-gray-200 dark:border-gray-700">
         {agent.status === 'active' && (
-          <>
-            <button
-              onClick={() => onExecute(agent.id)}
-              className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
-            >
-              <Play className="w-4 h-4" />
-              <span>Executar Agora</span>
-            </button>
-            <button
-              onClick={() => onPause(agent.id)}
-              className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
-            >
-              <Pause className="w-4 h-4" />
-              <span>Pausar</span>
-            </button>
-          </>
+          <button
+            onClick={() => onPause(agent.id)}
+            className="p-2 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
+            title="Pausar"
+          >
+            <Pause className="w-4 h-4" />
+          </button>
         )}
 
         {agent.status === 'paused' && (
           <button
             onClick={() => onResume(agent.id)}
-            className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+            className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+            title="Retomar"
           >
             <Play className="w-4 h-4" />
-            <span>Retomar</span>
           </button>
         )}
 
         {agent.status === 'completed' && (
-          <span className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
+          <span className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400 pr-2">
             <CheckCircle className="w-4 h-4" />
-            <span>Agente concluído</span>
+            <span>Concluído</span>
           </span>
         )}
 
         <button
           onClick={() => onDelete(agent.id)}
-          className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors ml-auto"
+          className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+          title="Deletar"
         >
           <Trash2 className="w-4 h-4" />
-          <span>Deletar</span>
         </button>
       </div>
     </div>

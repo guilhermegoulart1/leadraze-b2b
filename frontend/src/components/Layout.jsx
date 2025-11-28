@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import OnboardingChecklist from './OnboardingChecklist';
+import CreditsIndicator from './CreditsIndicator';
 
 const Layout = () => {
   const location = useLocation();
@@ -371,8 +372,11 @@ const Layout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-14 bg-[#7229f7] border-b border-purple-800 flex items-center justify-end px-6">
-          {/* Notification Icons */}
+          {/* Credits Indicator + Notification Icons */}
           <div className="flex items-center space-x-3">
+            {/* Credits Indicator */}
+            <CreditsIndicator />
+
             {/* Conversations Notification */}
             <button
               onClick={() => navigate('/conversations')}

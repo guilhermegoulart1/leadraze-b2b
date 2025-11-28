@@ -4,6 +4,7 @@
 const db = require('../config/database');
 const serpApiClient = require('../config/serpapi');
 const { googleMapsAgentQueue } = require('../queues');
+const stripeService = require('./stripeService');
 
 class GoogleMapsAgentService {
   /**
@@ -214,6 +215,20 @@ class GoogleMapsAgentService {
     // Get agent data
     const agent = await this._getAgentById(agentId);
 
+    // Check if account has credits before executing
+    const hasCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
+    if (!hasCredits) {
+      console.log(`⚠️  Insufficient credits for account ${agent.account_id}. Skipping execution.`);
+      return {
+        success: false,
+        leads_inserted: 0,
+        leads_skipped: 0,
+        status: 'paused',
+        message: 'Insufficient credits',
+        reason: 'insufficient_credits'
+      };
+    }
+
     // If agent is completed or paused, reactivate it
     if (agent.status === 'completed' || agent.status === 'paused') {
       console.log(`🔄 Reactivating agent from status: ${agent.status}`);
@@ -297,12 +312,13 @@ class GoogleMapsAgentService {
       hasMoreResults: searchResults.pagination.has_next_page
     });
 
-    console.log(`✅ Agent execution completed: ${insertionResults.inserted} inserted, ${insertionResults.skipped} skipped`);
+    console.log(`✅ Agent execution completed: ${insertionResults.inserted} inserted, ${insertionResults.skipped} skipped, ${insertionResults.creditsConsumed || 0} credits consumed`);
 
     return {
       success: true,
       leads_inserted: insertionResults.inserted,
       leads_skipped: insertionResults.skipped,
+      credits_consumed: insertionResults.creditsConsumed || 0,
       current_page: currentPage + 1,
       has_more_results: searchResults.pagination.has_next_page
     };
@@ -455,10 +471,12 @@ class GoogleMapsAgentService {
 
   /**
    * Insert places into CRM as contacts
+   * Each lead inserted consumes 1 AI credit
    */
   async _insertPlacesIntoCRM(places, agent, pageNumber) {
     let inserted = 0;
     let skipped = 0;
+    let creditsConsumed = 0;
 
     for (let i = 0; i < places.length; i++) {
       const place = places[i];
@@ -479,14 +497,32 @@ class GoogleMapsAgentService {
           continue;
         }
 
+        // Check if account has enough credits before inserting
+        const hasCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
+        if (!hasCredits) {
+          console.log(`⚠️  Insufficient credits for account ${agent.account_id}. Stopping insertion.`);
+          break;
+        }
+
         // Insert contact
         const contact = await this._insertContact(contactData, agent);
 
         // Link contact to agent
         await this._linkContactToAgent(agent.id, contact.id, pageNumber, i + 1);
 
+        // Consume 1 credit for the lead inserted
+        await stripeService.consumeAiCredits(
+          agent.account_id,
+          1,
+          agent.id,
+          null, // no conversation
+          agent.user_id,
+          `Google Maps lead: ${contactData.name}`
+        );
+        creditsConsumed++;
+
         inserted++;
-        console.log(`✅ Inserted: ${contactData.name}`);
+        console.log(`✅ Inserted: ${contactData.name} (1 credit consumed)`);
 
       } catch (error) {
         console.error(`❌ Error inserting place ${place.title}:`, error.message);
@@ -494,7 +530,11 @@ class GoogleMapsAgentService {
       }
     }
 
-    return { inserted, skipped };
+    if (creditsConsumed > 0) {
+      console.log(`💰 Total credits consumed: ${creditsConsumed}`);
+    }
+
+    return { inserted, skipped, creditsConsumed };
   }
 
   /**

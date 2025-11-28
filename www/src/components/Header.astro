@@ -10,6 +10,7 @@ const navItems = [
   { href: '#testimonials', label: t.nav.testimonials },
   { href: '#pricing', label: t.nav.pricing },
   { href: '#faq', label: t.nav.faq },
+  { href: 'https://developer.getraze.co', label: t.nav.documentation, external: true },
 ];
 
 const languages = [
@@ -34,6 +35,8 @@ const currentLang = languages.find(l => l.code === currentLocale) || languages[0
         {navItems.map((item) => (
           <a
             href={item.href}
+            target={item.external ? '_blank' : undefined}
+            rel={item.external ? 'noopener noreferrer' : undefined}
             class="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors"
           >
             {item.label}
@@ -71,6 +74,14 @@ const currentLang = languages.find(l => l.code === currentLocale) || languages[0
           </div>
         </div>
 
+        <!-- Talk to Sales Button -->
+        <button
+          id="talk-to-sales-btn"
+          class="border-2 border-primary-600 text-primary-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-50 transition-colors"
+        >
+          {t.nav.talkToSales}
+        </button>
+
         <!-- Login Button -->
         <a
           href="https://app.getraze.co/login"
@@ -98,6 +109,8 @@ const currentLang = languages.find(l => l.code === currentLocale) || languages[0
         {navItems.map((item) => (
           <a
             href={item.href}
+            target={item.external ? '_blank' : undefined}
+            rel={item.external ? 'noopener noreferrer' : undefined}
             class="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors"
           >
             {item.label}
@@ -116,6 +129,12 @@ const currentLang = languages.find(l => l.code === currentLocale) || languages[0
               </a>
             ))}
           </div>
+          <button
+            id="talk-to-sales-btn-mobile"
+            class="border-2 border-primary-600 text-primary-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-50 transition-colors text-center"
+          >
+            {t.nav.talkToSales}
+          </button>
           <a
             href="https://app.getraze.co/login"
             class="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors text-center"
@@ -159,4 +178,16 @@ const currentLang = languages.find(l => l.code === currentLocale) || languages[0
       langMenu?.classList.add('hidden');
     }
   });
+
+  // Talk to Sales button - dispatch custom event
+  const talkToSalesBtn = document.getElementById('talk-to-sales-btn');
+  const talkToSalesBtnMobile = document.getElementById('talk-to-sales-btn-mobile');
+
+  const openSalesChat = () => {
+    window.dispatchEvent(new CustomEvent('openSalesChat'));
+    mobileMenu?.classList.add('hidden');
+  };
+
+  talkToSalesBtn?.addEventListener('click', openSalesChat);
+  talkToSalesBtnMobile?.addEventListener('click', openSalesChat);
 </script>

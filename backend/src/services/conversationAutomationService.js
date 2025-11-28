@@ -5,6 +5,7 @@ const unipileClient = require('../config/unipile');
 const aiResponseService = require('./aiResponseService');
 const contactExtractionService = require('./contactExtractionService');
 const conversationSummaryService = require('./conversationSummaryService');
+const stripeService = require('./stripeService');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -46,6 +47,39 @@ async function processIncomingMessage(params) {
         processed: false,
         reason: 'manual_control'
       };
+    }
+
+    // Buscar account_id da conversa
+    const accountResult = await db.query(
+      `SELECT c.user_id, u.account_id
+       FROM conversations c
+       JOIN users u ON c.user_id = u.id
+       WHERE c.id = $1`,
+      [conversation_id]
+    );
+    const accountId = accountResult.rows[0]?.account_id;
+
+    // Verificar se tem créditos de IA disponíveis
+    if (accountId) {
+      const hasCredits = await stripeService.hasEnoughAiCredits(accountId, 1);
+      if (!hasCredits) {
+        console.log(`⚠️ Conta ${accountId} sem créditos de IA. Desativando automação.`);
+
+        // Desativar IA para esta conversa
+        await db.update(
+          'conversations',
+          {
+            ai_active: false,
+            updated_at: new Date()
+          },
+          { id: conversation_id }
+        );
+
+        return {
+          processed: false,
+          reason: 'insufficient_ai_credits'
+        };
+      }
     }
 
     // Registrar mensagem do lead no banco
@@ -140,6 +174,24 @@ async function processIncomingMessage(params) {
       await updateLeadStatusByIntent(conversation.lead_id, aiResponse.intent);
     }
 
+    // Consumir 1 crédito de IA após envio bem-sucedido
+    if (accountId) {
+      const consumed = await stripeService.consumeAiCredits(
+        accountId,
+        1,
+        conversation.ai_agent_id,
+        conversation_id,
+        conversation.user_id,
+        `AI response sent to ${conversation.lead_name}`
+      );
+
+      if (consumed) {
+        console.log(`💰 1 crédito de IA consumido para conta ${accountId}`);
+      } else {
+        console.warn(`⚠️ Falha ao consumir crédito de IA (mensagem já enviada)`);
+      }
+    }
+
     console.log(`✅ Resposta automática enviada com sucesso`);
 
     return {
@@ -231,6 +283,27 @@ async function processInviteAccepted(params) {
     if (aiAgent && campaign.automation_active) {
       console.log(`💬 Gerando mensagem inicial automática...`);
 
+      // Buscar account_id do usuário
+      const userResult = await db.query(
+        'SELECT account_id FROM users WHERE id = $1',
+        [campaign.user_id]
+      );
+      const accountId = userResult.rows[0]?.account_id;
+
+      // Verificar se tem créditos de IA disponíveis
+      if (accountId) {
+        const hasCredits = await stripeService.hasEnoughAiCredits(accountId, 1);
+        if (!hasCredits) {
+          console.log(`⚠️ Conta ${accountId} sem créditos de IA. Não enviando mensagem inicial.`);
+          return {
+            processed: true,
+            conversation_id: conversationId,
+            initial_message_sent: false,
+            reason: 'insufficient_ai_credits'
+          };
+        }
+      }
+
       // Gerar mensagem inicial
       const initialMessage = await aiResponseService.generateInitialMessage({
         ai_agent: aiAgent,
@@ -270,6 +343,22 @@ async function processInviteAccepted(params) {
         },
         { id: conversationId }
       );
+
+      // Consumir 1 crédito de IA após envio bem-sucedido
+      if (accountId) {
+        const consumed = await stripeService.consumeAiCredits(
+          accountId,
+          1,
+          aiAgent.id,
+          conversationId,
+          campaign.user_id,
+          `Initial AI message sent to ${leadData.name}`
+        );
+
+        if (consumed) {
+          console.log(`💰 1 crédito de IA consumido para conta ${accountId}`);
+        }
+      }
 
       console.log(`✅ Mensagem inicial enviada automaticamente`);
 

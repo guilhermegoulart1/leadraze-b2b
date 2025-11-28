@@ -4,7 +4,7 @@
  * SDK initialization and plan/addon configuration
  *
  * Pricing model (USD):
- * - Base Plan: $55/month (1 channel, 2 users, 200 credits/month)
+ * - Base Plan: $45/month (1 channel, 2 users, 200 gmaps credits/month, 5000 AI credits/month)
  * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
  * - One-time credits: never expire
  */
@@ -27,14 +27,16 @@ const PLANS = {
     priceId: null,
     priceMonthly: 0,
     limits: {
-      maxChannels: 999999,
-      maxUsers: 999999,
-      monthlyGmapsCredits: 999999
+      maxChannels: 100,
+      maxUsers: 100,
+      monthlyGmapsCredits: 1000,
+      monthlyAiCredits: 10000
     },
     features: [
-      'Canais ilimitados',
-      'Usuários ilimitados',
-      'Créditos Google Maps ilimitados',
+      '100 canais',
+      '100 usuários',
+      '1.000 créditos Google Maps/mês',
+      '10.000 créditos IA/mês',
       'Acesso total ao sistema'
     ],
     isPublic: false
@@ -42,17 +44,19 @@ const PLANS = {
   base: {
     name: 'Base',
     slug: 'base',
-    priceIdMonthly: process.env.STRIPE_PRICE_BASE_MONTHLY,
-    priceMonthly: 5500, // $55.00
+    priceIdMonthly: 'price_1SYIfEFYqwizUuNO9XT69vvV', // $45/month
+    priceMonthly: 4500, // $45.00
     limits: {
       maxChannels: 1,
       maxUsers: 2,
-      monthlyGmapsCredits: 200
+      monthlyGmapsCredits: 200,
+      monthlyAiCredits: 5000
     },
     features: [
       '1 communication channel',
       '2 users',
       '200 Google Maps credits/month',
+      '5,000 AI agent interactions/month',
       'Unlimited AI agents',
       'Priority support'
     ],
@@ -95,6 +99,7 @@ const CREDIT_PACKAGES = {
     priceId: process.env.STRIPE_PRICE_CREDITS_500,
     price: 900, // $9.00
     credits: 500,
+    creditType: 'gmaps',
     expires: false,
     billingType: 'onetime'
   },
@@ -104,6 +109,7 @@ const CREDIT_PACKAGES = {
     priceId: process.env.STRIPE_PRICE_CREDITS_1000,
     price: 1700, // $17.00
     credits: 1000,
+    creditType: 'gmaps',
     expires: false,
     billingType: 'onetime'
   },
@@ -113,6 +119,7 @@ const CREDIT_PACKAGES = {
     priceId: process.env.STRIPE_PRICE_CREDITS_2500,
     price: 3900, // $39.00
     credits: 2500,
+    creditType: 'gmaps',
     expires: false,
     billingType: 'onetime'
   },
@@ -122,6 +129,28 @@ const CREDIT_PACKAGES = {
     priceId: process.env.STRIPE_PRICE_CREDITS_5000,
     price: 5500, // $55.00
     credits: 5000,
+    creditType: 'gmaps',
+    expires: false,
+    billingType: 'onetime'
+  },
+  // AI Agent Credits (never expire)
+  ai_5000: {
+    name: '5,000 AI Agent Credits',
+    slug: 'ai-credits-5000',
+    priceId: 'price_1SYHvUFYqwizUuNOXMaREDaD', // $20
+    price: 2000, // $20.00
+    credits: 5000,
+    creditType: 'ai',
+    expires: false,
+    billingType: 'onetime'
+  },
+  ai_10000: {
+    name: '10,000 AI Agent Credits',
+    slug: 'ai-credits-10000',
+    priceId: 'price_1SYHxYFYqwizUuNO8XWLrlan', // $30
+    price: 3000, // $30.00
+    credits: 10000,
+    creditType: 'ai',
     expires: false,
     billingType: 'onetime'
   }

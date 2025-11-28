@@ -117,4 +117,38 @@ router.post('/add-channel', billingController.addExtraChannel);
  */
 router.post('/add-user', billingController.addExtraUser);
 
+// ============================================
+// AI Credits Routes
+// ============================================
+
+/**
+ * GET /api/billing/ai-credits
+ * Get available AI credits with breakdown (monthly vs permanent)
+ */
+router.get('/ai-credits', billingController.getAiCredits);
+
+/**
+ * GET /api/billing/ai-credits/check
+ * Check if account has enough AI credits
+ * Query: { amount?: number } - defaults to 1
+ */
+router.get('/ai-credits/check', billingController.checkAiCredits);
+
+/**
+ * POST /api/billing/ai-credits/purchase
+ * Purchase AI credits (never expire)
+ * Body: { packageKey: 'ai_5000' | 'ai_10000' }
+ */
+router.post('/ai-credits/purchase', billingController.purchaseAiCredits);
+
+// ============================================
+// Credits Summary (for header display)
+// ============================================
+
+/**
+ * GET /api/billing/credits-summary
+ * Get quick summary of all credits (AI + GMaps) for header display
+ */
+router.get('/credits-summary', billingController.getCreditsSummary);
+
 module.exports = router;

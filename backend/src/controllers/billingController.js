@@ -4,7 +4,7 @@
  * Handles billing-related API requests
  *
  * Pricing model (USD):
- * - Base Plan: $55/month (1 channel, 2 users, 200 credits/month)
+ * - Base Plan: $45/month (1 channel, 2 users, 200 gmaps credits/month, 5000 AI credits/month)
  * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
  * - One-time credits: never expire
  */
@@ -628,7 +628,7 @@ exports.createGuestCheckoutSession = async (req, res) => {
     console.error('Error creating guest checkout session:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create checkout session'
+      message: error.userMessage || 'Failed to create checkout session'
     });
   }
 };
@@ -706,6 +706,187 @@ exports.addExtraUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to add extra user'
+    });
+  }
+};
+
+/**
+ * Get AI credits with breakdown
+ */
+exports.getAiCredits = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+
+    // Get detailed breakdown
+    const breakdown = await stripeService.getAiCreditBreakdown(accountId);
+
+    // Get AI credit packages for purchase
+    const allPackages = getCreditPackages();
+    const aiPackages = allPackages.filter(pkg => pkg.creditType === 'ai');
+
+    res.json({
+      success: true,
+      data: {
+        total: breakdown.total,
+        monthly: breakdown.monthly,
+        permanent: breakdown.permanent,
+        packages: breakdown.packages.map(p => ({
+          id: p.id,
+          type: p.credit_type,
+          remaining: p.remaining_credits,
+          initial: p.initial_credits,
+          expiresAt: p.expires_at,
+          neverExpires: p.never_expires,
+          source: p.source
+        })),
+        purchaseOptions: aiPackages.map(pkg => ({
+          key: pkg.key,
+          name: pkg.name,
+          credits: pkg.credits,
+          price: pkg.price,
+          priceFormatted: `$${(pkg.price / 100).toFixed(2)}`,
+          expires: pkg.expires
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error getting AI credits:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get AI credits'
+    });
+  }
+};
+
+/**
+ * Purchase AI credits (never expire)
+ */
+exports.purchaseAiCredits = async (req, res) => {
+  try {
+    const { packageKey } = req.body;
+    const accountId = req.user.account_id;
+    const userEmail = req.user.email;
+    const userName = req.user.name;
+
+    // Validate package
+    const creditPackage = CREDIT_PACKAGES[packageKey];
+    if (!creditPackage || creditPackage.creditType !== 'ai') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid AI credit package'
+      });
+    }
+
+    if (!creditPackage.priceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'AI credit package not configured. Contact support.'
+      });
+    }
+
+    // Get or create Stripe customer
+    const customerId = await stripeService.getOrCreateCustomer(accountId, userEmail, userName);
+
+    // Create checkout session
+    const session = await stripeService.createCreditsCheckoutSession({
+      accountId,
+      customerId,
+      packageKey,
+      successUrl: `${process.env.FRONTEND_URL}/agents?success=true&type=ai_credits&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${process.env.FRONTEND_URL}/agents`
+    });
+
+    res.json({
+      success: true,
+      data: {
+        sessionId: session.id,
+        url: session.url
+      }
+    });
+  } catch (error) {
+    console.error('Error creating AI credits checkout:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create checkout session'
+    });
+  }
+};
+
+/**
+ * Check if account has enough AI credits
+ */
+exports.checkAiCredits = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { amount = 1 } = req.query;
+
+    const hasCredits = await stripeService.hasEnoughAiCredits(accountId, parseInt(amount));
+    const available = await stripeService.getAvailableAiCredits(accountId);
+
+    res.json({
+      success: true,
+      data: {
+        hasCredits,
+        available,
+        required: parseInt(amount)
+      }
+    });
+  } catch (error) {
+    console.error('Error checking AI credits:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check AI credits'
+    });
+  }
+};
+
+/**
+ * Get credits summary for header display
+ * Returns a quick overview of both AI and GMaps credits
+ */
+exports.getCreditsSummary = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+
+    // Get AI credits
+    const aiBreakdown = await stripeService.getAiCreditBreakdown(accountId);
+
+    // Get GMaps credits
+    const gmapsBreakdown = await stripeService.getCreditBreakdown(accountId);
+
+    // Get subscription limits for monthly allocation
+    const subscription = await subscriptionService.getStatus(accountId);
+    const monthlyAiLimit = subscription?.limits?.monthlyAiCredits || 5000;
+    const monthlyGmapsLimit = subscription?.limits?.monthlyGmapsCredits || 200;
+
+    res.json({
+      success: true,
+      data: {
+        ai: {
+          total: aiBreakdown.total,
+          monthly: aiBreakdown.monthly?.remaining || 0,
+          permanent: aiBreakdown.permanent || 0,
+          monthlyLimit: monthlyAiLimit,
+          percentUsed: monthlyAiLimit > 0
+            ? Math.round(((monthlyAiLimit - (aiBreakdown.monthly?.remaining || 0)) / monthlyAiLimit) * 100)
+            : 0
+        },
+        gmaps: {
+          total: gmapsBreakdown.total,
+          monthly: gmapsBreakdown.expiring || 0,
+          permanent: gmapsBreakdown.permanent || 0,
+          monthlyLimit: monthlyGmapsLimit,
+          percentUsed: monthlyGmapsLimit > 0
+            ? Math.round(((monthlyGmapsLimit - (gmapsBreakdown.expiring || 0)) / monthlyGmapsLimit) * 100)
+            : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting credits summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get credits summary'
     });
   }
 };

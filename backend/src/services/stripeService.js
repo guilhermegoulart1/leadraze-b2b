@@ -22,6 +22,27 @@ const {
 } = require('../config/stripe');
 const db = require('../config/database');
 
+// Helper to check if Stripe is in test mode
+const isTestMode = () => {
+  const key = process.env.STRIPE_SECRET_KEY || '';
+  return key.startsWith('sk_test_');
+};
+
+// Helper to validate price ID matches the current mode
+const validatePriceIdMode = (priceId, context = '') => {
+  if (!priceId) return; // Skip validation if no price ID
+
+  const testMode = isTestMode();
+  // Price IDs from live mode contain the same structure but were created in live mode
+  // We can't directly tell from the ID, but if Stripe returns 'resource_missing' with
+  // "exists in live mode", we know there's a mismatch
+  // This is a pre-check warning based on common patterns
+
+  if (testMode) {
+    console.log(`🔧 Stripe Mode: TEST | Using price: ${priceId} ${context ? `(${context})` : ''}`);
+  }
+};
+
 // Launch promotion: 70% OFF first month
 const LAUNCH_COUPON = {
   id: '70OFF',
@@ -182,6 +203,9 @@ class StripeService {
       metadata = {}
     } = options;
 
+    // Log mode for debugging
+    validatePriceIdMode(priceId, 'base plan');
+
     // Build line items array
     const lineItems = [
       {
@@ -192,6 +216,7 @@ class StripeService {
 
     // Add extra channels if requested
     if (extraChannels > 0 && ADDONS.channel.priceId) {
+      validatePriceIdMode(ADDONS.channel.priceId, 'extra channel');
       lineItems.push({
         price: ADDONS.channel.priceId,
         quantity: extraChannels
@@ -200,6 +225,7 @@ class StripeService {
 
     // Add extra users if requested
     if (extraUsers > 0 && ADDONS.user.priceId) {
+      validatePriceIdMode(ADDONS.user.priceId, 'extra user');
       lineItems.push({
         price: ADDONS.user.priceId,
         quantity: extraUsers
@@ -244,8 +270,20 @@ class StripeService {
       }
     };
 
-    const session = await stripe.checkout.sessions.create(sessionConfig);
-    return session;
+    try {
+      const session = await stripe.checkout.sessions.create(sessionConfig);
+      return session;
+    } catch (error) {
+      // Check for live/test mode mismatch
+      if (error.code === 'resource_missing' && error.message?.includes('exists in live mode')) {
+        const mode = isTestMode() ? 'TEST' : 'LIVE';
+        console.error(`❌ Stripe Mode Mismatch: Using ${mode} mode key but price ID exists in the other mode.`);
+        console.error(`   Price ID: ${priceId}`);
+        console.error(`   Solution: Update STRIPE_PRICE_* env vars to match your STRIPE_SECRET_KEY mode.`);
+        error.userMessage = `Stripe configuration error: Price IDs don't match the API key mode (${mode}). Please contact support.`;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -297,11 +335,15 @@ class StripeService {
    * @param {boolean} neverExpires - If true, credits never expire
    * @param {string} source - Source of credits (purchase_onetime, subscription, bonus)
    * @param {object} stripeData - Stripe payment data for reference
+   * @param {string} creditType - Type of credits ('gmaps' or 'ai')
    */
-  async addCreditsToAccount(accountId, credits, neverExpires = false, source = 'purchase_onetime', stripeData = {}) {
+  async addCreditsToAccount(accountId, credits, neverExpires = false, source = 'purchase_onetime', stripeData = {}, creditType = 'gmaps') {
     const expiresAt = neverExpires
       ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000) // 100 years
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    // For monthly credits from subscription, use specific type
+    const finalCreditType = source === 'subscription' ? `${creditType}_monthly` : creditType;
 
     const result = await db.query(`
       INSERT INTO credit_packages (
@@ -315,21 +357,114 @@ class StripeService {
         never_expires,
         status,
         source
-      ) VALUES ($1, $2, $3, 'gmaps', $4, $4, $5, $6, 'active', $7)
+      ) VALUES ($1, $2, $3, $4, $5, $5, $6, $7, 'active', $8)
       RETURNING id
     `, [
       accountId,
       stripeData.paymentIntentId || null,
       stripeData.checkoutSessionId || null,
+      finalCreditType,
       credits,
       expiresAt,
       neverExpires,
       source
     ]);
 
-    console.log(`✅ Added ${credits} credits to account ${accountId} (expires: ${neverExpires ? 'never' : expiresAt})`);
+    console.log(`✅ Added ${credits} ${creditType} credits to account ${accountId} (expires: ${neverExpires ? 'never' : expiresAt})`);
 
     return result.rows[0];
+  }
+
+  /**
+   * Add AI credits to account after successful purchase
+   * AI credits purchased separately NEVER expire
+   */
+  async addAiCreditsToAccount(accountId, credits, source = 'purchase', stripeData = {}) {
+    return this.addCreditsToAccount(accountId, credits, true, source, stripeData, 'ai');
+  }
+
+  /**
+   * Add monthly AI credits from subscription
+   * These expire in 30 days
+   */
+  async addMonthlyAiCredits(accountId, credits = 5000) {
+    return this.addCreditsToAccount(
+      accountId,
+      credits,
+      false, // Monthly credits expire
+      'subscription',
+      {},
+      'ai'
+    );
+  }
+
+  /**
+   * Get available AI credits for an account
+   */
+  async getAvailableAiCredits(accountId) {
+    const result = await db.query(
+      'SELECT get_available_ai_credits($1) as credits',
+      [accountId]
+    );
+    return result.rows[0]?.credits || 0;
+  }
+
+  /**
+   * Consume AI credits for an agent message
+   */
+  async consumeAiCredits(accountId, amount, agentId, conversationId, userId, description = null) {
+    const result = await db.query(
+      'SELECT consume_ai_credits($1, $2, $3, $4, $5, $6) as success',
+      [accountId, amount, 'agent_message', conversationId, userId, description || `Agent ${agentId} sent message`]
+    );
+    return result.rows[0]?.success || false;
+  }
+
+  /**
+   * Get AI credit breakdown for an account
+   */
+  async getAiCreditBreakdown(accountId) {
+    const result = await db.query(`
+      SELECT
+        id,
+        credit_type,
+        initial_credits,
+        remaining_credits,
+        expires_at,
+        never_expires,
+        source,
+        created_at,
+        status
+      FROM credit_packages
+      WHERE account_id = $1
+        AND credit_type IN ('ai', 'ai_monthly')
+        AND status = 'active'
+        AND (never_expires = true OR expires_at > NOW())
+      ORDER BY
+        CASE WHEN credit_type = 'ai_monthly' THEN 0 ELSE 1 END,
+        expires_at ASC NULLS LAST
+    `, [accountId]);
+
+    const monthly = result.rows.filter(pkg => pkg.credit_type === 'ai_monthly');
+    const permanent = result.rows.filter(pkg => pkg.credit_type === 'ai');
+
+    return {
+      packages: result.rows,
+      total: result.rows.reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
+      monthly: {
+        remaining: monthly.reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
+        expiresAt: monthly[0]?.expires_at || null
+      },
+      permanent: permanent.reduce((sum, pkg) => sum + pkg.remaining_credits, 0)
+    };
+  }
+
+  /**
+   * Check if account has enough AI credits
+   */
+  async hasEnoughAiCredits(accountId, amount = 1) {
+    const available = await this.getAvailableAiCredits(accountId);
+    return available >= amount;
   }
 
   /**
