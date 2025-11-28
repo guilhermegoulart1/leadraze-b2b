@@ -43,12 +43,12 @@ const validatePriceIdMode = (priceId, context = '') => {
   }
 };
 
-// Launch promotion: 70% OFF first month
+// Launch promotion: 60% OFF first month
 const LAUNCH_COUPON = {
-  id: '70OFF',
-  percentOff: 70,
+  id: '60OFF',
+  percentOff: 60,
   duration: 'once', // Only first month
-  name: '70% OFF - Launch Promotion'
+  name: '60% OFF - Launch Promotion'
 };
 
 class StripeService {
