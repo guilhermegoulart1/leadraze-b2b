@@ -533,6 +533,12 @@ class ApiService {
     return this.request('/profiles/channel-types');
   }
 
+  async syncChannels() {
+    return this.request('/profiles/channels/sync', {
+      method: 'POST',
+    });
+  }
+
   async connectLinkedInAccount(username, password) {
     return this.request('/profiles/linkedin-accounts/connect', {
       method: 'POST',

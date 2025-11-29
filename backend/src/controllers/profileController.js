@@ -1,4 +1,5 @@
 // backend/src/controllers/profileController.js
+const axios = require('axios');
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const { sendSuccess, sendError } = require('../utils/responses');
@@ -1313,6 +1314,102 @@ const getLimitHistory = async (req, res) => {
 };
 
 // ================================
+// MULTI-CHANNEL: SINCRONIZAR CONTAS DA UNIPILE
+// ================================
+const syncUnipileAccounts = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`🔄 Sincronizando contas Unipile para usuário ${userId}`);
+
+    if (!unipileClient.isInitialized()) {
+      throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
+    }
+
+    const dsn = process.env.UNIPILE_DSN;
+    const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
+
+    // Buscar todas as contas da Unipile
+    const response = await axios.get(`https://${dsn}/api/v1/accounts`, {
+      headers: { 'X-API-KEY': token, 'Accept': 'application/json' },
+      timeout: 15000
+    });
+
+    const unipileAccounts = response.data.items || response.data || [];
+    console.log(`📊 Encontradas ${unipileAccounts.length} contas na Unipile`);
+
+    const newAccounts = [];
+
+    for (const unipileAccount of unipileAccounts) {
+      const unipileId = unipileAccount.id;
+      const providerType = (unipileAccount.type || 'LINKEDIN').toUpperCase();
+
+      // Verificar se já existe no banco
+      const existsGlobally = await db.findOne('linkedin_accounts', { unipile_account_id: unipileId });
+
+      if (existsGlobally) {
+        console.log(`⏭️ Conta ${unipileId} já existe no banco`);
+        continue;
+      }
+
+      // Conta nova - buscar dados do perfil
+      console.log(`🆕 Nova conta: ${unipileId} (${providerType})`);
+
+      let profileData = null;
+      if (providerType === 'LINKEDIN') {
+        try {
+          profileData = await unipileClient.users.getOwnProfile(unipileId);
+        } catch (e) {
+          console.warn(`⚠️ Erro ao buscar perfil: ${e.message}`);
+        }
+      }
+
+      const connectionParams = unipileAccount.connection_params?.im || {};
+
+      const channelData = {
+        user_id: userId,
+        account_id: accountId,
+        unipile_account_id: unipileId,
+        provider_type: providerType,
+        status: 'active',
+        connected_at: new Date(),
+        channel_name: unipileAccount.name || `${providerType} Account`,
+        channel_identifier: connectionParams.publicIdentifier || null,
+        linkedin_username: connectionParams.publicIdentifier || profileData?.public_identifier || null,
+        profile_name: unipileAccount.name || profileData?.name || connectionParams.username || `${providerType} Account`,
+        profile_url: profileData?.url || null,
+        profile_picture: profileData?.profile_picture || null,
+        public_identifier: connectionParams.publicIdentifier || profileData?.public_identifier || null,
+        channel_settings: JSON.stringify({
+          ignore_groups: true,
+          auto_read: false,
+          ai_enabled: true,
+          notify_on_message: true,
+          business_hours_only: false
+        })
+      };
+
+      const saved = await db.insert('linkedin_accounts', channelData);
+      newAccounts.push(saved);
+      console.log(`✅ Canal criado: ${saved.id}`);
+    }
+
+    console.log(`✅ Sincronização: ${newAccounts.length} novas contas`);
+
+    sendSuccess(res, {
+      synced: true,
+      new_accounts: newAccounts.length,
+      accounts: newAccounts
+    }, 'Accounts synchronized');
+
+  } catch (error) {
+    console.error('❌ Erro ao sincronizar:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
 // MULTI-CHANNEL: NOTIFY URL DO HOSTED AUTH (chamado pelo Unipile)
 // ================================
 const handleAuthNotify = async (req, res) => {
@@ -1641,6 +1738,7 @@ module.exports = {
   overrideLimit,
   getLimitHistory,
   // ✅ MULTI-CHANNEL
+  syncUnipileAccounts,
   handleAuthNotify,
   handleHostedAuthCallback,
   updateChannelSettings,

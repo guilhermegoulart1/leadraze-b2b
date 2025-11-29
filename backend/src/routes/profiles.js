@@ -28,6 +28,9 @@ router.get('/linkedin-accounts/hosted-auth-link', profileController.getHostedAut
 // ✅ MULTI-CHANNEL: Callback após Hosted Auth
 router.post('/channels/callback', profileController.handleHostedAuthCallback);
 
+// ✅ MULTI-CHANNEL: Sincronizar contas da Unipile
+router.post('/channels/sync', profileController.syncUnipileAccounts);
+
 // ✅ MULTI-CHANNEL: Atualizar configurações do canal
 router.patch('/channels/:id/settings', profileController.updateChannelSettings);
 

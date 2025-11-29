@@ -352,11 +352,20 @@ const ChannelsPage = () => {
           'unipile-auth',
           `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
         );
-        const checkPopup = setInterval(() => {
+        const checkPopup = setInterval(async () => {
           if (popup && popup.closed) {
             clearInterval(checkPopup);
+            // Sincronizar contas da Unipile com banco local
+            try {
+              console.log('🔄 Popup fechado, sincronizando contas...');
+              const syncResult = await api.syncChannels();
+              console.log('✅ Sync result:', syncResult);
+            } catch (syncError) {
+              console.error('⚠️ Erro ao sincronizar:', syncError);
+            }
+            // Recarregar lista
+            await loadAccounts();
             setConnectLoading(false);
-            setTimeout(() => loadAccounts(), 1500);
           }
         }, 500);
       } else {

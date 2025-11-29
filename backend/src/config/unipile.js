@@ -41,8 +41,8 @@ const unipileClient = {
         expiresOn: expiresOnISO,
         // Todos os providers disponíveis: Messaging + Email
         providers: options.providers || ['LINKEDIN', 'WHATSAPP', 'INSTAGRAM', 'MESSENGER', 'TELEGRAM', 'TWITTER', 'GOOGLE', 'OUTLOOK', 'MAIL'],
-        success_redirect_url: options.successRedirectUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/linkedin-accounts?connected=true`,
-        failure_redirect_url: options.failureRedirectUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/linkedin-accounts?error=true`
+        success_redirect_url: options.successRedirectUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/channels?connected=true`,
+        failure_redirect_url: options.failureRedirectUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/channels?error=true`
       };
 
       // Adicionar name se fornecido (útil para identificar no notify_url)
