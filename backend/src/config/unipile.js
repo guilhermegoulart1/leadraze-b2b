@@ -27,6 +27,59 @@ const unipileClient = {
   // 🔗 ACCOUNT
   // ================================
   account: {
+    // Gerar link de autenticação hospedada (Hosted Auth Link)
+    getHostedAuthLink: async (options = {}) => {
+      const url = `https://${dsn}/api/v1/hosted/accounts/link`;
+
+      // expiresOn deve ser ISO 8601: YYYY-MM-DDTHH:MM:SS.sssZ
+      const expiresDate = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+      const expiresOnISO = expiresDate.toISOString(); // Formato: 2025-11-29T02:53:03.000Z
+
+      const body = {
+        type: 'create',
+        api_url: `https://${dsn}`,
+        expiresOn: expiresOnISO,
+        // Todos os providers disponíveis: Messaging + Email
+        providers: options.providers || ['LINKEDIN', 'WHATSAPP', 'INSTAGRAM', 'MESSENGER', 'TELEGRAM', 'TWITTER', 'GOOGLE', 'OUTLOOK', 'MAIL'],
+        success_redirect_url: options.successRedirectUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/linkedin-accounts?connected=true`,
+        failure_redirect_url: options.failureRedirectUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/linkedin-accounts?error=true`
+      };
+
+      // Adicionar name se fornecido (útil para identificar no notify_url)
+      if (options.name) {
+        body.name = options.name;
+      }
+
+      // Adicionar notify_url se fornecido
+      if (options.notifyUrl) {
+        body.notify_url = options.notifyUrl;
+      }
+
+      console.log('🔗 Gerando hosted auth link:', JSON.stringify(body, null, 2));
+
+      try {
+        const response = await axios.post(url, body, {
+          headers: {
+            'X-API-KEY': unipileToken,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          timeout: 15000
+        });
+
+        console.log('✅ Hosted auth link gerado:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('❌ Erro Unipile Hosted Auth:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: JSON.stringify(error.response?.data, null, 2),
+          message: error.message
+        });
+        throw error;
+      }
+    },
+
     connectLinkedin: async (credentials) => {
       const url = `https://${dsn}/api/v1/accounts`;
 

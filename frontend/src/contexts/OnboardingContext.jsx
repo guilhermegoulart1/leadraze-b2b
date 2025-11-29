@@ -15,7 +15,7 @@ export const useOnboarding = () => {
 const ONBOARDING_STEPS = [
   {
     id: 'connect_linkedin',
-    path: '/linkedin-accounts',
+    path: '/channels',
     icon: 'Linkedin',
   },
   {

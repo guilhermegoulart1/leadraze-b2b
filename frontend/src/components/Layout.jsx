@@ -5,7 +5,7 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe
+  Mail, Settings, Globe, Link2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,11 +65,11 @@ const Layout = () => {
     { section: t('sections.linkedin') },
     { path: '/search', label: t('menu.profileSearch'), icon: Search },
     { path: '/campaigns', label: t('menu.campaigns'), icon: Award },
+    { path: '/my-connections', label: 'Minhas Conexoes', icon: Users },
 
     // Ativação de Listas
     { section: t('sections.activation') },
     { path: '/activation-campaigns', label: t('menu.campaigns'), icon: Award },
-    { path: '/my-connections', label: 'Minhas Conexoes', icon: Users },
     { path: '/contact-lists', label: t('menu.contactLists'), icon: Users },
 
     // Emails
@@ -291,11 +291,11 @@ const Layout = () => {
                     <span>{t('userMenu.billing', 'Billing')}</span>
                   </Link>
                   <Link
-                    to="/linkedin-accounts"
+                    to="/channels"
                     className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
-                    <Linkedin className="w-4 h-4 text-gray-400" />
+                    <Link2 className="w-4 h-4 text-gray-400" />
                     <span>{t('userMenu.channels')}</span>
                   </Link>
                 </div>

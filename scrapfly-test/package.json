@@ -1,0 +1,12 @@
+{
+  "name": "scrapfly-test",
+  "version": "1.0.0",
+  "description": "Teste de scraping Instagram via Scrapfly",
+  "type": "module",
+  "scripts": {
+    "test": "node get-commenters.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+}

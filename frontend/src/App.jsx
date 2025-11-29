@@ -20,7 +20,7 @@ import AIAgentsPage from './pages/AIAgentsPage';
 import AgentsPage from './pages/AgentsPage';
 import InsightsPage from './pages/InsightsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
-import LinkedInAccountsPage from './pages/LinkedInAccountsPage';
+import ChannelsPage from './pages/ChannelsPage';
 import UsersPage from './pages/UsersPage';
 import PermissionsPage from './pages/PermissionsPage';
 import SectorsPage from './pages/SectorsPage';
@@ -117,7 +117,7 @@ function AppRoutes() {
         <Route path="conversations" element={<ConversationsPage />} />
         <Route path="ai-agents" element={<AIAgentsPage />} />
         <Route path="insights" element={<InsightsPage />} />
-        <Route path="linkedin-accounts" element={<LinkedInAccountsPage />} />
+        <Route path="channels" element={<ChannelsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="permissions" element={<PermissionsPage />} />

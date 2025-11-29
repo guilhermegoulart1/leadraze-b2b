@@ -150,6 +150,36 @@ const connectLinkedInAccount = async (req, res) => {
 };
 
 // ================================
+// 1.5 GERAR HOSTED AUTH LINK
+// ================================
+const getHostedAuthLink = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    console.log(`🔗 Gerando hosted auth link para usuário ${userId}`);
+
+    if (!unipileClient.isInitialized()) {
+      throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
+    }
+
+    const response = await unipileClient.account.getHostedAuthLink({
+      name: `LinkedIn - User ${userId}`
+    });
+
+    console.log('✅ Hosted auth link gerado com sucesso');
+
+    sendSuccess(res, {
+      url: response.url,
+      expiresAt: response.expires_on || response.expiresOn
+    }, 'Hosted auth link generated successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao gerar hosted auth link:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
 // 2. LISTAR CONTAS LINKEDIN
 // ================================
 const getLinkedInAccounts = async (req, res) => {
@@ -1274,8 +1304,205 @@ const getLimitHistory = async (req, res) => {
   }
 };
 
+// ================================
+// MULTI-CHANNEL: CALLBACK DO HOSTED AUTH
+// ================================
+const handleHostedAuthCallback = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { unipile_account_id } = req.body;
+
+    console.log(`🔗 Processando callback do Hosted Auth para usuário ${userId}`);
+    console.log(`   Unipile Account ID: ${unipile_account_id}`);
+
+    if (!unipile_account_id) {
+      throw new ValidationError('unipile_account_id is required');
+    }
+
+    // Verificar se a conta já existe
+    const existingAccount = await db.findOne('linkedin_accounts', {
+      unipile_account_id: unipile_account_id
+    });
+
+    if (existingAccount) {
+      console.log('✅ Conta já existe, retornando dados');
+      return sendSuccess(res, existingAccount, 'Account already connected');
+    }
+
+    // Buscar informações da conta via Unipile API
+    console.log('📡 Buscando informações da conta via Unipile...');
+
+    const accountData = await unipileClient.account.getAccountById(unipile_account_id);
+    console.log('📊 Dados da conta Unipile:', JSON.stringify(accountData, null, 2));
+
+    // Determinar provider_type
+    const providerType = accountData.type || accountData.provider || 'LINKEDIN';
+
+    // Buscar perfil se for LinkedIn
+    let profileData = null;
+    if (providerType === 'LINKEDIN') {
+      try {
+        profileData = await unipileClient.users.getOwnProfile(unipile_account_id);
+        console.log('✅ Perfil LinkedIn obtido:', profileData?.name);
+      } catch (profileError) {
+        console.warn('⚠️ Erro ao buscar perfil LinkedIn:', profileError.message);
+      }
+    }
+
+    // Preparar dados para salvar
+    const channelData = {
+      user_id: userId,
+      account_id: accountId,
+      unipile_account_id: unipile_account_id,
+      provider_type: providerType.toUpperCase(),
+      status: 'active',
+      connected_at: new Date(),
+      // Campos genéricos
+      channel_name: accountData.name || `${providerType} Account`,
+      channel_identifier: accountData.identifier || accountData.phone || accountData.email || accountData.username || null,
+      // Campos LinkedIn (compatibilidade)
+      linkedin_username: profileData?.public_identifier || accountData.username || null,
+      profile_name: profileData?.name || accountData.name || `${providerType} Account`,
+      profile_url: profileData?.url || null,
+      profile_picture: profileData?.profile_picture || profileData?.profile_picture_url || null,
+      public_identifier: profileData?.public_identifier || null,
+      // Configurações padrão
+      channel_settings: JSON.stringify({
+        ignore_groups: true,
+        auto_read: false,
+        ai_enabled: true,
+        notify_on_message: true,
+        business_hours_only: false
+      })
+    };
+
+    // Salvar no banco
+    const savedChannel = await db.insert('linkedin_accounts', channelData);
+
+    console.log(`✅ Canal ${providerType} conectado com sucesso! ID: ${savedChannel.id}`);
+
+    sendSuccess(res, savedChannel, `${providerType} channel connected successfully`, 201);
+
+  } catch (error) {
+    console.error('❌ Erro no callback do Hosted Auth:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// MULTI-CHANNEL: ATUALIZAR CONFIGURAÇÕES DO CANAL
+// ================================
+const updateChannelSettings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { settings } = req.body;
+
+    console.log(`⚙️ Atualizando configurações do canal ${id}`);
+
+    if (!settings || typeof settings !== 'object') {
+      throw new ValidationError('settings object is required');
+    }
+
+    // Verificar se canal pertence ao usuário
+    const channel = await db.findOne('linkedin_accounts', { id, user_id: userId });
+
+    if (!channel) {
+      throw new NotFoundError('Channel not found');
+    }
+
+    // Mesclar configurações existentes com novas
+    const currentSettings = channel.channel_settings
+      ? (typeof channel.channel_settings === 'string'
+          ? JSON.parse(channel.channel_settings)
+          : channel.channel_settings)
+      : {};
+
+    const newSettings = {
+      ...currentSettings,
+      ...settings
+    };
+
+    // Validar configurações permitidas
+    const allowedSettings = [
+      'ignore_groups',
+      'auto_read',
+      'ai_enabled',
+      'ai_agent_id',  // ID do agente de IA para este canal
+      'notify_on_message',
+      'business_hours_only',
+      'business_hours_start',
+      'business_hours_end',
+      'auto_response_delay_min',
+      'auto_response_delay_max'
+    ];
+
+    const filteredSettings = {};
+    for (const key of allowedSettings) {
+      if (newSettings[key] !== undefined) {
+        filteredSettings[key] = newSettings[key];
+      }
+    }
+
+    // Atualizar no banco
+    const updatedChannel = await db.update('linkedin_accounts', {
+      channel_settings: JSON.stringify(filteredSettings)
+    }, { id });
+
+    console.log('✅ Configurações atualizadas');
+
+    sendSuccess(res, {
+      ...updatedChannel,
+      channel_settings: filteredSettings
+    }, 'Channel settings updated successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao atualizar configurações:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// MULTI-CHANNEL: LISTAR TIPOS DE CANAIS
+// ================================
+const getChannelTypes = async (req, res) => {
+  try {
+    console.log('📋 Listando tipos de canais disponíveis');
+
+    // Buscar do banco se existir a tabela, senão retornar defaults
+    let channelTypes;
+
+    try {
+      const result = await db.query('SELECT * FROM channel_type_defaults ORDER BY display_name');
+      channelTypes = result.rows;
+    } catch (dbError) {
+      // Tabela não existe ainda, retornar defaults
+      console.log('⚠️ Tabela channel_type_defaults não existe, usando defaults');
+      channelTypes = [
+        { provider_type: 'LINKEDIN', display_name: 'LinkedIn', icon_name: 'Linkedin', supports_groups: false },
+        { provider_type: 'WHATSAPP', display_name: 'WhatsApp', icon_name: 'MessageCircle', supports_groups: true },
+        { provider_type: 'INSTAGRAM', display_name: 'Instagram', icon_name: 'Instagram', supports_groups: true },
+        { provider_type: 'MESSENGER', display_name: 'Messenger', icon_name: 'Facebook', supports_groups: true },
+        { provider_type: 'TELEGRAM', display_name: 'Telegram', icon_name: 'Send', supports_groups: true },
+        { provider_type: 'TWITTER', display_name: 'X (Twitter)', icon_name: 'Twitter', supports_groups: false },
+        { provider_type: 'GOOGLE', display_name: 'Google Chat', icon_name: 'Mail', supports_groups: true },
+        { provider_type: 'OUTLOOK', display_name: 'Outlook', icon_name: 'Mail', supports_groups: false },
+        { provider_type: 'MAIL', display_name: 'Email', icon_name: 'Mail', supports_groups: false }
+      ];
+    }
+
+    sendSuccess(res, channelTypes, 'Channel types retrieved successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao listar tipos de canais:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   connectLinkedInAccount,
+  getHostedAuthLink,
   getLinkedInAccounts,
   getLinkedInAccount,
   updateLinkedInAccount,
@@ -1292,5 +1519,9 @@ module.exports = {
   getAccountHealth,
   getRecommendedLimit,
   overrideLimit,
-  getLimitHistory
+  getLimitHistory,
+  // ✅ MULTI-CHANNEL
+  handleHostedAuthCallback,
+  updateChannelSettings,
+  getChannelTypes
 };

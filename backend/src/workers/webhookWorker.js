@@ -75,6 +75,20 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
         result = await webhookController.handleMessageDelivered(payload);
         break;
 
+      // ✅ MULTI-CHANNEL: Handler para nova conta conectada
+      case 'account_connected':
+      case 'account.created':
+      case 'account_created':
+        result = await webhookController.handleAccountConnected(payload);
+        break;
+
+      // Handler para conta desconectada
+      case 'account_disconnected':
+      case 'account.deleted':
+      case 'account_deleted':
+        result = await webhookController.handleAccountDisconnected(payload);
+        break;
+
       default:
         console.log(`[webhookWorker] Unhandled event type: ${eventType}`);
         result = { handled: false, reason: 'Event type not handled' };

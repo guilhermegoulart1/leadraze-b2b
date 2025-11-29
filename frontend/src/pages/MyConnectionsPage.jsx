@@ -448,7 +448,7 @@ const MyConnectionsPage = () => {
             Conecte uma conta LinkedIn para ver suas conexoes
           </p>
           <a
-            href="/linkedin-accounts"
+            href="/channels"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Linkedin className="w-4 h-4" />

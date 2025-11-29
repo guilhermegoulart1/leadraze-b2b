@@ -507,6 +507,32 @@ class ApiService {
     return this.request('/profiles/linkedin-accounts');
   }
 
+  async getHostedAuthLink() {
+    return this.request('/profiles/linkedin-accounts/hosted-auth-link');
+  }
+
+  // ================================
+  // MULTI-CHANNEL
+  // ================================
+
+  async handleChannelCallback(unipileAccountId) {
+    return this.request('/profiles/channels/callback', {
+      method: 'POST',
+      body: JSON.stringify({ unipile_account_id: unipileAccountId }),
+    });
+  }
+
+  async updateChannelSettings(channelId, settings) {
+    return this.request(`/profiles/channels/${channelId}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify({ settings }),
+    });
+  }
+
+  async getChannelTypes() {
+    return this.request('/profiles/channel-types');
+  }
+
   async connectLinkedInAccount(username, password) {
     return this.request('/profiles/linkedin-accounts/connect', {
       method: 'POST',

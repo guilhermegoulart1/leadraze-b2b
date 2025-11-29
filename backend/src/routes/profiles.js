@@ -15,7 +15,19 @@ router.use(apiLimiter);
 // LINKEDIN ACCOUNTS
 // ================================
 
-// Conectar nova conta
+// Gerar hosted auth link (Unipile)
+router.get('/linkedin-accounts/hosted-auth-link', profileController.getHostedAuthLink);
+
+// ✅ MULTI-CHANNEL: Callback após Hosted Auth
+router.post('/channels/callback', profileController.handleHostedAuthCallback);
+
+// ✅ MULTI-CHANNEL: Atualizar configurações do canal
+router.patch('/channels/:id/settings', profileController.updateChannelSettings);
+
+// ✅ MULTI-CHANNEL: Obter tipos de canais disponíveis
+router.get('/channel-types', profileController.getChannelTypes);
+
+// Conectar nova conta (legado - LinkedIn direto)
 router.post('/linkedin-accounts/connect', profileController.connectLinkedInAccount);
 
 // Listar contas

@@ -153,6 +153,53 @@ const receiveWebhook = async (req, res) => {
 };
 
 // ================================
+// HELPER: DETECTAR SE É GRUPO
+// ================================
+function isGroupChat(payload) {
+  // Método 1: Contar participantes (>2 = grupo)
+  if (payload.attendees && payload.attendees.length > 2) {
+    return true;
+  }
+
+  // Método 2: Verificar campo is_group (se Unipile enviar)
+  if (payload.is_group === true) {
+    return true;
+  }
+
+  // Método 3: Verificar campo chat_type
+  if (payload.chat_type && payload.chat_type === 'group') {
+    return true;
+  }
+
+  return false;
+}
+
+// ================================
+// HELPER: OBTER CONFIGURAÇÕES DO CANAL
+// ================================
+async function getChannelSettings(channelId) {
+  try {
+    const channel = await db.findOne('linkedin_accounts', { id: channelId });
+    if (channel && channel.channel_settings) {
+      return typeof channel.channel_settings === 'string'
+        ? JSON.parse(channel.channel_settings)
+        : channel.channel_settings;
+    }
+    // Default settings
+    return {
+      ignore_groups: true,
+      auto_read: false,
+      ai_enabled: true,
+      notify_on_message: true,
+      business_hours_only: false
+    };
+  } catch (error) {
+    console.warn('⚠️ Erro ao obter configurações do canal:', error.message);
+    return { ignore_groups: true, ai_enabled: true };
+  }
+}
+
+// ================================
 // 2. MENSAGEM RECEBIDA
 // ================================
 async function handleMessageReceived(payload) {
@@ -160,6 +207,12 @@ async function handleMessageReceived(payload) {
   console.log('📋 Payload keys:', Object.keys(payload));
 
   const { account_id, chat_id, message, sender, account_info, message_id, timestamp } = payload;
+  const providerType = payload.account_type || 'LINKEDIN'; // LINKEDIN, WHATSAPP, INSTAGRAM, etc.
+  const attendeeCount = payload.attendees?.length || 2;
+  const isGroup = isGroupChat(payload);
+
+  console.log(`📱 Provider: ${providerType}`);
+  console.log(`👥 Attendees: ${attendeeCount} | Is Group: ${isGroup}`);
 
   if (!account_id || !chat_id) {
     return { handled: false, reason: 'Missing required fields (account_id or chat_id)' };
@@ -173,15 +226,35 @@ async function handleMessageReceived(payload) {
   console.log('👤 Account info:', account_info);
 
   try {
-    // Buscar conta LinkedIn
-    const linkedinAccount = await db.findOne('linkedin_accounts', {
+    // Buscar conta (LinkedIn ou outro canal)
+    const connectedChannel = await db.findOne('linkedin_accounts', {
       unipile_account_id: account_id
     });
 
-    if (!linkedinAccount) {
-      console.log('⚠️ Conta LinkedIn não encontrada');
-      return { handled: false, reason: 'LinkedIn account not found' };
+    if (!connectedChannel) {
+      console.log('⚠️ Canal conectado não encontrado');
+      return { handled: false, reason: 'Connected channel not found' };
     }
+
+    // ✅ VERIFICAR CONFIGURAÇÕES DO CANAL
+    const channelSettings = await getChannelSettings(connectedChannel.id);
+
+    // ✅ FILTRAR GRUPOS SE CONFIGURADO
+    if (isGroup && channelSettings.ignore_groups) {
+      console.log(`⏭️ Ignorando mensagem de grupo (${attendeeCount} participantes)`);
+      console.log(`   Provider: ${providerType}`);
+      console.log(`   Configuração ignore_groups: ${channelSettings.ignore_groups}`);
+      return {
+        handled: true,
+        skipped: true,
+        reason: 'Group messages are ignored by channel settings',
+        provider_type: providerType,
+        attendee_count: attendeeCount
+      };
+    }
+
+    // Alias para compatibilidade com código existente
+    const linkedinAccount = connectedChannel;
 
     // ✅ DETECTAR SE É MENSAGEM PRÓPRIA OU DO LEAD
     // Mensagens enviadas pelo próprio usuário (de outro dispositivo) também vêm em message_received
@@ -354,7 +427,12 @@ async function handleMessageReceived(payload) {
         // ✅ Só marcar como não lida se for mensagem DO LEAD (não enviada pelo usuário)
         unread_count: isOwnMessage ? 0 : 1,
         last_message_at: timestamp ? new Date(timestamp) : new Date(),
-        last_message_preview: messageContent?.substring(0, 100) || ''
+        last_message_preview: messageContent?.substring(0, 100) || '',
+        // ✅ MULTI-CHANNEL: Novos campos
+        provider_type: providerType,
+        is_group: isGroup,
+        attendee_count: attendeeCount,
+        group_name: isGroup ? (payload.chat_name || payload.group_name || null) : null
       });
 
       // Atualizar lead para "accepted" se ainda não estiver
@@ -393,7 +471,8 @@ async function handleMessageReceived(payload) {
       sender_type: isOwnMessage ? 'user' : 'lead',
       content: messageContent || '',
       message_type: payload.message_type || 'text',
-      sent_at: timestamp ? new Date(timestamp) : new Date()
+      sent_at: timestamp ? new Date(timestamp) : new Date(),
+      provider_type: providerType // ✅ MULTI-CHANNEL
     };
 
     await db.insert('messages', messageData);
@@ -889,6 +968,114 @@ const getWebhookStats = async (req, res) => {
   }
 };
 
+// ================================
+// 9. CONTA CONECTADA (MULTI-CHANNEL)
+// ================================
+async function handleAccountConnected(payload) {
+  console.log('🔗 Processando nova conta conectada');
+  console.log('📋 Payload:', JSON.stringify(payload, null, 2));
+
+  const {
+    account_id,
+    account_type, // LINKEDIN, WHATSAPP, INSTAGRAM, etc.
+    provider,     // Alias para account_type em alguns casos
+    user_name,
+    user_id,
+    phone_number, // Para WhatsApp
+    email         // Para contas de email
+  } = payload;
+
+  const providerType = account_type || provider || 'UNKNOWN';
+
+  if (!account_id) {
+    console.log('⚠️ account_id não fornecido no webhook');
+    return { handled: false, reason: 'Missing account_id' };
+  }
+
+  try {
+    // Verificar se a conta já existe
+    const existingAccount = await db.findOne('linkedin_accounts', {
+      unipile_account_id: account_id
+    });
+
+    if (existingAccount) {
+      console.log('✅ Conta já existe, atualizando provider_type');
+      await db.update('linkedin_accounts', {
+        provider_type: providerType,
+        channel_identifier: phone_number || email || user_name || null,
+        status: 'active'
+      }, { id: existingAccount.id });
+
+      return {
+        handled: true,
+        action: 'updated',
+        account_id: existingAccount.id,
+        provider_type: providerType
+      };
+    }
+
+    // Conta não existe - isso pode acontecer se o webhook chegar antes do redirect
+    // Nesse caso, vamos criar uma conta pendente que será atualizada depois
+    console.log('⚠️ Conta não encontrada no banco - webhook chegou antes do callback');
+    console.log('   Isso é normal, a conta será criada quando o usuário voltar ao app');
+
+    return {
+      handled: true,
+      action: 'pending',
+      reason: 'Account will be created when user returns from auth flow',
+      provider_type: providerType,
+      unipile_account_id: account_id
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao processar conta conectada:', error);
+    return { handled: false, reason: error.message };
+  }
+}
+
+// ================================
+// 10. CONTA DESCONECTADA
+// ================================
+async function handleAccountDisconnected(payload) {
+  console.log('🔌 Processando conta desconectada');
+  console.log('📋 Payload:', JSON.stringify(payload, null, 2));
+
+  const { account_id } = payload;
+
+  if (!account_id) {
+    return { handled: false, reason: 'Missing account_id' };
+  }
+
+  try {
+    // Atualizar status da conta
+    const result = await db.query(
+      `UPDATE linkedin_accounts
+       SET status = 'disconnected', disconnected_at = NOW()
+       WHERE unipile_account_id = $1
+       RETURNING id, provider_type`,
+      [account_id]
+    );
+
+    if (result.rows.length === 0) {
+      console.log('⚠️ Conta não encontrada para desconectar');
+      return { handled: false, reason: 'Account not found' };
+    }
+
+    console.log(`✅ Conta ${result.rows[0].id} marcada como desconectada`);
+
+    return {
+      handled: true,
+      action: 'disconnected',
+      account_id: result.rows[0].id,
+      provider_type: result.rows[0].provider_type
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao processar desconexão:', error);
+    return { handled: false, reason: error.message };
+  }
+}
+
 module.exports = {
   receiveWebhook,
   getWebhookLogs,
@@ -900,5 +1087,8 @@ module.exports = {
   handleMessageRead,
   handleMessageEdited,
   handleMessageDeleted,
-  handleMessageDelivered
+  handleMessageDelivered,
+  // ✅ MULTI-CHANNEL handlers
+  handleAccountConnected,
+  handleAccountDisconnected
 };
