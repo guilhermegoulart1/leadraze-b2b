@@ -6,7 +6,14 @@ const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
 
 // ================================
-// TODAS AS ROTAS REQUEREM AUTH
+// ROTAS PÚBLICAS (SEM AUTH) - CALLBACKS
+// ================================
+
+// Callback do Unipile após Hosted Auth (chamado pelo Unipile via notify_url)
+router.post('/channels/auth-notify', profileController.handleAuthNotify);
+
+// ================================
+// TODAS AS DEMAIS ROTAS REQUEREM AUTH
 // ================================
 router.use(authenticateToken);
 router.use(apiLimiter);

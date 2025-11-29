@@ -89,6 +89,11 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
         result = await webhookController.handleAccountDisconnected(payload);
         break;
 
+      // Handler para status de conta (Account webhook da Unipile)
+      case 'account_status':
+        result = await webhookController.handleAccountStatus(payload);
+        break;
+
       default:
         console.log(`[webhookWorker] Unhandled event type: ${eventType}`);
         result = { handled: false, reason: 'Event type not handled' };

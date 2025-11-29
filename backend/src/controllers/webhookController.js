@@ -51,6 +51,51 @@ async function fetchUserProfileFromUnipile(accountId, userProviderId) {
 }
 
 // ================================
+// HELPER: DETECTAR TIPO DE EVENTO E NORMALIZAR PAYLOAD
+// ================================
+// A Unipile envia o tipo como chave do objeto, ex: { "AccountStatus": { ... } }
+// Precisamos detectar isso e normalizar para um formato consistente
+function parseUnipileWebhook(rawPayload) {
+  // Mapeamento de chaves do Unipile para tipos de evento internos
+  const EVENT_KEY_MAP = {
+    'AccountStatus': 'account_status',
+    'AccountCreated': 'account_connected',
+    'AccountDeleted': 'account_disconnected',
+    'MessageReceived': 'message_received',
+    'MessageSent': 'message_sent',
+    'MessageDelivered': 'message_delivered',
+    'MessageRead': 'message_read',
+    'MessageEdited': 'message_edited',
+    'MessageDeleted': 'message_deleted',
+    'MessageReaction': 'message_reaction',
+    'NewRelation': 'new_relation',
+    'RelationCreated': 'new_relation',
+  };
+
+  // Verificar se é o formato com chave de evento (ex: { "AccountStatus": { ... } })
+  const eventKeys = Object.keys(rawPayload);
+  for (const key of eventKeys) {
+    if (EVENT_KEY_MAP[key]) {
+      const eventData = rawPayload[key];
+      return {
+        eventType: EVENT_KEY_MAP[key],
+        payload: {
+          ...eventData,
+          _original_event_key: key
+        }
+      };
+    }
+  }
+
+  // Fallback: formato antigo com payload.event ou payload.type
+  const eventType = rawPayload.event || rawPayload.type;
+  return {
+    eventType,
+    payload: rawPayload
+  };
+}
+
+// ================================
 // 1. RECEBER WEBHOOK DO UNIPILE
 // ================================
 const receiveWebhook = async (req, res) => {
@@ -68,11 +113,11 @@ const receiveWebhook = async (req, res) => {
 
   try {
     // O payload já vem parseado pelo middleware do app.js
-    const payload = req.body;
+    const rawPayload = req.body;
     const signature = req.headers['x-unipile-signature'];
 
-    // ✅ UNIPILE ENVIA EVENTO EM payload.event (não payload.type)
-    const eventType = payload.event || payload.type; // Fallback para retrocompatibilidade
+    // ✅ DETECTAR TIPO DE EVENTO E NORMALIZAR PAYLOAD
+    const { eventType, payload } = parseUnipileWebhook(rawPayload);
 
     console.log('📨 Processando webhook do Unipile');
     console.log('Event type:', eventType);
@@ -1034,7 +1079,93 @@ async function handleAccountConnected(payload) {
 }
 
 // ================================
-// 10. CONTA DESCONECTADA
+// 10. STATUS DA CONTA (webhook Account da Unipile)
+// ================================
+async function handleAccountStatus(payload) {
+  console.log('📊 Processando status de conta');
+  console.log('📋 Payload:', JSON.stringify(payload, null, 2));
+
+  const { account_id, account_type, message } = payload;
+
+  if (!account_id) {
+    return { handled: false, reason: 'Missing account_id' };
+  }
+
+  try {
+    // Verificar se a conta já existe
+    const existingAccount = await db.findOne('linkedin_accounts', {
+      unipile_account_id: account_id
+    });
+
+    if (existingAccount) {
+      console.log('✅ Conta já existe no banco:', existingAccount.id);
+
+      // Atualizar status se necessário
+      if (message === 'OK' && existingAccount.status !== 'active') {
+        await db.update('linkedin_accounts', {
+          status: 'active',
+          provider_type: account_type || existingAccount.provider_type
+        }, { id: existingAccount.id });
+        console.log('✅ Status atualizado para active');
+      }
+
+      return {
+        handled: true,
+        action: 'status_checked',
+        account_id: existingAccount.id,
+        status: message
+      };
+    }
+
+    // Conta não existe - tentar buscar dados via API Unipile e criar
+    console.log('⚠️ Conta não encontrada no banco - buscando dados via API Unipile...');
+
+    const dsn = process.env.UNIPILE_DSN;
+    const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
+
+    if (!dsn || !token) {
+      console.log('⚠️ Unipile não configurado, não é possível criar conta automaticamente');
+      return {
+        handled: true,
+        action: 'pending',
+        reason: 'Account will be created when user returns from auth flow'
+      };
+    }
+
+    // Buscar detalhes da conta na Unipile
+    const accountResponse = await axios({
+      method: 'GET',
+      url: `https://${dsn}/api/v1/accounts/${account_id}`,
+      headers: {
+        'X-API-KEY': token,
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    const accountData = accountResponse.data;
+    console.log('✅ Dados da conta obtidos via API:', accountData);
+
+    // Verificar se temos user_id associado (precisamos saber qual usuário associar)
+    // Por enquanto, apenas logamos que a conta foi detectada
+    // A criação real acontecerá quando o usuário retornar do auth flow
+
+    return {
+      handled: true,
+      action: 'detected',
+      unipile_account_id: account_id,
+      account_type: account_type,
+      message: 'Account detected via webhook, awaiting user association'
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao processar status de conta:', error);
+    return { handled: false, reason: error.message };
+  }
+}
+
+// ================================
+// 11. CONTA DESCONECTADA
 // ================================
 async function handleAccountDisconnected(payload) {
   console.log('🔌 Processando conta desconectada');
@@ -1090,5 +1221,6 @@ module.exports = {
   handleMessageDelivered,
   // ✅ MULTI-CHANNEL handlers
   handleAccountConnected,
-  handleAccountDisconnected
+  handleAccountDisconnected,
+  handleAccountStatus
 };

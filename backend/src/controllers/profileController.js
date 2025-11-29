@@ -155,6 +155,7 @@ const connectLinkedInAccount = async (req, res) => {
 const getHostedAuthLink = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔗 Gerando hosted auth link para usuário ${userId}`);
 
@@ -162,8 +163,15 @@ const getHostedAuthLink = async (req, res) => {
       throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
     }
 
+    // Construir notify_url para receber callback após autenticação
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const notifyUrl = `${backendUrl}/api/profiles/channels/auth-notify?user_id=${userId}&account_id=${accountId}`;
+
+    console.log('📡 Notify URL:', notifyUrl);
+
     const response = await unipileClient.account.getHostedAuthLink({
-      name: `LinkedIn - User ${userId}`
+      name: `Channel - User ${userId}`,
+      notify_url: notifyUrl
     });
 
     console.log('✅ Hosted auth link gerado com sucesso');
@@ -1305,7 +1313,119 @@ const getLimitHistory = async (req, res) => {
 };
 
 // ================================
-// MULTI-CHANNEL: CALLBACK DO HOSTED AUTH
+// MULTI-CHANNEL: NOTIFY URL DO HOSTED AUTH (chamado pelo Unipile)
+// ================================
+const handleAuthNotify = async (req, res) => {
+  try {
+    console.log('\n🔔 ======================================');
+    console.log('📨 AUTH NOTIFY RECEBIDO');
+    console.log('======================================');
+    console.log('📋 Query:', JSON.stringify(req.query, null, 2));
+    console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+    console.log('======================================\n');
+
+    // Extrair user_id e account_id da query string
+    const { user_id: userId, account_id: accountId } = req.query;
+
+    if (!userId || !accountId) {
+      console.error('❌ user_id ou account_id não encontrados na query string');
+      return res.status(400).json({ success: false, message: 'Missing user_id or account_id' });
+    }
+
+    // O Unipile envia o account_id no body (pode variar o nome do campo)
+    const unipileAccountId = req.body.account_id || req.body.id || req.body.unipile_account_id;
+
+    if (!unipileAccountId) {
+      console.error('❌ Unipile account_id não encontrado no body');
+      console.log('Body keys:', Object.keys(req.body));
+      return res.status(400).json({ success: false, message: 'Missing unipile account_id in body' });
+    }
+
+    console.log(`🔗 Processando notify para usuário ${userId}`);
+    console.log(`   Account ID (tenant): ${accountId}`);
+    console.log(`   Unipile Account ID: ${unipileAccountId}`);
+
+    // Verificar se a conta já existe
+    const existingAccount = await db.findOne('linkedin_accounts', {
+      unipile_account_id: unipileAccountId
+    });
+
+    if (existingAccount) {
+      console.log('✅ Conta já existe, atualizando status');
+      await db.update('linkedin_accounts', {
+        status: 'active'
+      }, { id: existingAccount.id });
+      return res.status(200).json({ success: true, message: 'Account already exists', id: existingAccount.id });
+    }
+
+    // Buscar informações da conta via Unipile API
+    console.log('📡 Buscando informações da conta via Unipile...');
+
+    let accountData = {};
+    let profileData = null;
+    let providerType = 'LINKEDIN';
+
+    try {
+      accountData = await unipileClient.account.getAccountById(unipileAccountId);
+      console.log('📊 Dados da conta Unipile:', JSON.stringify(accountData, null, 2));
+      providerType = (accountData.type || accountData.provider || 'LINKEDIN').toUpperCase();
+    } catch (apiError) {
+      console.warn('⚠️ Erro ao buscar conta via API:', apiError.message);
+    }
+
+    // Buscar perfil se for LinkedIn
+    if (providerType === 'LINKEDIN') {
+      try {
+        profileData = await unipileClient.users.getOwnProfile(unipileAccountId);
+        console.log('✅ Perfil LinkedIn obtido:', profileData?.name);
+      } catch (profileError) {
+        console.warn('⚠️ Erro ao buscar perfil LinkedIn:', profileError.message);
+      }
+    }
+
+    // Preparar dados para salvar
+    const channelData = {
+      user_id: userId,
+      account_id: accountId,
+      unipile_account_id: unipileAccountId,
+      provider_type: providerType,
+      status: 'active',
+      connected_at: new Date(),
+      channel_name: accountData.name || profileData?.name || `${providerType} Account`,
+      channel_identifier: accountData.identifier || accountData.phone || accountData.email || accountData.username || null,
+      linkedin_username: profileData?.public_identifier || accountData.username || null,
+      profile_name: profileData?.name || accountData.name || `${providerType} Account`,
+      profile_url: profileData?.url || profileData?.profile_url || null,
+      profile_picture: profileData?.profile_picture || profileData?.profile_picture_url || null,
+      public_identifier: profileData?.public_identifier || null,
+      channel_settings: JSON.stringify({
+        ignore_groups: true,
+        auto_read: false,
+        ai_enabled: true,
+        notify_on_message: true,
+        business_hours_only: false
+      })
+    };
+
+    // Salvar no banco
+    const savedChannel = await db.insert('linkedin_accounts', channelData);
+
+    console.log(`✅ Canal ${providerType} conectado com sucesso! ID: ${savedChannel.id}`);
+
+    res.status(201).json({
+      success: true,
+      message: `${providerType} channel connected successfully`,
+      id: savedChannel.id
+    });
+
+  } catch (error) {
+    console.error('❌ Erro no Auth Notify:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ================================
+// MULTI-CHANNEL: CALLBACK DO HOSTED AUTH (chamado pelo frontend)
 // ================================
 const handleHostedAuthCallback = async (req, res) => {
   try {
@@ -1521,6 +1641,7 @@ module.exports = {
   overrideLimit,
   getLimitHistory,
   // ✅ MULTI-CHANNEL
+  handleAuthNotify,
   handleHostedAuthCallback,
   updateChannelSettings,
   getChannelTypes
