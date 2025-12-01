@@ -183,6 +183,34 @@ async function generateResponse(params) {
       console.log(`🎯 Intenção detectada: ${intent}`);
     }
 
+    // Detectar sentimento e verificar escalação
+    let sentimentResult = { sentiment: 'neutral', confidence: 0, shouldEscalate: false };
+    let keywordResult = { hasKeyword: false, matchedKeywords: [] };
+    let shouldEscalate = false;
+    let escalationReasons = [];
+
+    // Check sentiment-based escalation
+    if (ai_agent.escalation_sentiments && ai_agent.escalation_sentiments.length > 0) {
+      sentimentResult = await detectSentiment(lead_message, ai_agent.escalation_sentiments);
+      console.log(`💭 Sentimento detectado: ${sentimentResult.sentiment} (confiança: ${sentimentResult.confidence})`);
+
+      if (sentimentResult.shouldEscalate) {
+        shouldEscalate = true;
+        escalationReasons.push(sentimentResult.escalationReason);
+      }
+    }
+
+    // Check keyword-based escalation
+    if (ai_agent.escalation_keywords) {
+      keywordResult = checkEscalationKeywords(lead_message, ai_agent.escalation_keywords);
+
+      if (keywordResult.hasKeyword) {
+        shouldEscalate = true;
+        escalationReasons.push(`Palavras-chave detectadas: ${keywordResult.matchedKeywords.join(', ')}`);
+        console.log(`🔑 Palavras-chave de escalação detectadas: ${keywordResult.matchedKeywords.join(', ')}`);
+      }
+    }
+
     // Verificar se deve oferecer agendamento
     let should_offer_scheduling = false;
     if (ai_agent.auto_schedule && intent && ['interested', 'ready_to_buy', 'asking_details'].includes(intent)) {
@@ -192,6 +220,11 @@ async function generateResponse(params) {
     return {
       response: generatedResponse,
       intent,
+      sentiment: sentimentResult.sentiment,
+      sentimentConfidence: sentimentResult.confidence,
+      shouldEscalate,
+      escalationReasons,
+      matchedKeywords: keywordResult.matchedKeywords,
       should_offer_scheduling,
       scheduling_link: should_offer_scheduling ? ai_agent.scheduling_link : null,
       tokens_used: completion.usage.total_tokens,
@@ -217,6 +250,89 @@ INFORMAÇÕES DO LEAD:
 - Localização: ${lead_data.location || 'Não disponível'}
 - Setor: ${lead_data.industry || 'Não disponível'}` : '';
 
+  // Build objective section
+  const objectiveLabels = {
+    schedule_meeting: 'Agendar uma reunião ou demonstração',
+    qualify_lead: 'Qualificar o lead e descobrir se é potencial cliente',
+    generate_interest: 'Gerar interesse e despertar curiosidade sobre o produto',
+    get_contact: 'Obter informações de contato (email ou telefone)',
+    start_conversation: 'Iniciar conversa e criar relacionamento',
+    direct_sale: 'Realizar venda direta pelo chat'
+  };
+
+  const objectiveText = ai_agent.objective
+    ? objectiveLabels[ai_agent.objective] || ai_agent.objective
+    : 'Qualificar o lead e identificar oportunidades de negócio';
+
+  // Build conversation steps section
+  let stepsSection = '';
+  if (ai_agent.conversation_steps && ai_agent.conversation_steps.length > 0) {
+    stepsSection = `
+
+ETAPAS DA CONVERSA (siga esta sequência):
+${ai_agent.conversation_steps.map((step, index) => {
+  const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
+  const escalationMark = stepData.is_escalation ? ' [TRANSFERIR PARA HUMANO APÓS ESTA ETAPA]' : '';
+  return `${index + 1}. ${stepData.text || step}${escalationMark}`;
+}).join('\n')}
+
+IMPORTANTE: Siga estas etapas na ordem. Não pule etapas. Você pode demorar várias mensagens em uma única etapa se necessário.`;
+  }
+
+  // Build escalation section
+  let escalationSection = '';
+  const hasSentiments = ai_agent.escalation_sentiments && ai_agent.escalation_sentiments.length > 0;
+  const hasKeywords = ai_agent.escalation_keywords && ai_agent.escalation_keywords.trim();
+
+  if (hasSentiments || hasKeywords) {
+    const sentimentLabels = {
+      frustration: 'frustração',
+      confusion: 'confusão',
+      high_interest: 'interesse alto',
+      urgency: 'urgência',
+      dissatisfaction: 'insatisfação'
+    };
+
+    escalationSection = `
+
+GATILHOS DE ESCALAÇÃO (transferir para humano quando detectar):`;
+
+    if (hasSentiments) {
+      const sentiments = ai_agent.escalation_sentiments.map(s => sentimentLabels[s] || s).join(', ');
+      escalationSection += `
+- Sentimentos: ${sentiments}`;
+    }
+
+    if (hasKeywords) {
+      escalationSection += `
+- Palavras-chave: ${ai_agent.escalation_keywords}`;
+    }
+
+    escalationSection += `
+
+Quando detectar estes gatilhos, informe que vai conectar com um especialista humano.`;
+  }
+
+  // Build company info section
+  let companySection = '';
+  if (ai_agent.company_description || ai_agent.value_proposition || ai_agent.key_differentiators) {
+    companySection = `
+
+SOBRE A EMPRESA:
+${ai_agent.company_description ? `Descrição: ${ai_agent.company_description}` : ''}
+${ai_agent.value_proposition ? `Proposta de Valor: ${ai_agent.value_proposition}` : ''}
+${ai_agent.key_differentiators ? `Diferenciais: ${ai_agent.key_differentiators}` : ''}`;
+  }
+
+  // Build additional instructions
+  let additionalInstructions = '';
+  if (ai_agent.objective_instructions) {
+    additionalInstructions = `
+
+INSTRUÇÕES ESPECÍFICAS:
+${ai_agent.objective_instructions}`;
+  }
+
   let basePrompt = `Você é ${ai_agent.name}, um agente de vendas B2B especializado em prospecção no LinkedIn.
 
 PERFIL COMPORTAMENTAL: ${behavioralProfile.style}
@@ -225,11 +341,15 @@ Abordagem: ${behavioralProfile.approach}
 
 SEU NEGÓCIO/PRODUTO:
 ${ai_agent.products_services || 'Não especificado'}
+${companySection}
 ${knowledgeContext}
 
-OBJETIVO DA CONVERSA:
-${ai_agent.system_prompt || 'Qualificar o lead e identificar oportunidades de negócio'}
+OBJETIVO PRINCIPAL:
+${objectiveText}
+${stepsSection}
+${escalationSection}
 ${leadInfo}
+${additionalInstructions}
 
 INSTRUÇÕES DE ESTILO:
 ${ai_agent.response_style_instructions || '- Seja profissional mas acessível\n- Use linguagem clara e direta\n- Mostre interesse genuíno no lead'}
@@ -244,6 +364,7 @@ REGRAS IMPORTANTES:
 7. NUNCA invente informações sobre produtos/serviços que não foram descritos na base de conhecimento
 8. Se não souber algo que não está na base de conhecimento, seja honesto e ofereça descobrir mais
 9. Adapte seu tom ao do lead - se ele for informal, seja um pouco mais informal também
+10. SIGA AS ETAPAS DA CONVERSA na ordem definida, não pule etapas
 
 QUANDO O LEAD DEMONSTRAR INTERESSE CLARO:
 - Ofereça valor concreto (case, material, demo)
@@ -308,6 +429,90 @@ function buildConversationMessages({ systemPrompt, conversation_history, convers
   });
 
   return messages;
+}
+
+/**
+ * Detectar sentimento da mensagem do lead
+ * @param {string} message - Mensagem do lead
+ * @param {Array} escalationSentiments - Sentimentos configurados para escalação
+ * @returns {Promise<Object>} Sentimento detectado e se deve escalar
+ */
+async function detectSentiment(message, escalationSentiments = []) {
+  try {
+    const prompt = `Analise a seguinte mensagem e classifique o SENTIMENTO PREDOMINANTE em UMA das categorias:
+
+- frustration: Frustração, irritação, impaciência
+- confusion: Confusão, dúvida, não entendimento
+- high_interest: Alto interesse, entusiasmo, empolgação
+- urgency: Urgência, pressa, necessidade imediata
+- dissatisfaction: Insatisfação, descontentamento, decepção
+- neutral: Neutro, sem sentimento forte detectado
+- positive: Positivo geral, satisfação, agradecimento
+
+Mensagem: "${message}"
+
+Responda no formato JSON: {"sentiment": "categoria", "confidence": 0.0-1.0}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 50
+    });
+
+    const responseText = completion.choices[0].message.content.trim();
+
+    // Parse JSON response
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      // If JSON parsing fails, try to extract sentiment from text
+      const validSentiments = ['frustration', 'confusion', 'high_interest', 'urgency', 'dissatisfaction', 'neutral', 'positive'];
+      const found = validSentiments.find(s => responseText.toLowerCase().includes(s));
+      result = { sentiment: found || 'neutral', confidence: 0.5 };
+    }
+
+    // Check if this sentiment should trigger escalation
+    const shouldEscalate = escalationSentiments.includes(result.sentiment);
+
+    return {
+      sentiment: result.sentiment,
+      confidence: result.confidence || 0.7,
+      shouldEscalate,
+      escalationReason: shouldEscalate ? `Sentimento detectado: ${result.sentiment}` : null
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao detectar sentimento:', error);
+    return {
+      sentiment: 'neutral',
+      confidence: 0,
+      shouldEscalate: false,
+      escalationReason: null
+    };
+  }
+}
+
+/**
+ * Verificar se mensagem contém palavras-chave de escalação
+ * @param {string} message - Mensagem do lead
+ * @param {string} keywords - Palavras-chave separadas por vírgula
+ * @returns {Object} Resultado da verificação
+ */
+function checkEscalationKeywords(message, keywords) {
+  if (!keywords || !keywords.trim()) {
+    return { hasKeyword: false, matchedKeywords: [] };
+  }
+
+  const keywordList = keywords.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+  const messageLower = message.toLowerCase();
+  const matchedKeywords = keywordList.filter(keyword => messageLower.includes(keyword));
+
+  return {
+    hasKeyword: matchedKeywords.length > 0,
+    matchedKeywords
+  };
 }
 
 /**
@@ -750,6 +955,8 @@ module.exports = {
   generateEmailResponse,
   generateInitialEmail,
   detectIntent,
+  detectSentiment,
+  checkEscalationKeywords,
   requiresUrgentResponse,
   buildEmailInstructions,
   BEHAVIORAL_PROFILES,

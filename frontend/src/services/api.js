@@ -507,8 +507,9 @@ class ApiService {
     return this.request('/profiles/linkedin-accounts');
   }
 
-  async getHostedAuthLink() {
-    return this.request('/profiles/linkedin-accounts/hosted-auth-link');
+  async getHostedAuthLink(provider = null) {
+    const params = provider ? `?provider=${provider}` : '';
+    return this.request(`/profiles/linkedin-accounts/hosted-auth-link${params}`);
   }
 
   // ================================
@@ -585,10 +586,9 @@ class ApiService {
     });
   }
 
-  async reactivateLinkedInAccount(accountId, username, password) {
+  async reactivateLinkedInAccount(accountId) {
     return this.request(`/profiles/linkedin-accounts/${accountId}/reactivate`, {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
     });
   }
 
@@ -937,6 +937,14 @@ class ApiService {
 
   async getSupervisorSectors(supervisorId) {
     return this.request(`/sectors/supervisors/${supervisorId}/sectors`);
+  }
+
+  /**
+   * Get all users belonging to a specific sector
+   * Used for agent rotation selection
+   */
+  async getSectorUsers(sectorId) {
+    return this.request(`/sectors/${sectorId}/users`);
   }
 
   // ================================
@@ -1718,6 +1726,39 @@ class ApiService {
 
   async getWebsiteStats(days = 30) {
     return this.request(`/website-agents/stats/overview?days=${days}`);
+  }
+
+  // ================================
+  // AFFILIATE PROGRAM
+  // ================================
+
+  async getAffiliateLink() {
+    return this.request('/affiliate/link');
+  }
+
+  async getAffiliateStats() {
+    return this.request('/affiliate/stats');
+  }
+
+  async getAffiliateReferrals(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/affiliate/referrals${query ? '?' + query : ''}`);
+  }
+
+  async getAffiliateEarnings(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/affiliate/earnings${query ? '?' + query : ''}`);
+  }
+
+  async trackAffiliateClick(code) {
+    return this.request('/affiliate/track', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  async validateAffiliateCode(code) {
+    return this.request(`/affiliate/validate/${code}`);
   }
 
 }

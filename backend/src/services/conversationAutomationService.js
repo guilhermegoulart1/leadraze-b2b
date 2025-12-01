@@ -6,6 +6,7 @@ const aiResponseService = require('./aiResponseService');
 const contactExtractionService = require('./contactExtractionService');
 const conversationSummaryService = require('./conversationSummaryService');
 const stripeService = require('./stripeService');
+const handoffService = require('./handoffService');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -192,13 +193,48 @@ async function processIncomingMessage(params) {
       }
     }
 
-    console.log(`✅ Resposta automática enviada com sucesso`);
+    // ========================================
+    // HANDOFF LOGIC: Check if we should transfer to human
+    // ========================================
+    let handoffExecuted = false;
+    const agent = conversation.ai_agent;
+
+    // Increment exchange count (1 exchange = lead message + AI response)
+    const newExchangeCount = await handoffService.incrementExchangeCount(conversation_id);
+
+    // Check if handoff should be triggered
+    if (agent && agent.handoff_after_exchanges) {
+      const shouldHandoff = await handoffService.shouldTriggerHandoff(
+        conversation_id,
+        agent.handoff_after_exchanges
+      );
+
+      if (shouldHandoff) {
+        console.log(`🔄 Handoff triggered: exchange count (${newExchangeCount}) >= limit (${agent.handoff_after_exchanges})`);
+
+        await handoffService.executeHandoff(conversation_id, agent, 'exchange_limit');
+        handoffExecuted = true;
+      }
+    }
+
+    // Also check for escalation triggers (sentiment/keywords)
+    if (!handoffExecuted && aiResponse.shouldEscalate) {
+      const escalationReason = aiResponse.escalationReasons?.[0] || 'escalation_detected';
+      console.log(`🔄 Escalation handoff triggered: ${escalationReason}`);
+
+      await handoffService.executeHandoff(conversation_id, agent, escalationReason.includes('keyword') ? 'escalation_keyword' : 'escalation_sentiment');
+      handoffExecuted = true;
+    }
+
+    console.log(`✅ Resposta automática enviada com sucesso${handoffExecuted ? ' (handoff executado)' : ''}`);
 
     return {
       processed: true,
       response_sent: aiResponse.response,
       intent: aiResponse.intent,
-      should_notify_user: ['ready_to_buy', 'objection'].includes(aiResponse.intent)
+      should_notify_user: ['ready_to_buy', 'objection'].includes(aiResponse.intent),
+      handoff_executed: handoffExecuted,
+      exchange_count: newExchangeCount
     };
 
   } catch (error) {

@@ -234,13 +234,13 @@ async function getChannelSettings(channelId) {
     return {
       ignore_groups: true,
       auto_read: false,
-      ai_enabled: true,
+      ai_enabled: false,
       notify_on_message: true,
       business_hours_only: false
     };
   } catch (error) {
     console.warn('⚠️ Erro ao obter configurações do canal:', error.message);
-    return { ignore_groups: true, ai_enabled: true };
+    return { ignore_groups: true, ai_enabled: false };
   }
 }
 
@@ -279,6 +279,17 @@ async function handleMessageReceived(payload) {
     if (!connectedChannel) {
       console.log('⚠️ Canal conectado não encontrado');
       return { handled: false, reason: 'Connected channel not found' };
+    }
+
+    // ✅ IGNORAR CANAIS DESCONECTADOS
+    if (connectedChannel.status === 'disconnected') {
+      console.log('⏭️ Ignorando mensagem - canal está desconectado');
+      return {
+        handled: true,
+        skipped: true,
+        reason: 'Channel is disconnected',
+        channel_id: connectedChannel.id
+      };
     }
 
     // ✅ VERIFICAR CONFIGURAÇÕES DO CANAL
@@ -638,6 +649,17 @@ async function handleNewRelation(payload) {
 
     if (!linkedinAccount) {
       return { handled: false, reason: 'LinkedIn account not found' };
+    }
+
+    // ✅ IGNORAR CANAIS DESCONECTADOS
+    if (linkedinAccount.status === 'disconnected') {
+      console.log('⏭️ Ignorando nova relação - canal está desconectado');
+      return {
+        handled: true,
+        skipped: true,
+        reason: 'Channel is disconnected',
+        channel_id: linkedinAccount.id
+      };
     }
 
     // Buscar lead pelo provider_id ou linkedin_profile_id ou public_identifier

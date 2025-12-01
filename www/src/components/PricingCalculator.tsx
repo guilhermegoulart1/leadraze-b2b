@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Prices in cents (USD) - Must match backend/src/config/stripe.js
 const PRICES = {
@@ -22,6 +22,46 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
   const [users, setUsers] = useState(2);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+
+  // Capture affiliate code from URL on mount
+  useEffect(() => {
+    // Check URL for ref parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+
+    // Clear affiliate code after successful checkout
+    const checkoutSuccess = urlParams.get('checkout');
+    if (checkoutSuccess === 'success') {
+      localStorage.removeItem('affiliate_ref');
+      return;
+    }
+
+    if (refCode) {
+      const code = refCode.toUpperCase();
+      // Store in localStorage for persistence
+      localStorage.setItem('affiliate_ref', code);
+      setAffiliateCode(code);
+
+      // Track the click (fire and forget)
+      fetch(`${API_URL}/affiliate/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      }).catch(() => {}); // Ignore errors
+
+      // Clean URL without losing scroll position
+      const url = new URL(window.location.href);
+      url.searchParams.delete('ref');
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      // Check localStorage for previously stored code
+      const storedCode = localStorage.getItem('affiliate_ref');
+      if (storedCode) {
+        setAffiliateCode(storedCode);
+      }
+    }
+  }, []);
 
   // Calculate price
   const extraChannels = Math.max(0, channels - 1);
@@ -156,6 +196,7 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
           extraUsers,
           successUrl: `${window.location.origin}/${locale !== 'en' ? locale + '/' : ''}?checkout=success`,
           cancelUrl: `${window.location.origin}/${locale !== 'en' ? locale + '/' : ''}#pricing`,
+          affiliateCode: affiliateCode || undefined,
         }),
       });
 

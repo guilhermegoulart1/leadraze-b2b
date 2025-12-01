@@ -202,6 +202,13 @@ try {
 }
 
 try {
+  app.use('/api/affiliate', require('./routes/affiliates'));
+  console.log('✅ Affiliate routes loaded');
+} catch (error) {
+  console.error('❌ Error loading affiliate routes:', error.message);
+}
+
+try {
   app.use('/api/profiles', require('./routes/profiles'));
   console.log('✅ Profile routes loaded');
 } catch (error) {
@@ -353,6 +360,14 @@ try {
   console.log('✅ Website agents admin routes loaded');
 } catch (error) {
   console.error('❌ Error loading website agents admin routes:', error.message);
+}
+
+// Notifications (in-app notifications for users)
+try {
+  app.use('/api/notifications', require('./routes/notifications'));
+  console.log('✅ Notifications routes loaded');
+} catch (error) {
+  console.error('❌ Error loading notifications routes:', error.message);
 }
 
 // ================================

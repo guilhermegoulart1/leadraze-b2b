@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin, Power, PowerOff, RotateCcw, X, AlertTriangle, MessageCircle, Instagram, Facebook, Send, Twitter, Mail, Cog, MoreVertical, ExternalLink } from 'lucide-react';
+import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin, Power, PowerOff, X, AlertTriangle, MessageCircle, Instagram, Facebook, Send, Twitter, Mail, Cog, MoreVertical, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
@@ -102,9 +102,7 @@ const ChannelsPage = () => {
   // Estados para modais de gerenciamento de conta
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showReactivateModal, setShowReactivateModal] = useState(false);
   const [accountToManage, setAccountToManage] = useState(null);
-  const [reactivateCredentials, setReactivateCredentials] = useState({ username: '', password: '' });
   const [actionLoading, setActionLoading] = useState(false);
 
   // Estado para conexão
@@ -269,11 +267,59 @@ const ChannelsPage = () => {
     setActiveDropdown(null);
   };
 
-  const handleOpenReactivateModal = (account) => {
-    setAccountToManage(account);
-    setReactivateCredentials({ username: account.linkedin_username, password: '' });
-    setShowReactivateModal(true);
+  const handleReactivateChannel = async (account) => {
     setActiveDropdown(null);
+    try {
+      setConnectLoading(true);
+
+      // Primeiro, tentar reativar direto (se conta ainda existe na Unipile)
+      const reactivateResponse = await api.reactivateLinkedInAccount(account.id);
+
+      if (reactivateResponse.success && !reactivateResponse.data?.needs_reauth) {
+        // Conta reativada com sucesso!
+        console.log('✅ Conta reativada diretamente');
+        await loadAccounts();
+        setConnectLoading(false);
+        return;
+      }
+
+      // Se needs_reauth, abrir popup para re-autenticar
+      console.log('🔄 Conta precisa re-autenticar, abrindo popup...');
+      const response = await api.getHostedAuthLink(account.provider_type);
+      if (response.success && response.data?.url) {
+        const width = 700;
+        const height = 800;
+        const left = window.screenX + (window.innerWidth - width) / 2;
+        const top = window.screenY + (window.innerHeight - height) / 2;
+        const popup = window.open(
+          response.data.url,
+          'unipile-auth',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+        const checkPopup = setInterval(async () => {
+          if (popup && popup.closed) {
+            clearInterval(checkPopup);
+            // Sincronizar contas da Unipile com banco local
+            try {
+              console.log('🔄 Popup fechado (reativação), sincronizando contas...');
+              const syncResult = await api.syncChannels();
+              console.log('✅ Sync result:', syncResult);
+            } catch (syncError) {
+              console.error('⚠️ Erro ao sincronizar:', syncError);
+            }
+            // Recarregar lista
+            await loadAccounts();
+            setConnectLoading(false);
+          }
+        }, 500);
+      } else {
+        throw new Error('URL de autenticação não recebida');
+      }
+    } catch (error) {
+      console.error('Erro na reativação:', error);
+      alert('Erro ao reativar. Tente novamente.');
+      setConnectLoading(false);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -309,30 +355,6 @@ const ChannelsPage = () => {
       }
     } catch (error) {
       alert('Erro ao excluir conta. Tente novamente.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReactivate = async () => {
-    if (!accountToManage || !reactivateCredentials.password) return;
-    try {
-      setActionLoading(true);
-      const response = await api.reactivateLinkedInAccount(
-        accountToManage.id,
-        reactivateCredentials.username,
-        reactivateCredentials.password
-      );
-      if (response.success) {
-        await loadAccounts();
-        setShowReactivateModal(false);
-        setAccountToManage(null);
-        setReactivateCredentials({ username: '', password: '' });
-      } else {
-        alert('Erro ao reativar conta: ' + (response.message || 'Erro desconhecido'));
-      }
-    } catch (error) {
-      alert('Erro ao reativar conta. Verifique as credenciais e tente novamente.');
     } finally {
       setActionLoading(false);
     }
@@ -418,7 +440,7 @@ const ChannelsPage = () => {
       <div className="p-6">
         {/* Channels Table */}
         {accounts.length > 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-gray-200">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -665,10 +687,11 @@ const ChannelsPage = () => {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleOpenReactivateModal(account)}
-                            className="px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 rounded transition-colors"
+                            onClick={() => handleReactivateChannel(account)}
+                            disabled={connectLoading}
+                            className="px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
                           >
-                            Reativar
+                            {connectLoading ? 'Conectando...' : 'Reativar'}
                           </button>
                           <button
                             onClick={() => handleOpenDeleteModal(account)}
@@ -794,65 +817,6 @@ const ChannelsPage = () => {
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50"
                 >
                   {actionLoading ? 'Excluindo...' : 'Excluir'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showReactivateModal && accountToManage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <RotateCcw className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900">Reativar Canal</h3>
-                  <p className="text-sm text-gray-500">{accountToManage.profile_name}</p>
-                </div>
-              </div>
-              <div className="space-y-3 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
-                  <input
-                    type="text"
-                    value={reactivateCredentials.username}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                  <input
-                    type="password"
-                    value={reactivateCredentials.password}
-                    onChange={(e) => setReactivateCredentials(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Digite sua senha"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowReactivateModal(false);
-                    setAccountToManage(null);
-                    setReactivateCredentials({ username: '', password: '' });
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
-                  disabled={actionLoading}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleReactivate}
-                  disabled={actionLoading || !reactivateCredentials.password}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-50"
-                >
-                  {actionLoading ? 'Reativando...' : 'Reativar'}
                 </button>
               </div>
             </div>

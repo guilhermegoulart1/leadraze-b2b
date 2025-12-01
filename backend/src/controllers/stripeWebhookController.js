@@ -8,6 +8,7 @@ const stripeService = require('../services/stripeService');
 const subscriptionService = require('../services/subscriptionService');
 const billingService = require('../services/billingService');
 const emailService = require('../services/emailService');
+const affiliateService = require('../services/affiliateService');
 const { CREDIT_PACKAGES, getPlanByPriceId } = require('../config/stripe');
 const db = require('../config/database');
 const crypto = require('crypto');
@@ -228,6 +229,32 @@ async function handleCheckoutCompleted(session) {
     }
   }
 
+  // Handle affiliate referral tracking
+  if (session.metadata?.affiliate_code) {
+    try {
+      const affiliateCode = session.metadata.affiliate_code;
+      const affiliateLink = await affiliateService.getAffiliateLinkByCode(affiliateCode);
+
+      if (affiliateLink) {
+        // Create referral record
+        const customerEmail = session.customer_details?.email || session.customer_email;
+        await affiliateService.createReferral(affiliateLink.id, customerEmail, session.id);
+        console.log(`🤝 Created affiliate referral: ${affiliateCode} -> ${customerEmail}`);
+
+        // If we have accountId and subscription, mark as converted immediately
+        if (accountId && session.subscription) {
+          await affiliateService.convertReferral(accountId, session.subscription);
+          console.log(`✅ Affiliate referral converted for account ${accountId}`);
+        }
+      } else {
+        console.log(`⚠️ Affiliate code not found: ${affiliateCode}`);
+      }
+    } catch (affError) {
+      console.error('Error processing affiliate referral:', affError.message);
+      // Don't fail the checkout for affiliate errors
+    }
+  }
+
   console.log(`✅ Checkout completed for account ${accountId}`);
 }
 
@@ -352,6 +379,16 @@ async function handleSubscriptionDeleted(subscription) {
         deletedSubscription.account_id
       );
     }
+
+    // Cancel affiliate referral if this account was referred
+    try {
+      const canceledReferral = await affiliateService.cancelReferral(deletedSubscription.account_id);
+      if (canceledReferral) {
+        console.log(`🚫 Affiliate referral canceled for account ${deletedSubscription.account_id}`);
+      }
+    } catch (affError) {
+      console.error('Error canceling affiliate referral:', affError.message);
+    }
   }
 
   console.log(`Subscription ${subscription.id} deleted`);
@@ -391,12 +428,41 @@ async function handleInvoicePaid(invoice) {
   // Cache invoice
   await cacheInvoice(invoice);
 
+  // Get account ID
+  const accountResult = await db.query(
+    'SELECT id FROM accounts WHERE stripe_customer_id = $1',
+    [invoice.customer]
+  );
+  const accountId = accountResult.rows[0]?.id;
+
   // If this is a subscription invoice (not first one), renew credits
   if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
     const subscription = await subscriptionService.getByStripeId(invoice.subscription);
     if (subscription) {
       await billingService.addMonthlyCredits(subscription.account_id, subscription.plan_type);
       console.log(`Renewed monthly credits for account ${subscription.account_id}`);
+    }
+  }
+
+  // Process affiliate commission if this account was referred
+  if (accountId && invoice.amount_paid > 0) {
+    try {
+      const referral = await affiliateService.getActiveReferralByAccount(accountId);
+      if (referral) {
+        const earning = await affiliateService.recordEarning(
+          referral.id,
+          invoice.id,
+          invoice.amount_paid,
+          10 // 10% commission
+        );
+
+        if (earning) {
+          console.log(`💰 Affiliate earning recorded: $${(earning.earning_cents / 100).toFixed(2)} for referral ${referral.id}`);
+        }
+      }
+    } catch (affError) {
+      console.error('Error processing affiliate earning:', affError.message);
+      // Don't fail invoice processing for affiliate errors
     }
   }
 

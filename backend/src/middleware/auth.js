@@ -26,6 +26,15 @@ const authenticateToken = async (req, res, next) => {
 
     const user = userResult.rows[0];
 
+    // Load user's sectors
+    const sectorsResult = await db.query(
+      `SELECT s.id, s.name
+       FROM sectors s
+       JOIN user_sectors us ON s.id = us.sector_id
+       WHERE us.user_id = $1`,
+      [user.id]
+    );
+
     req.user = {
       id: user.id,
       userId: user.id,  // Add userId for consistency
@@ -33,7 +42,8 @@ const authenticateToken = async (req, res, next) => {
       name: user.name,
       role: user.role,
       account_id: user.account_id,
-      accountId: user.account_id  // Add accountId for consistency
+      accountId: user.account_id,  // Add accountId for consistency
+      sectors: sectorsResult.rows || []
     };
 
     next();

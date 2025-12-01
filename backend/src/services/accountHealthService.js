@@ -9,16 +9,16 @@ const db = require('../config/database');
 
 const ACCOUNT_TYPE_LIMITS = {
   free: {
-    safe: 25,
-    moderate: 30,
-    aggressive: 35,
-    max_recommended: 40
+    safe: 28,
+    moderate: 35,
+    aggressive: 42,
+    max_recommended: 50
   },
   premium: {
     safe: 45,
     moderate: 55,
-    aggressive: 65,
-    max_recommended: 70
+    aggressive: 70,
+    max_recommended: 80
   },
   sales_navigator: {
     safe: 70,

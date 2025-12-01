@@ -1,6 +1,6 @@
 // frontend/src/components/AIAgentTestModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, User, Bot, Loader, RotateCcw, Info } from 'lucide-react';
+import { X, Send, Sparkles, User, Bot, Loader, RotateCcw, Info, UserX, AlertTriangle, CheckCircle } from 'lucide-react';
 import api from '../services/api';
 
 const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
@@ -17,7 +17,29 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
     summary: 'Profissional experiente em transformação digital'
   });
   const [showLeadData, setShowLeadData] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [escalationTriggered, setEscalationTriggered] = useState(false);
+  const [escalationReason, setEscalationReason] = useState(null);
   const messagesEndRef = useRef(null);
+
+  // Obter etapas da conversa do agente
+  const conversationSteps = agent?.config?.conversation_steps || [];
+  const escalationSentiments = agent?.config?.escalation_sentiments || [];
+  const escalationKeywords = agent?.config?.escalation_keywords || '';
+
+  // Verificar se há palavras-chave de escalação na mensagem
+  const checkEscalationKeywords = (message) => {
+    if (!escalationKeywords) return null;
+    const keywords = escalationKeywords.toLowerCase().split(',').map(k => k.trim());
+    const messageLower = message.toLowerCase();
+
+    for (const keyword of keywords) {
+      if (keyword && messageLower.includes(keyword)) {
+        return keyword;
+      }
+    }
+    return null;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,10 +108,18 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
+    // Verificar palavras-chave de escalação na mensagem do usuário
+    const keywordFound = checkEscalationKeywords(inputMessage);
+    if (keywordFound && !escalationTriggered) {
+      setEscalationTriggered(true);
+      setEscalationReason({ type: 'keyword', value: keywordFound });
+    }
+
     const userMessage = {
       id: Date.now(),
       sender: 'user',
       content: inputMessage,
+      keywordTrigger: keywordFound,
       timestamp: new Date()
     };
 
@@ -122,11 +152,57 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         });
       }
 
+      // Verificar se a resposta indica escalação (do backend)
+      const shouldEscalate = response.data.should_escalate || response.data.escalation;
+      const escalationReasons = response.data.escalation_reasons || [];
+      const escalationInfo = escalationReasons.length > 0 ? escalationReasons.join(', ') : response.data.escalation_reason;
+      const detectedSentiment = response.data.sentiment || response.data.detected_sentiment;
+      const matchedKeywords = response.data.matched_keywords || [];
+
+      // Verificar se sentimento detectado está na lista de escalação
+      if (detectedSentiment && escalationSentiments.includes(detectedSentiment) && !escalationTriggered) {
+        setEscalationTriggered(true);
+        setEscalationReason({ type: 'sentiment', value: detectedSentiment });
+      }
+
+      // Verificar se palavras-chave foram detectadas pelo backend
+      if (matchedKeywords.length > 0 && !escalationTriggered) {
+        setEscalationTriggered(true);
+        setEscalationReason({ type: 'keyword', value: matchedKeywords.join(', ') });
+      }
+
+      // Atualizar etapa se necessário
+      if (response.data.current_step !== undefined) {
+        setCurrentStep(response.data.current_step);
+      } else if (conversationSteps.length > 0) {
+        // Avançar etapa automaticamente baseado no número de interações
+        const botMessages = messages.filter(m => m.sender === 'bot').length;
+        const newStep = Math.min(botMessages + 1, conversationSteps.length - 1);
+        setCurrentStep(newStep);
+
+        // Verificar se a nova etapa é de escalação
+        const currentStepData = conversationSteps[newStep];
+        if (currentStepData?.is_escalation && !escalationTriggered) {
+          setEscalationTriggered(true);
+          setEscalationReason({ type: 'step', value: currentStepData.text || `Etapa ${newStep + 1}` });
+        }
+      }
+
+      // Se backend indicou escalação
+      if (shouldEscalate && !escalationTriggered) {
+        setEscalationTriggered(true);
+        setEscalationReason({ type: 'ai', value: escalationInfo || 'Decisão da IA' });
+      }
+
       const botMessage = {
         id: Date.now() + 1,
         sender: 'bot',
         content: response.data.response,
         intent: response.data.intent,
+        sentiment: detectedSentiment,
+        shouldEscalate,
+        matchedKeywords,
+        escalationInfo,
         timestamp: new Date()
       };
 
@@ -158,6 +234,9 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
   const handleReset = () => {
     addInitialMessage();
     setInputMessage('');
+    setCurrentStep(0);
+    setEscalationTriggered(false);
+    setEscalationReason(null);
   };
 
   const handleClose = () => {
@@ -277,6 +356,108 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
           </div>
         )}
 
+        {/* Status Panel - Etapas e Escalação */}
+        {conversationSteps.length > 0 && (
+          <div className="px-6 py-3 bg-gray-100 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              {/* Etapas da Conversa */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-600">Etapa:</span>
+                <div className="flex items-center gap-1">
+                  {conversationSteps.map((step, index) => {
+                    const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
+                    const isActive = index === currentStep;
+                    const isPast = index < currentStep;
+                    const isEscalation = stepData.is_escalation;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`relative group`}
+                      >
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
+                            isActive
+                              ? isEscalation
+                                ? 'bg-orange-500 text-white ring-2 ring-orange-300'
+                                : 'bg-purple-600 text-white ring-2 ring-purple-300'
+                              : isPast
+                              ? 'bg-green-500 text-white'
+                              : isEscalation
+                              ? 'bg-orange-100 text-orange-600 border border-orange-300'
+                              : 'bg-gray-200 text-gray-500'
+                          }`}
+                        >
+                          {isPast ? (
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          ) : isEscalation ? (
+                            <UserX className="w-3 h-3" />
+                          ) : (
+                            index + 1
+                          )}
+                        </div>
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          {stepData.text || `Etapa ${index + 1}`}
+                          {isEscalation && <span className="text-orange-300 ml-1">(Escalação)</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Status de Escalação */}
+              {escalationTriggered ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-300 rounded-lg">
+                  <UserX className="w-4 h-4 text-orange-600" />
+                  <span className="text-xs font-medium text-orange-700">
+                    Transferência ativada
+                    {escalationReason && (
+                      <span className="ml-1 text-orange-600">
+                        ({escalationReason.type === 'keyword' && `palavra: "${escalationReason.value}"`}
+                        {escalationReason.type === 'sentiment' && `sentimento: ${escalationReason.value}`}
+                        {escalationReason.type === 'step' && `etapa de escalação`}
+                        {escalationReason.type === 'ai' && `decisão da IA`})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+                  <Bot className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">Agente em operação</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Escalation Alert Banner */}
+        {escalationTriggered && (
+          <div className="px-6 py-3 bg-orange-50 border-b border-orange-200 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-orange-800">
+                Transferência para humano será realizada
+              </p>
+              <p className="text-xs text-orange-600">
+                {escalationReason?.type === 'keyword' && `Palavra-chave detectada: "${escalationReason.value}"`}
+                {escalationReason?.type === 'sentiment' && `Sentimento detectado: ${
+                  escalationReason.value === 'frustration' ? 'Frustração' :
+                  escalationReason.value === 'confusion' ? 'Confusão' :
+                  escalationReason.value === 'high_interest' ? 'Interesse Alto' :
+                  escalationReason.value === 'urgency' ? 'Urgência' :
+                  escalationReason.value === 'dissatisfaction' ? 'Insatisfação' :
+                  escalationReason.value
+                }`}
+                {escalationReason?.type === 'step' && `Etapa de escalação atingida`}
+                {escalationReason?.type === 'ai' && `Decisão automática da IA`}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
           {messages.map((message) => (
@@ -302,20 +483,61 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                 <div
                   className={`px-4 py-2 rounded-2xl ${
                     message.sender === 'user'
-                      ? 'bg-blue-600 text-white'
+                      ? message.keywordTrigger
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-blue-600 text-white'
                       : message.error
                       ? 'bg-red-50 text-red-700 border border-red-200'
+                      : message.shouldEscalate
+                      ? 'bg-orange-50 text-gray-900 border-2 border-orange-300'
                       : 'bg-white text-gray-900 border border-gray-200'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
 
-                {message.intent && (
-                  <div className={`text-xs px-2 py-1 rounded-full ${getIntentColor(message.intent)}`}>
-                    🎯 {getIntentLabel(message.intent)}
-                  </div>
-                )}
+                {/* Indicadores de Escalação */}
+                <div className="flex flex-wrap gap-1">
+                  {message.keywordTrigger && (
+                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-300">
+                      <AlertTriangle className="w-3 h-3" />
+                      Palavra-chave: "{message.keywordTrigger}"
+                    </div>
+                  )}
+
+                  {message.shouldEscalate && (
+                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-300">
+                      <UserX className="w-3 h-3" />
+                      Transferir para humano
+                    </div>
+                  )}
+
+                  {message.sentiment && (
+                    <div className={`text-xs px-2 py-1 rounded-full ${
+                      escalationSentiments.includes(message.sentiment)
+                        ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {message.sentiment === 'frustration' && '😤 Frustração'}
+                      {message.sentiment === 'confusion' && '😕 Confusão'}
+                      {message.sentiment === 'high_interest' && '🤩 Interesse Alto'}
+                      {message.sentiment === 'urgency' && '⚡ Urgência'}
+                      {message.sentiment === 'dissatisfaction' && '😒 Insatisfação'}
+                      {message.sentiment === 'neutral' && '😐 Neutro'}
+                      {message.sentiment === 'positive' && '😊 Positivo'}
+                      {!['frustration', 'confusion', 'high_interest', 'urgency', 'dissatisfaction', 'neutral', 'positive'].includes(message.sentiment) && `💬 ${message.sentiment}`}
+                      {escalationSentiments.includes(message.sentiment) && (
+                        <span className="ml-1">(gatilho)</span>
+                      )}
+                    </div>
+                  )}
+
+                  {message.intent && (
+                    <div className={`text-xs px-2 py-1 rounded-full ${getIntentColor(message.intent)}`}>
+                      🎯 {getIntentLabel(message.intent)}
+                    </div>
+                  )}
+                </div>
 
                 <span className="text-xs text-gray-500">
                   {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}

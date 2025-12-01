@@ -449,6 +449,41 @@ const getSupervisorSectors = async (req, res) => {
   }
 };
 
+/**
+ * Get all users belonging to a specific sector
+ * Used for agent rotation configuration
+ * GET /api/sectors/:id/users
+ */
+const getSectorUsers = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+
+    // Verify sector belongs to account
+    const sectorCheck = await db.query(
+      'SELECT * FROM sectors WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+
+    if (sectorCheck.rows.length === 0) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    const result = await db.query(
+      `SELECT u.id, u.name, u.email, u.avatar_url, u.role
+       FROM users u
+       INNER JOIN user_sectors us ON u.id = us.user_id
+       WHERE us.sector_id = $1 AND u.account_id = $2 AND u.is_active = true
+       ORDER BY u.name`,
+      [id, accountId]
+    );
+
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getSectors,
   getSector,
@@ -460,5 +495,6 @@ module.exports = {
   assignSupervisorToSector,
   removeSupervisorFromSector,
   getUserSectors,
-  getSupervisorSectors
+  getSupervisorSectors,
+  getSectorUsers
 };

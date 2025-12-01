@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X, ChevronRight, ChevronLeft, Check, RefreshCw, Bot, Mail, MessageCircle,
-  Linkedin, MapPin, Target, Zap, BookOpen, Smile, Sparkles
+  X, Check, RefreshCw, Bot, Mail, MessageCircle,
+  Linkedin, MapPin, Target, Zap, BookOpen, Smile, Calendar, Phone, UserCheck,
+  MessageSquare, TrendingUp, GripVertical, Plus, Trash2, UserX, AlertTriangle,
+  Frown, Meh, ThumbsUp, HelpCircle, Tag, Save, Play, Brain, Loader2
 } from 'lucide-react';
 import api from '../services/api';
 import LocationMapPicker from './LocationMapPicker';
-import { BUSINESS_CATEGORIES, detectUserLanguage, getTranslatedCategories } from '../data/businessCategories';
+import AgentWizardSidebar, { SECTIONS_BY_TYPE } from './AgentWizardSidebar';
+import AgentTypeSelector from './AgentTypeSelector';
+import SectorSelector from './SectorSelector';
+import HandoffConfigSection from './HandoffConfigSection';
+import { detectUserLanguage, getTranslatedCategories } from '../data/businessCategories';
 
 const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [activeSection, setActiveSection] = useState('basic');
+  const [sectionStatus, setSectionStatus] = useState({});
   const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState(null);
   const [error, setError] = useState('');
@@ -18,23 +25,29 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
   const [emailTemplates, setEmailTemplates] = useState([]);
 
   // Avatar state
-  const [avatarSeed, setAvatarSeed] = useState(Math.floor(Math.random() * 70) + 1);
   const [avatarUrl, setAvatarUrl] = useState(`https://i.pravatar.cc/200?img=${Math.floor(Math.random() * 70) + 1}`);
   const [avatarLoading, setAvatarLoading] = useState(true);
   const [avatarError, setAvatarError] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
-    // Common fields
     name: '',
     description: '',
     avatar_url: avatarUrl,
-    agent_type: '', // linkedin, google_maps, email, whatsapp
-    response_length: 'medium', // short, medium, long
-
-    // Config will be built dynamically based on agent_type
-    config: {}
+    agent_type: '',
+    response_length: 'medium',
+    config: {},
+    // Handoff/Transfer config (all agents)
+    sector_id: null,
+    agent_mode: 'full', // 'full' or 'facilitator'
+    handoff_after_exchanges: null,
+    handoff_silent: true,
+    handoff_message: '',
+    notify_on_handoff: true,
+    assignee_users: []
   });
+
+  const [errors, setErrors] = useState({});
 
   const userLang = detectUserLanguage();
   const translatedCategories = getTranslatedCategories(userLang);
@@ -53,6 +66,56 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
     }
   }, [isOpen]);
 
+  // Reset form when opening
+  useEffect(() => {
+    if (isOpen) {
+      if (agent) {
+        // Editing existing agent
+        setFormData({
+          name: agent.name || '',
+          description: agent.description || '',
+          avatar_url: agent.avatar_url || avatarUrl,
+          agent_type: agent.agent_type || '',
+          response_length: agent.response_length || 'medium',
+          config: agent.config || {},
+          sector_id: agent.sector_id || null,
+          agent_mode: agent.agent_mode || 'full',
+          handoff_after_exchanges: agent.handoff_after_exchanges || null,
+          handoff_silent: agent.handoff_silent !== false,
+          handoff_message: agent.handoff_message || '',
+          notify_on_handoff: agent.notify_on_handoff !== false,
+          assignee_users: agent.assignees || []
+        });
+        if (agent.avatar_url) {
+          setAvatarUrl(agent.avatar_url);
+        }
+      } else {
+        // New agent - reset form
+        const newAvatarUrl = `https://i.pravatar.cc/200?img=${Math.floor(Math.random() * 70) + 1}`;
+        setFormData({
+          name: '',
+          description: '',
+          avatar_url: newAvatarUrl,
+          agent_type: '',
+          response_length: 'medium',
+          config: {},
+          sector_id: null,
+          agent_mode: 'full',
+          handoff_after_exchanges: null,
+          handoff_silent: true,
+          handoff_message: '',
+          notify_on_handoff: true,
+          assignee_users: []
+        });
+        setAvatarUrl(newAvatarUrl);
+      }
+      setActiveSection('basic');
+      setSectionStatus({});
+      setErrors({});
+      setError('');
+    }
+  }, [isOpen, agent]);
+
   const loadEmailSettings = async () => {
     try {
       const [signaturesRes, templatesRes] = await Promise.all([
@@ -66,23 +129,6 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
     }
   };
 
-  // Prefill form if editing
-  useEffect(() => {
-    if (isOpen && agent) {
-      setFormData({
-        name: agent.name || '',
-        description: agent.description || '',
-        avatar_url: agent.avatar_url || avatarUrl,
-        agent_type: agent.agent_type || '',
-        response_length: agent.response_length || 'medium',
-        config: agent.config || {}
-      });
-      if (agent.avatar_url) {
-        setAvatarUrl(agent.avatar_url);
-      }
-    }
-  }, [isOpen, agent]);
-
   const loadProfiles = async () => {
     try {
       const response = await api.getBehavioralProfiles();
@@ -92,15 +138,17 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
     }
   };
 
-  const updateField = (field, value) => {
+  const updateField = useCallback((field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
     setError('');
-  };
+    // Clear field-specific error
+    setErrors(prev => ({ ...prev, [field]: null }));
+  }, []);
 
-  const updateConfig = (field, value) => {
+  const updateConfig = useCallback((field, value) => {
     setFormData(prev => ({
       ...prev,
       config: {
@@ -109,14 +157,26 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
       }
     }));
     setError('');
-  };
+  }, []);
+
+  // Update handoff config
+  const updateHandoffConfig = useCallback((config) => {
+    setFormData(prev => ({
+      ...prev,
+      sector_id: config.sector_id,
+      handoff_after_exchanges: config.handoff_after_exchanges,
+      handoff_silent: config.handoff_silent,
+      handoff_message: config.handoff_message,
+      notify_on_handoff: config.notify_on_handoff,
+      assignee_users: config.assignee_users || []
+    }));
+    setErrors(prev => ({ ...prev, sector_id: null, assignee_users: null }));
+  }, []);
 
   const refreshAvatar = () => {
     const newSeed = Math.floor(Math.random() * 70) + 1;
-    setAvatarSeed(newSeed);
-    const newUrl = `https://i.pravatar.cc/200?img=${newSeed}&t=${Date.now()}`; // Add timestamp to force reload
+    const newUrl = `https://i.pravatar.cc/200?img=${newSeed}&t=${Date.now()}`;
 
-    // Preload the image before updating state to avoid flicker
     const img = new Image();
     img.onload = () => {
       setAvatarUrl(newUrl);
@@ -131,95 +191,83 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
     img.src = newUrl;
   };
 
-  const handleAvatarLoad = () => {
-    setAvatarLoading(false);
-    setAvatarError(false);
-  };
+  // Validate specific section
+  const validateSection = useCallback((sectionId) => {
+    const newErrors = {};
 
-  const handleAvatarError = () => {
-    setAvatarLoading(false);
-    setAvatarError(true);
-  };
-
-  // Get total steps based on agent type
-  const getTotalSteps = () => {
-    switch (formData.agent_type) {
-      case 'linkedin': return 7; // Avatar+Nome+Tipo, Produtos, Negócio, Perfil, Escalação, Response Length, Review
-      case 'google_maps': return 7; // Avatar+Nome+Tipo, Localização, Nicho, Filtros, Ações, Response Length, Review
-      case 'email': return 6; // Avatar+Nome+Tipo, Personalidade, Mensagens, Email Config, Response Length, Review
-      case 'whatsapp': return 5; // Avatar+Nome+Tipo, Personalidade, Mensagens, Response Length, Review
-      default: return 1;
-    }
-  };
-
-  // Validate current step
-  const validateStep = (step) => {
-    // Step 1: Basic info + Agent Type
-    if (step === 1) {
+    if (sectionId === 'basic') {
       if (!formData.name.trim()) {
-        setError('Nome do agente é obrigatório');
-        return false;
+        newErrors.name = 'Nome do agente é obrigatório';
       }
       if (!formData.agent_type) {
-        setError('Selecione o tipo de agente');
-        return false;
-      }
-      return true;
-    }
-
-    // LinkedIn steps
-    if (formData.agent_type === 'linkedin') {
-      if (step === 2 && !formData.config.products_services) {
-        setError('Descreva seus produtos/serviços');
-        return false;
-      }
-      if (step === 4 && !formData.config.behavioral_profile) {
-        setError('Selecione um perfil comportamental');
-        return false;
-      }
-      if (step === 6 && !formData.config.initial_approach) {
-        setError('Abordagem inicial é obrigatória');
-        return false;
+        newErrors.agent_type = 'Selecione o tipo de agente';
       }
     }
 
-    // Google Maps steps
-    if (formData.agent_type === 'google_maps') {
-      if (step === 2 && (!formData.config.location || !formData.config.location.lat)) {
-        setError('Selecione uma localização no mapa');
-        return false;
+    if (sectionId === 'transfer') {
+      if (!formData.sector_id) {
+        newErrors.sector_id = 'Setor é obrigatório';
       }
-      if (step === 3 && !formData.config.business_category && !formData.config.business_specification) {
-        setError('Preencha categoria OU especificação');
-        return false;
+      if (formData.agent_type === 'facilitador' || formData.agent_mode === 'facilitator') {
+        if (!formData.handoff_after_exchanges || formData.handoff_after_exchanges < 1) {
+          newErrors.handoff_after_exchanges = 'Número de interações é obrigatório para agente facilitador';
+        }
       }
-    }
-
-    // Email/WhatsApp steps
-    if (formData.agent_type === 'email' || formData.agent_type === 'whatsapp') {
-      if (step === 3 && !formData.config.initial_message) {
-        setError('Mensagem inicial é obrigatória');
-        return false;
+      if (!formData.handoff_silent && !formData.handoff_message?.trim()) {
+        newErrors.handoff_message = 'Mensagem de transferência é obrigatória quando não silenciosa';
       }
     }
 
-    return true;
-  };
-
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, getTotalSteps()));
-      setError('');
+    if (sectionId === 'ai_config' && formData.agent_type === 'linkedin') {
+      if (!formData.config.products_services) {
+        newErrors.products_services = 'Descreva seus produtos/serviços';
+      }
+      if (!formData.config.objective) {
+        newErrors.objective = 'Selecione o objetivo principal';
+      }
+      if (!formData.config.behavioral_profile) {
+        newErrors.behavioral_profile = 'Selecione um perfil comportamental';
+      }
     }
-  };
 
-  const handleBack = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
-    setError('');
-  };
+    if (sectionId === 'location' && formData.agent_type === 'google_maps') {
+      if (!formData.config.location?.lat) {
+        newErrors.location = 'Selecione uma localização no mapa';
+      }
+    }
+
+    if (sectionId === 'business' && formData.agent_type === 'google_maps') {
+      if (!formData.config.business_category && !formData.config.business_specification) {
+        newErrors.business = 'Preencha categoria OU especificação';
+      }
+    }
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  // Validate all required sections
+  const validateAll = useCallback(() => {
+    const sections = SECTIONS_BY_TYPE[formData.agent_type] || [];
+    let allValid = true;
+    const newStatus = {};
+
+    for (const section of sections) {
+      if (section.id === 'test') continue; // Skip test section
+      const isValid = validateSection(section.id);
+      newStatus[section.id] = isValid ? 'complete' : 'error';
+      if (!isValid) allValid = false;
+    }
+
+    setSectionStatus(newStatus);
+    return allValid;
+  }, [formData.agent_type, validateSection]);
 
   const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return;
+    if (!validateAll()) {
+      setError('Por favor, corrija os erros antes de salvar');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -231,7 +279,15 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
         avatar_url: formData.avatar_url,
         agent_type: formData.agent_type,
         response_length: formData.response_length,
-        config: formData.config
+        config: formData.config,
+        // Handoff config
+        sector_id: formData.sector_id,
+        agent_mode: formData.agent_type === 'facilitador' ? 'facilitator' : formData.agent_mode,
+        handoff_after_exchanges: formData.handoff_after_exchanges,
+        handoff_silent: formData.handoff_silent,
+        handoff_message: formData.handoff_message || null,
+        notify_on_handoff: formData.notify_on_handoff,
+        assignee_user_ids: formData.assignee_users?.map(u => u.id) || []
       };
 
       await onSubmit(payload);
@@ -245,38 +301,11 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
   };
 
   const handleClose = () => {
-    setCurrentStep(1);
-    setFormData({
-      name: '',
-      description: '',
-      avatar_url: avatarUrl,
-      agent_type: '',
-      response_length: 'medium',
-      config: {}
-    });
+    setActiveSection('basic');
+    setSectionStatus({});
+    setErrors({});
     setError('');
     onClose();
-  };
-
-  // Get agent type icon
-  const getAgentTypeIcon = (type) => {
-    switch (type) {
-      case 'linkedin': return Linkedin;
-      case 'google_maps': return MapPin;
-      case 'email': return Mail;
-      case 'whatsapp': return MessageCircle;
-      default: return Bot;
-    }
-  };
-
-  const getAgentTypeColor = (type) => {
-    switch (type) {
-      case 'linkedin': return 'purple';
-      case 'google_maps': return 'green';
-      case 'email': return 'blue';
-      case 'whatsapp': return 'green';
-      default: return 'gray';
-    }
   };
 
   const iconMap = {
@@ -288,1212 +317,872 @@ const UnifiedAgentWizard = ({ isOpen, onClose, onSubmit, agent = null }) => {
 
   if (!isOpen) return null;
 
-  const totalSteps = getTotalSteps();
+  // Get handoff config object for HandoffConfigSection
+  const handoffConfig = {
+    sector_id: formData.sector_id,
+    handoff_after_exchanges: formData.handoff_after_exchanges,
+    handoff_silent: formData.handoff_silent,
+    handoff_message: formData.handoff_message,
+    notify_on_handoff: formData.notify_on_handoff,
+    assignee_users: formData.assignee_users
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {agent ? 'Editar Agente' : 'Novo Agente de IA'}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Configure seu agente inteligente
-            </p>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-purple-100 rounded-lg">
+              <Bot className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                {agent ? 'Editar Agente' : 'Novo Agente de IA'}
+              </h2>
+              <p className="text-xs text-gray-500">
+                Configure seu agente inteligente
+              </p>
+            </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
-        {/* Progress Bar */}
-        {formData.agent_type && (
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">
-                Passo {currentStep} de {totalSteps}
-              </span>
-              <span className="text-sm text-gray-600">
-                {Math.round((currentStep / totalSteps) * 100)}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-              />
-            </div>
+        {/* Main Content Area */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <div className="w-52 flex-shrink-0 border-r border-gray-200 bg-gray-50 p-2 overflow-y-auto hidden sm:block">
+            <AgentWizardSidebar
+              agentType={formData.agent_type}
+              activeSection={activeSection}
+              sectionStatus={sectionStatus}
+              onSectionChange={setActiveSection}
+              disabled={!formData.agent_type && activeSection !== 'basic'}
+            />
           </div>
-        )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* STEP 1: Avatar + Nome + Tipo */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Informações Básicas
-                </h3>
-              </div>
-
-              {/* Avatar */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  {avatarError ? (
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
-                      <Bot className="w-12 h-12 text-gray-400" />
-                    </div>
-                  ) : (
-                    <img
-                      src={avatarUrl}
-                      alt="Avatar"
-                      key={avatarUrl}
-                      className="w-24 h-24 rounded-full transition-opacity duration-300 ease-in-out"
-                      onLoad={handleAvatarLoad}
-                      onError={handleAvatarError}
-                      style={{ opacity: avatarLoading ? 0.5 : 1 }}
-                    />
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">Avatar do Agente</p>
-                  <button
-                    type="button"
-                    onClick={refreshAvatar}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Trocar Avatar
-                  </button>
-                </div>
-              </div>
-
-              {/* Nome */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome do Agente *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => updateField('name', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Ex: Agente de Vendas LinkedIn"
-                />
-              </div>
-
-              {/* Descrição */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descrição (opcional)
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => updateField('description', e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Descreva a finalidade deste agente..."
-                />
-              </div>
-
-              {/* Tipo de Agente */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Tipo de Agente *
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { type: 'linkedin', label: 'LinkedIn', icon: Linkedin, color: 'purple' },
-                    { type: 'email', label: 'Email', icon: Mail, color: 'blue' },
-                    { type: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'green' }
-                  ].map(({ type, label, icon: Icon, color }) => {
-                    const isSelected = formData.agent_type === type;
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => updateField('agent_type', type)}
-                        className={`p-4 border-2 rounded-lg transition-all ${
-                          isSelected
-                            ? `border-${color}-600 bg-${color}-50`
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <Icon className={`w-8 h-8 mx-auto mb-2 ${
-                          isSelected ? `text-${color}-600` : 'text-gray-400'
-                        }`} />
-                        <p className={`text-sm font-medium ${
-                          isSelected ? `text-${color}-900` : 'text-gray-700'
-                        }`}>
-                          {label}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* LINKEDIN STEPS */}
-          {formData.agent_type === 'linkedin' && currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Produtos e Serviços
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Descreva o que sua empresa oferece
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Produtos/Serviços *
-                </label>
-                <textarea
-                  value={formData.config.products_services || ''}
-                  onChange={(e) => updateConfig('products_services', e.target.value)}
-                  rows={6}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Descreva seus produtos e serviços..."
-                />
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'linkedin' && currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Informações do Negócio
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Conte mais sobre sua empresa (opcional)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descrição da Empresa
-                </label>
-                <textarea
-                  value={formData.config.company_description || ''}
-                  onChange={(e) => updateConfig('company_description', e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Sobre a empresa..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Proposta de Valor
-                </label>
-                <textarea
-                  value={formData.config.value_proposition || ''}
-                  onChange={(e) => updateConfig('value_proposition', e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="O que diferencia sua empresa..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Diferenciais (separados por vírgula)
-                </label>
-                <input
-                  type="text"
-                  value={formData.config.key_differentiators || ''}
-                  onChange={(e) => updateConfig('key_differentiators', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Qualidade, Suporte 24/7, Garantia vitalícia..."
-                />
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'linkedin' && currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Perfil Comportamental
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Escolha como seu agente deve se comunicar
-                </p>
-              </div>
-
-              {profiles && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(profiles).map(([key, profile]) => {
-                    const Icon = iconMap[key] || Bot;
-                    const isSelected = formData.config.behavioral_profile === key;
-
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => updateConfig('behavioral_profile', key)}
-                        className={`p-4 border-2 rounded-lg text-left transition-all ${
-                          isSelected
-                            ? 'border-purple-600 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Icon className={`w-6 h-6 flex-shrink-0 ${
-                            isSelected ? 'text-purple-600' : 'text-gray-400'
-                          }`} />
-                          <div className="flex-1">
-                            <h4 className={`font-semibold mb-1 ${
-                              isSelected ? 'text-purple-900' : 'text-gray-900'
-                            }`}>
-                              {profile.name}
-                            </h4>
-                            <p className="text-sm text-gray-600">{profile.description}</p>
-                          </div>
-                          {isSelected && (
-                            <Check className="w-5 h-5 text-purple-600" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {formData.agent_type === 'linkedin' && currentStep === 5 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Transferir para Humano
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure quando o agente deve passar para atendimento humano
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.config.escalation_rules?.escalate_on_price_question || false}
-                    onChange={(e) => updateConfig('escalation_rules', {
-                      ...formData.config.escalation_rules,
-                      escalate_on_price_question: e.target.checked
-                    })}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">Transferir em perguntas sobre preço</span>
-                </label>
-
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.config.escalation_rules?.escalate_on_specific_feature || false}
-                    onChange={(e) => updateConfig('escalation_rules', {
-                      ...formData.config.escalation_rules,
-                      escalate_on_specific_feature: e.target.checked
-                    })}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">Transferir em perguntas técnicas específicas</span>
-                </label>
-
-                <div>
-                  <label className="flex items-center gap-3 mb-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.config.escalation_rules?.enable_max_messages || false}
-                      onChange={(e) => updateConfig('escalation_rules', {
-                        ...formData.config.escalation_rules,
-                        enable_max_messages: e.target.checked
-                      })}
-                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Definir o máximo de mensagens antes de transferir para um humano
-                    </span>
-                  </label>
-
-                  {formData.config.escalation_rules?.enable_max_messages && (
-                    <input
-                      type="number"
-                      min="1"
-                      max="50"
-                      value={formData.config.escalation_rules?.max_messages_before_escalation || 10}
-                      onChange={(e) => updateConfig('escalation_rules', {
-                        ...formData.config.escalation_rules,
-                        max_messages_before_escalation: parseInt(e.target.value) || 10
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Ex: 10"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'linkedin' && currentStep === 6 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Configuração Final
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Abordagem inicial e tamanho de resposta
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Abordagem Inicial *
-                </label>
-                <textarea
-                  value={formData.config.initial_approach || ''}
-                  onChange={(e) => updateConfig('initial_approach', e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Como o agente deve iniciar uma conversa..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Tamanho das Respostas
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
-                    { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
-                    { value: 'long', label: 'Longas', desc: '4-6 linhas' }
-                  ].map(({ value, label, desc }) => {
-                    const isSelected = formData.response_length === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => updateField('response_length', value)}
-                        className={`p-3 border-2 rounded-lg transition-all ${
-                          isSelected
-                            ? 'border-purple-600 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <p className={`font-medium ${
-                          isSelected ? 'text-purple-900' : 'text-gray-900'
-                        }`}>
-                          {label}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">{desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.config.auto_schedule || false}
-                    onChange={(e) => updateConfig('auto_schedule', e.target.checked)}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">Agendar reuniões automaticamente</span>
-                </label>
-
-                {formData.config.auto_schedule && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Link de Agendamento
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.config.scheduling_link || ''}
-                      onChange={(e) => updateConfig('scheduling_link', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="https://calendly.com/..."
-                    />
+          {/* Content Area */}
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+            {/* BASIC SECTION */}
+            {activeSection === 'basic' && (
+              <div className="space-y-4 max-w-4xl">
+                <div className="flex items-center gap-2 pb-3 border-b border-gray-200">
+                  <div className="p-1.5 bg-purple-100 rounded-lg">
+                    <Bot className="w-4 h-4 text-purple-600" />
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* GOOGLE MAPS STEPS */}
-          {formData.agent_type === 'google_maps' && currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Localização
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Escolha onde buscar estabelecimentos
-                </p>
-              </div>
-
-              <LocationMapPicker
-                initialLocation={formData.config.location}
-                onLocationSelect={(location) => updateConfig('location', location)}
-              />
-            </div>
-          )}
-
-          {formData.agent_type === 'google_maps' && currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Nicho de Negócio
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Defina o tipo de estabelecimento que quer encontrar
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Categoria (opcional)
-                </label>
-                <select
-                  value={formData.config.business_category || ''}
-                  onChange={(e) => updateConfig('business_category', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">Selecione uma categoria...</option>
-                  {translatedCategories.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Especificação
-                </label>
-                <input
-                  type="text"
-                  value={formData.config.business_specification || ''}
-                  onChange={(e) => updateConfig('business_specification', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Ex: Restaurantes italianos, Academias de crossfit..."
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Pelo menos um campo (Categoria ou Especificação) é obrigatório
-                </p>
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'google_maps' && currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Filtros de Qualidade
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Refine sua busca com critérios específicos (opcional)
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Avaliação Mínima
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={formData.config.filters?.min_rating || ''}
-                    onChange={(e) => updateConfig('filters', {
-                      ...formData.config.filters,
-                      min_rating: parseFloat(e.target.value) || null
-                    })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Ex: 4.0"
-                  />
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Informações Básicas
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Nome, avatar e tipo do agente
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reviews Mínimos
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.config.filters?.min_reviews || ''}
-                    onChange={(e) => updateConfig('filters', {
-                      ...formData.config.filters,
-                      min_reviews: parseInt(e.target.value) || null
-                    })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Ex: 10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.config.filters?.require_phone || false}
-                    onChange={(e) => updateConfig('filters', {
-                      ...formData.config.filters,
-                      require_phone: e.target.checked
-                    })}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">Apenas com telefone</span>
-                </label>
-
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.config.filters?.require_email || false}
-                    onChange={(e) => updateConfig('filters', {
-                      ...formData.config.filters,
-                      require_email: e.target.checked
-                    })}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">Apenas com email</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'google_maps' && currentStep === 5 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Ações do Agente
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  O que o agente deve fazer com os contatos encontrados
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { value: 'crm_only', label: 'Apenas Salvar no CRM', desc: 'Sem contato automático' },
-                  { value: 'crm_email', label: 'CRM + Email', desc: 'Salvar e enviar email' },
-                  { value: 'crm_email_whatsapp', label: 'CRM + Email + WhatsApp', desc: 'Contato completo' }
-                ].map(({ value, label, desc }) => {
-                  const isSelected = formData.config.action_type === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => updateConfig('action_type', value)}
-                      className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-medium ${
-                            isSelected ? 'text-purple-900' : 'text-gray-900'
-                          }`}>
-                            {label}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">{desc}</p>
-                        </div>
-                        {isSelected && (
-                          <Check className="w-5 h-5 text-purple-600" />
-                        )}
+                {/* Avatar */}
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    {avatarError ? (
+                      <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center">
+                        <Bot className="w-7 h-7 text-gray-400" />
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'google_maps' && currentStep === 6 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Tamanho das Respostas
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure o tamanho das mensagens automáticas
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
-                  { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
-                  { value: 'long', label: 'Longas', desc: '4-6 linhas' }
-                ].map(({ value, label, desc }) => {
-                  const isSelected = formData.response_length === value;
-                  return (
+                    ) : (
+                      <img
+                        src={avatarUrl}
+                        alt="Avatar"
+                        key={avatarUrl}
+                        className="w-14 h-14 rounded-full transition-opacity duration-300 ease-in-out border-2 border-gray-200"
+                        onLoad={() => { setAvatarLoading(false); setAvatarError(false); }}
+                        onError={() => { setAvatarLoading(false); setAvatarError(true); }}
+                        style={{ opacity: avatarLoading ? 0.5 : 1 }}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Avatar do Agente</p>
                     <button
-                      key={value}
                       type="button"
-                      onClick={() => updateField('response_length', value)}
-                      className={`p-3 border-2 rounded-lg transition-all ${
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      onClick={refreshAvatar}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                     >
-                      <p className={`font-medium ${
-                        isSelected ? 'text-purple-900' : 'text-gray-900'
-                      }`}>
-                        {label}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                      <RefreshCw className="w-3 h-3" />
+                      Trocar Avatar
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* EMAIL/WHATSAPP STEPS */}
-          {(formData.agent_type === 'email' || formData.agent_type === 'whatsapp') && currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Personalidade & Tom
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure como o agente deve se comunicar
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tom de Comunicação
-                </label>
-                <select
-                  value={formData.config.tone || 'professional'}
-                  onChange={(e) => updateConfig('tone', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="formal">Formal</option>
-                  <option value="casual">Casual</option>
-                  <option value="professional">Profissional</option>
-                  <option value="friendly">Amigável</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Idioma
-                </label>
-                <select
-                  value={formData.config.language || 'pt-BR'}
-                  onChange={(e) => updateConfig('language', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="pt-BR">Português (BR)</option>
-                  <option value="en">English</option>
-                  <option value="es">Español</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Personalidade
-                </label>
-                <textarea
-                  value={formData.config.personality || ''}
-                  onChange={(e) => updateConfig('personality', e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Descreva a personalidade do agente..."
-                />
-              </div>
-            </div>
-          )}
-
-          {(formData.agent_type === 'email' || formData.agent_type === 'whatsapp') && currentStep === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Mensagens
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure as mensagens automáticas
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mensagem Inicial *
-                </label>
-                <textarea
-                  value={formData.config.initial_message || ''}
-                  onChange={(e) => updateConfig('initial_message', e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Primeira mensagem enviada ao contato..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mensagem de Follow-up
-                </label>
-                <textarea
-                  value={formData.config.follow_up_message || ''}
-                  onChange={(e) => updateConfig('follow_up_message', e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Mensagem de acompanhamento..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Instruções Customizadas
-                </label>
-                <textarea
-                  value={formData.config.custom_instructions || ''}
-                  onChange={(e) => updateConfig('custom_instructions', e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  placeholder="Instruções adicionais para o agente..."
-                />
-              </div>
-            </div>
-          )}
-
-          {/* EMAIL CONFIG STEP (only for email) */}
-          {formData.agent_type === 'email' && currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Configurações de Email
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Personalize como seus emails serão enviados
-                </p>
-              </div>
-
-              {/* Signature Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assinatura de Email
-                </label>
-                <select
-                  value={formData.config.email_config?.signature_id || ''}
-                  onChange={(e) => updateConfig('email_config', {
-                    ...formData.config.email_config,
-                    signature_id: e.target.value || null,
-                    include_signature: !!e.target.value
-                  })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">Sem assinatura</option>
-                  {emailSignatures.map((sig) => (
-                    <option key={sig.id} value={sig.id}>{sig.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Configure assinaturas em Configurações &gt; Email
-                </p>
-              </div>
-
-              {/* Template Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Template Base (opcional)
-                </label>
-                <select
-                  value={formData.config.email_config?.template_id || ''}
-                  onChange={(e) => updateConfig('email_config', {
-                    ...formData.config.email_config,
-                    template_id: e.target.value || null
-                  })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">Nenhum template</option>
-                  {emailTemplates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Include Logo */}
-              <div className="flex items-center justify-between py-3 border-t border-gray-200">
-                <div>
-                  <span className="text-sm font-medium text-gray-900">Incluir Logo da Empresa</span>
-                  <p className="text-xs text-gray-500">Adiciona o logo no cabeçalho do email</p>
+                  </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={formData.config.email_config?.include_logo !== false}
-                    onChange={(e) => updateConfig('email_config', {
-                      ...formData.config.email_config,
-                      include_logo: e.target.checked
-                    })}
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                </label>
-              </div>
 
-              {/* Greeting Style */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estilo de Saudação
-                </label>
-                <select
-                  value={formData.config.email_config?.greeting_style || 'name'}
-                  onChange={(e) => updateConfig('email_config', {
-                    ...formData.config.email_config,
-                    greeting_style: e.target.value
-                  })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="name">Pelo Nome (Olá João)</option>
-                  <option value="title">Pelo Cargo (Prezado Diretor)</option>
-                  <option value="generic">Genérico (Olá!)</option>
-                  <option value="formal">Formal (Prezado(a) Senhor(a))</option>
-                </select>
-              </div>
-
-              {/* Closing Style */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estilo de Encerramento
-                </label>
-                <select
-                  value={formData.config.email_config?.closing_style || 'best_regards'}
-                  onChange={(e) => updateConfig('email_config', {
-                    ...formData.config.email_config,
-                    closing_style: e.target.value
-                  })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="best_regards">Atenciosamente</option>
-                  <option value="thanks">Obrigado(a)</option>
-                  <option value="sincerely">Cordialmente</option>
-                  <option value="warm_regards">Abraços</option>
-                  <option value="cheers">Até mais</option>
-                  <option value="custom">Personalizado</option>
-                </select>
-              </div>
-
-              {/* Custom Closing (if selected) */}
-              {formData.config.email_config?.closing_style === 'custom' && (
+                {/* Nome */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Encerramento Personalizado
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Nome do Agente <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    value={formData.config.email_config?.custom_closing || ''}
-                    onChange={(e) => updateConfig('email_config', {
-                      ...formData.config.email_config,
-                      custom_closing: e.target.value
-                    })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Ex: Com carinho,"
+                    value={formData.name}
+                    onChange={(e) => updateField('name', e.target.value)}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                      errors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    placeholder="Ex: Agente de Vendas LinkedIn"
+                  />
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+                  )}
+                </div>
+
+                {/* Descrição */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Descrição (opcional)
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => updateField('description', e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    placeholder="Descreva a finalidade deste agente..."
                   />
                 </div>
-              )}
 
-              {/* Personalization Level */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Nível de Personalização
-                </label>
-                <div className="grid grid-cols-3 gap-3">
+                {/* Tipo de Agente */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Tipo de Agente <span className="text-red-500">*</span>
+                  </label>
+                  <AgentTypeSelector
+                    value={formData.agent_type}
+                    onChange={(type) => {
+                      updateField('agent_type', type);
+                      // Set default mode for facilitador
+                      if (type === 'facilitador') {
+                        updateField('agent_mode', 'facilitator');
+                        updateField('handoff_after_exchanges', 2);
+                      }
+                    }}
+                    showFeatures={true}
+                    compact={false}
+                  />
+                  {errors.agent_type && (
+                    <p className="mt-1 text-xs text-red-600">{errors.agent_type}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* AI CONFIG SECTION (LinkedIn, WhatsApp, Email) */}
+            {activeSection === 'ai_config' && ['linkedin', 'whatsapp', 'email'].includes(formData.agent_type) && (
+              <div className="space-y-4 max-w-4xl">
+                <div className="flex items-center gap-2 pb-3 border-b border-gray-200">
+                  <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <Brain className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Configuração de IA
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Defina o comportamento e personalidade do agente
+                    </p>
+                  </div>
+                </div>
+
+                {/* LinkedIn specific AI config */}
+                {formData.agent_type === 'linkedin' && (
+                  <>
+                    {/* Products/Services */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Produtos/Serviços <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={formData.config.products_services || ''}
+                        onChange={(e) => updateConfig('products_services', e.target.value)}
+                        rows={3}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none ${
+                          errors.products_services ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
+                        placeholder="Descreva seus produtos e serviços..."
+                      />
+                      {errors.products_services && (
+                        <p className="mt-1 text-xs text-red-600">{errors.products_services}</p>
+                      )}
+                    </div>
+
+                    {/* Objective */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Objetivo Principal <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {[
+                          { value: 'schedule_meeting', label: 'Agendar Reunião', desc: 'Marcar call ou demonstração', icon: Calendar },
+                          { value: 'qualify_lead', label: 'Qualificar Lead', desc: 'Descobrir se é potencial cliente', icon: UserCheck },
+                          { value: 'generate_interest', label: 'Gerar Interesse', desc: 'Despertar curiosidade sobre produto', icon: TrendingUp },
+                          { value: 'get_contact', label: 'Obter Contato', desc: 'Conseguir email ou telefone', icon: Phone },
+                          { value: 'start_conversation', label: 'Iniciar Conversa', desc: 'Criar relacionamento inicial', icon: MessageSquare },
+                          { value: 'direct_sale', label: 'Venda Direta', desc: 'Fechar negócio pelo chat', icon: Target }
+                        ].map(({ value, label, desc, icon: Icon }) => {
+                          const isSelected = formData.config.objective === value;
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => updateConfig('objective', value)}
+                              className={`p-2.5 border-2 rounded-lg text-left transition-all ${
+                                isSelected
+                                  ? 'border-purple-600 bg-purple-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <Icon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                                  isSelected ? 'text-purple-600' : 'text-gray-400'
+                                }`} />
+                                <div className="flex-1 min-w-0">
+                                  <h4 className={`text-xs font-medium truncate ${
+                                    isSelected ? 'text-purple-900' : 'text-gray-900'
+                                  }`}>
+                                    {label}
+                                  </h4>
+                                  <p className="text-[10px] text-gray-500 truncate">{desc}</p>
+                                </div>
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {errors.objective && (
+                        <p className="mt-1 text-xs text-red-600">{errors.objective}</p>
+                      )}
+                    </div>
+
+                    {/* Behavioral Profile */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Perfil Comportamental <span className="text-red-500">*</span>
+                      </label>
+                      {profiles ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(profiles).map(([key, profile]) => {
+                            const Icon = iconMap[key] || Bot;
+                            const isSelected = formData.config.behavioral_profile === key;
+
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => updateConfig('behavioral_profile', key)}
+                                className={`p-2.5 border-2 rounded-lg text-left transition-all ${
+                                  isSelected
+                                    ? 'border-purple-600 bg-purple-50'
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <Icon className={`w-4 h-4 flex-shrink-0 ${
+                                    isSelected ? 'text-purple-600' : 'text-gray-400'
+                                  }`} />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className={`text-xs font-semibold ${
+                                      isSelected ? 'text-purple-900' : 'text-gray-900'
+                                    }`}>
+                                      {profile.name}
+                                    </h4>
+                                    <p className="text-[10px] text-gray-600 line-clamp-2">{profile.description}</p>
+                                  </div>
+                                  {isSelected && (
+                                    <Check className="w-3.5 h-3.5 text-purple-600" />
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center p-8 bg-gray-50 rounded-lg">
+                          <Loader2 className="w-6 h-6 animate-spin text-gray-400 mr-2" />
+                          <span className="text-gray-500">Carregando perfis...</span>
+                        </div>
+                      )}
+                      {errors.behavioral_profile && (
+                        <p className="mt-2 text-sm text-red-600">{errors.behavioral_profile}</p>
+                      )}
+                    </div>
+
+                    {/* Initial Approach */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Abordagem Inicial
+                      </label>
+                      <textarea
+                        value={formData.config.initial_approach || ''}
+                        onChange={(e) => updateConfig('initial_approach', e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-mono text-sm"
+                        placeholder="Olá {{primeiro_nome}}, tudo bem?&#10;&#10;Vi que você trabalha na {{empresa}} como {{cargo}}..."
+                      />
+                      <div className="mt-2 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                        <p className="text-xs font-medium text-purple-800 mb-2">Variáveis disponíveis:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {['{{primeiro_nome}}', '{{nome}}', '{{empresa}}', '{{cargo}}', '{{setor}}', '{{localizacao}}'].map((v) => (
+                            <span key={v} className="px-2 py-1 text-xs bg-white border border-purple-200 rounded font-mono text-purple-700">
+                              {v}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Response Length */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Tamanho das Respostas
+                      </label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
+                          { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
+                          { value: 'long', label: 'Longas', desc: '4-6 linhas' }
+                        ].map(({ value, label, desc }) => {
+                          const isSelected = formData.response_length === value;
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => updateField('response_length', value)}
+                              className={`p-3 border-2 rounded-lg transition-all ${
+                                isSelected
+                                  ? 'border-purple-600 bg-purple-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <p className={`font-medium ${isSelected ? 'text-purple-900' : 'text-gray-900'}`}>
+                                {label}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* WhatsApp/Email AI config */}
+                {(formData.agent_type === 'whatsapp' || formData.agent_type === 'email') && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tom de Comunicação
+                      </label>
+                      <select
+                        value={formData.config.tone || 'professional'}
+                        onChange={(e) => updateConfig('tone', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="formal">Formal</option>
+                        <option value="casual">Casual</option>
+                        <option value="professional">Profissional</option>
+                        <option value="friendly">Amigável</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Personalidade
+                      </label>
+                      <textarea
+                        value={formData.config.personality || ''}
+                        onChange={(e) => updateConfig('personality', e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        placeholder="Descreva a personalidade do agente..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Mensagem Inicial
+                      </label>
+                      <textarea
+                        value={formData.config.initial_message || ''}
+                        onChange={(e) => updateConfig('initial_message', e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        placeholder="Primeira mensagem enviada ao contato..."
+                      />
+                    </div>
+
+                    {/* Response Length */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Tamanho das Respostas
+                      </label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
+                          { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
+                          { value: 'long', label: 'Longas', desc: '4-6 linhas' }
+                        ].map(({ value, label, desc }) => {
+                          const isSelected = formData.response_length === value;
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => updateField('response_length', value)}
+                              className={`p-3 border-2 rounded-lg transition-all ${
+                                isSelected
+                                  ? 'border-purple-600 bg-purple-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <p className={`font-medium ${isSelected ? 'text-purple-900' : 'text-gray-900'}`}>
+                                {label}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* EMAIL SETTINGS SECTION */}
+            {activeSection === 'email_settings' && formData.agent_type === 'email' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Mail className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Configurações de Email
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Personalize como seus emails serão enviados
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assinatura de Email
+                  </label>
+                  <select
+                    value={formData.config.email_config?.signature_id || ''}
+                    onChange={(e) => updateConfig('email_config', {
+                      ...formData.config.email_config,
+                      signature_id: e.target.value || null,
+                      include_signature: !!e.target.value
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Sem assinatura</option>
+                    {emailSignatures.map((sig) => (
+                      <option key={sig.id} value={sig.id}>{sig.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Template Base (opcional)
+                  </label>
+                  <select
+                    value={formData.config.email_config?.template_id || ''}
+                    onChange={(e) => updateConfig('email_config', {
+                      ...formData.config.email_config,
+                      template_id: e.target.value || null
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Nenhum template</option>
+                    {emailTemplates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estilo de Saudação
+                  </label>
+                  <select
+                    value={formData.config.email_config?.greeting_style || 'name'}
+                    onChange={(e) => updateConfig('email_config', {
+                      ...formData.config.email_config,
+                      greeting_style: e.target.value
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="name">Pelo Nome (Olá João)</option>
+                    <option value="title">Pelo Cargo (Prezado Diretor)</option>
+                    <option value="generic">Genérico (Olá!)</option>
+                    <option value="formal">Formal (Prezado(a) Senhor(a))</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estilo de Encerramento
+                  </label>
+                  <select
+                    value={formData.config.email_config?.closing_style || 'best_regards'}
+                    onChange={(e) => updateConfig('email_config', {
+                      ...formData.config.email_config,
+                      closing_style: e.target.value
+                    })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="best_regards">Atenciosamente</option>
+                    <option value="thanks">Obrigado(a)</option>
+                    <option value="sincerely">Cordialmente</option>
+                    <option value="warm_regards">Abraços</option>
+                    <option value="cheers">Até mais</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* TRANSFER SECTION (All agent types) */}
+            {activeSection === 'transfer' && (
+              <div className="max-w-3xl">
+                <HandoffConfigSection
+                  agentType={formData.agent_type}
+                  config={handoffConfig}
+                  onChange={updateHandoffConfig}
+                  errors={errors}
+                  disabled={loading}
+                />
+              </div>
+            )}
+
+            {/* KNOWLEDGE BASE SECTION */}
+            {activeSection === 'knowledge' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <BookOpen className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Base de Conhecimento
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Adicione informações para o agente usar nas conversas
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                  <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-600 mb-2">
+                    A base de conhecimento pode ser configurada após criar o agente
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Você poderá adicionar documentos, FAQs e informações que o agente usará para responder
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* GOOGLE MAPS - Location Section */}
+            {activeSection === 'location' && formData.agent_type === 'google_maps' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <MapPin className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Localização
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Escolha onde buscar estabelecimentos
+                    </p>
+                  </div>
+                </div>
+
+                <LocationMapPicker
+                  initialLocation={formData.config.location}
+                  onLocationSelect={(location) => updateConfig('location', location)}
+                />
+                {errors.location && (
+                  <p className="text-sm text-red-600">{errors.location}</p>
+                )}
+              </div>
+            )}
+
+            {/* GOOGLE MAPS - Business Section */}
+            {activeSection === 'business' && formData.agent_type === 'google_maps' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Target className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Nicho de Negócio
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Defina o tipo de estabelecimento que quer encontrar
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categoria (opcional)
+                  </label>
+                  <select
+                    value={formData.config.business_category || ''}
+                    onChange={(e) => updateConfig('business_category', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione uma categoria...</option>
+                    {translatedCategories.map(cat => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Especificação
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.config.business_specification || ''}
+                    onChange={(e) => updateConfig('business_specification', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Ex: Restaurantes italianos, Academias de crossfit..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Pelo menos um campo (Categoria ou Especificação) é obrigatório
+                  </p>
+                </div>
+                {errors.business && (
+                  <p className="text-sm text-red-600">{errors.business}</p>
+                )}
+              </div>
+            )}
+
+            {/* GOOGLE MAPS - Filters Section */}
+            {activeSection === 'filters' && formData.agent_type === 'google_maps' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Tag className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Filtros de Qualidade
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Refine sua busca com critérios específicos (opcional)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Avaliação Mínima
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={formData.config.filters?.min_rating || ''}
+                      onChange={(e) => updateConfig('filters', {
+                        ...formData.config.filters,
+                        min_rating: parseFloat(e.target.value) || null
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ex: 4.0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reviews Mínimos
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.config.filters?.min_reviews || ''}
+                      onChange={(e) => updateConfig('filters', {
+                        ...formData.config.filters,
+                        min_reviews: parseInt(e.target.value) || null
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ex: 10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.config.filters?.require_phone || false}
+                      onChange={(e) => updateConfig('filters', {
+                        ...formData.config.filters,
+                        require_phone: e.target.checked
+                      })}
+                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700">Apenas com telefone</span>
+                  </label>
+
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.config.filters?.require_email || false}
+                      onChange={(e) => updateConfig('filters', {
+                        ...formData.config.filters,
+                        require_email: e.target.checked
+                      })}
+                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700">Apenas com email</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* GOOGLE MAPS - Actions Section */}
+            {activeSection === 'actions' && formData.agent_type === 'google_maps' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Zap className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Ações do Agente
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      O que o agente deve fazer com os contatos encontrados
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
                   {[
-                    { value: 'low', label: 'Básico', desc: 'Nome apenas' },
-                    { value: 'medium', label: 'Moderado', desc: 'Nome + empresa' },
-                    { value: 'high', label: 'Alto', desc: 'Contextualizado' }
+                    { value: 'crm_only', label: 'Apenas Salvar no CRM', desc: 'Sem contato automático' },
+                    { value: 'crm_email', label: 'CRM + Email', desc: 'Salvar e enviar email' },
+                    { value: 'crm_email_whatsapp', label: 'CRM + Email + WhatsApp', desc: 'Contato completo' }
                   ].map(({ value, label, desc }) => {
-                    const isSelected = (formData.config.email_config?.personalization_level || 'medium') === value;
+                    const isSelected = formData.config.action_type === value;
                     return (
                       <button
                         key={value}
                         type="button"
-                        onClick={() => updateConfig('email_config', {
-                          ...formData.config.email_config,
-                          personalization_level: value
-                        })}
-                        className={`p-3 border-2 rounded-lg transition-all ${
+                        onClick={() => updateConfig('action_type', value)}
+                        className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
                           isSelected
                             ? 'border-purple-600 bg-purple-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <p className={`font-medium ${
-                          isSelected ? 'text-purple-900' : 'text-gray-900'
-                        }`}>
-                          {label}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className={`font-medium ${isSelected ? 'text-purple-900' : 'text-gray-900'}`}>
+                              {label}
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">{desc}</p>
+                          </div>
+                          {isSelected && <Check className="w-5 h-5 text-purple-600" />}
+                        </div>
                       </button>
                     );
                   })}
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* RESPONSE LENGTH STEP */}
-          {formData.agent_type === 'whatsapp' && currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Tamanho das Respostas
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure o tamanho das mensagens
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
-                  { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
-                  { value: 'long', label: 'Longas', desc: '4-6 linhas' }
-                ].map(({ value, label, desc }) => {
-                  const isSelected = formData.response_length === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => updateField('response_length', value)}
-                      className={`p-3 border-2 rounded-lg transition-all ${
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <p className={`font-medium ${
-                        isSelected ? 'text-purple-900' : 'text-gray-900'
-                      }`}>
-                        {label}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1">{desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {formData.agent_type === 'email' && currentStep === 5 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Tamanho das Respostas
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure o tamanho das mensagens
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: 'short', label: 'Curtas', desc: '1-2 linhas' },
-                  { value: 'medium', label: 'Médias', desc: '2-4 linhas' },
-                  { value: 'long', label: 'Longas', desc: '4-6 linhas' }
-                ].map(({ value, label, desc }) => {
-                  const isSelected = formData.response_length === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => updateField('response_length', value)}
-                      className={`p-3 border-2 rounded-lg transition-all ${
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <p className={`font-medium ${
-                        isSelected ? 'text-purple-900' : 'text-gray-900'
-                      }`}>
-                        {label}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1">{desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* REVIEW STEP (Last step for all types) */}
-          {currentStep === getTotalSteps() && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Revisão
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Confirme as informações do seu agente
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center gap-4 mb-4">
-                    <img src={formData.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full" />
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{formData.name}</h4>
-                      {formData.description && (
-                        <p className="text-sm text-gray-600 mt-1">{formData.description}</p>
-                      )}
-                    </div>
+            {/* TEST SECTION */}
+            {activeSection === 'test' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Play className="w-5 h-5 text-green-600" />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-600">Tipo:</span>
-                      <span className="ml-2 font-medium text-gray-900 capitalize">
-                        {formData.agent_type === 'google_maps' ? 'Google Maps' : formData.agent_type}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Respostas:</span>
-                      <span className="ml-2 font-medium text-gray-900 capitalize">
-                        {formData.response_length === 'short' ? 'Curtas' : formData.response_length === 'medium' ? 'Médias' : 'Longas'}
-                      </span>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Modo Teste
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Teste seu agente antes de ativá-lo
+                    </p>
                   </div>
                 </div>
 
-                {formData.agent_type === 'linkedin' && formData.config.behavioral_profile && (
-                  <div className="bg-purple-50 rounded-lg p-4">
-                    <p className="text-sm font-medium text-purple-900">
-                      Perfil: {profiles?.[formData.config.behavioral_profile]?.name}
-                    </p>
-                  </div>
-                )}
-
-                {formData.agent_type === 'google_maps' && formData.config.location && (
-                  <div className="bg-green-50 rounded-lg p-4">
-                    <p className="text-sm font-medium text-green-900">
-                      Localização: {formData.config.location.city}, {formData.config.location.country}
-                    </p>
-                    <p className="text-sm text-green-700 mt-1">
-                      Raio: {formData.config.location.radius} km
-                    </p>
-                  </div>
-                )}
-
-                {formData.agent_type === 'email' && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-blue-900 mb-2">Configurações de Email</h4>
-                    <div className="space-y-1 text-sm text-blue-800">
-                      <p>
-                        <span className="text-blue-600">Assinatura:</span>{' '}
-                        {formData.config.email_config?.signature_id
-                          ? emailSignatures.find(s => s.id === formData.config.email_config.signature_id)?.name || 'Selecionada'
-                          : 'Nenhuma'}
-                      </p>
-                      <p>
-                        <span className="text-blue-600">Logo:</span>{' '}
-                        {formData.config.email_config?.include_logo !== false ? 'Incluído' : 'Não incluído'}
-                      </p>
-                      <p>
-                        <span className="text-blue-600">Saudação:</span>{' '}
-                        {formData.config.email_config?.greeting_style === 'name' && 'Pelo Nome'}
-                        {formData.config.email_config?.greeting_style === 'title' && 'Pelo Cargo'}
-                        {formData.config.email_config?.greeting_style === 'generic' && 'Genérico'}
-                        {formData.config.email_config?.greeting_style === 'formal' && 'Formal'}
-                        {!formData.config.email_config?.greeting_style && 'Pelo Nome'}
-                      </p>
-                      <p>
-                        <span className="text-blue-600">Encerramento:</span>{' '}
-                        {formData.config.email_config?.closing_style === 'best_regards' && 'Atenciosamente'}
-                        {formData.config.email_config?.closing_style === 'thanks' && 'Obrigado(a)'}
-                        {formData.config.email_config?.closing_style === 'sincerely' && 'Cordialmente'}
-                        {formData.config.email_config?.closing_style === 'warm_regards' && 'Abraços'}
-                        {formData.config.email_config?.closing_style === 'cheers' && 'Até mais'}
-                        {formData.config.email_config?.closing_style === 'custom' && (formData.config.email_config?.custom_closing || 'Personalizado')}
-                        {!formData.config.email_config?.closing_style && 'Atenciosamente'}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <div className="p-6 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                  <Play className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-600 mb-2">
+                    O modo de teste estará disponível após criar o agente
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Você poderá simular conversas e verificar as respostas do agente
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-200 bg-gray-50">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Cancelar
           </button>
 
-          <div className="flex items-center gap-3">
-            {currentStep > 1 && (
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Voltar
-              </button>
-            )}
+          {/* Error Display */}
+          {error && (
+            <div className="flex-1 mx-3">
+              <div className="p-1.5 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs text-center">
+                {error}
+              </div>
+            </div>
+          )}
 
-            {currentStep < getTotalSteps() ? (
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Próximo
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !formData.agent_type}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Salvando...
+              </>
             ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Criando...
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Criar Agente
-                  </>
-                )}
-              </button>
+              <>
+                <Save className="w-3.5 h-3.5" />
+                {agent ? 'Salvar Alterações' : 'Criar Agente'}
+              </>
             )}
-          </div>
+          </button>
         </div>
       </div>
     </div>

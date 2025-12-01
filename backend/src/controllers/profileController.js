@@ -157,8 +157,12 @@ const getHostedAuthLink = async (req, res) => {
   try {
     const userId = req.user.id;
     const accountId = req.user.account_id;
+    const { provider } = req.query; // Provider específico para reativação
 
     console.log(`🔗 Gerando hosted auth link para usuário ${userId}`);
+    if (provider) {
+      console.log(`🎯 Provider específico solicitado: ${provider}`);
+    }
 
     if (!unipileClient.isInitialized()) {
       throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
@@ -170,10 +174,18 @@ const getHostedAuthLink = async (req, res) => {
 
     console.log('📡 Notify URL:', notifyUrl);
 
-    const response = await unipileClient.account.getHostedAuthLink({
+    // Se provider específico foi passado, filtrar apenas para esse provider
+    const options = {
       name: `Channel - User ${userId}`,
       notify_url: notifyUrl
-    });
+    };
+
+    if (provider) {
+      // Passar apenas o provider específico (para reativação)
+      options.providers = [provider.toUpperCase()];
+    }
+
+    const response = await unipileClient.account.getHostedAuthLink(options);
 
     console.log('✅ Hosted auth link gerado com sucesso');
 
@@ -342,7 +354,7 @@ const disconnectLinkedInAccount = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    console.log(`🔌 Desconectando conta ${id}`);
+    console.log(`🔌 Desconectando conta ${id} (soft - apenas local)`);
 
     const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
 
@@ -354,35 +366,17 @@ const disconnectLinkedInAccount = async (req, res) => {
       throw new ValidationError('Account is already disconnected');
     }
 
-    if (!account.unipile_account_id) {
-      throw new ValidationError('Account does not have unipile_account_id');
-    }
-
-    // Desconectar da Unipile
-    try {
-      console.log('📡 Desconectando da Unipile...');
-      await unipileClient.account.disconnectAccount(account.unipile_account_id);
-      console.log('✅ Desconectado da Unipile');
-    } catch (unipileError) {
-      // Se a conta não existe na Unipile (404), continuar normalmente
-      // Isso pode acontecer quando a conta Unipile foi trocada ou a conta já foi removida
-      if (unipileError.response?.status === 404) {
-        console.log('⚠️ Conta não encontrada na Unipile (já removida ou conta Unipile trocada) - continuando...');
-      } else {
-        console.error('❌ Erro ao desconectar da Unipile:', unipileError);
-        throw new UnipileError('Failed to disconnect from Unipile', unipileError);
-      }
-    }
-
-    // Atualizar status no banco
+    // ✅ SOFT DISCONNECT: Apenas marca como desconectado no banco local
+    // NÃO remove da Unipile - a conta continua ativa lá
+    // Isso permite reativar depois sem precisar re-autenticar
     const updatedAccount = await db.update('linkedin_accounts', {
       status: 'disconnected',
       disconnected_at: new Date()
     }, { id });
 
-    console.log('✅ Conta marcada como desconectada');
+    console.log('✅ Conta marcada como desconectada (mantida na Unipile para reativação)');
 
-    sendSuccess(res, updatedAccount, 'LinkedIn account disconnected successfully. You can reactivate it later.');
+    sendSuccess(res, updatedAccount, 'Canal desconectado. Você pode reativá-lo depois.');
 
   } catch (error) {
     console.error('❌ Erro ao desconectar conta:', error);
@@ -396,14 +390,9 @@ const disconnectLinkedInAccount = async (req, res) => {
 const reactivateLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password } = req.body;
     const userId = req.user.id;
 
     console.log(`🔄 Reativando conta ${id}`);
-
-    if (!username || !password) {
-      throw new ValidationError('Username and password are required to reactivate');
-    }
 
     const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
 
@@ -415,81 +404,35 @@ const reactivateLinkedInAccount = async (req, res) => {
       throw new ValidationError('Only disconnected accounts can be reactivated');
     }
 
-    // Verificar se o username corresponde ao da conta original
-    if (account.linkedin_username !== username) {
-      throw new ValidationError('Username must match the original LinkedIn account');
+    if (!account.unipile_account_id) {
+      // Conta não tem ID da Unipile - precisa re-autenticar via popup
+      return sendSuccess(res, { needs_reauth: true }, 'Account needs re-authentication via popup');
     }
 
-    if (!unipileClient.isInitialized()) {
-      throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
-    }
-
-    // Reconectar na Unipile
+    // ✅ Verificar se a conta ainda existe na Unipile
     try {
-      console.log('📡 Reconectando na Unipile...');
+      console.log('📡 Verificando status na Unipile...');
+      const unipileAccount = await unipileClient.account.getAccountById(account.unipile_account_id);
 
-      const response = await unipileClient.account.connectLinkedin({
-        username: username,
-        password: password
-      });
+      console.log('✅ Conta ainda existe na Unipile:', unipileAccount.id);
 
-      const newAccountId = response.account_id || response.id;
-
-      if (!newAccountId) {
-        throw new UnipileError('No account ID returned from Unipile');
-      }
-
-      console.log('✅ Reconectado na Unipile, novo account_id:', newAccountId);
-
-      // Aguardar um pouco antes de buscar o perfil
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Buscar dados atualizados do perfil
-      let profileData = null;
-      try {
-        profileData = await unipileClient.users.getOwnProfile(newAccountId);
-        console.log('✅ Perfil atualizado obtido');
-      } catch (profileError) {
-        console.warn('⚠️ Erro ao buscar perfil:', profileError.message);
-      }
-
-      // Atualizar conta no banco
-      const updateData = {
-        unipile_account_id: newAccountId,
+      // Atualizar status para ativo
+      const updatedAccount = await db.update('linkedin_accounts', {
         status: 'active',
-        disconnected_at: null,
-        connected_at: new Date()
-      };
-
-      // Atualizar dados do perfil se disponíveis
-      if (profileData) {
-        updateData.profile_name = profileData.name || `${profileData.first_name} ${profileData.last_name}`.trim() || account.profile_name;
-        updateData.profile_url = profileData.url || account.profile_url;
-        updateData.profile_picture = profileData.profile_picture || profileData.profile_picture_url || account.profile_picture;
-        updateData.organizations = profileData.organizations ? JSON.stringify(profileData.organizations) : account.organizations;
-      }
-
-      const updatedAccount = await db.update('linkedin_accounts', updateData, { id });
+        disconnected_at: null
+      }, { id });
 
       console.log('✅ Conta reativada com sucesso');
 
-      sendSuccess(res, {
-        ...updatedAccount,
-        profile_data: profileData
-      }, 'LinkedIn account reactivated successfully');
+      sendSuccess(res, updatedAccount, 'Canal reativado com sucesso!');
 
     } catch (unipileError) {
-      console.error('❌ Erro ao reconectar na Unipile:', unipileError);
-
-      let errorMessage = 'Failed to reactivate LinkedIn account';
-
-      if (unipileError.response?.data?.type === 'errors/invalid_credentials') {
-        errorMessage = 'Invalid LinkedIn credentials';
-      } else if (unipileError.response?.data?.type === 'errors/checkpoint_error') {
-        errorMessage = 'LinkedIn requires additional verification';
+      // Conta não existe mais na Unipile - precisa re-autenticar
+      if (unipileError.response?.status === 404) {
+        console.log('⚠️ Conta não existe mais na Unipile - precisa re-autenticar');
+        return sendSuccess(res, { needs_reauth: true }, 'Account was removed from Unipile, needs re-authentication');
       }
-
-      throw new UnipileError(errorMessage, unipileError);
+      throw unipileError;
     }
 
   } catch (error) {
@@ -1353,19 +1296,50 @@ const syncUnipileAccounts = async (req, res) => {
         continue;
       }
 
-      // Conta nova - buscar dados do perfil
+      // Conta nova - buscar dados completos do perfil (igual ao refresh)
       console.log(`🆕 Nova conta: ${unipileId} (${providerType})`);
 
       let profileData = null;
+      let accountTypeInfo = { premium: false, sales_navigator: null, recruiter: null };
+      let detectedAccountType = 'free';
+
       if (providerType === 'LINKEDIN') {
         try {
+          // Buscar perfil completo (igual ao refreshLinkedInAccount)
           profileData = await unipileClient.users.getOwnProfile(unipileId);
+          console.log('✅ Perfil obtido:', profileData?.name);
+          console.log('📊 DADOS COMPLETOS DO PERFIL:', JSON.stringify(profileData, null, 2));
+          console.log('🔍 Premium:', profileData?.premium);
+          console.log('🔍 Sales Navigator:', profileData?.sales_navigator);
+          console.log('🔍 Recruiter:', profileData?.recruiter);
+
+          // Extrair informações de tipo de conta
+          accountTypeInfo = {
+            premium: profileData?.premium || false,
+            sales_navigator: profileData?.sales_navigator || null,
+            recruiter: profileData?.recruiter || null
+          };
+
+          // Auto-detectar tipo de conta
+          if (accountTypeInfo.recruiter !== null && accountTypeInfo.recruiter !== undefined) {
+            detectedAccountType = 'recruiter';
+          } else if (accountTypeInfo.sales_navigator !== null && accountTypeInfo.sales_navigator !== undefined) {
+            detectedAccountType = 'sales_navigator';
+          } else if (accountTypeInfo.premium === true) {
+            detectedAccountType = 'premium';
+          }
+
+          console.log(`🔍 Tipo de conta detectado: ${detectedAccountType}`);
         } catch (e) {
           console.warn(`⚠️ Erro ao buscar perfil: ${e.message}`);
         }
       }
 
       const connectionParams = unipileAccount.connection_params?.im || {};
+
+      // Sugerir limite baseado no tipo de conta
+      const suggestedLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType]?.safe || 20;
+      console.log(`💡 Limite sugerido: ${suggestedLimit}/dia`);
 
       const channelData = {
         user_id: userId,
@@ -1377,14 +1351,18 @@ const syncUnipileAccounts = async (req, res) => {
         channel_name: unipileAccount.name || `${providerType} Account`,
         channel_identifier: connectionParams.publicIdentifier || null,
         linkedin_username: connectionParams.publicIdentifier || profileData?.public_identifier || null,
-        profile_name: unipileAccount.name || profileData?.name || connectionParams.username || `${providerType} Account`,
+        profile_name: profileData?.name || `${profileData?.first_name || ''} ${profileData?.last_name || ''}`.trim() || unipileAccount.name || `${providerType} Account`,
         profile_url: profileData?.url || null,
-        profile_picture: profileData?.profile_picture || null,
+        profile_picture: profileData?.profile_picture || profileData?.profile_picture_url || null,
         public_identifier: connectionParams.publicIdentifier || profileData?.public_identifier || null,
+        organizations: profileData?.organizations ? JSON.stringify(profileData.organizations) : null,
+        premium_features: JSON.stringify(accountTypeInfo),
+        account_type: detectedAccountType,
+        daily_limit: suggestedLimit,
         channel_settings: JSON.stringify({
           ignore_groups: true,
           auto_read: false,
-          ai_enabled: true,
+          ai_enabled: false,
           notify_on_message: true,
           business_hours_only: false
         })
@@ -1392,7 +1370,7 @@ const syncUnipileAccounts = async (req, res) => {
 
       const saved = await db.insert('linkedin_accounts', channelData);
       newAccounts.push(saved);
-      console.log(`✅ Canal criado: ${saved.id}`);
+      console.log(`✅ Canal criado: ${saved.id} (${detectedAccountType})`);
     }
 
     console.log(`✅ Sincronização: ${newAccounts.length} novas contas`);
@@ -1498,7 +1476,7 @@ const handleAuthNotify = async (req, res) => {
       channel_settings: JSON.stringify({
         ignore_groups: true,
         auto_read: false,
-        ai_enabled: true,
+        ai_enabled: false,
         notify_on_message: true,
         business_hours_only: false
       })
@@ -1588,7 +1566,7 @@ const handleHostedAuthCallback = async (req, res) => {
       channel_settings: JSON.stringify({
         ignore_groups: true,
         auto_read: false,
-        ai_enabled: true,
+        ai_enabled: false,
         notify_on_message: true,
         business_hours_only: false
       })

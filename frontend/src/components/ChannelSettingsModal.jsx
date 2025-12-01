@@ -6,7 +6,7 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
   const [settings, setSettings] = useState({
     ignore_groups: true,
     auto_read: false,
-    ai_enabled: true,
+    ai_enabled: false,
     ai_agent_id: null,
     notify_on_message: true,
     business_hours_only: false,
@@ -141,13 +141,13 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
                     <h3 className="font-medium text-gray-900">Ignorar Grupos</h3>
                     <button
                       onClick={() => handleToggle('ignore_groups')}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        settings.ignore_groups ? 'bg-blue-600' : 'bg-gray-300'
+                      className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                        settings.ignore_groups ? 'bg-blue-600' : 'bg-gray-200'
                       }`}
                     >
                       <span
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                          settings.ignore_groups ? 'translate-x-7' : 'translate-x-1'
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          settings.ignore_groups ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
                     </button>
@@ -173,13 +173,13 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
                   <h3 className="font-medium text-gray-900">IA Habilitada</h3>
                   <button
                     onClick={() => handleToggle('ai_enabled')}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      settings.ai_enabled ? 'bg-purple-600' : 'bg-gray-300'
+                    className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                      settings.ai_enabled ? 'bg-purple-600' : 'bg-gray-200'
                     }`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        settings.ai_enabled ? 'translate-x-7' : 'translate-x-1'
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        settings.ai_enabled ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -256,13 +256,13 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
                   <h3 className="font-medium text-gray-900">Notificações</h3>
                   <button
                     onClick={() => handleToggle('notify_on_message')}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      settings.notify_on_message ? 'bg-green-600' : 'bg-gray-300'
+                    className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                      settings.notify_on_message ? 'bg-green-600' : 'bg-gray-200'
                     }`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        settings.notify_on_message ? 'translate-x-7' : 'translate-x-1'
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        settings.notify_on_message ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -287,13 +287,13 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
                   <h3 className="font-medium text-gray-900">Apenas Horário Comercial</h3>
                   <button
                     onClick={() => handleToggle('business_hours_only')}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      settings.business_hours_only ? 'bg-amber-600' : 'bg-gray-300'
+                    className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                      settings.business_hours_only ? 'bg-amber-600' : 'bg-gray-200'
                     }`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        settings.business_hours_only ? 'translate-x-7' : 'translate-x-1'
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        settings.business_hours_only ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -341,13 +341,13 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
                   <h3 className="font-medium text-gray-900">Marcar como Lido</h3>
                   <button
                     onClick={() => handleToggle('auto_read')}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      settings.auto_read ? 'bg-gray-600' : 'bg-gray-300'
+                    className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                      settings.auto_read ? 'bg-gray-600' : 'bg-gray-200'
                     }`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        settings.auto_read ? 'translate-x-7' : 'translate-x-1'
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        settings.auto_read ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>

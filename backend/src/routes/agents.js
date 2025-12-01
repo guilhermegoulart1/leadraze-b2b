@@ -91,4 +91,39 @@ router.post('/:id/test/response', agentController.testAgentResponse);
  */
 router.get('/:id/stats', agentController.getAgentStats);
 
+// ==========================================
+// ASSIGNEES / ROTATION ROUTES
+// ==========================================
+
+/**
+ * GET /api/agents/:id/assignees
+ * Get all assignees configured for rotation
+ */
+router.get('/:id/assignees', agentController.getAgentAssignees);
+
+/**
+ * POST /api/agents/:id/assignees
+ * Set assignees for rotation (replaces existing)
+ * Body: { user_ids: [1, 2, 3] } - array of user IDs in rotation order
+ */
+router.post('/:id/assignees', agentController.setAgentAssignees);
+
+/**
+ * POST /api/agents/:id/assignees/:userId
+ * Add a single assignee to rotation
+ */
+router.post('/:id/assignees/:userId', agentController.addAgentAssignee);
+
+/**
+ * DELETE /api/agents/:id/assignees/:userId
+ * Remove an assignee from rotation
+ */
+router.delete('/:id/assignees/:userId', agentController.removeAgentAssignee);
+
+/**
+ * GET /api/agents/:id/rotation-state
+ * Get current rotation state (who's next, total assignments, etc)
+ */
+router.get('/:id/rotation-state', agentController.getAgentRotationState);
+
 module.exports = router;

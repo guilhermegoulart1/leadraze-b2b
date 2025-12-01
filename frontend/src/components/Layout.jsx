@@ -5,7 +5,7 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2
+  Mail, Settings, Globe, Link2, Gift
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -289,6 +289,14 @@ const Layout = () => {
                   >
                     <CreditCard className="w-4 h-4 text-gray-400" />
                     <span>{t('userMenu.billing', 'Billing')}</span>
+                  </Link>
+                  <Link
+                    to="/affiliate"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Gift className="w-4 h-4 text-gray-400" />
+                    <span>{t('userMenu.affiliate', 'Affiliate Program')}</span>
                   </Link>
                   <Link
                     to="/channels"

@@ -33,6 +33,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import BillingPage from './pages/BillingPage';
+import AffiliatePage from './pages/AffiliatePage';
 import ProfilePage from './pages/ProfilePage';
 import EmailSettingsPage from './pages/EmailSettingsPage';
 import WebsiteAgentsPage from './pages/WebsiteAgentsPage';
@@ -127,6 +128,7 @@ function AppRoutes() {
         <Route path="my-connections" element={<MyConnectionsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
         <Route path="billing" element={<BillingPage />} />
+        <Route path="affiliate" element={<AffiliatePage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="email-settings" element={<EmailSettingsPage />} />
         <Route path="website-agents" element={<WebsiteAgentsPage />} />

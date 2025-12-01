@@ -6,12 +6,17 @@ const {
   ValidationError,
   ForbiddenError
 } = require('../utils/errors');
+const rotationService = require('../services/rotationService');
 
 // ==========================================
 // HELPER: Check sector access
 // ==========================================
-const checkSectorAccess = (userSectors, agentSectorId) => {
-  if (!agentSectorId) return true; // No sector restriction
+const checkSectorAccess = (userSectors, agentSectorId, userRole) => {
+  // Admins have access to all sectors
+  if (userRole === 'admin') return true;
+  // No sector restriction
+  if (!agentSectorId) return true;
+  // Check if user has access to this sector
   return userSectors.some(s => s.id === agentSectorId);
 };
 
@@ -33,7 +38,17 @@ const adaptAgentForAIService = (agent) => {
     intent_detection_enabled: true,
     auto_schedule: agent.config?.auto_schedule || false,
     scheduling_link: agent.config?.scheduling_link || null,
-    response_style_instructions: agent.config?.response_style_instructions || null
+    response_style_instructions: agent.config?.response_style_instructions || null,
+    // New fields for objective and strategy
+    objective: agent.config?.objective || null,
+    conversation_steps: agent.config?.conversation_steps || [],
+    objective_instructions: agent.config?.objective_instructions || null,
+    escalation_sentiments: agent.config?.escalation_sentiments || [],
+    escalation_keywords: agent.config?.escalation_keywords || '',
+    // Company info
+    company_description: agent.config?.company_description || null,
+    value_proposition: agent.config?.value_proposition || null,
+    key_differentiators: agent.config?.key_differentiators || null
   };
 };
 
@@ -67,8 +82,16 @@ const validateAgentConfig = (agentType, config) => {
       }
       break;
 
+    case 'facilitador':
+      // Facilitador agents need channel and handoff config
+      if (!config.facilitador_channel || !['linkedin', 'whatsapp'].includes(config.facilitador_channel)) {
+        throw new ValidationError('Facilitador agents require a channel (linkedin or whatsapp)');
+      }
+      break;
+
     default:
-      throw new ValidationError(`Invalid agent type: ${agentType}`);
+      // Allow other types without specific validation
+      break;
   }
 
   return true;
@@ -82,6 +105,7 @@ const getAgents = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
     const userSectors = req.user.sectors || [];
+    const userRole = req.user.role;
 
     // Query params
     const { agent_type, is_active, limit = 50, offset = 0 } = req.query;
@@ -137,7 +161,7 @@ const getAgents = async (req, res) => {
 
     // Filter by sector access
     const agents = result.rows.filter(agent =>
-      checkSectorAccess(userSectors, agent.sector_id)
+      checkSectorAccess(userSectors, agent.sector_id, userRole)
     );
 
     // Get total count
@@ -183,6 +207,7 @@ const getAgent = async (req, res) => {
     const { id } = req.params;
     const accountId = req.user.account_id;
     const userSectors = req.user.sectors || [];
+    const userRole = req.user.role;
 
     const result = await db.query(
       `SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2`,
@@ -196,7 +221,7 @@ const getAgent = async (req, res) => {
     const agent = result.rows[0];
 
     // Check sector access
-    if (!checkSectorAccess(userSectors, agent.sector_id)) {
+    if (!checkSectorAccess(userSectors, agent.sector_id, userRole)) {
       throw new ForbiddenError('You do not have access to this agent');
     }
 
@@ -225,7 +250,15 @@ const createAgent = async (req, res) => {
       is_active = true,
       sector_id,
       daily_limit = 50,
-      execution_time = '09:00:00'
+      execution_time = '09:00:00',
+      // New handoff fields
+      agent_mode = 'full',
+      handoff_after_exchanges = null,
+      handoff_silent = true,
+      handoff_message = null,
+      notify_on_handoff = true,
+      // Assignees for rotation
+      assignee_user_ids = []
     } = req.body;
 
     // Validation
@@ -237,12 +270,27 @@ const createAgent = async (req, res) => {
       throw new ValidationError('Agent type is required');
     }
 
-    if (!['linkedin', 'email', 'whatsapp'].includes(agent_type)) {
+    if (!['linkedin', 'email', 'whatsapp', 'facilitador'].includes(agent_type)) {
       throw new ValidationError('Invalid agent type');
     }
 
     if (!['short', 'medium', 'long'].includes(response_length)) {
       throw new ValidationError('Invalid response length');
+    }
+
+    // Validate agent_mode
+    if (!['full', 'facilitator'].includes(agent_mode)) {
+      throw new ValidationError('Invalid agent mode. Must be "full" or "facilitator"');
+    }
+
+    // Facilitator mode requires sector_id and handoff_after_exchanges
+    if (agent_mode === 'facilitator') {
+      if (!sector_id) {
+        throw new ValidationError('Facilitator agents require a sector');
+      }
+      if (!handoff_after_exchanges || handoff_after_exchanges < 1) {
+        throw new ValidationError('Facilitator agents require handoff_after_exchanges >= 1');
+      }
     }
 
     // Validate config based on agent type
@@ -251,7 +299,8 @@ const createAgent = async (req, res) => {
     // Check sector access if sector_id provided
     if (sector_id) {
       const userSectors = req.user.sectors || [];
-      if (!checkSectorAccess(userSectors, sector_id)) {
+      const userRole = req.user.role;
+      if (!checkSectorAccess(userSectors, sector_id, userRole)) {
         throw new ForbiddenError('You do not have access to this sector');
       }
     }
@@ -270,8 +319,13 @@ const createAgent = async (req, res) => {
         config,
         is_active,
         daily_limit,
-        execution_time
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        execution_time,
+        agent_mode,
+        handoff_after_exchanges,
+        handoff_silent,
+        handoff_message,
+        notify_on_handoff
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         accountId,
@@ -285,13 +339,23 @@ const createAgent = async (req, res) => {
         JSON.stringify(config),
         is_active,
         daily_limit,
-        execution_time
+        execution_time,
+        agent_mode,
+        handoff_after_exchanges,
+        handoff_silent,
+        handoff_message,
+        notify_on_handoff
       ]
     );
 
     const agent = result.rows[0];
 
-    console.log(`✅ Created ${agent_type} agent:`, agent.id);
+    // Set assignees if provided
+    if (assignee_user_ids && assignee_user_ids.length > 0) {
+      await rotationService.setAssignees(agent.id, assignee_user_ids);
+    }
+
+    console.log(`✅ Created ${agent_type} agent (mode: ${agent_mode}):`, agent.id);
 
     sendSuccess(res, { agent }, 201);
 
@@ -309,6 +373,7 @@ const updateAgent = async (req, res) => {
     const { id } = req.params;
     const accountId = req.user.account_id;
     const userSectors = req.user.sectors || [];
+    const userRole = req.user.role;
 
     // Check if agent exists and user has access
     const checkResult = await db.query(
@@ -323,7 +388,7 @@ const updateAgent = async (req, res) => {
     const existingAgent = checkResult.rows[0];
 
     // Check sector access
-    if (!checkSectorAccess(userSectors, existingAgent.sector_id)) {
+    if (!checkSectorAccess(userSectors, existingAgent.sector_id, userRole)) {
       throw new ForbiddenError('You do not have access to this agent');
     }
 
@@ -432,6 +497,7 @@ const deleteAgent = async (req, res) => {
     const { id } = req.params;
     const accountId = req.user.account_id;
     const userSectors = req.user.sectors || [];
+    const userRole = req.user.role;
 
     // Check if agent exists and user has access
     const checkResult = await db.query(
@@ -446,7 +512,7 @@ const deleteAgent = async (req, res) => {
     const agent = checkResult.rows[0];
 
     // Check sector access
-    if (!checkSectorAccess(userSectors, agent.sector_id)) {
+    if (!checkSectorAccess(userSectors, agent.sector_id, userRole)) {
       throw new ForbiddenError('You do not have access to this agent');
     }
 
@@ -633,6 +699,11 @@ const testAgentResponse = async (req, res) => {
     sendSuccess(res, {
       response: result.response,
       intent: result.intent,
+      sentiment: result.sentiment,
+      sentiment_confidence: result.sentimentConfidence,
+      should_escalate: result.shouldEscalate,
+      escalation_reasons: result.escalationReasons,
+      matched_keywords: result.matchedKeywords,
       should_offer_scheduling: result.should_offer_scheduling,
       scheduling_link: result.scheduling_link,
       tokens_used: result.tokens_used
@@ -652,6 +723,7 @@ const getAgentStats = async (req, res) => {
     const { id } = req.params;
     const accountId = req.user.account_id;
     const userSectors = req.user.sectors || [];
+    const userRole = req.user.role;
 
     // Check if agent exists
     const result = await db.query(
@@ -666,7 +738,7 @@ const getAgentStats = async (req, res) => {
     const agent = result.rows[0];
 
     // Check sector access
-    if (!checkSectorAccess(userSectors, agent.sector_id)) {
+    if (!checkSectorAccess(userSectors, agent.sector_id, userRole)) {
       throw new ForbiddenError('You do not have access to this agent');
     }
 
@@ -693,6 +765,194 @@ const getAgentStats = async (req, res) => {
   }
 };
 
+// ==========================================
+// ASSIGNEES / ROTATION ENDPOINTS
+// ==========================================
+
+/**
+ * Get assignees for an agent
+ * GET /api/agents/:id/assignees
+ */
+const getAgentAssignees = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+
+    // Check agent exists and belongs to account
+    const agentResult = await db.query(
+      `SELECT id FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    const assignees = await rotationService.getAssignees(id);
+    const rotationState = await rotationService.getRotationState(id);
+
+    sendSuccess(res, { assignees, rotation_state: rotationState });
+
+  } catch (error) {
+    console.error('Error in getAgentAssignees:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Set assignees for an agent (replaces existing)
+ * POST /api/agents/:id/assignees
+ * Body: { user_ids: [1, 2, 3] } - in rotation order
+ */
+const setAgentAssignees = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+    const { user_ids = [] } = req.body;
+
+    // Check agent exists and belongs to account
+    const agentResult = await db.query(
+      `SELECT id, sector_id FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    const agent = agentResult.rows[0];
+
+    // Validate that all users belong to the agent's sector
+    if (agent.sector_id && user_ids.length > 0) {
+      const sectorUsersResult = await db.query(`
+        SELECT u.id
+        FROM users u
+        JOIN user_sectors us ON u.id = us.user_id
+        WHERE us.sector_id = $1 AND u.id = ANY($2)
+      `, [agent.sector_id, user_ids]);
+
+      const validUserIds = sectorUsersResult.rows.map(r => r.id);
+      const invalidUsers = user_ids.filter(uid => !validUserIds.includes(uid));
+
+      if (invalidUsers.length > 0) {
+        throw new ValidationError(`Users ${invalidUsers.join(', ')} do not belong to the agent's sector`);
+      }
+    }
+
+    const result = await rotationService.setAssignees(id, user_ids);
+
+    sendSuccess(res, {
+      success: true,
+      assignees_count: result.count,
+      message: `${result.count} assignees configured for rotation`
+    });
+
+  } catch (error) {
+    console.error('Error in setAgentAssignees:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Add a single assignee to an agent
+ * POST /api/agents/:id/assignees/:userId
+ */
+const addAgentAssignee = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const accountId = req.user.account_id;
+
+    // Check agent exists
+    const agentResult = await db.query(
+      `SELECT id, sector_id FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    const agent = agentResult.rows[0];
+
+    // Validate user belongs to sector
+    if (agent.sector_id) {
+      const sectorCheck = await db.query(`
+        SELECT 1 FROM user_sectors WHERE user_id = $1 AND sector_id = $2
+      `, [userId, agent.sector_id]);
+
+      if (sectorCheck.rows.length === 0) {
+        throw new ValidationError('User does not belong to the agent\'s sector');
+      }
+    }
+
+    const result = await rotationService.addAssignee(id, parseInt(userId));
+
+    sendSuccess(res, result);
+
+  } catch (error) {
+    console.error('Error in addAgentAssignee:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Remove an assignee from an agent
+ * DELETE /api/agents/:id/assignees/:userId
+ */
+const removeAgentAssignee = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const accountId = req.user.account_id;
+
+    // Check agent exists
+    const agentResult = await db.query(
+      `SELECT id FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    await rotationService.removeAssignee(id, parseInt(userId));
+
+    sendSuccess(res, { success: true, message: 'Assignee removed' });
+
+  } catch (error) {
+    console.error('Error in removeAgentAssignee:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Get rotation state for an agent
+ * GET /api/agents/:id/rotation-state
+ */
+const getAgentRotationState = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+
+    // Check agent exists
+    const agentResult = await db.query(
+      `SELECT id FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    const rotationState = await rotationService.getRotationState(id);
+
+    sendSuccess(res, { rotation_state: rotationState });
+
+  } catch (error) {
+    console.error('Error in getAgentRotationState:', error);
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getAgents,
   getAgent,
@@ -702,5 +962,11 @@ module.exports = {
   testAgent,
   testAgentInitialMessage,
   testAgentResponse,
-  getAgentStats
+  getAgentStats,
+  // Rotation endpoints
+  getAgentAssignees,
+  setAgentAssignees,
+  addAgentAssignee,
+  removeAgentAssignee,
+  getAgentRotationState
 };

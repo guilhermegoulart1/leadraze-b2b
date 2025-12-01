@@ -18,6 +18,12 @@ router.get('/',
   sectorController.getSectors
 );
 
+// Get users belonging to a sector (for agent rotation selection)
+router.get('/:id/users',
+  checkPermission('sectors:view'),
+  sectorController.getSectorUsers
+);
+
 // Get single sector with details
 router.get('/:id',
   checkPermission('sectors:view'),
