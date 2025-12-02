@@ -28,7 +28,8 @@
     "react-router-dom": "^6.20.0",
     "react-select": "^5.10.2",
     "recharts": "^2.10.3",
-    "serve": "^14.2.5"
+    "serve": "^14.2.5",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

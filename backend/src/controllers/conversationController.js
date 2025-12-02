@@ -352,26 +352,38 @@ const getMessages = async (req, res) => {
       // Normalizar número do próprio usuário para comparação
       const ownNumberClean = conversation.own_number?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
 
-      // 🔍 DEBUG: Log detalhado das primeiras 5 mensagens
-      const firstMessages = (unipileMessages.items || []).slice(0, 5);
-      console.log('🔍 DEBUG - Own number clean:', ownNumberClean);
-      console.log('🔍 DEBUG - Primeiras 5 mensagens da Unipile (usando original.key.fromMe):');
-      firstMessages.forEach((msg, i) => {
-        let fromMe = 'N/A';
-        let senderPn = '';
+      // 🔍 DEBUG: Contagem de mensagens por tipo
+      const allMessages = unipileMessages.items || [];
+      let userCount = 0;
+      let leadCount = 0;
+      let unknownCount = 0;
+
+      allMessages.forEach((msg) => {
         try {
           const originalData = typeof msg.original === 'string' ? JSON.parse(msg.original) : msg.original;
-          fromMe = originalData?.key?.fromMe;
-          senderPn = originalData?.key?.senderPn || '';
-        } catch (e) {}
-        const senderId = msg.sender_id || '';
-        const willBe = fromMe === true ? 'USER' : (fromMe === false ? 'LEAD' : 'FALLBACK');
-        console.log(`   [${i}] fromMe=${fromMe} | senderPn=${senderPn} | sender_id=${senderId} → ${willBe} | "${(msg.text || '').substring(0, 25)}"`);
+          if (originalData?.key?.fromMe === true) userCount++;
+          else if (originalData?.key?.fromMe === false) leadCount++;
+          else unknownCount++;
+        } catch (e) {
+          unknownCount++;
+        }
       });
-      // Log estrutura completa da primeira mensagem para debug
-      if (firstMessages.length > 0) {
-        console.log('🔍 Estrutura msg[0].original:', (firstMessages[0].original || '').substring(0, 300));
-      }
+
+      console.log('🔍 DEBUG - Own number clean:', ownNumberClean);
+      console.log(`📊 CONTAGEM: Total=${allMessages.length} | USER(fromMe=true)=${userCount} | LEAD(fromMe=false)=${leadCount} | UNKNOWN=${unknownCount}`);
+
+      // Log algumas mensagens do LEAD para debug
+      const leadMessages = allMessages.filter(msg => {
+        try {
+          const originalData = typeof msg.original === 'string' ? JSON.parse(msg.original) : msg.original;
+          return originalData?.key?.fromMe === false;
+        } catch (e) { return false; }
+      }).slice(0, 3);
+
+      console.log(`🔍 DEBUG - Primeiras 3 mensagens do LEAD:`);
+      leadMessages.forEach((msg, i) => {
+        console.log(`   [${i}] sender_id=${msg.sender_id || ''} | "${(msg.text || '').substring(0, 40)}"`);
+      });
 
       // Processar mensagens para formato esperado pelo frontend
       const messages = (unipileMessages.items || []).map((msg) => {
@@ -447,6 +459,19 @@ const getMessages = async (req, res) => {
 
       // Ordenar por data (mais antiga primeiro para exibição correta)
       messages.sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
+
+      // 🔍 DEBUG: Verificar sender_type das mensagens mapeadas
+      const userMapped = messages.filter(m => m.sender_type === 'user').length;
+      const leadMapped = messages.filter(m => m.sender_type === 'lead').length;
+      const otherMapped = messages.filter(m => m.sender_type !== 'user' && m.sender_type !== 'lead').length;
+      console.log(`📊 MAPPED: user=${userMapped} | lead=${leadMapped} | other=${otherMapped}`);
+
+      // Log primeiras 3 mensagens lead mapeadas
+      const leadMappedMsgs = messages.filter(m => m.sender_type === 'lead').slice(0, 3);
+      console.log(`🔍 Primeiras 3 msgs LEAD mapeadas:`);
+      leadMappedMsgs.forEach((m, i) => {
+        console.log(`   [${i}] sender_type=${m.sender_type} | content="${(m.content || '').substring(0, 40)}"`);
+      });
 
       console.log(`✅ ${messages.length} mensagens processadas`);
 

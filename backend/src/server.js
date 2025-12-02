@@ -1,11 +1,13 @@
 // backend/src/server.js
 require('dotenv').config();
+const http = require('http');
 const app = require('./app');
 const db = require('./config/database');
 const { testRedisConnection } = require('./config/redis');
 const { closeAllQueues } = require('./queues');
 const bulkCollectionProcessor = require('./services/bulkCollectionProcessor');
 const conversationSyncWorker = require('./workers/conversationSyncWorker');
+const { initializeSocket, cleanup: cleanupSocket } = require('./services/socketService');
 
 // ✅ Import webhook worker to register job processors
 require('./workers/webhookWorker');
@@ -17,6 +19,9 @@ require('./workers/emailWorker');
 const { registerGoogleMapsAgentProcessor } = require('./queues/processors/googleMapsAgentProcessor');
 
 const PORT = process.env.PORT || 3001;
+
+// Create HTTP server for Socket.io
+const server = http.createServer(app);
 
 // Test database connection before starting server
 async function startServer() {
@@ -48,14 +53,18 @@ async function startServer() {
     // Register Google Maps Agent processor
     registerGoogleMapsAgentProcessor();
 
+    // ✅ Initialize Socket.io with HTTP server
+    initializeSocket(server);
+
     // Start server
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log('\n🚀 ========================================');
       console.log(`   LeadRaze API Server`);
       console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`   Port: ${PORT}`);
       console.log(`   API: http://localhost:${PORT}/api`);
       console.log(`   Health: http://localhost:${PORT}/health`);
+      console.log(`   WebSocket: ws://localhost:${PORT}`);
       console.log(`   Bull Board: http://localhost:${PORT}/admin/queues`);
       console.log('========================================');
       console.log('\n📊 Queue Status:');
@@ -80,14 +89,14 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('👋 SIGTERM received. Shutting down gracefully...');
-  // conversationSyncWorker.stop(); // Disabled - using webhooks
+  await cleanupSocket();
   await closeAllQueues();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('👋 SIGINT received. Shutting down gracefully...');
-  // conversationSyncWorker.stop(); // Disabled - using webhooks
+  await cleanupSocket();
   await closeAllQueues();
   process.exit(0);
 });

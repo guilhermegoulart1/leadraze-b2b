@@ -7,6 +7,7 @@ const conversationSummaryService = require('../services/conversationSummaryServi
 const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
 const { scheduleDelayedConversation, cancelDelayedConversation } = require('../workers/delayedConversationWorker');
 const axios = require('axios');
+const { publishNewMessage, publishNewConversation } = require('../services/socketService');
 
 // ================================
 // HELPER: BUSCAR DADOS DO PERFIL VIA UNIPILE API
@@ -746,6 +747,21 @@ async function handleMessageReceived(payload) {
         group_name: isGroup ? (payload.chat_name || payload.group_name || null) : null
       });
 
+      // ✅ EMIT WEBSOCKET: Nova conversa criada
+      publishNewConversation({
+        accountId: linkedinAccount.account_id,
+        conversation: {
+          id: conversation.id,
+          contact_name: contactData.name,
+          last_message_preview: messageContent?.substring(0, 100) || '',
+          last_message_at: conversation.last_message_at,
+          unread_count: conversation.unread_count,
+          provider_type: providerType,
+          is_group: isGroup
+        }
+      });
+      console.log(`📡 WebSocket: Evento new_conversation emitido para account:${linkedinAccount.account_id}`);
+
       // Atualizar lead para "accepted" se ainda não estiver (só se tiver lead)
       if (leadData && leadData.status === LEAD_STATUS.INVITE_SENT) {
         await db.update('leads', {
@@ -792,6 +808,19 @@ async function handleMessageReceived(payload) {
     console.log(`   - Sender type: ${messageData.sender_type}`);
     console.log(`   - Content: ${messageData.content}`);
     console.log(`   - Sent at: ${messageData.sent_at}`);
+
+    // ✅ EMIT WEBSOCKET: Nova mensagem em tempo real
+    const newUnreadCount = isOwnMessage ? conversation.unread_count : (conversation.unread_count || 0) + 1;
+    publishNewMessage({
+      conversationId: conversation.id,
+      accountId: linkedinAccount.account_id,
+      message: {
+        ...messageData,
+        id: messageData.id || Date.now() // Temporário se não tiver ID
+      },
+      unreadCount: newUnreadCount
+    });
+    console.log(`📡 WebSocket: Evento new_message emitido para account:${linkedinAccount.account_id}`);
 
     // ✅ CANCELAR JOB DE DELAY SE LEAD ENVIOU MENSAGEM
     // (cancela o início automático de conversa se lead responder antes dos 5 minutos)

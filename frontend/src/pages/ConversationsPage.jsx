@@ -1,9 +1,10 @@
 // frontend/src/pages/ConversationsPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { onConversationUpdated, onNewConversation, onNewMessage } from '../services/socket';
 import ConversationSidebar from '../components/ConversationSidebar';
 import ChatArea from '../components/ChatArea';
 import DetailsPanel from '../components/DetailsPanel';
@@ -48,24 +49,91 @@ const ConversationsPage = () => {
     filterConversations();
   }, [searchQuery, statusFilter, conversations, advancedFilters, user]);
 
-  // ✅ Polling para atualização em tempo real da lista de conversas
+  // ✅ WebSocket: Escutar atualizações de conversas em tempo real
   useEffect(() => {
-    const pollConversations = async () => {
-      try {
-        const response = await api.getConversations({ limit: 100 });
-        if (response.success) {
-          setConversations(response.data.conversations || []);
+    // Handler para conversa atualizada
+    const unsubscribeUpdated = onConversationUpdated((data) => {
+      console.log('ConversationsPage: conversation_updated', data);
+
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === data.conversationId || conv.id === parseInt(data.conversationId)) {
+          return {
+            ...conv,
+            last_message_preview: data.lastMessage?.content || conv.last_message_preview,
+            last_message_at: data.lastMessage?.sent_at || new Date().toISOString(),
+            unread_count: data.unreadCount ?? conv.unread_count
+          };
         }
-      } catch (error) {
-        // Silenciar erros de polling
+        return conv;
+      }));
+
+      // Atualizar contador global de não lidas
+      if (refreshUnreadCount) {
+        refreshUnreadCount();
       }
+    });
+
+    // Handler para nova conversa
+    const unsubscribeNew = onNewConversation((data) => {
+      console.log('ConversationsPage: new_conversation', data);
+
+      // Verificar se já existe (evitar duplicatas)
+      setConversations(prev => {
+        const exists = prev.some(c => c.id === data.conversation?.id);
+        if (exists) return prev;
+
+        // Adicionar no início da lista
+        return [data.conversation, ...prev];
+      });
+
+      // Atualizar stats
+      loadStats();
+    });
+
+    // Handler para novas mensagens (atualiza lista quando chega mensagem)
+    const unsubscribeMessage = onNewMessage((data) => {
+      console.log('ConversationsPage: new_message', data);
+
+      setConversations(prev => {
+        // Encontrar e atualizar a conversa
+        const updated = prev.map(conv => {
+          if (conv.id === data.conversationId || conv.id === parseInt(data.conversationId)) {
+            return {
+              ...conv,
+              last_message_preview: data.message?.content || conv.last_message_preview,
+              last_message_at: data.message?.sent_at || new Date().toISOString(),
+              unread_count: data.unreadCount ?? conv.unread_count
+            };
+          }
+          return conv;
+        });
+
+        // Reordenar para colocar a conversa atualizada no topo
+        const convIndex = updated.findIndex(c =>
+          c.id === data.conversationId || c.id === parseInt(data.conversationId)
+        );
+
+        if (convIndex > 0) {
+          const [conv] = updated.splice(convIndex, 1);
+          updated.unshift(conv);
+        }
+
+        return updated;
+      });
+
+      // Atualizar contador global de não lidas
+      if (refreshUnreadCount) {
+        refreshUnreadCount();
+      }
+    });
+
+    // Cleanup
+    return () => {
+      unsubscribeUpdated();
+      unsubscribeNew();
+      unsubscribeMessage();
     };
-
-    // Polling a cada 15 segundos
-    const pollInterval = setInterval(pollConversations, 15000);
-
-    return () => clearInterval(pollInterval);
-  }, []);
+  }, [refreshUnreadCount]);
 
   const loadConversations = async () => {
     try {

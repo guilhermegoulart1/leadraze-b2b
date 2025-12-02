@@ -6,6 +6,7 @@ import {
   Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check
 } from 'lucide-react';
 import api from '../services/api';
+import { joinConversation, leaveConversation, onNewMessage } from '../services/socket';
 import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 
@@ -57,29 +58,42 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     scrollToBottom();
   }, [messages]);
 
-  // ✅ Polling para atualização em tempo real das mensagens
+  // ✅ WebSocket: Entrar/sair da sala de conversa e escutar novas mensagens
   useEffect(() => {
     if (!conversationId) return;
 
-    const pollMessages = async () => {
-      try {
-        const response = await api.getMessages(conversationId);
-        if (response.success && currentConversationIdRef.current === conversationId) {
-          // Só atualizar se houver novas mensagens
-          if (response.data.messages && response.data.messages.length !== messages.length) {
-            setMessages(response.data.messages);
+    // Entrar na sala da conversa
+    joinConversation(conversationId);
+
+    // Escutar novas mensagens via WebSocket
+    const unsubscribe = onNewMessage((data) => {
+      // Só processar se for da conversa atual
+      if (data.conversationId === conversationId || data.conversationId === parseInt(conversationId)) {
+        console.log('ChatArea: Nova mensagem recebida via WebSocket', data);
+
+        // Verificar se a mensagem já existe (evitar duplicatas)
+        setMessages(prevMessages => {
+          const messageExists = prevMessages.some(m =>
+            m.id === data.message?.id ||
+            m.unipile_message_id === data.message?.unipile_message_id
+          );
+
+          if (messageExists) {
+            return prevMessages;
           }
-        }
-      } catch (error) {
-        // Silenciar erros de polling
+
+          // Adicionar nova mensagem
+          return [...prevMessages, data.message];
+        });
       }
+    });
+
+    // Cleanup: sair da sala e remover listener
+    return () => {
+      leaveConversation(conversationId);
+      unsubscribe();
     };
-
-    // Polling a cada 5 segundos
-    const pollInterval = setInterval(pollMessages, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [conversationId, messages.length]);
+  }, [conversationId]);
 
   // Close options menu when clicking outside
   useEffect(() => {
@@ -127,6 +141,18 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         // Backend agora busca da Unipile API e retorna já ordenado corretamente
         // (mais antiga primeiro, mais recente embaixo)
         const messagesData = response.data.messages || [];
+
+        // 🔍 DEBUG: Verificar sender_type das mensagens recebidas
+        const userMsgs = messagesData.filter(m => m.sender_type === 'user').length;
+        const leadMsgs = messagesData.filter(m => m.sender_type === 'lead').length;
+        const otherMsgs = messagesData.filter(m => m.sender_type !== 'user' && m.sender_type !== 'lead').length;
+        console.log(`📊 FRONTEND - Mensagens recebidas: total=${messagesData.length} | user=${userMsgs} | lead=${leadMsgs} | other=${otherMsgs}`);
+
+        // Log primeiras 3 mensagens de cada tipo
+        messagesData.filter(m => m.sender_type === 'lead').slice(0, 3).forEach((m, i) => {
+          console.log(`   Lead[${i}]: sender_type=${m.sender_type}, type=${m.type}, content="${(m.content || '').substring(0, 40)}"`);
+        });
+
         setMessages(messagesData);
       }
     } catch (error) {
@@ -815,7 +841,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         ) : (
           <div className="space-y-4 max-w-4xl mx-auto">
             {messages.map((message, index) => {
-              const isUser = message.sender_type === 'user' || message.type === 'outgoing';
+              // ✅ FIX: Usar apenas sender_type para determinar lado da mensagem
+              // Antes também checava message.type === 'outgoing' que vinha da Unipile
+              const isUser = message.sender_type === 'user';
               const isAI = message.sender_type === 'ai';
               const isEmailChannel = conversation?.channel === 'email' ||
                                      conversation?.source === 'email' ||

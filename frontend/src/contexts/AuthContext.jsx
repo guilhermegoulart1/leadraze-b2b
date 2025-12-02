@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
+import { initializeSocket, disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext();
 
@@ -24,6 +25,8 @@ export const AuthProvider = ({ children }) => {
     if (savedUser && savedToken) {
       setUserState(JSON.parse(savedUser));
       setTokenState(savedToken);
+      // Inicializar WebSocket quando usuário está autenticado
+      initializeSocket();
     }
 
     setLoading(false);
@@ -73,6 +76,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     api.logout();
+    disconnectSocket(); // Desconectar WebSocket ao sair
     setUser(null);
     setToken(null);
   };
