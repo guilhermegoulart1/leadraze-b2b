@@ -176,12 +176,13 @@ const ConversationSidebar = ({
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  {conversation.lead_picture ? (
+                  {/* Avatar - só usar se for URL HTTP válida */}
+                  {conversation.lead_picture && conversation.lead_picture.startsWith('http') ? (
                     <img
                       src={conversation.lead_picture}
                       alt={conversation.lead_name}
                       className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : (
                     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">

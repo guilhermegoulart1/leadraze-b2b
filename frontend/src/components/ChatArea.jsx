@@ -602,12 +602,13 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       {/* Chat Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Avatar */}
-          {conversation?.lead_picture ? (
+          {/* Avatar - só usar se for URL HTTP válida */}
+          {conversation?.lead_picture && conversation.lead_picture.startsWith('http') ? (
             <img
               src={conversation.lead_picture}
               alt={conversation.lead_name}
               className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
