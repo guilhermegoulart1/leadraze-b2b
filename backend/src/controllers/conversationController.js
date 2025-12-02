@@ -53,7 +53,8 @@ const getConversations = async (req, res) => {
     const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
 
     // Construir query - MULTI-TENANCY: Filter by account_id AND sector access
-    let whereConditions = ['camp.account_id = $1', 'camp.user_id = $2'];
+    // Usar conv.account_id para suportar conversas orgânicas (sem campaign)
+    let whereConditions = ['conv.account_id = $1', 'conv.user_id = $2'];
     let queryParams = [accountId, userId];
     let paramIndex = 3;
 
@@ -82,7 +83,7 @@ const getConversations = async (req, res) => {
       paramIndex++;
     }
 
-    // Filtro por conta LinkedIn
+    // Filtro por conta LinkedIn/Canal
     if (linkedin_account_id) {
       whereConditions.push(`conv.linkedin_account_id = $${paramIndex}`);
       queryParams.push(linkedin_account_id);
@@ -96,9 +97,9 @@ const getConversations = async (req, res) => {
       paramIndex++;
     }
 
-    // Busca por nome do lead
+    // Busca por nome do lead OU contato
     if (search) {
-      whereConditions.push(`l.name ILIKE $${paramIndex}`);
+      whereConditions.push(`(l.name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex} OR c.phone ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
@@ -106,16 +107,25 @@ const getConversations = async (req, res) => {
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
 
-    // Query principal
+    // Query principal - com suporte a contact_id (conversas orgânicas)
     const query = `
       SELECT
         conv.*,
+        -- Dados do lead (se existir)
         l.name as lead_name,
         l.title as lead_title,
         l.company as lead_company,
         l.profile_picture as lead_picture,
         l.profile_url as lead_profile_url,
         l.status as lead_status,
+        -- Dados do contato (se existir)
+        c.id as contact_id,
+        c.name as contact_name,
+        c.phone as contact_phone,
+        c.title as contact_title,
+        c.company as contact_company,
+        c.profile_picture as contact_picture,
+        -- Outros campos
         camp.name as campaign_name,
         la.linkedin_username,
         la.profile_name as account_name,
@@ -126,8 +136,9 @@ const getConversations = async (req, res) => {
         s.name as sector_name,
         s.color as sector_color
       FROM conversations conv
-      INNER JOIN leads l ON conv.lead_id = l.id
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN contacts c ON conv.contact_id = c.id
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
       LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
@@ -141,22 +152,35 @@ const getConversations = async (req, res) => {
 
     const conversations = await db.query(query, queryParams);
 
+    // Processar conversas para unificar lead_name/contact_name
+    const processedConversations = conversations.rows.map(conv => ({
+      ...conv,
+      // Usar nome do lead se existir, senão do contato
+      lead_name: conv.lead_name || conv.contact_name || 'Contato',
+      lead_title: conv.lead_title || conv.contact_title,
+      lead_company: conv.lead_company || conv.contact_company,
+      lead_picture: conv.lead_picture || conv.contact_picture,
+      lead_phone: conv.contact_phone, // Telefone só existe no contato
+      is_organic: !conv.lead_id && !!conv.contact_id // Flag para conversas orgânicas
+    }));
+
     // Contar total
     const countQuery = `
       SELECT COUNT(*)
       FROM conversations conv
-      INNER JOIN leads l ON conv.lead_id = l.id
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN contacts c ON conv.contact_id = c.id
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE ${whereClause}
     `;
 
     const countResult = await db.query(countQuery, queryParams.slice(0, -2));
     const total = parseInt(countResult.rows[0].count);
 
-    console.log(`✅ Encontradas ${conversations.rows.length} conversas`);
+    console.log(`✅ Encontradas ${processedConversations.length} conversas`);
 
     sendSuccess(res, {
-      conversations: conversations.rows,
+      conversations: processedConversations,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -185,9 +209,11 @@ const getConversation = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Buscar conversa - MULTI-TENANCY + SECTOR: Filter by account_id and accessible sectors
+    // Suporte a conversas com contact_id (orgânicas) ou lead_id (campanhas)
     const convQuery = `
       SELECT
         conv.*,
+        -- Dados do lead (se existir)
         l.name as lead_name,
         l.title as lead_title,
         l.company as lead_company,
@@ -198,6 +224,16 @@ const getConversation = async (req, res) => {
         l.profile_url as lead_profile_url,
         l.status as lead_status,
         l.score as lead_score,
+        -- Dados do contato (se existir)
+        ct.id as contact_id,
+        ct.name as contact_name,
+        ct.phone as contact_phone,
+        ct.title as contact_title,
+        ct.company as contact_company,
+        ct.profile_picture as contact_picture,
+        ct.profile_url as contact_profile_url,
+        ct.location as contact_location,
+        -- Outros campos
         camp.name as campaign_name,
         camp.id as campaign_id,
         la.linkedin_username,
@@ -208,13 +244,14 @@ const getConversation = async (req, res) => {
         s.name as sector_name,
         s.color as sector_color
       FROM conversations conv
-      INNER JOIN leads l ON conv.lead_id = l.id
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN contacts ct ON conv.contact_id = ct.id
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
       LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
       LEFT JOIN sectors s ON conv.sector_id = s.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -224,7 +261,21 @@ const getConversation = async (req, res) => {
       throw new NotFoundError('Conversation not found');
     }
 
-    const conversation = convResult.rows[0];
+    const conv = convResult.rows[0];
+
+    // Processar para unificar dados de lead/contato
+    const conversation = {
+      ...conv,
+      // Usar dados do lead se existir, senão do contato
+      lead_name: conv.lead_name || conv.contact_name || 'Contato',
+      lead_title: conv.lead_title || conv.contact_title,
+      lead_company: conv.lead_company || conv.contact_company,
+      lead_picture: conv.lead_picture || conv.contact_picture,
+      lead_profile_url: conv.lead_profile_url || conv.contact_profile_url,
+      lead_location: conv.lead_location || conv.contact_location,
+      lead_phone: conv.lead_phone || conv.contact_phone,
+      is_organic: !conv.lead_id && !!conv.contact_id
+    };
 
     console.log(`✅ Conversa encontrada`);
 
@@ -251,18 +302,20 @@ const getMessages = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Buscar conversa, conta LinkedIn e lead - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // ✅ CORRIGIDO: LEFT JOIN em campaigns para suportar conversas orgânicas (sem campanha)
+    // ✅ ADICIONADO: channel_identifier para detectar mensagens do próprio usuário
     const convQuery = `
       SELECT
         conv.*,
-        camp.user_id,
-        camp.account_id,
         la.unipile_account_id,
-        l.provider_id as lead_provider_id
+        la.channel_identifier as own_number,
+        COALESCE(l.provider_id, ct.linkedin_profile_id) as lead_provider_id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       LEFT JOIN leads l ON conv.lead_id = l.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      LEFT JOIN contacts ct ON conv.contact_id = ct.id
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -294,13 +347,69 @@ const getMessages = async (req, res) => {
 
       // Log para debug
       console.log(`🔍 Lead provider_id da conversa: ${conversation.lead_provider_id}`);
+      console.log(`🔍 Own number (canal): ${conversation.own_number}`);
+
+      // Normalizar número do próprio usuário para comparação
+      const ownNumberClean = conversation.own_number?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
+
+      // 🔍 DEBUG: Log detalhado das primeiras 5 mensagens
+      const firstMessages = (unipileMessages.items || []).slice(0, 5);
+      console.log('🔍 DEBUG - Own number clean:', ownNumberClean);
+      console.log('🔍 DEBUG - Primeiras 5 mensagens da Unipile (usando original.key.fromMe):');
+      firstMessages.forEach((msg, i) => {
+        let fromMe = 'N/A';
+        let senderPn = '';
+        try {
+          const originalData = typeof msg.original === 'string' ? JSON.parse(msg.original) : msg.original;
+          fromMe = originalData?.key?.fromMe;
+          senderPn = originalData?.key?.senderPn || '';
+        } catch (e) {}
+        const senderId = msg.sender_id || '';
+        const willBe = fromMe === true ? 'USER' : (fromMe === false ? 'LEAD' : 'FALLBACK');
+        console.log(`   [${i}] fromMe=${fromMe} | senderPn=${senderPn} | sender_id=${senderId} → ${willBe} | "${(msg.text || '').substring(0, 25)}"`);
+      });
+      // Log estrutura completa da primeira mensagem para debug
+      if (firstMessages.length > 0) {
+        console.log('🔍 Estrutura msg[0].original:', (firstMessages[0].original || '').substring(0, 300));
+      }
 
       // Processar mensagens para formato esperado pelo frontend
       const messages = (unipileMessages.items || []).map((msg) => {
-        // ✅ Usar is_sender para determinar quem enviou
-        // is_sender === 1 → mensagem do usuário
-        // is_sender === 0 → mensagem do lead
-        const senderType = msg.is_sender === 1 ? 'user' : 'lead';
+        // ✅ FIX: Usar campo 'original' que contém dados reais do WhatsApp
+        // O WhatsApp introduziu novos IDs de privacidade (@lid) que não contêm o telefone
+        let senderType = 'lead'; // default
+
+        // Método 1: Usar original.key.fromMe (mais confiável)
+        if (msg.original) {
+          try {
+            const originalData = typeof msg.original === 'string'
+              ? JSON.parse(msg.original)
+              : msg.original;
+
+            if (originalData?.key?.fromMe !== undefined) {
+              senderType = originalData.key.fromMe ? 'user' : 'lead';
+            } else if (originalData?.key?.senderPn) {
+              // Método 2: Comparar senderPn com own_number
+              const senderPn = originalData.key.senderPn?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
+              senderType = senderPn === ownNumberClean ? 'user' : 'lead';
+            }
+          } catch (e) {
+            console.warn('Erro ao parsear original:', e.message);
+          }
+        }
+
+        // Método 3 (fallback): Comparar sender.attendee_specifics.phone_number ou sender_id
+        if (senderType === 'lead') {
+          const senderPhone = msg.sender?.attendee_specifics?.phone_number
+            || msg.sender_id
+            || msg.sender?.attendee_provider_id
+            || '';
+          const senderPhoneClean = senderPhone.replace(/@s\.whatsapp\.net|@c\.us|@lid/gi, '');
+
+          if (senderPhoneClean && senderPhoneClean === ownNumberClean) {
+            senderType = 'user';
+          }
+        }
 
         // Processar attachments da Unipile
         const attachments = (msg.attachments || []).map((att) => {
@@ -810,12 +919,19 @@ const markAsRead = async (req, res) => {
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // ✅ FIX: Usar LEFT JOIN para suportar conversas orgânicas (sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
+      LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      WHERE conv.id = $1
+      AND (
+        (camp.account_id = $2 AND camp.user_id = $3)
+        OR
+        (conv.campaign_id IS NULL AND la.account_id = $2)
+      )
+      ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -1501,6 +1617,65 @@ const updateSummary = async (req, res) => {
   }
 };
 
+// ================================
+// 17. ATUALIZAR NOME DO CONTATO DA CONVERSA
+// ================================
+const updateContactName = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`✏️ Atualizando nome do contato da conversa ${id} para "${name}"`);
+
+    if (!name || !name.trim()) {
+      throw new ValidationError('Nome é obrigatório');
+    }
+
+    // Buscar conversa com contact_id
+    const convQuery = `
+      SELECT conv.*, conv.contact_id, conv.lead_id
+      FROM conversations conv
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3
+    `;
+    const convResult = await db.query(convQuery, [id, accountId, userId]);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversa não encontrada');
+    }
+
+    const conversation = convResult.rows[0];
+
+    // Se tem contact_id, atualizar o contato
+    if (conversation.contact_id) {
+      await db.query(
+        'UPDATE contacts SET name = $1, updated_at = NOW() WHERE id = $2',
+        [name.trim(), conversation.contact_id]
+      );
+      console.log(`✅ Contato ${conversation.contact_id} atualizado`);
+    }
+    // Se tem lead_id (e não contact_id), atualizar o lead
+    else if (conversation.lead_id) {
+      await db.query(
+        'UPDATE leads SET name = $1 WHERE id = $2',
+        [name.trim(), conversation.lead_id]
+      );
+      console.log(`✅ Lead ${conversation.lead_id} atualizado`);
+    } else {
+      throw new ValidationError('Conversa não tem contato ou lead associado');
+    }
+
+    sendSuccess(res, {
+      message: 'Nome atualizado com sucesso',
+      name: name.trim()
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getConversations,
   getConversation,
@@ -1523,5 +1698,7 @@ module.exports = {
   // Summary endpoints
   getSummaryStats,
   generateSummary,
-  updateSummary
+  updateSummary,
+  // Contact name update
+  updateContactName
 };

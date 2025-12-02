@@ -75,6 +75,12 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
         result = await webhookController.handleMessageDelivered(payload);
         break;
 
+      // ✅ Handler para mensagem enviada (usa mesmo handler de received)
+      case 'message_sent':
+        console.log('[webhookWorker] Processing message_sent as message_received');
+        result = await webhookController.handleMessageReceived(payload);
+        break;
+
       // ✅ MULTI-CHANNEL: Handler para nova conta conectada
       case 'account_connected':
       case 'account.created':

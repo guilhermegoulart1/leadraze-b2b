@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
   ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw,
-  Paperclip, X, FileText, Image, Film, Music, File, Download
+  Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check
 } from 'lucide-react';
 import api from '../services/api';
 import EmailComposer from './EmailComposer';
@@ -20,11 +20,16 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDownloading, setIsDownloading] = useState({});
+  // Estado para edição de nome
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const optionsMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const currentConversationIdRef = useRef(null);
+  const nameInputRef = useRef(null);
 
   useEffect(() => {
     if (conversationId) {
@@ -51,6 +56,30 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // ✅ Polling para atualização em tempo real das mensagens
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const pollMessages = async () => {
+      try {
+        const response = await api.getMessages(conversationId);
+        if (response.success && currentConversationIdRef.current === conversationId) {
+          // Só atualizar se houver novas mensagens
+          if (response.data.messages && response.data.messages.length !== messages.length) {
+            setMessages(response.data.messages);
+          }
+        }
+      } catch (error) {
+        // Silenciar erros de polling
+      }
+    };
+
+    // Polling a cada 5 segundos
+    const pollInterval = setInterval(pollMessages, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [conversationId, messages.length]);
 
   // Close options menu when clicking outside
   useEffect(() => {
@@ -239,6 +268,61 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     } catch (error) {
       console.error('Erro ao alternar modo IA:', error);
       setError('Falha ao alternar modo IA');
+    }
+  };
+
+  // Handler para iniciar edição do nome
+  const handleStartEditName = () => {
+    const currentName = conversation?.is_group && conversation?.group_name
+      ? conversation.group_name
+      : (conversation?.lead_name || '');
+    setEditedName(currentName);
+    setIsEditingName(true);
+    // Focar no input após render
+    setTimeout(() => nameInputRef.current?.focus(), 50);
+  };
+
+  // Handler para salvar o nome editado
+  const handleSaveName = async () => {
+    if (!editedName.trim() || !conversationId) return;
+
+    setIsSavingName(true);
+    try {
+      await api.updateContactName(conversationId, editedName.trim());
+
+      // Atualizar estado local
+      setConversation(prev => ({
+        ...prev,
+        lead_name: editedName.trim()
+      }));
+
+      setIsEditingName(false);
+
+      // Atualizar lista de conversas
+      if (onConversationUpdated) {
+        onConversationUpdated();
+      }
+    } catch (error) {
+      console.error('Erro ao salvar nome:', error);
+      setError('Falha ao salvar nome');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  // Handler para cancelar edição
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    setEditedName('');
+  };
+
+  // Handler para tecla Enter no input de nome
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveName();
+    } else if (e.key === 'Escape') {
+      handleCancelEditName();
     }
   };
 
@@ -457,6 +541,21 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     return type && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(type);
   };
 
+  // Verificar se é um áudio que pode ser reproduzido
+  const isPlayableAudio = (type) => {
+    return type && (
+      type.startsWith('audio/') ||
+      type === 'audio/ogg' ||
+      type === 'audio/opus' ||
+      type === 'audio/mpeg' ||
+      type === 'audio/mp3' ||
+      type === 'audio/wav' ||
+      type === 'audio/webm' ||
+      type === 'audio/aac' ||
+      type === 'audio/m4a'
+    );
+  };
+
   // Empty State
   if (!conversationId) {
     return (
@@ -501,15 +600,86 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               </>
             ) : (
               <>
-                <h2 className="font-semibold text-gray-900 truncate">
-                  {conversation?.lead_name || 'Carregando...'}
-                </h2>
+                <div className="flex items-center gap-2">
+                  {/* Nome editável */}
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={nameInputRef}
+                        type="text"
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        onKeyDown={handleNameKeyDown}
+                        className="font-semibold text-gray-900 border border-purple-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        disabled={isSavingName}
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={isSavingName || !editedName.trim()}
+                        className="p-1 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50"
+                        title="Salvar"
+                      >
+                        {isSavingName ? (
+                          <Loader className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={handleCancelEditName}
+                        disabled={isSavingName}
+                        className="p-1 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Cancelar"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 group">
+                      <h2 className="font-semibold text-gray-900 truncate">
+                        {/* Mostrar group_name para grupos, senão lead_name */}
+                        {conversation?.is_group && conversation?.group_name
+                          ? conversation.group_name
+                          : (conversation?.lead_name || 'Carregando...')}
+                      </h2>
+                      {/* Botão de editar (visível em hover ou sempre para contatos orgânicos) */}
+                      {!conversation?.is_group && (
+                        <button
+                          onClick={handleStartEditName}
+                          className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                          title="Editar nome"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {/* Badge de grupo */}
+                  {conversation?.is_group && (
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex-shrink-0">
+                      Grupo
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <span className="truncate">{conversation?.lead_title}</span>
-                  {conversation?.lead_company && (
+                  {conversation?.is_group ? (
+                    <span className="truncate">
+                      {conversation?.attendee_count || 2} participantes
+                    </span>
+                  ) : (
                     <>
-                      <span>•</span>
-                      <span className="truncate">{conversation?.lead_company}</span>
+                      {/* Mostrar telefone se for conversa orgânica */}
+                      {conversation?.lead_phone && (
+                        <span className="truncate text-purple-600">{conversation.lead_phone}</span>
+                      )}
+                      {conversation?.lead_phone && conversation?.lead_title && <span>•</span>}
+                      <span className="truncate">{conversation?.lead_title}</span>
+                      {conversation?.lead_company && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate">{conversation?.lead_company}</span>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -767,7 +937,61 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                 }
                               }
 
-                              // Arquivo genérico (não é imagem ou imagem sem URL)
+                              // Verificar se é áudio que pode ser reproduzido
+                              if (isPlayableAudio(att.type)) {
+                                let audioUrl = null;
+                                if (att.url && att.url.startsWith('http')) {
+                                  audioUrl = att.url;
+                                } else if (canDownload) {
+                                  // Usar proxy inline do backend
+                                  audioUrl = api.getAttachmentInlineUrl(
+                                    att.conversation_id,
+                                    att.message_id,
+                                    att.id
+                                  );
+                                }
+
+                                if (audioUrl) {
+                                  return (
+                                    <div key={att.id || attIdx} className={`p-3 rounded-lg ${isUser ? 'bg-purple-700' : 'bg-gray-100'}`}>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Music className={`w-4 h-4 ${isUser ? 'text-purple-200' : 'text-gray-500'}`} />
+                                        <span className={`text-xs truncate flex-1 ${isUser ? 'text-purple-200' : 'text-gray-600'}`}>
+                                          {att.name}
+                                        </span>
+                                        {canDownload && (
+                                          <button
+                                            onClick={() => handleDownloadAttachment(att)}
+                                            disabled={isDownloadingFile}
+                                            className={`p-1 rounded-full ${isUser ? 'hover:bg-purple-600' : 'hover:bg-gray-200'} transition-colors`}
+                                            title="Baixar áudio"
+                                          >
+                                            {isDownloadingFile ? (
+                                              <Loader className={`w-4 h-4 animate-spin ${isUser ? 'text-white' : 'text-gray-600'}`} />
+                                            ) : (
+                                              <Download className={`w-4 h-4 ${isUser ? 'text-white' : 'text-gray-600'}`} />
+                                            )}
+                                          </button>
+                                        )}
+                                      </div>
+                                      <audio
+                                        controls
+                                        className="w-full h-10"
+                                        style={{
+                                          filter: isUser ? 'invert(1) hue-rotate(180deg)' : 'none',
+                                          maxWidth: '280px'
+                                        }}
+                                        preload="metadata"
+                                      >
+                                        <source src={audioUrl} type={att.type} />
+                                        Seu navegador não suporta áudio.
+                                      </audio>
+                                    </div>
+                                  );
+                                }
+                              }
+
+                              // Arquivo genérico (não é imagem, áudio ou sem URL)
                               return (
                                 <div
                                   key={att.id || attIdx}

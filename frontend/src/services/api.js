@@ -433,6 +433,13 @@ class ApiService {
     });
   }
 
+  async updateContactName(conversationId, name) {
+    return this.request(`/conversations/${conversationId}/contact-name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  }
+
   // ================================
   // AI AGENTS
   // ================================

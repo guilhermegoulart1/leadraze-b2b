@@ -517,6 +517,87 @@ const unipileClient = {
       });
 
       return response.data;
+    },
+
+    // Extract own profile from chats (for WhatsApp, Instagram, etc.)
+    // The Unipile API doesn't have a direct /users/me for non-LinkedIn accounts
+    // So we need to get the "own attendee" from chat data
+    getOwnProfileFromChats: async (accountId) => {
+      console.log(`🔍 Buscando perfil próprio via chats para account ${accountId}`);
+
+      // First, get the account info to find the phone number/identifier
+      const accountUrl = `https://${dsn}/api/v1/accounts/${accountId}`;
+      const accountResponse = await axios.get(accountUrl, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      const accountData = accountResponse.data;
+      const connectionParams = accountData?.connection_params?.im || {};
+      const ownPhoneNumber = connectionParams.phone_number || connectionParams.phone || accountData.name;
+
+      console.log(`📱 Número próprio identificado: ${ownPhoneNumber}`);
+
+      // Get chats to find own attendee
+      const chatsUrl = `https://${dsn}/api/v1/chats?account_id=${accountId}&limit=10`;
+      const chatsResponse = await axios.get(chatsUrl, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      const chats = chatsResponse.data.items || chatsResponse.data || [];
+      console.log(`💬 Encontrados ${chats.length} chats`);
+
+      if (chats.length === 0) {
+        console.log('⚠️ Nenhum chat encontrado - não é possível extrair perfil');
+        return null;
+      }
+
+      // Look for own attendee in chats
+      let ownProfile = null;
+
+      for (const chat of chats) {
+        const attendees = chat.attendees || [];
+        console.log(`   Chat ${chat.id}: ${attendees.length} attendees`);
+
+        for (const attendee of attendees) {
+          // Check if this attendee is "self" or matches our phone number
+          const attendeeId = attendee.id || attendee.identifier || '';
+          const attendeeName = attendee.name || attendee.display_name || '';
+          const attendeePhone = attendee.phone_number || attendee.identifier || '';
+
+          console.log(`     Attendee: ${attendeeName} (${attendeeId})`);
+
+          // The own attendee usually has is_self=true or matches the account's phone
+          if (attendee.is_self === true ||
+              attendeeId.includes(ownPhoneNumber) ||
+              attendeePhone.includes(ownPhoneNumber) ||
+              (ownPhoneNumber && attendeeName === ownPhoneNumber)) {
+
+            console.log(`   ✅ Encontrado perfil próprio!`);
+            console.log(`   📊 Dados do attendee:`, JSON.stringify(attendee, null, 2));
+
+            ownProfile = {
+              name: attendee.name || attendee.display_name || attendee.pushname,
+              profile_picture: attendee.profile_picture || attendee.profile_picture_url || attendee.picture_url,
+              phone_number: attendee.phone_number || attendee.identifier || ownPhoneNumber,
+              id: attendee.id,
+              is_self: true
+            };
+            break;
+          }
+        }
+
+        if (ownProfile) break;
+      }
+
+      return ownProfile;
     }
   }
 };

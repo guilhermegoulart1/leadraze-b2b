@@ -196,8 +196,17 @@ const ConversationSidebar = ({
                     <div className="flex items-center justify-between mb-0.5">
                       <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
                         <h3 className="font-semibold text-sm text-gray-900 truncate">
-                          {conversation.lead_name}
+                          {/* Mostrar group_name para grupos, senão lead_name */}
+                          {conversation.is_group && conversation.group_name
+                            ? conversation.group_name
+                            : conversation.lead_name}
                         </h3>
+                        {/* Badge de grupo */}
+                        {conversation.is_group && (
+                          <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full flex-shrink-0">
+                            Grupo
+                          </span>
+                        )}
                         {conversation.unread_count > 0 && (
                           <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex-shrink-0 min-w-[18px] h-[18px] flex items-center justify-center shadow-sm">
                             {conversation.unread_count > 99 ? '99+' : conversation.unread_count}

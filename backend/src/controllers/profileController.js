@@ -442,25 +442,26 @@ const reactivateLinkedInAccount = async (req, res) => {
 };
 
 // ================================
-// 5B. ATUALIZAR DADOS DA CONTA LINKEDIN (REFRESH)
+// 5B. ATUALIZAR DADOS DA CONTA (REFRESH) - Suporta LinkedIn, WhatsApp, etc.
 // ================================
 const refreshLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    console.log(`🔄 Atualizando dados da conta LinkedIn ${id}`);
-
     // Buscar conta no banco
     const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
 
     if (!account) {
-      throw new NotFoundError('LinkedIn account not found');
+      throw new NotFoundError('Account not found');
     }
 
     if (!account.unipile_account_id) {
       throw new ValidationError('Account does not have unipile_account_id');
     }
+
+    const providerType = account.provider_type || 'LINKEDIN';
+    console.log(`🔄 Atualizando dados da conta ${providerType} ${id}`);
 
     if (!unipileClient.isInitialized()) {
       throw new UnipileError(`Unipile client error: ${unipileClient.getError()}`);
@@ -469,57 +470,127 @@ const refreshLinkedInAccount = async (req, res) => {
     console.log(`📡 Buscando dados atualizados da Unipile para account_id: ${account.unipile_account_id}`);
 
     try {
-      // Buscar dados da conta na Unipile
+      // Buscar dados da conta na Unipile (funciona para todos os tipos)
       const accountData = await unipileClient.account.getAccountById(account.unipile_account_id);
       console.log('✅ Dados da conta obtidos da Unipile');
+      console.log('📊 DADOS DA CONTA:', JSON.stringify(accountData, null, 2));
 
-      // Buscar perfil atualizado
-      const profileData = await unipileClient.users.getOwnProfile(account.unipile_account_id);
-      console.log('✅ Perfil atualizado obtido:', profileData?.name || 'Nome não disponível');
-      console.log('📊 DADOS COMPLETOS DO PERFIL:', JSON.stringify(profileData, null, 2));
-      console.log('📊 DADOS COMPLETOS DA CONTA:', JSON.stringify(accountData, null, 2));
-      console.log('🔍 Premium:', profileData?.premium);
-      console.log('🔍 Sales Navigator:', profileData?.sales_navigator);
-      console.log('🔍 Recruiter:', profileData?.recruiter);
-
-      // Criar objeto estruturado com informações do tipo de conta
-      const accountTypeInfo = {
-        premium: profileData?.premium || false,
-        sales_navigator: profileData?.sales_navigator || null,
-        recruiter: profileData?.recruiter || null
-      };
-
-      console.log('✅ Tipo de conta estruturado:', accountTypeInfo);
-
-      // Preparar dados para atualização
+      // Preparar dados base para atualização
       const updateData = {
-        profile_name: profileData?.name || `${profileData?.first_name} ${profileData?.last_name}`.trim() || account.profile_name,
-        profile_url: profileData?.url || account.profile_url,
-        profile_picture: profileData?.profile_picture || profileData?.profile_picture_url || account.profile_picture,
-        public_identifier: profileData?.public_identifier || account.public_identifier,
-        organizations: profileData?.organizations ? JSON.stringify(profileData.organizations) : account.organizations,
-        premium_features: JSON.stringify(accountTypeInfo),
         status: accountData?.status === 'active' ? 'active' : account.status
       };
 
-      // 🆕 AUTO-DETECTAR TIPO DE CONTA
-      let detectedAccountType = 'free';
-      if (accountTypeInfo.recruiter !== null && accountTypeInfo.recruiter !== undefined) {
-        detectedAccountType = 'recruiter';
-      } else if (accountTypeInfo.sales_navigator !== null && accountTypeInfo.sales_navigator !== undefined) {
-        detectedAccountType = 'sales_navigator';
-      } else if (accountTypeInfo.premium === true) {
-        detectedAccountType = 'premium';
-      }
+      // Para LinkedIn, buscar perfil completo
+      if (providerType === 'LINKEDIN') {
+        try {
+          const profileData = await unipileClient.users.getOwnProfile(account.unipile_account_id);
+          console.log('✅ Perfil LinkedIn atualizado obtido:', profileData?.name || 'Nome não disponível');
 
-      updateData.account_type = detectedAccountType;
-      console.log(`🔍 Tipo de conta detectado: ${detectedAccountType}`);
+          // Criar objeto estruturado com informações do tipo de conta
+          const accountTypeInfo = {
+            premium: profileData?.premium || false,
+            sales_navigator: profileData?.sales_navigator || null,
+            recruiter: profileData?.recruiter || null
+          };
 
-      // 🆕 SUGERIR LIMITE SE NÃO ESTIVER CONFIGURADO
-      if (!account.daily_limit || account.daily_limit === 0) {
-        const suggestedLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType].safe;
-        updateData.daily_limit = suggestedLimit;
-        console.log(`💡 Limite sugerido automaticamente: ${suggestedLimit}/dia`);
+          updateData.profile_name = profileData?.name || `${profileData?.first_name} ${profileData?.last_name}`.trim() || account.profile_name;
+          updateData.profile_url = profileData?.url || account.profile_url;
+          updateData.profile_picture = profileData?.profile_picture || profileData?.profile_picture_url || account.profile_picture;
+          updateData.public_identifier = profileData?.public_identifier || account.public_identifier;
+          updateData.organizations = profileData?.organizations ? JSON.stringify(profileData.organizations) : account.organizations;
+          updateData.premium_features = JSON.stringify(accountTypeInfo);
+
+          // AUTO-DETECTAR TIPO DE CONTA LinkedIn
+          let detectedAccountType = 'free';
+          if (accountTypeInfo.recruiter !== null && accountTypeInfo.recruiter !== undefined) {
+            detectedAccountType = 'recruiter';
+          } else if (accountTypeInfo.sales_navigator !== null && accountTypeInfo.sales_navigator !== undefined) {
+            detectedAccountType = 'sales_navigator';
+          } else if (accountTypeInfo.premium === true) {
+            detectedAccountType = 'premium';
+          }
+
+          updateData.account_type = detectedAccountType;
+          console.log(`🔍 Tipo de conta LinkedIn detectado: ${detectedAccountType}`);
+
+          // SUGERIR LIMITE SE NÃO ESTIVER CONFIGURADO
+          if (!account.daily_limit || account.daily_limit === 0) {
+            const suggestedLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType]?.safe || 25;
+            updateData.daily_limit = suggestedLimit;
+            console.log(`💡 Limite sugerido automaticamente: ${suggestedLimit}/dia`);
+          }
+        } catch (profileError) {
+          console.warn('⚠️ Não foi possível buscar perfil LinkedIn:', profileError.message);
+          // Continuar mesmo sem o perfil
+        }
+      } else {
+        // Para WhatsApp, Instagram, etc - usar dados da conta
+        console.log(`📱 Atualizando conta ${providerType}`);
+        console.log('📊 Dados completos da conta Unipile:', JSON.stringify(accountData, null, 2));
+
+        // Extrair connection_params (estrutura específica do Unipile)
+        const connectionParams = accountData?.connection_params?.im || {};
+
+        // Extrair informações básicas do accountData
+        let displayName = accountData?.name || connectionParams?.pushname || connectionParams?.name ||
+                         accountData?.display_name || accountData?.pushname ||
+                         accountData?.contact_name || accountData?.profile?.name;
+        let phoneNumber = connectionParams?.phone_number || connectionParams?.phone ||
+                         accountData?.identifier || accountData?.phone || accountData?.phone_number ||
+                         accountData?.wid || accountData?.number;
+        let profilePicture = connectionParams?.profile_picture || connectionParams?.picture_url ||
+                            accountData?.profile_picture || accountData?.picture_url ||
+                            accountData?.profile?.picture || accountData?.avatar;
+
+        // 🆕 ESTRATÉGIA UNIPILE: Buscar perfil próprio via chats (recomendado pelo suporte)
+        // Para WhatsApp/Instagram, os dados do perfil estão nos "attendees" das conversas
+        try {
+          console.log('🔍 Buscando perfil próprio via chats (estratégia Unipile)...');
+          const ownProfile = await unipileClient.messaging.getOwnProfileFromChats(account.unipile_account_id);
+
+          if (ownProfile) {
+            console.log('✅ Perfil próprio encontrado via chats!');
+            console.log('📊 Dados:', JSON.stringify(ownProfile, null, 2));
+
+            // Atualizar com dados mais completos do attendee
+            if (ownProfile.name && ownProfile.name !== phoneNumber) {
+              displayName = ownProfile.name;
+            }
+            if (ownProfile.profile_picture) {
+              profilePicture = ownProfile.profile_picture;
+            }
+            if (ownProfile.phone_number) {
+              phoneNumber = ownProfile.phone_number;
+            }
+          } else {
+            console.log('⚠️ Não foi possível encontrar perfil próprio via chats (sem conversas?)');
+          }
+        } catch (chatError) {
+          console.warn('⚠️ Erro ao buscar perfil via chats:', chatError.message);
+          // Continuar com dados básicos da conta
+        }
+
+        if (displayName) {
+          updateData.profile_name = displayName;
+          console.log(`   ✅ Nome: ${displayName}`);
+        }
+        if (phoneNumber) {
+          updateData.channel_identifier = phoneNumber;
+          console.log(`   ✅ Identificador: ${phoneNumber}`);
+        }
+        if (profilePicture) {
+          updateData.profile_picture = profilePicture;
+          console.log(`   ✅ Foto de perfil atualizada`);
+        }
+
+        // Definir limite padrão para canais não-LinkedIn se não configurado
+        if (!account.daily_limit || account.daily_limit === 0) {
+          const defaultLimit = providerType === 'WHATSAPP' ? 50 : 30;
+          updateData.daily_limit = defaultLimit;
+          console.log(`   💡 Limite padrão: ${defaultLimit}/dia`);
+        }
+
+        console.log('📝 Campos a atualizar:', Object.keys(updateData).join(', '));
       }
 
       console.log('💾 Salvando dados atualizados no banco de dados');
@@ -527,23 +598,24 @@ const refreshLinkedInAccount = async (req, res) => {
       // Atualizar no banco de dados
       const updatedAccount = await db.update('linkedin_accounts', updateData, { id });
 
-      console.log('✅ Conta LinkedIn atualizada com sucesso');
+      console.log(`✅ Conta ${providerType} atualizada com sucesso`);
 
       sendSuccess(res, {
         ...updatedAccount,
-        profile_data: profileData,
         account_data: accountData
-      }, 'LinkedIn account refreshed successfully');
+      }, `${providerType} account refreshed successfully`);
 
     } catch (unipileError) {
       console.error('❌ Erro ao buscar dados da Unipile:', unipileError);
 
-      let errorMessage = 'Failed to refresh LinkedIn account data';
+      let errorMessage = `Failed to refresh ${providerType} account data`;
 
       if (unipileError.response?.status === 404) {
-        errorMessage = 'LinkedIn account not found in Unipile';
+        errorMessage = `${providerType} account not found in Unipile`;
       } else if (unipileError.response?.status === 401) {
         errorMessage = 'Invalid Unipile credentials';
+      } else if (unipileError.response?.status === 501) {
+        errorMessage = `This operation is not supported for ${providerType} accounts`;
       }
 
       throw new UnipileError(errorMessage, unipileError);

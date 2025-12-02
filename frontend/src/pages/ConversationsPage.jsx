@@ -48,6 +48,25 @@ const ConversationsPage = () => {
     filterConversations();
   }, [searchQuery, statusFilter, conversations, advancedFilters, user]);
 
+  // ✅ Polling para atualização em tempo real da lista de conversas
+  useEffect(() => {
+    const pollConversations = async () => {
+      try {
+        const response = await api.getConversations({ limit: 100 });
+        if (response.success) {
+          setConversations(response.data.conversations || []);
+        }
+      } catch (error) {
+        // Silenciar erros de polling
+      }
+    };
+
+    // Polling a cada 15 segundos
+    const pollInterval = setInterval(pollConversations, 15000);
+
+    return () => clearInterval(pollInterval);
+  }, []);
+
   const loadConversations = async () => {
     try {
       setLoading(true);

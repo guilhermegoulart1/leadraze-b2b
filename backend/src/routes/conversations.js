@@ -146,4 +146,11 @@ router.post('/:id/summary/generate', conversationController.generateSummary);
 // Atualizar resumo incrementalmente
 router.post('/:id/summary/update', conversationController.updateSummary);
 
+// ================================
+// EDIÇÃO DE CONTATO
+// ================================
+
+// Atualizar nome do contato/lead da conversa
+router.patch('/:id/contact-name', conversationController.updateContactName);
+
 module.exports = router;
