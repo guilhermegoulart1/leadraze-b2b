@@ -20,6 +20,31 @@ const listeners = {
 };
 
 /**
+ * Deriva a URL do socket de forma robusta
+ */
+function getSocketUrl() {
+  // 1. Tentar usar VITE_API_URL se disponível e válida
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl && apiUrl.startsWith('http')) {
+    return apiUrl.replace('/api', '');
+  }
+
+  // 2. Em produção, derivar do hostname atual
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    // Se estamos em app.getraze.co, o backend está em api.getraze.co
+    const hostname = window.location.hostname;
+    if (hostname.includes('getraze.co')) {
+      return 'https://api.getraze.co';
+    }
+    // Fallback: mesmo host na porta 3001
+    return `${window.location.protocol}//${hostname}:3001`;
+  }
+
+  // 3. Fallback para desenvolvimento local
+  return 'http://localhost:3001';
+}
+
+/**
  * Inicializa conexão WebSocket
  */
 export function initializeSocket() {
@@ -35,7 +60,7 @@ export function initializeSocket() {
     return socket;
   }
 
-  const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+  const socketUrl = getSocketUrl();
 
   console.log('Socket: Iniciando conexão...', socketUrl);
 
