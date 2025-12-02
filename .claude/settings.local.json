@@ -12,7 +12,8 @@
       "Bash(npm install:*)",
       "Bash(node get-commenters.js:*)",
       "Bash(git log:*)",
-      "Bash(del \"c:\\leadraze-b2b\\frontend\\src\\pages\\LinkedInAccountsPage.jsx\")"
+      "Bash(del \"c:\\leadraze-b2b\\frontend\\src\\pages\\LinkedInAccountsPage.jsx\")",
+      "Bash(docker --version:*)"
     ],
     "deny": [],
     "ask": []

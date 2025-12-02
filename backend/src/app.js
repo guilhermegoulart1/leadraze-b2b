@@ -18,14 +18,16 @@ const app = express();
 // Security
 app.use(helmet());
 
-// CORS - allow frontend app and www site
+// CORS - allow frontend app, www site, and next (Fider)
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.WWW_URL || 'http://localhost:4321',
+    process.env.NEXT_URL || 'http://localhost:3004',
     'https://getraze.co',
     'https://www.getraze.co',
-    'https://app.getraze.co'
+    'https://app.getraze.co',
+    'https://next.getraze.co'
   ],
   credentials: true
 }));
@@ -186,6 +188,14 @@ try {
   console.log('✅ Auth routes loaded');
 } catch (error) {
   console.error('❌ Error loading auth routes:', error.message);
+}
+
+// OAuth2 Provider (SSO for Fider/GetRaze Next)
+try {
+  app.use('/oauth', require('./routes/oauth'));
+  console.log('✅ OAuth2 Provider routes loaded (SSO for GetRaze Next)');
+} catch (error) {
+  console.error('❌ Error loading OAuth routes:', error.message);
 }
 
 // ================================
