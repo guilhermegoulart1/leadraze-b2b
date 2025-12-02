@@ -18,16 +18,14 @@ const app = express();
 // Security
 app.use(helmet());
 
-// CORS - allow frontend app, www site, and next (Fider)
+// CORS - allow frontend app and www site
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.WWW_URL || 'http://localhost:4321',
-    process.env.NEXT_URL || 'http://localhost:3004',
     'https://getraze.co',
     'https://www.getraze.co',
-    'https://app.getraze.co',
-    'https://next.getraze.co'
+    'https://app.getraze.co'
   ],
   credentials: true
 }));
@@ -190,13 +188,6 @@ try {
   console.error('❌ Error loading auth routes:', error.message);
 }
 
-// OAuth2 Provider (SSO for Fider/GetRaze Next)
-try {
-  app.use('/oauth', require('./routes/oauth'));
-  console.log('✅ OAuth2 Provider routes loaded (SSO for GetRaze Next)');
-} catch (error) {
-  console.error('❌ Error loading OAuth routes:', error.message);
-}
 
 // ================================
 // BILLING ROUTES (MUST BE BEFORE KNOWLEDGE ROUTES)
@@ -378,6 +369,22 @@ try {
   console.log('✅ Notifications routes loaded');
 } catch (error) {
   console.error('❌ Error loading notifications routes:', error.message);
+}
+
+// Feedback & Roadmap (GetRaze Next)
+try {
+  app.use('/api/feedback', require('./routes/feedback'));
+  console.log('✅ Feedback & Roadmap routes loaded');
+} catch (error) {
+  console.error('❌ Error loading feedback routes:', error.message);
+}
+
+// Releases / Changelog
+try {
+  app.use('/api/releases', require('./routes/releases'));
+  console.log('✅ Releases routes loaded');
+} catch (error) {
+  console.error('❌ Error loading releases routes:', error.message);
 }
 
 // ================================

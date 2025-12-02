@@ -1,0 +1,42 @@
+##### COMANDOS #####
+# git add .
+# git commit -m "Release v5.8.7b"
+# git push origin main
+# git tag -a "v5.8.7b" -F release-notes.md
+# git push origin --tags
+# git push origin "v5.8.7b"
+# gh release create v5.8.7b --title "Versão v5.8.7b" --notes-file release-notes.md  
+
+## LIMPAR REDIS
+
+## node redislimpeza.js 2
+
+<!-- 1. 👁️ Prévia (recomendado primeiro):
+node redis-reset.js 1
+Mostra o que seria deletado SEM fazer alterações
+2. 🧹 Limpeza seletiva:
+node redis-reset.js 2
+Remove apenas mensagens/filas, mantém configurações
+3. 🚨 Reset completo:
+node redis-reset.js 3
+APAGA TUDO (aguarda 5 segundos para cancelar) -->
+
+
+# 1.0.0: Primeira versão estável do projeto
+
+# 1.1.0: Adiciona um novo recurso (ex: integração com Chatwoot)
+
+# 1.1.1: Corrige um bug
+
+# 2.0.0: Refatoração geral que muda comportamento de funções, APIs, etc
+
+# 3.0.0: Redis, Integração com Chatwoot, Transferências via functions, design login
+
+
+###################################
+
+# Comando pra dar o pg_restore
+
+#na pasta c:/dump
+
+#"C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" -d "postgresql:LINKDOPOSTGRES" --clean --if-exists --verbose postgres.dump

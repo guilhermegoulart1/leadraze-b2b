@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
-  ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw
+  ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw,
+  Paperclip, X, FileText, Image, Film, Music, File, Download
 } from 'lucide-react';
 import api from '../services/api';
 import EmailComposer from './EmailComposer';
@@ -17,9 +18,12 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [isDownloading, setIsDownloading] = useState({});
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const optionsMenuRef = useRef(null);
+  const fileInputRef = useRef(null);
   const currentConversationIdRef = useRef(null);
 
   useEffect(() => {
@@ -171,34 +175,42 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
-    if (!newMessage.trim()) return;
+    // Precisa ter texto OU arquivos
+    if (!newMessage.trim() && selectedFiles.length === 0) return;
 
     try {
       setIsSending(true);
       setError(null);
 
-      const response = await api.sendMessage(conversationId, newMessage.trim());
+      const response = await api.sendMessage(conversationId, newMessage.trim(), selectedFiles);
 
       if (response.success) {
+        // Criar preview dos attachments para exibição local
+        const attachmentPreviews = selectedFiles.map((file, idx) => ({
+          id: `local-${Date.now()}-${idx}`,
+          name: file.name,
+          type: file.type,
+          size: file.size
+        }));
+
         // Add message optimistically to local state
         const sentMessage = {
           id: response.data.id || Date.now(),
           content: newMessage.trim(),
           sender_type: 'user',
           sent_at: new Date().toISOString(),
+          attachments: attachmentPreviews,
           ...response.data
         };
 
         setMessages([...messages, sentMessage]);
         setNewMessage('');
+        setSelectedFiles([]);
 
         // Reset textarea height
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
         }
-
-        // ✅ Não recarregar automaticamente - a mensagem já foi adicionada ao estado local
-        // Se precisar de mensagens novas do lead, elas virão via webhook ou ao reabrir a conversa
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -348,6 +360,101 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       e.preventDefault();
       handleSendMessage(e);
     }
+  };
+
+  // ================================
+  // FUNÇÕES DE ARQUIVO/ATTACHMENT
+  // ================================
+
+  // Determinar ícone baseado no tipo de arquivo
+  const getFileIcon = (type) => {
+    if (!type) return File;
+    if (type.startsWith('image/')) return Image;
+    if (type.startsWith('video/')) return Film;
+    if (type.startsWith('audio/')) return Music;
+    if (type.includes('pdf') || type.includes('document') || type.includes('text')) return FileText;
+    return File;
+  };
+
+  // Formatar tamanho de arquivo
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // Handler para seleção de arquivos
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // Verificar limite de 5 arquivos
+    if (selectedFiles.length + files.length > 5) {
+      setError('Máximo de 5 arquivos por mensagem');
+      return;
+    }
+
+    // Verificar tamanho máximo (15MB cada)
+    const maxSize = 15 * 1024 * 1024;
+    const oversizedFiles = files.filter(f => f.size > maxSize);
+    if (oversizedFiles.length > 0) {
+      setError(`Arquivo(s) muito grande(s). Máximo: 15MB`);
+      return;
+    }
+
+    setSelectedFiles([...selectedFiles, ...files]);
+    setError(null);
+
+    // Limpar input para permitir selecionar o mesmo arquivo novamente
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Remover arquivo selecionado
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  // Download de attachment
+  const handleDownloadAttachment = async (attachment) => {
+    // Verificar se é um attachment local (ainda não sincronizado)
+    if (!attachment.message_id || !attachment.id ||
+        String(attachment.id).startsWith('local-') ||
+        attachment.message_id === 'undefined') {
+      setError('Arquivo ainda sendo processado. Tente novamente em alguns segundos.');
+      return;
+    }
+
+    const key = `${attachment.message_id}-${attachment.id}`;
+    setIsDownloading(prev => ({ ...prev, [key]: true }));
+
+    try {
+      await api.downloadAttachment(
+        attachment.conversation_id,
+        attachment.message_id,
+        attachment.id,
+        attachment.name
+      );
+    } catch (err) {
+      console.error('Erro ao baixar arquivo:', err);
+      setError('Falha ao baixar arquivo');
+    } finally {
+      setIsDownloading(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  // Verificar se attachment pode ser baixado
+  const canDownloadAttachment = (attachment) => {
+    return attachment.message_id &&
+           attachment.id &&
+           !String(attachment.id).startsWith('local-');
+  };
+
+  // Verificar se é uma imagem que pode ser exibida inline
+  const isDisplayableImage = (type) => {
+    return type && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(type);
   };
 
   // Empty State
@@ -599,9 +706,107 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                             : 'bg-white border border-gray-200 text-gray-900'
                         }`}
                       >
-                        <p className={`text-sm whitespace-pre-wrap ${isUser ? '[&_a]:text-white [&_a]:underline [&_a:hover]:text-blue-100' : '[&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800'}`}>
-                          {linkifyText(message.content || message.text)}
-                        </p>
+                        {/* Texto da mensagem */}
+                        {(message.content || message.text) && (
+                          <p className={`text-sm whitespace-pre-wrap ${isUser ? '[&_a]:text-white [&_a]:underline [&_a:hover]:text-blue-100' : '[&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800'}`}>
+                            {linkifyText(message.content || message.text)}
+                          </p>
+                        )}
+
+                        {/* Attachments */}
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className={`${(message.content || message.text) ? 'mt-2 pt-2 border-t' : ''} ${isUser ? 'border-purple-500' : 'border-gray-200'} space-y-2`}>
+                            {message.attachments.map((att, attIdx) => {
+                              const FileIcon = getFileIcon(att.type);
+                              const downloadKey = `${att.message_id}-${att.id}`;
+                              const isDownloadingFile = isDownloading[downloadKey];
+                              const canDownload = canDownloadAttachment(att);
+
+                              // Verificar se é imagem que pode ser exibida inline
+                              if (isDisplayableImage(att.type)) {
+                                // Determinar URL para exibição da imagem
+                                // Se tem URL HTTP válida, usar diretamente
+                                // Caso contrário, usar proxy via backend
+                                let imageUrl = null;
+                                if (att.url && att.url.startsWith('http')) {
+                                  imageUrl = att.url;
+                                } else if (canDownload) {
+                                  // Usar proxy inline do backend
+                                  imageUrl = api.getAttachmentInlineUrl(
+                                    att.conversation_id,
+                                    att.message_id,
+                                    att.id
+                                  );
+                                }
+
+                                if (imageUrl) {
+                                  return (
+                                    <div key={att.id || attIdx} className="relative">
+                                      <img
+                                        src={imageUrl}
+                                        alt={att.name}
+                                        className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90"
+                                        onClick={() => canDownload ? handleDownloadAttachment(att) : window.open(imageUrl, '_blank')}
+                                        onError={(e) => {
+                                          // Se falhar ao carregar, esconder a imagem
+                                          e.target.style.display = 'none';
+                                        }}
+                                      />
+                                      {canDownload && (
+                                        <button
+                                          onClick={() => handleDownloadAttachment(att)}
+                                          disabled={isDownloadingFile}
+                                          className={`absolute bottom-2 right-2 p-2 rounded-full ${isUser ? 'bg-purple-700 hover:bg-purple-800' : 'bg-gray-700 hover:bg-gray-800'} text-white transition-colors`}
+                                          title="Baixar imagem"
+                                        >
+                                          {isDownloadingFile ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              }
+
+                              // Arquivo genérico (não é imagem ou imagem sem URL)
+                              return (
+                                <div
+                                  key={att.id || attIdx}
+                                  className={`flex items-center gap-2 p-2 rounded-lg ${isUser ? 'bg-purple-700' : 'bg-gray-100'}`}
+                                >
+                                  <FileIcon className={`w-5 h-5 ${isUser ? 'text-purple-200' : 'text-gray-500'}`} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm truncate ${isUser ? 'text-white' : 'text-gray-900'}`}>
+                                      {att.name}
+                                    </p>
+                                    {att.size > 0 && (
+                                      <p className={`text-xs ${isUser ? 'text-purple-200' : 'text-gray-500'}`}>
+                                        {formatFileSize(att.size)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {canDownload ? (
+                                    <button
+                                      onClick={() => handleDownloadAttachment(att)}
+                                      disabled={isDownloadingFile}
+                                      className={`p-2 rounded-full ${isUser ? 'hover:bg-purple-600' : 'hover:bg-gray-200'} transition-colors`}
+                                      title="Baixar arquivo"
+                                    >
+                                      {isDownloadingFile ? (
+                                        <Loader className={`w-4 h-4 animate-spin ${isUser ? 'text-white' : 'text-gray-600'}`} />
+                                      ) : (
+                                        <Download className={`w-4 h-4 ${isUser ? 'text-white' : 'text-gray-600'}`} />
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <span className={`text-xs ${isUser ? 'text-purple-300' : 'text-gray-400'}`}>
+                                      Enviado ✓
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       <p
                         className={`text-xs mt-1 ${
@@ -672,17 +877,67 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
                 <AlertCircle className="w-4 h-4" />
                 {error}
+                <button onClick={() => setError(null)} className="ml-auto">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Preview de arquivos selecionados */}
+            {selectedFiles.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {selectedFiles.map((file, index) => {
+                  const FileIcon = getFileIcon(file.type);
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-sm"
+                    >
+                      <FileIcon className="w-4 h-4 text-gray-600" />
+                      <span className="max-w-[150px] truncate">{file.name}</span>
+                      <span className="text-gray-500 text-xs">({formatFileSize(file.size)})</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+              {/* Input de arquivo oculto */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+              />
+
+              {/* Botão de anexar arquivo */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSending || selectedFiles.length >= 5}
+                className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Anexar arquivo (máx. 5)"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+
               <div className="flex-1">
                 <textarea
                   ref={textareaRef}
                   value={newMessage}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
-                  placeholder="Digite sua mensagem... (Enter para enviar)"
+                  placeholder={selectedFiles.length > 0 ? "Adicione uma mensagem (opcional)..." : "Digite sua mensagem... (Enter para enviar)"}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                   rows="1"
                   style={{ maxHeight: '120px' }}
@@ -692,7 +947,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
               <button
                 type="submit"
-                disabled={!newMessage.trim() || isSending}
+                disabled={(!newMessage.trim() && selectedFiles.length === 0) || isSending}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
               >
                 {isSending ? (
@@ -713,6 +968,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               {conversation?.status === 'ai_active'
                 ? 'A IA está monitorando esta conversa e responderá automaticamente'
                 : 'Você está no controle manual desta conversa'}
+              {' • '}
+              <span className="text-gray-400">Arquivos: imagens, PDF, documentos (máx. 15MB cada)</span>
             </p>
           </div>
         );

@@ -281,11 +281,82 @@ class ApiService {
     return this.request(`/conversations/${conversationId}/messages${query ? `?${query}` : ''}`);
   }
 
-  async sendMessage(conversationId, content) {
-    return this.request(`/conversations/${conversationId}/messages`, {
+  async sendMessage(conversationId, content, attachments = []) {
+    // Se não há attachments, envia como JSON normal
+    if (!attachments || attachments.length === 0) {
+      return this.request(`/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      });
+    }
+
+    // Se há attachments, usa FormData
+    const formData = new FormData();
+    if (content) {
+      formData.append('content', content);
+    }
+
+    // Adicionar cada arquivo
+    for (const file of attachments) {
+      formData.append('attachments', file);
+    }
+
+    const url = `${this.baseURL}/conversations/${conversationId}/messages`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        // NÃO definir Content-Type - o browser define automaticamente com boundary
+      },
+      body: formData,
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Erro ao enviar mensagem');
+    }
+
+    return data;
+  }
+
+  // Gerar URL para exibição inline de imagem
+  getAttachmentInlineUrl(conversationId, messageId, attachmentId) {
+    const token = this.getToken();
+    return `${this.baseURL}/conversations/${conversationId}/messages/${messageId}/attachments/${attachmentId}/inline?token=${token}`;
+  }
+
+  // Download de attachment
+  async downloadAttachment(conversationId, messageId, attachmentId, filename) {
+    // Passar o filename como query param para o backend usar como fallback
+    const encodedFilename = encodeURIComponent(filename || 'download');
+    const url = `${this.baseURL}/conversations/${conversationId}/messages/${messageId}/attachments/${attachmentId}?filename=${encodedFilename}`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao baixar arquivo');
+    }
+
+    // Criar blob e trigger download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename || 'download';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    return true;
   }
 
   async takeControl(conversationId) {
@@ -1759,6 +1830,94 @@ class ApiService {
 
   async validateAffiliateCode(code) {
     return this.request(`/affiliate/validate/${code}`);
+  }
+
+  // ================================
+  // FEEDBACK & ROADMAP (GetRaze Next)
+  // ================================
+
+  async getFeedback(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/feedback${query ? '?' + query : ''}`);
+  }
+
+  async getFeedbackById(id) {
+    return this.request(`/feedback/${id}`);
+  }
+
+  async createFeedback(data) {
+    return this.request('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateFeedback(id, data) {
+    return this.request(`/feedback/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFeedback(id) {
+    return this.request(`/feedback/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleFeedbackVote(id) {
+    return this.request(`/feedback/${id}/vote`, {
+      method: 'POST',
+    });
+  }
+
+  async getFeedbackComments(feedbackId) {
+    return this.request(`/feedback/${feedbackId}/comments`);
+  }
+
+  async addFeedbackComment(feedbackId, content) {
+    return this.request(`/feedback/${feedbackId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async deleteFeedbackComment(feedbackId, commentId) {
+    return this.request(`/feedback/${feedbackId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ================================
+  // RELEASES / CHANGELOG
+  // ================================
+
+  async getReleases() {
+    return this.request('/releases');
+  }
+
+  async getReleaseById(id) {
+    return this.request(`/releases/${id}`);
+  }
+
+  async createRelease(data) {
+    return this.request('/releases', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRelease(id, data) {
+    return this.request(`/releases/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRelease(id) {
+    return this.request(`/releases/${id}`, {
+      method: 'DELETE',
+    });
   }
 
 }

@@ -169,6 +169,28 @@ const Layout = () => {
             const Icon = item.icon;
             const active = isActive(item.path);
 
+            // Links que abrem em nova aba
+            if (item.newTab) {
+              return (
+                <a
+                  key={item.path}
+                  href={item.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`
+                    flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative
+                    text-gray-700 hover:bg-gray-50 hover:text-purple-600
+                  `}
+                  title={isCollapsed ? item.label : ''}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {!isCollapsed && (
+                    <span className="text-sm flex-1">{item.label}</span>
+                  )}
+                </a>
+              );
+            }
+
             return (
               <Link
                 key={item.path}
@@ -385,6 +407,17 @@ const Layout = () => {
           <div className="flex items-center space-x-3">
             {/* Credits Indicator */}
             <CreditsIndicator />
+
+            {/* Feedbacks / Roadmap */}
+            <a
+              href="/next"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 hover:bg-purple-600 rounded-lg transition-colors"
+              title="Feedbacks / Roadmap"
+            >
+              <Lightbulb className="w-5 h-5 text-white" />
+            </a>
 
             {/* Conversations Notification */}
             <button

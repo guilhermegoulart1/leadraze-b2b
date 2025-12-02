@@ -37,6 +37,7 @@ import AffiliatePage from './pages/AffiliatePage';
 import ProfilePage from './pages/ProfilePage';
 import EmailSettingsPage from './pages/EmailSettingsPage';
 import WebsiteAgentsPage from './pages/WebsiteAgentsPage';
+import NextPage from './pages/NextPage';
 
 // Layout
 import Layout from './components/Layout';
@@ -133,6 +134,16 @@ function AppRoutes() {
         <Route path="email-settings" element={<EmailSettingsPage />} />
         <Route path="website-agents" element={<WebsiteAgentsPage />} />
       </Route>
+
+      {/* GetRaze Next - Layout próprio, sem sidebar */}
+      <Route
+        path="/next"
+        element={
+          <ProtectedRoute>
+            <NextPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />

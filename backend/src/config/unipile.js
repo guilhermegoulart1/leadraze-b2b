@@ -403,6 +403,76 @@ const unipileClient = {
       return response.data;
     },
 
+    // Send message with attachments to existing chat
+    sendMessageWithAttachment: async (params) => {
+      const { account_id, chat_id, text, attachments } = params;
+
+      if (!account_id || !chat_id) {
+        throw new Error('account_id and chat_id are required');
+      }
+
+      if (!attachments || attachments.length === 0) {
+        throw new Error('At least one attachment is required');
+      }
+
+      const url = `https://${dsn}/api/v1/chats/${chat_id}/messages?account_id=${account_id}`;
+
+      // Create FormData for multipart request
+      const FormData = require('form-data');
+      const formData = new FormData();
+
+      // Add text if provided
+      if (text && text.trim()) {
+        formData.append('text', text.trim());
+      }
+
+      // Add attachments - each attachment is { filename, buffer, mimetype }
+      for (const attachment of attachments) {
+        formData.append('attachments', attachment.buffer, {
+          filename: attachment.filename,
+          contentType: attachment.mimetype
+        });
+      }
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          ...formData.getHeaders()
+        },
+        timeout: 60000, // Longer timeout for file uploads
+        maxContentLength: 20 * 1024 * 1024, // 20MB max
+        maxBodyLength: 20 * 1024 * 1024
+      });
+
+      return response.data;
+    },
+
+    // Get attachment from a message
+    getAttachment: async (params) => {
+      const { account_id, message_id, attachment_id } = params;
+
+      if (!account_id || !message_id || !attachment_id) {
+        throw new Error('account_id, message_id, and attachment_id are required');
+      }
+
+      const url = `https://${dsn}/api/v1/messages/${message_id}/attachments/${attachment_id}?account_id=${account_id}`;
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': '*/*'
+        },
+        responseType: 'arraybuffer',
+        timeout: 30000
+      });
+
+      return {
+        data: response.data,
+        contentType: response.headers['content-type'],
+        contentDisposition: response.headers['content-disposition']
+      };
+    },
+
     // Get all chats
     getChats: async (params) => {
       const { account_id, limit = 50, cursor } = params;

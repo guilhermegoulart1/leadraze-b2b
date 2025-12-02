@@ -1,9 +1,45 @@
 // backend/src/routes/conversations.js
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const conversationController = require('../controllers/conversationController');
 const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
+
+// Configuração do Multer para upload de arquivos em memória
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB max (limite da Unipile)
+    files: 5 // máximo 5 arquivos por vez
+  },
+  fileFilter: (req, file, cb) => {
+    // Tipos permitidos: imagens, documentos, vídeos, áudios
+    const allowedMimes = [
+      // Imagens
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+      // Documentos
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'text/csv',
+      // Vídeos
+      'video/mp4', 'video/webm', 'video/quicktime',
+      // Áudios
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm'
+    ];
+
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
+    }
+  }
+});
 
 // ================================
 // TODAS AS ROTAS REQUEREM AUTH
@@ -34,8 +70,18 @@ router.delete('/:id', conversationController.deleteConversation);
 // Obter mensagens (proxy para Unipile)
 router.get('/:id/messages', conversationController.getMessages);
 
-// Enviar mensagem
-router.post('/:id/messages', conversationController.sendMessage);
+// Enviar mensagem (com suporte a attachments via multer)
+router.post('/:id/messages', upload.array('attachments', 5), conversationController.sendMessage);
+
+// ================================
+// ATTACHMENTS
+// ================================
+
+// Download de attachment (proxy para Unipile)
+router.get('/:id/messages/:messageId/attachments/:attachmentId', conversationController.downloadAttachment);
+
+// Proxy para exibir imagem inline (para exibição no chat)
+router.get('/:id/messages/:messageId/attachments/:attachmentId/inline', conversationController.getAttachmentInline);
 
 // ================================
 // CONTROLE

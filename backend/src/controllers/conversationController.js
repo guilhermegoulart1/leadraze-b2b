@@ -302,13 +302,35 @@ const getMessages = async (req, res) => {
         // is_sender === 0 → mensagem do lead
         const senderType = msg.is_sender === 1 ? 'user' : 'lead';
 
+        // Processar attachments da Unipile
+        const attachments = (msg.attachments || []).map((att) => {
+          // Extrair nome do arquivo - priorizar file_name (formato Unipile)
+          const fileName = att.file_name || att.filename || att.name || att.original_filename || att.title || 'arquivo';
+
+          // Extrair tipo/mimetype
+          const mimeType = att.mimetype || att.mime_type || att.type || att.content_type || 'application/octet-stream';
+
+          return {
+            id: att.id,
+            name: fileName,
+            type: mimeType,
+            size: att.file_size || att.size || 0,
+            // URL só é útil se for HTTP - URLs att:// não funcionam no browser
+            url: (att.url && att.url.startsWith('http')) ? att.url : null,
+            // Info para download via proxy
+            message_id: msg.id,
+            conversation_id: id
+          };
+        });
+
         return {
           id: msg.id,
           conversation_id: id,
           unipile_message_id: msg.id,
           sender_type: senderType,
           content: msg.text || '',
-          message_type: msg.message_type || 'text',
+          message_type: attachments.length > 0 ? 'attachment' : (msg.message_type || 'text'),
+          attachments: attachments,
           sent_at: msg.timestamp || msg.date || msg.created_at,
           created_at: msg.created_at || msg.timestamp
         };
@@ -382,11 +404,15 @@ const sendMessage = async (req, res) => {
     const accountId = req.user.account_id;
     const { content } = req.body;
 
-    console.log(`📨 Enviando mensagem na conversa ${id}`);
+    // Verificar se há arquivos anexados (via multer)
+    const files = req.files || [];
+    const hasAttachments = files.length > 0;
 
-    // Validação
-    if (!content || content.trim().length === 0) {
-      throw new ValidationError('Message content is required');
+    console.log(`📨 Enviando mensagem na conversa ${id}${hasAttachments ? ` com ${files.length} anexo(s)` : ''}`);
+
+    // Validação - precisa ter texto OU attachments
+    if ((!content || content.trim().length === 0) && !hasAttachments) {
+      throw new ValidationError('Message content or attachment is required');
     }
 
     // Get sector filter
@@ -418,15 +444,40 @@ const sendMessage = async (req, res) => {
     try {
       console.log('📡 Enviando via Unipile...');
 
-      const sentMessage = await unipileClient.messaging.sendMessage({
-        account_id: conversation.unipile_account_id,
-        chat_id: conversation.unipile_chat_id,
-        text: content.trim()
-      });
+      let sentMessage;
 
-      console.log('✅ Mensagem enviada via Unipile');
+      if (hasAttachments) {
+        // Enviar com attachments
+        const attachments = files.map(file => ({
+          filename: file.originalname,
+          buffer: file.buffer,
+          mimetype: file.mimetype
+        }));
+
+        sentMessage = await unipileClient.messaging.sendMessageWithAttachment({
+          account_id: conversation.unipile_account_id,
+          chat_id: conversation.unipile_chat_id,
+          text: content ? content.trim() : '',
+          attachments: attachments
+        });
+
+        console.log('✅ Mensagem com anexo(s) enviada via Unipile');
+      } else {
+        // Enviar apenas texto
+        sentMessage = await unipileClient.messaging.sendMessage({
+          account_id: conversation.unipile_account_id,
+          chat_id: conversation.unipile_chat_id,
+          text: content.trim()
+        });
+
+        console.log('✅ Mensagem enviada via Unipile');
+      }
 
       // Atualizar cache da conversa
+      const preview = hasAttachments
+        ? `📎 ${files.length} arquivo(s)${content ? ': ' + content.substring(0, 150) : ''}`
+        : content.substring(0, 200);
+
       await db.query(`
         UPDATE conversations
         SET
@@ -434,13 +485,144 @@ const sendMessage = async (req, res) => {
           last_message_at = NOW(),
           updated_at = NOW()
         WHERE id = $2
-      `, [content.substring(0, 200), id]);
+      `, [preview, id]);
 
       sendSuccess(res, sentMessage, 'Message sent successfully', 201);
 
     } catch (unipileError) {
       console.error('❌ Erro ao enviar via Unipile:', unipileError.message);
       throw new UnipileError('Failed to send message via Unipile');
+    }
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 4.1 DOWNLOAD ATTACHMENT (PROXY UNIPILE)
+// ================================
+const downloadAttachment = async (req, res) => {
+  try {
+    const { id, messageId, attachmentId } = req.params;
+    const { filename: queryFilename } = req.query; // Filename passado pelo frontend
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`📥 Baixando attachment ${attachmentId} da mensagem ${messageId}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar se conversa pertence ao usuário
+    const convQuery = `
+      SELECT conv.*, la.unipile_account_id
+      FROM conversations conv
+      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+    `;
+
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const convResult = await db.query(convQuery, queryParams);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    const conversation = convResult.rows[0];
+
+    // Buscar attachment via Unipile
+    try {
+      const attachment = await unipileClient.messaging.getAttachment({
+        account_id: conversation.unipile_account_id,
+        message_id: messageId,
+        attachment_id: attachmentId
+      });
+
+      // Extrair filename: prioridade para query param, depois content-disposition
+      let filename = queryFilename || 'download';
+
+      // Se não veio do frontend, tentar extrair do content-disposition
+      if (!queryFilename && attachment.contentDisposition) {
+        const match = attachment.contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Sanitizar filename para evitar problemas com caracteres especiais
+      const sanitizedFilename = filename.replace(/[<>:"/\\|?*]/g, '_');
+
+      // Definir headers de resposta
+      res.setHeader('Content-Type', attachment.contentType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
+      res.setHeader('Content-Length', attachment.data.length);
+
+      // Enviar arquivo
+      res.send(Buffer.from(attachment.data));
+
+    } catch (unipileError) {
+      console.error('❌ Erro ao baixar attachment via Unipile:', unipileError.message);
+      throw new UnipileError('Failed to download attachment');
+    }
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 4.2 GET ATTACHMENT INLINE (PROXY PARA EXIBIÇÃO DE IMAGENS)
+// ================================
+const getAttachmentInline = async (req, res) => {
+  try {
+    const { id, messageId, attachmentId } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Verificar se conversa pertence ao usuário
+    const convQuery = `
+      SELECT conv.*, la.unipile_account_id
+      FROM conversations conv
+      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+    `;
+
+    const queryParams = [id, accountId, userId, ...sectorParams];
+    const convResult = await db.query(convQuery, queryParams);
+
+    if (convResult.rows.length === 0) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    const conversation = convResult.rows[0];
+
+    // Buscar attachment via Unipile
+    try {
+      const attachment = await unipileClient.messaging.getAttachment({
+        account_id: conversation.unipile_account_id,
+        message_id: messageId,
+        attachment_id: attachmentId
+      });
+
+      // Definir headers para exibição inline (imagem no navegador)
+      const contentType = attachment.contentType || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('Content-Length', attachment.data.length);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache de 1 hora
+
+      // Enviar arquivo
+      res.send(Buffer.from(attachment.data));
+
+    } catch (unipileError) {
+      console.error('❌ Erro ao buscar attachment via Unipile:', unipileError.message);
+      throw new UnipileError('Failed to get attachment');
     }
 
   } catch (error) {
@@ -1324,6 +1506,8 @@ module.exports = {
   getConversation,
   getMessages,
   sendMessage,
+  downloadAttachment,
+  getAttachmentInline,
   takeControl,
   releaseControl,
   updateStatus,

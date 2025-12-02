@@ -13,7 +13,13 @@
       "Bash(node get-commenters.js:*)",
       "Bash(git log:*)",
       "Bash(del \"c:\\leadraze-b2b\\frontend\\src\\pages\\LinkedInAccountsPage.jsx\")",
-      "Bash(docker --version:*)"
+      "Bash(docker --version:*)",
+      "Bash(del \"c:\\leadraze-b2b\\backend\\src\\routes\\oauth.js\")",
+      "Bash(del \"c:\\leadraze-b2b\\backend\\src\\controllers\\oauthController.js\")",
+      "Bash(rm:*)",
+      "Bash(xargs:*)",
+      "Bash(cat:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

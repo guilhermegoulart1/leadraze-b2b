@@ -6,7 +6,8 @@ const db = require('../config/database');
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    // Aceitar token via header OU via query param (para imagens inline em <img src>)
+    const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
     if (!token) {
       throw new UnauthorizedError('No token provided');
