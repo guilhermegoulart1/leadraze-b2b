@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, Filter, BookOpen, Zap } from 'lucide-react';
+import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, Filter, BookOpen, Zap, Users } from 'lucide-react';
 import api from '../services/api';
-import UnifiedAgentWizard from '../components/UnifiedAgentWizard';
+import SimpleAgentWizard from '../components/SimpleAgentWizard';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
+import AgentAssignmentsModal from '../components/AgentAssignmentsModal';
 import { useOnboarding } from '../contexts/OnboardingContext';
 
 const AgentsPage = () => {
@@ -17,6 +18,7 @@ const AgentsPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [knowledgeBaseAgent, setKnowledgeBaseAgent] = useState(null);
   const [testingAgent, setTestingAgent] = useState(null);
+  const [assignmentsAgent, setAssignmentsAgent] = useState(null);
 
   useEffect(() => {
     loadAgents();
@@ -285,6 +287,13 @@ const AgentsPage = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => setAssignmentsAgent(agent)}
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Atribuições"
+                        >
+                          <Users className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => setKnowledgeBaseAgent(agent)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title={t('actions.knowledgeBase')}
@@ -326,7 +335,7 @@ const AgentsPage = () => {
       )}
 
       {/* Wizard */}
-      <UnifiedAgentWizard
+      <SimpleAgentWizard
         isOpen={showWizard}
         onClose={() => {
           setShowWizard(false);
@@ -348,6 +357,13 @@ const AgentsPage = () => {
         isOpen={!!knowledgeBaseAgent}
         onClose={() => setKnowledgeBaseAgent(null)}
         agent={knowledgeBaseAgent}
+      />
+
+      {/* Assignments Modal */}
+      <AgentAssignmentsModal
+        isOpen={!!assignmentsAgent}
+        onClose={() => setAssignmentsAgent(null)}
+        agent={assignmentsAgent}
       />
     </div>
   );

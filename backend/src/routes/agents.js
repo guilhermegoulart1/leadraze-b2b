@@ -8,6 +8,62 @@ const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
 // ==========================================
+// AI GENERATION ROUTES (must be before /:id)
+// ==========================================
+
+/**
+ * POST /api/agents/generate-config
+ * Generate agent configuration from natural language description using AI
+ * Body:
+ *   - description (required): string (min 20 chars) - natural language description
+ *   - agent_type (optional): linkedin|email|whatsapp (default: linkedin)
+ *   - language (optional): pt|en|es (default: pt)
+ */
+router.post('/generate-config', agentController.generateAgentConfig);
+
+/**
+ * POST /api/agents/refine-config
+ * Refine an existing agent configuration based on user feedback
+ * Body:
+ *   - current_config (required): object - current configuration
+ *   - feedback (required): string - user feedback for improvements
+ *   - language (optional): pt|en|es (default: pt)
+ */
+router.post('/refine-config', agentController.refineAgentConfig);
+
+// ==========================================
+// TEMPLATE ROUTES (must be before /:id)
+// ==========================================
+
+/**
+ * GET /api/agents/templates
+ * Get all available sales methodology templates
+ * Query params:
+ *   - company_size (optional): startup|smb|mid-market|enterprise
+ *   - deal_type (optional): transactional|complex|consultative
+ *   - industry (optional): string
+ *   - sales_cycle (optional): short|medium|long
+ */
+router.get('/templates', agentController.getAgentTemplates);
+
+/**
+ * GET /api/agents/templates/:templateId
+ * Get a specific template with full details
+ */
+router.get('/templates/:templateId', agentController.getAgentTemplate);
+
+/**
+ * POST /api/agents/templates/:templateId/apply
+ * Apply a template to generate agent configuration
+ * Body:
+ *   - agent_name (optional): string - name for the agent
+ *   - company_name (optional): string - company name for variables
+ *   - products_services (optional): string - products/services description
+ *   - area (optional): string - area of work
+ */
+router.post('/templates/:templateId/apply', agentController.applyAgentTemplate);
+
+// ==========================================
 // UNIFIED AGENTS ROUTES
 // ==========================================
 
@@ -125,5 +181,27 @@ router.delete('/:id/assignees/:userId', agentController.removeAgentAssignee);
  * Get current rotation state (who's next, total assignments, etc)
  */
 router.get('/:id/rotation-state', agentController.getAgentRotationState);
+
+// ==========================================
+// ASSIGNMENT HISTORY ROUTES
+// ==========================================
+
+/**
+ * GET /api/agents/:id/assignments
+ * Get assignment history for an agent (log of all automatic assignments)
+ * Query params:
+ *   - page (optional): page number (default 1)
+ *   - limit (optional): items per page (default 50)
+ *   - user_id (optional): filter by assigned user
+ *   - start_date (optional): filter by date range start
+ *   - end_date (optional): filter by date range end
+ */
+router.get('/:id/assignments', agentController.getAgentAssignmentHistory);
+
+/**
+ * GET /api/agents/:id/assignments/stats
+ * Get assignment statistics for an agent
+ */
+router.get('/:id/assignments/stats', agentController.getAgentAssignmentStats);
 
 module.exports = router;

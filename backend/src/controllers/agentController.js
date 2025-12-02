@@ -7,6 +7,9 @@ const {
   ForbiddenError
 } = require('../utils/errors');
 const rotationService = require('../services/rotationService');
+const assignmentLogService = require('../services/assignmentLogService');
+const agentGeneratorService = require('../services/agentGeneratorService');
+const agentTemplates = require('../data/agentTemplates');
 
 // ==========================================
 // HELPER: Check sector access
@@ -953,6 +956,283 @@ const getAgentRotationState = async (req, res) => {
   }
 };
 
+// ==========================================
+// ASSIGNMENTS LOG ENDPOINTS
+// ==========================================
+
+/**
+ * Get assignment history for an agent
+ * GET /api/agents/:id/assignments
+ */
+const getAgentAssignmentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+    const {
+      page = 1,
+      limit = 50,
+      user_id,
+      start_date,
+      end_date
+    } = req.query;
+
+    // Check agent exists
+    const agentResult = await db.query(
+      `SELECT id, name FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    const result = await assignmentLogService.getAssignments({
+      agentId: id,
+      accountId,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      userId: user_id,
+      startDate: start_date,
+      endDate: end_date
+    });
+
+    sendSuccess(res, {
+      agent: agentResult.rows[0],
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Error in getAgentAssignmentHistory:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Get assignment statistics for an agent
+ * GET /api/agents/:id/assignments/stats
+ */
+const getAgentAssignmentStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+
+    // Check agent exists
+    const agentResult = await db.query(
+      `SELECT id FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    const stats = await assignmentLogService.getAssignmentStats(id, accountId);
+
+    sendSuccess(res, { stats });
+
+  } catch (error) {
+    console.error('Error in getAgentAssignmentStats:', error);
+    sendError(res, error);
+  }
+};
+
+// ==========================================
+// AI GENERATION ENDPOINTS
+// ==========================================
+
+/**
+ * Generate agent configuration from description using AI
+ * POST /api/agents/generate-config
+ */
+const generateAgentConfig = async (req, res) => {
+  try {
+    const { description, agent_type = 'linkedin', language = 'pt' } = req.body;
+
+    if (!description || description.trim().length < 20) {
+      throw new ValidationError('Description must be at least 20 characters');
+    }
+
+    const result = await agentGeneratorService.generateAgentConfig(
+      description.trim(),
+      agent_type,
+      language
+    );
+
+    sendSuccess(res, result);
+
+  } catch (error) {
+    console.error('Error in generateAgentConfig:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Refine an existing agent configuration based on feedback
+ * POST /api/agents/refine-config
+ */
+const refineAgentConfig = async (req, res) => {
+  try {
+    const { current_config, feedback, language = 'pt' } = req.body;
+
+    if (!current_config || !feedback) {
+      throw new ValidationError('current_config and feedback are required');
+    }
+
+    const result = await agentGeneratorService.refineAgentConfig(
+      current_config,
+      feedback,
+      language
+    );
+
+    sendSuccess(res, result);
+
+  } catch (error) {
+    console.error('Error in refineAgentConfig:', error);
+    sendError(res, error);
+  }
+};
+
+// ==========================================
+// TEMPLATE ENDPOINTS
+// ==========================================
+
+/**
+ * Get all available templates
+ * GET /api/agent-templates
+ */
+const getAgentTemplates = async (req, res) => {
+  try {
+    const { company_size, deal_type, industry, sales_cycle } = req.query;
+
+    let templates;
+    if (company_size || deal_type || industry || sales_cycle) {
+      templates = agentTemplates.getFilteredTemplates({
+        company_size,
+        deal_type,
+        industry,
+        sales_cycle
+      });
+    } else {
+      templates = agentTemplates.getTemplates();
+    }
+
+    // Return simplified version for listing
+    const simplifiedTemplates = templates.map(t => ({
+      id: t.id,
+      name: t.name,
+      author: t.author,
+      icon: t.icon,
+      cover_url: t.cover_url,
+      color: t.color,
+      badge: t.badge,
+      shortDescription: t.shortDescription,
+      philosophy: t.philosophy,
+      ideal_for: t.ideal_for
+    }));
+
+    sendSuccess(res, { templates: simplifiedTemplates });
+
+  } catch (error) {
+    console.error('Error in getAgentTemplates:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Get a specific template by ID with full details
+ * GET /api/agent-templates/:templateId
+ */
+const getAgentTemplate = async (req, res) => {
+  try {
+    const { templateId } = req.params;
+
+    const template = agentTemplates.getTemplateById(templateId);
+
+    if (!template) {
+      throw new NotFoundError('Template not found');
+    }
+
+    sendSuccess(res, { template });
+
+  } catch (error) {
+    console.error('Error in getAgentTemplate:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Apply a template to create agent configuration
+ * POST /api/agent-templates/:templateId/apply
+ *
+ * Uses AI to generate a truly personalized configuration
+ * combining template methodology + product/service + objective
+ */
+const applyAgentTemplate = async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const {
+      agent_name,
+      company_name,
+      products_services,
+      productService,
+      area,
+      objective,
+      language = 'pt'
+    } = req.body;
+
+    // Use productService if provided, fallback to products_services
+    const finalProductService = productService || products_services || '';
+
+    // Get the template
+    const template = agentTemplates.getTemplateById(templateId);
+    if (!template) {
+      throw new NotFoundError(`Template ${templateId} not found`);
+    }
+
+    // If no product/service provided, use old static method as fallback
+    if (!finalProductService) {
+      const config = agentTemplates.applyTemplate(templateId, {
+        agent_name,
+        company_name,
+        products_services: finalProductService,
+        area,
+        objective
+      });
+      return sendSuccess(res, { config });
+    }
+
+    // Use AI to generate a truly personalized configuration
+    const result = await agentGeneratorService.generateFromTemplate(
+      template,
+      finalProductService,
+      objective || 'generate_interest',
+      language
+    );
+
+    if (result.success) {
+      // Override name if provided
+      if (agent_name) {
+        result.config.name = agent_name;
+      }
+      sendSuccess(res, { config: result.config, tokens_used: result.tokens_used });
+    } else {
+      // Fallback to static method if AI fails
+      const config = agentTemplates.applyTemplate(templateId, {
+        agent_name,
+        company_name,
+        products_services: finalProductService,
+        area,
+        objective
+      });
+      sendSuccess(res, { config });
+    }
+
+  } catch (error) {
+    console.error('Error in applyAgentTemplate:', error);
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getAgents,
   getAgent,
@@ -968,5 +1248,15 @@ module.exports = {
   setAgentAssignees,
   addAgentAssignee,
   removeAgentAssignee,
-  getAgentRotationState
+  getAgentRotationState,
+  // Assignment log endpoints
+  getAgentAssignmentHistory,
+  getAgentAssignmentStats,
+  // AI Generation endpoints
+  generateAgentConfig,
+  refineAgentConfig,
+  // Template endpoints
+  getAgentTemplates,
+  getAgentTemplate,
+  applyAgentTemplate
 };

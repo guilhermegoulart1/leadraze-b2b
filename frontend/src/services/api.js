@@ -1464,6 +1464,48 @@ class ApiService {
     return this.request(`/agents/${id}/stats`);
   }
 
+  // Agent Assignments (rotation log)
+  async getAgentAssignments(agentId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/agents/${agentId}/assignments${query ? '?' + query : ''}`);
+  }
+
+  async getAgentAssignmentStats(agentId) {
+    return this.request(`/agents/${agentId}/assignments/stats`);
+  }
+
+  // Agent AI Generation
+  async generateAgentConfig(description, agentType = 'linkedin', language = 'pt') {
+    return this.request('/agents/generate-config', {
+      method: 'POST',
+      body: JSON.stringify({ description, agent_type: agentType, language }),
+    });
+  }
+
+  async refineAgentConfig(currentConfig, feedback, language = 'pt') {
+    return this.request('/agents/refine-config', {
+      method: 'POST',
+      body: JSON.stringify({ current_config: currentConfig, feedback, language }),
+    });
+  }
+
+  // Agent Templates
+  async getAgentTemplates(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/agents/templates${query ? '?' + query : ''}`);
+  }
+
+  async getAgentTemplate(templateId) {
+    return this.request(`/agents/templates/${templateId}`);
+  }
+
+  async applyAgentTemplate(templateId, data) {
+    return this.request(`/agents/templates/${templateId}/apply`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // ================================
   // BILLING & SUBSCRIPTION
   // ================================

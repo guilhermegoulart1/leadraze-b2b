@@ -12,6 +12,7 @@
  */
 
 const db = require('../config/database');
+const assignmentLogService = require('./assignmentLogService');
 
 /**
  * Get the next assignee for an agent using round-robin rotation
@@ -285,6 +286,113 @@ async function updateAssigneeOrder(agentId, userId, newOrder) {
   }
 }
 
+/**
+ * Get the next assignee AND log the assignment in one operation
+ * This is the preferred method for making assignments as it handles logging automatically
+ * @param {Object} params
+ * @param {string} params.agentId - The agent ID
+ * @param {string} params.accountId - The account ID (for logging)
+ * @param {string} params.conversationId - The conversation ID (optional)
+ * @param {string} params.leadId - The lead ID (optional)
+ * @param {Object} params.leadData - Lead data for denormalization (optional)
+ * @returns {Promise<{userId: number, userName: string, userEmail: string, rotationPosition: number, totalAssignees: number} | null>}
+ */
+async function assignAndLog({
+  agentId,
+  accountId,
+  conversationId = null,
+  leadId = null,
+  leadData = {}
+}) {
+  try {
+    // 1. Get all active assignees ordered by rotation_order
+    const assigneesResult = await db.query(`
+      SELECT aa.id, aa.user_id, aa.rotation_order, u.name as user_name, u.email as user_email
+      FROM agent_assignees aa
+      INNER JOIN users u ON aa.user_id = u.id
+      WHERE aa.agent_id = $1 AND aa.is_active = true
+      ORDER BY aa.rotation_order ASC
+    `, [agentId]);
+
+    const assignees = assigneesResult.rows;
+
+    if (assignees.length === 0) {
+      console.log(`[RotationService] No active assignees found for agent ${agentId}`);
+      return null;
+    }
+
+    // 2. Get or create rotation state for this agent
+    let stateResult = await db.query(`
+      SELECT * FROM agent_rotation_state WHERE agent_id = $1
+    `, [agentId]);
+
+    let currentPosition = 0;
+
+    if (stateResult.rows.length === 0) {
+      // Create initial state
+      await db.query(`
+        INSERT INTO agent_rotation_state (agent_id, current_position, total_assignments)
+        VALUES ($1, 0, 0)
+      `, [agentId]);
+    } else {
+      // Get next position (circular)
+      currentPosition = (stateResult.rows[0].current_position + 1) % assignees.length;
+    }
+
+    // 3. Get the assignee at the current position
+    const nextAssignee = assignees[currentPosition];
+
+    // 4. Update rotation state
+    await db.query(`
+      UPDATE agent_rotation_state
+      SET current_position = $1,
+          last_assigned_user_id = $2,
+          total_assignments = total_assignments + 1,
+          updated_at = NOW()
+      WHERE agent_id = $3
+    `, [currentPosition, nextAssignee.user_id, agentId]);
+
+    // 5. Record in conversations if provided
+    if (conversationId) {
+      await db.query(`
+        UPDATE conversations
+        SET assigned_user_id = $1, updated_at = NOW()
+        WHERE id = $2
+      `, [nextAssignee.user_id, conversationId]);
+    }
+
+    // 6. Log the assignment (fire and forget - don't block on this)
+    const rotationPosition = currentPosition + 1; // 1-based for display
+    const totalAssignees = assignees.length;
+
+    assignmentLogService.logAssignment({
+      accountId,
+      agentId,
+      leadId,
+      conversationId,
+      assignedToUserId: nextAssignee.user_id,
+      rotationPosition,
+      totalAssignees,
+      leadData
+    }).catch(err => {
+      console.error('[RotationService] Failed to log assignment:', err);
+    });
+
+    console.log(`[RotationService] Assigned to ${nextAssignee.user_name} (position ${rotationPosition}/${totalAssignees})`);
+
+    return {
+      userId: nextAssignee.user_id,
+      userName: nextAssignee.user_name,
+      userEmail: nextAssignee.user_email,
+      rotationPosition,
+      totalAssignees
+    };
+  } catch (error) {
+    console.error('[RotationService] Error in assignAndLog:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getNextAssignee,
   recordAssignment,
@@ -293,5 +401,6 @@ module.exports = {
   setAssignees,
   addAssignee,
   removeAssignee,
-  updateAssigneeOrder
+  updateAssigneeOrder,
+  assignAndLog
 };

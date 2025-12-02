@@ -19,7 +19,9 @@
       "Bash(rm:*)",
       "Bash(xargs:*)",
       "Bash(cat:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(npm run migrate:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

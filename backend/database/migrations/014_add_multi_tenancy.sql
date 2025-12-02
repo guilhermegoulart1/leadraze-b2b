@@ -37,8 +37,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_accounts_slug ON accounts(slug);
-CREATE INDEX idx_accounts_is_active ON accounts(is_active);
+CREATE INDEX IF NOT EXISTS idx_accounts_slug ON accounts(slug);
+CREATE INDEX IF NOT EXISTS idx_accounts_is_active ON accounts(is_active);
 
 -- ================================
 -- 2. ADD ACCOUNT_ID TO USERS
