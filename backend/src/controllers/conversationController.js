@@ -704,8 +704,10 @@ const downloadAttachment = async (req, res) => {
       res.send(Buffer.from(attachment.data));
 
     } catch (unipileError) {
-      console.error('❌ Erro ao baixar attachment via Unipile:', unipileError.message);
-      throw new UnipileError('Failed to download attachment');
+      // Logar detalhes mas não poluir console em produção
+      console.warn('⚠️ Attachment não disponível via Unipile:', unipileError.response?.status || unipileError.message);
+      // Retornar 404 silencioso - attachment pode ter expirado ou não existir mais
+      return res.status(404).json({ error: 'Attachment not available', code: 'UNIPILE_ERROR' });
     }
 
   } catch (error) {
@@ -769,8 +771,10 @@ const getAttachmentInline = async (req, res) => {
       res.send(Buffer.from(attachment.data));
 
     } catch (unipileError) {
-      console.error('❌ Erro ao buscar attachment via Unipile:', unipileError.message);
-      throw new UnipileError('Failed to get attachment');
+      // Logar detalhes mas não poluir console em produção
+      console.warn('⚠️ Attachment não disponível via Unipile:', unipileError.response?.status || unipileError.message);
+      // Retornar 404 silencioso - attachment pode ter expirado ou não existir mais
+      return res.status(404).json({ error: 'Attachment not available', code: 'UNIPILE_ERROR' });
     }
 
   } catch (error) {
