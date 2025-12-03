@@ -8,6 +8,7 @@ import { onConversationUpdated, onNewConversation, onNewMessage } from '../servi
 import ConversationSidebar from '../components/ConversationSidebar';
 import ChatArea from '../components/ChatArea';
 import DetailsPanel from '../components/DetailsPanel';
+import UnifiedContactModal from '../components/UnifiedContactModal';
 
 const ConversationsPage = () => {
   const { t } = useTranslation(['conversations', 'common']);
@@ -39,6 +40,9 @@ const ConversationsPage = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [tags, setTags] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]);
+
+  // Estado para o modal unificado de contato
+  const [contactModal, setContactModal] = useState({ isOpen: false, contactId: null });
 
   useEffect(() => {
     loadConversations();
@@ -398,6 +402,18 @@ const ConversationsPage = () => {
     }
   };
 
+  // Handler para abrir o modal de contato
+  const handleOpenContactModal = (contactId) => {
+    if (contactId) {
+      setContactModal({ isOpen: true, contactId });
+    }
+  };
+
+  // Handler para abrir uma conversa a partir do modal
+  const handleOpenConversationFromModal = (conversationId) => {
+    setSelectedConversationId(conversationId);
+  };
+
   return (
     <div className="flex h-full bg-gray-100">
       {/* Sidebar - Lista de Conversas */}
@@ -443,6 +459,15 @@ const ConversationsPage = () => {
         isVisible={showDetailsPanel}
         onTagsUpdated={handleTagsUpdated}
         onConversationUpdated={handleConversationUpdated}
+        onOpenContactModal={handleOpenContactModal}
+      />
+
+      {/* Modal Unificado de Contato */}
+      <UnifiedContactModal
+        isOpen={contactModal.isOpen}
+        onClose={() => setContactModal({ isOpen: false, contactId: null })}
+        contactId={contactModal.contactId}
+        onOpenConversation={handleOpenConversationFromModal}
       />
     </div>
   );

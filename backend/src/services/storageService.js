@@ -292,6 +292,33 @@ class StorageService {
   }
 
   /**
+   * Get file directly from R2
+   * @param {string} key - Storage key
+   * @returns {Promise<Object>} Object with Body stream and metadata
+   */
+  async getFile(key) {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    try {
+      const response = await this.client.send(command);
+      return {
+        Body: response.Body,
+        ContentType: response.ContentType,
+        ContentLength: response.ContentLength,
+        Metadata: response.Metadata,
+      };
+    } catch (error) {
+      if (error.name === 'NoSuchKey' || error.name === 'NotFound') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Get a signed URL for uploading a file
    * @param {string} key - Storage key
    * @param {string} contentType - Expected content type

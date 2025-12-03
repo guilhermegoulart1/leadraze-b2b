@@ -2,6 +2,7 @@
 // HTTP request handlers for Google Maps agents
 
 const googleMapsAgentService = require('../services/googleMapsAgentService');
+const googleMapsRotationService = require('../services/googleMapsRotationService');
 
 /**
  * Create a new Google Maps agent
@@ -278,6 +279,103 @@ exports.getAgentStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error fetching agent statistics'
+    });
+  }
+};
+
+/**
+ * Get assignees for an agent
+ * GET /api/google-maps-agents/:id/assignees
+ */
+exports.getAssignees = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    // Verify agent belongs to account
+    await googleMapsAgentService.getAgent(id, accountId);
+
+    const assignees = await googleMapsRotationService.getAssignees(id);
+    const rotationState = await googleMapsRotationService.getRotationState(id);
+
+    res.json({
+      success: true,
+      assignees,
+      rotationState
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching assignees:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching assignees'
+    });
+  }
+};
+
+/**
+ * Set assignees for an agent (replace all)
+ * PUT /api/google-maps-agents/:id/assignees
+ */
+exports.setAssignees = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userIds } = req.body;
+    const accountId = req.user.accountId;
+
+    // Verify agent belongs to account
+    await googleMapsAgentService.getAgent(id, accountId);
+
+    if (!Array.isArray(userIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'userIds must be an array'
+      });
+    }
+
+    const result = await googleMapsRotationService.setAssignees(id, userIds);
+
+    res.json({
+      success: true,
+      message: `Set ${result.count} assignees for rotation`,
+      ...result
+    });
+
+  } catch (error) {
+    console.error('❌ Error setting assignees:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error setting assignees'
+    });
+  }
+};
+
+/**
+ * Get recent assignments for an agent
+ * GET /api/google-maps-agents/:id/assignments
+ */
+exports.getAssignments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 50 } = req.query;
+    const accountId = req.user.accountId;
+
+    // Verify agent belongs to account
+    await googleMapsAgentService.getAgent(id, accountId);
+
+    const assignments = await googleMapsRotationService.getRecentAssignments(id, parseInt(limit));
+
+    res.json({
+      success: true,
+      assignments,
+      count: assignments.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching assignments:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching assignments'
     });
   }
 };

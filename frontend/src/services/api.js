@@ -829,6 +829,10 @@ class ApiService {
     return this.request(`/contacts/${id}`);
   }
 
+  async getContactFull(id) {
+    return this.request(`/contacts/${id}/full`);
+  }
+
   async createContact(data) {
     return this.request('/contacts', {
       method: 'POST',
@@ -845,6 +849,19 @@ class ApiService {
 
   async deleteContact(id) {
     return this.request(`/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addContactNote(contactId, content) {
+    return this.request(`/contacts/${contactId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async deleteContactNote(contactId, noteId) {
+    return this.request(`/contacts/${contactId}/notes/${noteId}`, {
       method: 'DELETE',
     });
   }
@@ -1143,6 +1160,21 @@ class ApiService {
 
   async getGoogleMapsAgentStats(id) {
     return this.request(`/google-maps-agents/${id}/stats`);
+  }
+
+  async getGoogleMapsAgentAssignees(id) {
+    return this.request(`/google-maps-agents/${id}/assignees`);
+  }
+
+  async setGoogleMapsAgentAssignees(id, userIds) {
+    return this.request(`/google-maps-agents/${id}/assignees`, {
+      method: 'PUT',
+      body: JSON.stringify({ userIds }),
+    });
+  }
+
+  async getGoogleMapsAgentAssignments(id, limit = 50) {
+    return this.request(`/google-maps-agents/${id}/assignments?limit=${limit}`);
   }
 
   // ================================

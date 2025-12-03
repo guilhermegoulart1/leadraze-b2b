@@ -1055,6 +1055,234 @@ exports.importContacts = async (req, res) => {
   }
 };
 
+/**
+ * GET /contacts/:id/full
+ * Get complete contact data with channels, conversations, and leads
+ * For the unified contact modal
+ */
+exports.getContactFull = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Get accessible user IDs (scoped to account)
+    const accessibleUserIds = await getAccessibleUserIds(userId, accountId);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildContactSectorFilter(userId, accountId, 4);
+
+    // 1. Get contact with channels and tags
+    const contactQuery = `
+      SELECT
+        c.*,
+
+        -- Tags
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', t.id,
+              'name', t.name,
+              'color', t.color,
+              'category', t.category
+            )
+          ) FILTER (WHERE t.id IS NOT NULL),
+          '[]'
+        ) as tags,
+
+        -- Channels
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', cc.id,
+              'type', cc.channel_type,
+              'channelId', cc.channel_id,
+              'username', cc.channel_username,
+              'isPrimary', cc.is_primary,
+              'isActive', cc.is_active,
+              'messageCount', cc.message_count,
+              'lastInteraction', cc.last_interaction_at
+            )
+          ) FILTER (WHERE cc.id IS NOT NULL),
+          '[]'
+        ) as channels
+
+      FROM contacts c
+      LEFT JOIN contact_tags ct ON c.id = ct.contact_id
+      LEFT JOIN tags t ON ct.tag_id = t.id AND t.account_id = $3
+      LEFT JOIN contact_channels cc ON c.id = cc.contact_id
+      WHERE c.id = $1 AND c.account_id = $3 AND c.user_id = ANY($2::uuid[]) ${sectorFilter}
+      GROUP BY c.id
+    `;
+
+    const contactResult = await db.query(contactQuery, [id, accessibleUserIds, accountId, ...sectorParams]);
+
+    if (contactResult.rows.length === 0) {
+      throw new NotFoundError('Contact not found');
+    }
+
+    const contact = contactResult.rows[0];
+
+    // 2. Get all conversations for this contact
+    // Can be via contact_id directly OR via lead_id (through contact_leads)
+    const conversationsQuery = `
+      SELECT DISTINCT ON (conv.id)
+        conv.id,
+        conv.status,
+        conv.last_message_at,
+        conv.unread_count,
+        conv.contact_id,
+        conv.lead_id,
+        conv.is_group,
+        conv.group_name,
+        COALESCE(conv.provider_type, 'LINKEDIN') as provider_type,
+        LOWER(COALESCE(conv.provider_type, 'LINKEDIN')) as channel,
+        conv.last_message_preview,
+        l.name as lead_name
+      FROM conversations conv
+      LEFT JOIN contact_leads cl ON cl.lead_id = conv.lead_id
+      LEFT JOIN leads l ON l.id = conv.lead_id
+      WHERE conv.account_id = $1
+        AND (conv.contact_id = $2 OR cl.contact_id = $2)
+      ORDER BY conv.id, conv.last_message_at DESC NULLS LAST
+    `;
+
+    const conversationsResult = await db.query(conversationsQuery, [accountId, id]);
+
+    // 3. Get all leads (opportunities) for this contact
+    // Note: pipeline_stages/pipelines tables don't exist in this system
+    // Leads have a simple status field
+    const leadsQuery = `
+      SELECT
+        l.id,
+        l.name,
+        l.status,
+        l.score,
+        l.title,
+        l.company,
+        l.headline,
+        l.profile_picture,
+        l.created_at,
+        l.updated_at,
+        cl.role as contact_role,
+        (cl.role = 'primary') as is_primary_contact,
+        c.name as campaign_name
+      FROM leads l
+      JOIN contact_leads cl ON cl.lead_id = l.id
+      LEFT JOIN campaigns c ON c.id = l.campaign_id
+      WHERE cl.contact_id = $1
+        AND l.account_id = $2
+      ORDER BY l.updated_at DESC
+    `;
+
+    const leadsResult = await db.query(leadsQuery, [id, accountId]);
+
+    // 4. Get notes for this contact
+    const notesQuery = `
+      SELECT
+        cn.id,
+        cn.content,
+        cn.created_at,
+        cn.user_id,
+        u.name as user_name
+      FROM contact_notes cn
+      LEFT JOIN users u ON u.id = cn.user_id
+      WHERE cn.contact_id = $1 AND cn.account_id = $2
+      ORDER BY cn.created_at DESC
+    `;
+
+    let notes = [];
+    try {
+      const notesResult = await db.query(notesQuery, [id, accountId]);
+      notes = notesResult.rows;
+    } catch (e) {
+      // Table might not exist yet, ignore error
+      console.log('Notes table might not exist:', e.message);
+    }
+
+    // Return unified data
+    sendSuccess(res, {
+      contact,
+      channels: contact.channels,
+      conversations: conversationsResult.rows,
+      leads: leadsResult.rows,
+      notes
+    });
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * POST /contacts/:id/notes
+ * Add a note to a contact
+ */
+exports.addContactNote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    if (!content || !content.trim()) {
+      throw new ValidationError('Note content is required');
+    }
+
+    // Ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS contact_notes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const result = await db.query(`
+      INSERT INTO contact_notes (contact_id, user_id, account_id, content)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, content, created_at, user_id
+    `, [id, userId, accountId, content.trim()]);
+
+    const note = result.rows[0];
+    note.user_name = req.user.name;
+
+    sendSuccess(res, { note }, 'Note added successfully');
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * DELETE /contacts/:id/notes/:noteId
+ * Delete a note from a contact
+ */
+exports.deleteContactNote = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    const accountId = req.user.account_id;
+
+    const result = await db.query(`
+      DELETE FROM contact_notes
+      WHERE id = $1 AND contact_id = $2 AND account_id = $3
+      RETURNING id
+    `, [noteId, id, accountId]);
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('Note not found');
+    }
+
+    sendSuccess(res, null, 'Note deleted successfully');
+
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
 // Helper functions for CSV
 function escapeCsvField(field) {
   if (field === null || field === undefined) return '';

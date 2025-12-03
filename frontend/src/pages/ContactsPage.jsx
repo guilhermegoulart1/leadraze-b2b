@@ -9,7 +9,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import PermissionGate from '../components/PermissionGate';
 import ContactFormModal from '../components/ContactFormModal';
-import ContactDetailsModal from '../components/ContactDetailsModal';
+import UnifiedContactModal from '../components/UnifiedContactModal';
 import ContactAvatar from '../components/ContactAvatar';
 
 const ContactsPage = () => {
@@ -825,11 +825,10 @@ const ContactsPage = () => {
         tags={tags}
       />
 
-      <ContactDetailsModal
+      <UnifiedContactModal
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         contactId={detailsContactId}
-        onEdit={handleEditContact}
       />
     </div>
   );

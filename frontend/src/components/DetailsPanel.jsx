@@ -31,7 +31,7 @@ const getStatusColorClasses = (color, isActive = false) => {
   return 'bg-white text-gray-600 border-gray-200 hover:border-gray-300';
 };
 
-const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversationUpdated }) => {
+const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversationUpdated, onOpenContactModal }) => {
   const [conversation, setConversation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -368,9 +368,18 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   </span>
                 </div>
               )}
-              <h3 className="font-semibold text-gray-900 text-lg mb-1">
-                {conversation?.lead_name}
-              </h3>
+              {conversation?.contact_id && onOpenContactModal ? (
+                <button
+                  onClick={() => onOpenContactModal(conversation.contact_id)}
+                  className="font-semibold text-gray-900 text-lg mb-1 hover:text-purple-600 transition-colors cursor-pointer"
+                >
+                  {conversation?.lead_name}
+                </button>
+              ) : (
+                <h3 className="font-semibold text-gray-900 text-lg mb-1">
+                  {conversation?.lead_name}
+                </h3>
+              )}
               <p className="text-sm text-gray-500">
                 Cliente desde {conversation?.created_at ? new Date(conversation.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : 'N/A'}
               </p>

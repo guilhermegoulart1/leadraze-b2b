@@ -3,20 +3,25 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Bot, MapPin, Search, Star, Phone, Mail, Loader2,
   Database, Send, MessageCircle, DollarSign, ChevronLeft,
-  ChevronRight, RefreshCw, Check
+  ChevronRight, RefreshCw, Check, Users, Building2
 } from 'lucide-react';
 import LocationMapPicker from './LocationMapPicker';
+import RodizioUserSelector from './RodizioUserSelector';
 import { BUSINESS_CATEGORIES, detectUserLanguage, getTranslatedCategories } from '../data/businessCategories';
 import apiService from '../services/api';
 
 const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   // Agents state
   const [emailAgents, setEmailAgents] = useState([]);
   const [whatsappAgents, setWhatsappAgents] = useState([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
+
+  // Sectors state
+  const [sectors, setSectors] = useState([]);
+  const [loadingSectors, setLoadingSectors] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -41,7 +46,11 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     activateEmail: false,
     emailAgentId: null,
     activateWhatsapp: false,
-    whatsappAgentId: null
+    whatsappAgentId: null,
+
+    // Step 6: Sector and rotation
+    sectorId: null,
+    assignees: [] // Array of {id, name, email} in rotation order
   });
 
   const [loading, setLoading] = useState(false);
@@ -53,9 +62,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     a.label.localeCompare(b.label)
   );
 
-  // Load agents when component mounts
+  // Load agents and sectors when component mounts
   useEffect(() => {
     loadAgents();
+    loadSectors();
   }, []);
 
   const loadAgents = async () => {
@@ -72,6 +82,21 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
       console.error('Erro ao carregar agentes:', error);
     } finally {
       setLoadingAgents(false);
+    }
+  };
+
+  const loadSectors = async () => {
+    try {
+      setLoadingSectors(true);
+      const response = await apiService.getSectors();
+
+      if (response.success) {
+        setSectors(response.data || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar setores:', error);
+    } finally {
+      setLoadingSectors(false);
     }
   };
 
@@ -119,6 +144,18 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         }
         if (formData.activateWhatsapp && !formData.whatsappAgentId) {
           setError('Selecione um agente de WhatsApp para ativação ou desmarque esta opção');
+          return false;
+        }
+        return true;
+
+      case 6:
+        // Sector and rotation validation
+        if (!formData.sectorId) {
+          setError('Selecione um setor para os leads');
+          return false;
+        }
+        if (formData.assignees.length === 0) {
+          setError('Selecione pelo menos um usuário para o rodízio');
           return false;
         }
         return true;
@@ -190,6 +227,12 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         activateWhatsapp: formData.activateWhatsapp,
         whatsappAgentId: formData.activateWhatsapp ? formData.whatsappAgentId : null,
 
+        // Sector
+        sectorId: formData.sectorId,
+
+        // Assignees for rotation (will be set after agent creation)
+        assignees: formData.assignees.map(u => u.id),
+
         // Fixed params
         dailyLimit: 20
       };
@@ -204,10 +247,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
   // Step progress indicator
   const StepIndicator = () => (
     <div className="flex items-center justify-center space-x-2 mb-6">
-      {[1, 2, 3, 4, 5].map(step => (
+      {[1, 2, 3, 4, 5, 6].map(step => (
         <div
           key={step}
-          className={`h-2 w-12 rounded-full transition-all ${
+          className={`h-2 w-10 rounded-full transition-all ${
             step === currentStep
               ? 'bg-purple-600'
               : step < currentStep
@@ -559,6 +602,78 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Sector and Rotation */}
+          {currentStep === 6 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Setor e Rodízio de Atendentes
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Defina para qual setor os leads serão direcionados e quem irá atendê-los
+                </p>
+              </div>
+
+              {/* Sector Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Building2 className="w-4 h-4 inline mr-1" />
+                  Setor <span className="text-red-500">*</span>
+                </label>
+                {loadingSectors ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Carregando setores...
+                  </div>
+                ) : sectors.length === 0 ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-700">
+                      Nenhum setor encontrado. Crie setores na página de Configurações.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.sectorId || ''}
+                    onChange={(e) => {
+                      updateField('sectorId', e.target.value || null);
+                      // Clear assignees when sector changes
+                      updateField('assignees', []);
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione um setor</option>
+                    {sectors.map(sector => (
+                      <option key={sector.id} value={sector.id}>
+                        {sector.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Rotation Users */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Users className="w-4 h-4 inline mr-1" />
+                  Rodízio de Atendentes <span className="text-red-500">*</span>
+                </label>
+                <RodizioUserSelector
+                  sectorId={formData.sectorId}
+                  selectedUsers={formData.assignees}
+                  onChange={(assignees) => updateField('assignees', assignees)}
+                />
+              </div>
+
+              {/* Info box */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Como funciona o rodízio:</strong> Os leads encontrados serão distribuídos automaticamente
+                  entre os atendentes selecionados, seguindo a ordem definida. Após o último atendente, volta ao primeiro.
+                </p>
               </div>
             </div>
           )}

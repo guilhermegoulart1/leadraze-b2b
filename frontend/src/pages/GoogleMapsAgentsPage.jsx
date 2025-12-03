@@ -25,15 +25,18 @@ const GoogleMapsAgentsPage = () => {
 
     const interval = setInterval(() => {
       console.log('🔄 Polling agents status...');
-      loadAgents();
+      loadAgents(true); // Silent refresh - don't show loading spinner
     }, 3000); // Poll every 3 seconds
 
     return () => clearInterval(interval);
   }, [executingAgents]);
 
-  const loadAgents = async () => {
+  const loadAgents = async (silentRefresh = false) => {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on refresh/polling
+      if (!silentRefresh) {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await apiService.getGoogleMapsAgents();
@@ -82,13 +85,23 @@ const GoogleMapsAgentsPage = () => {
 
         const newAgentId = response.agent?.id;
 
+        // Set assignees for rotation if provided
+        if (newAgentId && agentData.assignees && agentData.assignees.length > 0) {
+          try {
+            await apiService.setGoogleMapsAgentAssignees(newAgentId, agentData.assignees);
+            console.log('✅ Rodízio configurado com sucesso!');
+          } catch (assigneeError) {
+            console.error('⚠️ Erro ao configurar rodízio:', assigneeError);
+          }
+        }
+
         // Add new agent to executing list (it starts executing automatically)
         if (newAgentId) {
           setExecutingAgents(prev => new Set([...prev, newAgentId]));
         }
 
-        // Immediately reload to show the new agent
-        await loadAgents();
+        // Immediately reload to show the new agent (silent refresh)
+        await loadAgents(true);
 
         // Show success message (the agent will show "Coletando..." status automatically)
         console.log('✅ Campanha criada com sucesso! Coletando primeiros leads...');
@@ -106,7 +119,7 @@ const GoogleMapsAgentsPage = () => {
   const handlePauseAgent = async (agentId) => {
     try {
       await apiService.pauseGoogleMapsAgent(agentId);
-      loadAgents();
+      loadAgents(true); // Silent refresh
     } catch (error) {
       console.error('❌ Erro ao pausar campanha:', error);
       alert(t('agents.errorPause'));
@@ -116,7 +129,7 @@ const GoogleMapsAgentsPage = () => {
   const handleResumeAgent = async (agentId) => {
     try {
       await apiService.resumeGoogleMapsAgent(agentId);
-      loadAgents();
+      loadAgents(true); // Silent refresh
     } catch (error) {
       console.error('❌ Erro ao retomar campanha:', error);
       alert(t('agents.errorResume'));
@@ -130,7 +143,7 @@ const GoogleMapsAgentsPage = () => {
 
     try {
       await apiService.deleteGoogleMapsAgent(agentId);
-      loadAgents();
+      loadAgents(true); // Silent refresh
     } catch (error) {
       console.error('❌ Erro ao deletar campanha:', error);
       alert(t('agents.errorDelete'));

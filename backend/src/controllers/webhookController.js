@@ -8,6 +8,123 @@ const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
 const { scheduleDelayedConversation, cancelDelayedConversation } = require('../workers/delayedConversationWorker');
 const axios = require('axios');
 const { publishNewMessage, publishNewConversation } = require('../services/socketService');
+const unipileClient = require('../config/unipile');
+const storageService = require('../services/storageService');
+
+// ================================
+// HELPER: PROCESSAR E SALVAR ATTACHMENTS NO R2
+// ================================
+async function processAndSaveAttachments(payload, conversationId, messageId, accountId, linkedinAccountId) {
+  const attachments = payload.attachments || [];
+  const savedAttachments = [];
+
+  // Se não tem attachments mas é uma mensagem de mídia, tentar extrair do payload
+  const messageType = payload.message_type || 'text';
+  const isMediaMessage = ['image', 'video', 'audio', 'document', 'sticker', 'file'].includes(messageType);
+
+  if (attachments.length === 0 && !isMediaMessage) {
+    return savedAttachments;
+  }
+
+  console.log(`📎 Processando ${attachments.length} attachment(s) para mensagem ${messageId}`);
+
+  for (const att of attachments) {
+    try {
+      const attachmentId = att.id || att.attachment_id;
+      const mimeType = att.mime_type || att.mimetype || att.type || 'application/octet-stream';
+      const filename = att.filename || att.name || `attachment_${attachmentId}.${getExtensionFromMime(mimeType)}`;
+      const fileSize = att.size || att.file_size || 0;
+
+      console.log(`   📥 Baixando attachment ${attachmentId} (${mimeType})`);
+
+      // Baixar attachment via Unipile API
+      const unipileAccountId = await getUnipileAccountId(linkedinAccountId);
+      if (!unipileAccountId) {
+        console.warn(`   ⚠️ Não foi possível obter unipile_account_id para download`);
+        continue;
+      }
+
+      const attachmentData = await unipileClient.messaging.getAttachment({
+        account_id: unipileAccountId,
+        message_id: messageId,
+        attachment_id: attachmentId
+      });
+
+      if (!attachmentData?.data) {
+        console.warn(`   ⚠️ Attachment ${attachmentId} sem dados`);
+        continue;
+      }
+
+      // Upload para R2
+      console.log(`   📤 Enviando para R2...`);
+      const r2Result = await storageService.uploadEmailAttachment(
+        conversationId,
+        Buffer.from(attachmentData.data),
+        attachmentData.contentType || mimeType,
+        filename
+      );
+
+      // Salvar registro no banco
+      const attachmentRecord = {
+        account_id: accountId,
+        conversation_id: conversationId,
+        message_id: messageId,
+        original_filename: filename,
+        storage_key: r2Result.key,
+        file_url: r2Result.url,
+        mime_type: attachmentData.contentType || mimeType,
+        file_size: attachmentData.data.length || fileSize,
+        unipile_attachment_id: attachmentId
+      };
+
+      await db.insert('email_attachments', attachmentRecord);
+
+      savedAttachments.push({
+        id: attachmentId,
+        r2_url: r2Result.url,
+        storage_key: r2Result.key,
+        filename,
+        mime_type: attachmentData.contentType || mimeType,
+        size: attachmentData.data.length
+      });
+
+      console.log(`   ✅ Attachment salvo no R2: ${r2Result.key}`);
+
+    } catch (attError) {
+      console.error(`   ❌ Erro ao processar attachment:`, attError.message);
+      // Continuar com próximo attachment
+    }
+  }
+
+  return savedAttachments;
+}
+
+// Helper: Obter extensão de arquivo a partir do MIME type
+function getExtensionFromMime(mimeType) {
+  const mimeMap = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+    'audio/mpeg': 'mp3',
+    'audio/ogg': 'ogg',
+    'audio/wav': 'wav',
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'text/plain': 'txt'
+  };
+  return mimeMap[mimeType] || 'bin';
+}
+
+// Helper: Obter unipile_account_id a partir do linkedin_account
+async function getUnipileAccountId(linkedinAccountId) {
+  if (!linkedinAccountId) return null;
+  const account = await db.findOne('linkedin_accounts', { id: linkedinAccountId });
+  return account?.unipile_account_id;
+}
 
 // ================================
 // HELPER: BUSCAR DADOS DO PERFIL VIA UNIPILE API
@@ -309,6 +426,50 @@ async function getChannelSettings(channelId) {
 }
 
 // ================================
+// HELPER: REGISTRAR CANAL DO CONTATO
+// ================================
+async function registerContactChannel(contactId, channelType, channelId, channelUsername) {
+  try {
+    // Verificar se já existe esse canal para o contato
+    const existingChannel = await db.query(
+      `SELECT id FROM contact_channels
+       WHERE contact_id = $1 AND channel_type = $2
+       LIMIT 1`,
+      [contactId, channelType.toLowerCase()]
+    );
+
+    if (existingChannel.rows.length > 0) {
+      // Atualizar last_interaction e message_count
+      await db.query(
+        `UPDATE contact_channels
+         SET last_interaction_at = NOW(),
+             message_count = message_count + 1,
+             is_active = true
+         WHERE id = $1`,
+        [existingChannel.rows[0].id]
+      );
+      console.log(`📱 Canal ${channelType} atualizado para contato`);
+    } else {
+      // Criar novo registro de canal
+      await db.insert('contact_channels', {
+        contact_id: contactId,
+        channel_type: channelType.toLowerCase(),
+        channel_id: channelId || null,
+        channel_username: channelUsername || null,
+        is_primary: true,
+        is_active: true,
+        last_interaction_at: new Date(),
+        message_count: 1
+      });
+      console.log(`📱 Canal ${channelType} registrado para contato`);
+    }
+  } catch (error) {
+    console.error('⚠️ Erro ao registrar canal do contato:', error.message);
+    // Não falhar o webhook por erro de canal
+  }
+}
+
+// ================================
 // HELPER: CRIAR OU BUSCAR CONTATO
 // ================================
 async function findOrCreateContact(userId, accountId, contactData) {
@@ -563,6 +724,16 @@ async function handleMessageReceived(payload) {
           }, { id: conversation.id });
 
           conversation.unipile_chat_id = chat_id;
+
+          // ✅ REGISTRAR CANAL DO CONTATO (para conversas existentes)
+          if (conversation.contact_id) {
+            await registerContactChannel(
+              conversation.contact_id,
+              providerType, // 'WHATSAPP', 'INSTAGRAM', etc.
+              searchProviderIdClean,
+              sender?.display_name || null
+            );
+          }
         }
       }
     }
@@ -701,6 +872,14 @@ async function handleMessageReceived(payload) {
 
       console.log(`✅ Contato: ${contactData.name} (ID: ${contactData.id})`);
 
+      // ✅ REGISTRAR CANAL DO CONTATO (WhatsApp, Instagram, etc.)
+      await registerContactChannel(
+        contactData.id,
+        providerType, // 'WHATSAPP', 'INSTAGRAM', etc.
+        leadProviderId, // Número de telefone ou handle
+        contactName // Nome de exibição
+      );
+
       // ✅ PASSO 2: Verificar se existe LEAD (oportunidade) para este contato
       // Lead só existe se estiver em uma campanha ativa
       const leadQuery = await db.query(
@@ -803,6 +982,25 @@ async function handleMessageReceived(payload) {
     };
 
     await db.insert('messages', messageData);
+
+    // ✅ PROCESSAR E SALVAR ATTACHMENTS NO R2
+    // Baixa do Unipile e salva permanentemente no R2 para evitar expiração
+    try {
+      const savedAttachments = await processAndSaveAttachments(
+        payload,
+        conversation.id,
+        messageData.unipile_message_id,
+        linkedinAccount.account_id,
+        linkedinAccount.id
+      );
+
+      if (savedAttachments.length > 0) {
+        console.log(`📎 ${savedAttachments.length} attachment(s) salvos no R2`);
+      }
+    } catch (attachmentError) {
+      console.error('⚠️ Erro ao processar attachments (não falhou webhook):', attachmentError.message);
+      // Não falhar o webhook por erro de attachment
+    }
 
     console.log(`✅ Mensagem salva:`);
     console.log(`   - Sender type: ${messageData.sender_type}`);

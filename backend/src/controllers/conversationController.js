@@ -2,6 +2,7 @@
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const conversationSummaryService = require('../services/conversationSummaryService');
+const storageService = require('../services/storageService');
 const { sendSuccess, sendError } = require('../utils/responses');
 const {
   ValidationError,
@@ -724,6 +725,46 @@ const getAttachmentInline = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
 
+    // ✅ PASSO 1: Verificar primeiro se existe no R2 (nunca expira)
+    try {
+      const r2Attachment = await db.query(`
+        SELECT storage_key, file_url, mime_type, original_filename
+        FROM email_attachments
+        WHERE conversation_id = $1
+          AND unipile_attachment_id = $2
+          AND account_id = $3
+      `, [id, attachmentId, accountId]);
+
+      if (r2Attachment.rows.length > 0) {
+        const att = r2Attachment.rows[0];
+        console.log(`📎 Attachment encontrado no R2: ${att.storage_key}`);
+
+        // Buscar do R2
+        const r2Data = await storageService.getFile(att.storage_key);
+
+        if (r2Data && r2Data.Body) {
+          const contentType = att.mime_type || 'application/octet-stream';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Content-Disposition', 'inline');
+          res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache de 24 horas (R2 é permanente)
+
+          // R2 retorna um stream, converter para buffer
+          const chunks = [];
+          for await (const chunk of r2Data.Body) {
+            chunks.push(chunk);
+          }
+          const buffer = Buffer.concat(chunks);
+
+          res.setHeader('Content-Length', buffer.length);
+          return res.send(buffer);
+        }
+      }
+    } catch (r2Error) {
+      console.warn('⚠️ Erro ao buscar no R2 (tentando Unipile):', r2Error.message);
+      // Continuar para tentar Unipile
+    }
+
+    // ✅ PASSO 2: Fallback para Unipile se não estiver no R2
     // Buscar conversa e unipile_account_id
     const convQuery = `
       SELECT

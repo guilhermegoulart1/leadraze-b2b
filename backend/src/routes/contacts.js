@@ -24,6 +24,12 @@ router.get('/',
   contactController.getContacts
 );
 
+// Get full contact data (for unified modal)
+router.get('/:id/full',
+  checkPermission('contacts:view:own'),
+  contactController.getContactFull
+);
+
 // Get single contact
 router.get('/:id',
   checkPermission('contacts:view:own'),
@@ -57,6 +63,17 @@ router.post('/:id/tags',
 router.delete('/:id/tags/:tagId',
   checkPermission('contacts:edit:own'),
   contactController.removeTag
+);
+
+// Notes management
+router.post('/:id/notes',
+  checkPermission('contacts:edit:own'),
+  contactController.addContactNote
+);
+
+router.delete('/:id/notes/:noteId',
+  checkPermission('contacts:edit:own'),
+  contactController.deleteContactNote
 );
 
 // Export/Import

@@ -11,7 +11,9 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Building2,
+  Users
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -156,6 +158,30 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete }) => {
             </span>
           )}
         </div>
+
+        {/* Sector and rotation info */}
+        {(agent.sector_name || agent.assignee_count > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {agent.sector_name && (
+              <span
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded"
+                style={{
+                  backgroundColor: agent.sector_color ? `${agent.sector_color}20` : '#6366f120',
+                  color: agent.sector_color || '#6366f1'
+                }}
+              >
+                <Building2 className="w-3 h-3" />
+                {agent.sector_name}
+              </span>
+            )}
+            {agent.assignee_count > 0 && (
+              <span className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded">
+                <Users className="w-3 h-3" />
+                {agent.assignee_count} no rodízio
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Statistics */}

@@ -1,0 +1,617 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X, Mail, Phone, Building2, MapPin, Linkedin,
+  MessageCircle, Instagram, Send, Clock, MessageSquare,
+  ChevronRight, Trash2, Plus, Save, User
+} from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import api from '../services/api';
+import ContactAvatar from './ContactAvatar';
+
+const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [availableTags, setAvailableTags] = useState([]);
+  const [newNote, setNewNote] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+  const noteInputRef = useRef(null);
+
+  // Form state for inline editing
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    title: '',
+    location: '',
+    profile_url: '',
+    tags: []
+  });
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && contactId) {
+      loadContactFull();
+      loadTags();
+    }
+  }, [isOpen, contactId]);
+
+  useEffect(() => {
+    if (data?.contact) {
+      const contact = data.contact;
+      setFormData({
+        name: contact.name || '',
+        email: contact.email || '',
+        phone: contact.phone || '',
+        company: contact.company || '',
+        title: contact.title || '',
+        location: contact.location || '',
+        profile_url: contact.profile_url || '',
+        tags: contact.tags?.map(t => t.id) || []
+      });
+      setHasChanges(false);
+    }
+  }, [data?.contact]);
+
+  const loadContactFull = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getContactFull(contactId);
+      if (response.success) {
+        setData(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading contact:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTags = async () => {
+    try {
+      const response = await api.getTags();
+      if (response.success) {
+        setAvailableTags(response.data.tags || []);
+      }
+    } catch (error) {
+      console.error('Error loading tags:', error);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  };
+
+  const toggleTag = (tagId) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tagId)
+        ? prev.tags.filter(id => id !== tagId)
+        : [...prev.tags, tagId]
+    }));
+    setHasChanges(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const response = await api.updateContact(contactId, formData);
+      if (response.success) {
+        await loadContactFull();
+        setHasChanges(false);
+      }
+    } catch (error) {
+      console.error('Error saving contact:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+
+    try {
+      setAddingNote(true);
+      const response = await api.addContactNote(contactId, newNote.trim());
+      if (response.success) {
+        setData(prev => ({
+          ...prev,
+          notes: [response.data.note, ...(prev.notes || [])]
+        }));
+        setNewNote('');
+      }
+    } catch (error) {
+      console.error('Error adding note:', error);
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      const response = await api.deleteContactNote(contactId, noteId);
+      if (response.success) {
+        setData(prev => ({
+          ...prev,
+          notes: prev.notes.filter(n => n.id !== noteId)
+        }));
+      }
+    } catch (error) {
+      console.error('Error deleting note:', error);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAddNote();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const channelConfig = {
+    whatsapp: { icon: MessageCircle, color: 'text-green-600', bg: 'bg-green-100', label: 'WhatsApp' },
+    instagram: { icon: Instagram, color: 'text-pink-600', bg: 'bg-pink-100', label: 'Instagram' },
+    email: { icon: Mail, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Email' },
+    linkedin: { icon: Linkedin, color: 'text-blue-700', bg: 'bg-blue-100', label: 'LinkedIn' },
+    telegram: { icon: Send, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Telegram' },
+    phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Telefone' }
+  };
+
+  const tagColors = {
+    purple: 'bg-purple-100 text-purple-700 border-purple-200',
+    yellow: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    green: 'bg-green-100 text-green-700 border-green-200',
+    blue: 'bg-blue-100 text-blue-700 border-blue-200',
+    red: 'bg-red-100 text-red-700 border-red-200',
+    gray: 'bg-gray-100 text-gray-700 border-gray-200',
+    pink: 'bg-pink-100 text-pink-700 border-pink-200'
+  };
+
+  const contact = data?.contact;
+  const channels = data?.channels || [];
+  const conversations = data?.conversations || [];
+  const leads = data?.leads || [];
+  const notes = data?.notes || [];
+
+  const activeChannelTypes = [...new Set(channels.filter(c => c.isActive).map(c => c.type))];
+
+  const formatTimeAgo = (date) => {
+    if (!date) return '-';
+    return formatDistanceToNow(new Date(date), { addSuffix: true, locale: ptBR });
+  };
+
+  const formatNoteDate = (date) => {
+    if (!date) return '';
+    return format(new Date(date), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR });
+  };
+
+  const handleOpenConversation = (conversationId) => {
+    if (onOpenConversation) {
+      onOpenConversation(conversationId);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      <div className="flex items-center justify-center min-h-screen">
+        {/* Overlay */}
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          onClick={onClose}
+        />
+
+        {/* Modal */}
+        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
+          {loading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          ) : contact ? (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                <div className="flex items-center gap-4">
+                  <ContactAvatar
+                    photoUrl={contact.profile_picture}
+                    name={formData.name}
+                    size="lg"
+                  />
+                  <div>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="text-xl font-bold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:outline-none px-1 -ml-1"
+                      placeholder="Nome do contato"
+                    />
+                    {/* Channel Badges */}
+                    <div className="flex gap-2 mt-2">
+                      {activeChannelTypes.map(type => {
+                        const config = channelConfig[type];
+                        if (!config) return null;
+                        const IconComponent = config.icon;
+                        return (
+                          <div
+                            key={type}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                            title={config.label}
+                          >
+                            <IconComponent className="w-3 h-3" />
+                            <span className="text-xs font-medium">{config.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasChanges && (
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content - Two columns */}
+              <div className="flex flex-1 overflow-hidden">
+                {/* Left column - Contact details */}
+                <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200">
+                  {/* Tabs */}
+                  <div className="flex gap-4 mb-6 border-b border-gray-200">
+                    <button
+                      onClick={() => setActiveTab('overview')}
+                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'overview'
+                          ? 'border-purple-600 text-purple-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Dados
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('conversations')}
+                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'conversations'
+                          ? 'border-purple-600 text-purple-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Conversas ({conversations.length})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('opportunities')}
+                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'opportunities'
+                          ? 'border-purple-600 text-purple-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Oportunidades ({leads.length})
+                    </button>
+                  </div>
+
+                  {/* Overview Tab - Editable fields */}
+                  {activeTab === 'overview' && (
+                    <div className="space-y-4">
+                      {/* Email & Phone */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                            <Mail className="w-3.5 h-3.5" /> Email
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="email@exemplo.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                            <Phone className="w-3.5 h-3.5" /> Telefone
+                          </label>
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="+55 11 99999-9999"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Company & Title */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                            <Building2 className="w-3.5 h-3.5" /> Empresa
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.company}
+                            onChange={(e) => handleInputChange('company', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Nome da empresa"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 mb-1 block">Cargo</label>
+                          <input
+                            type="text"
+                            value={formData.title}
+                            onChange={(e) => handleInputChange('title', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Ex: Diretor Comercial"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Location */}
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                          <MapPin className="w-3.5 h-3.5" /> Localizacao
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.location}
+                          onChange={(e) => handleInputChange('location', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Cidade, Estado"
+                        />
+                      </div>
+
+                      {/* LinkedIn */}
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                          <Linkedin className="w-3.5 h-3.5" /> Perfil LinkedIn
+                        </label>
+                        <input
+                          type="url"
+                          value={formData.profile_url}
+                          onChange={(e) => handleInputChange('profile_url', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="https://linkedin.com/in/..."
+                        />
+                      </div>
+
+                      {/* Tags */}
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 mb-2 block">Etiquetas</label>
+                        <div className="flex flex-wrap gap-2">
+                          {availableTags.map(tag => (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() => toggleTag(tag.id)}
+                              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                formData.tags.includes(tag.id)
+                                  ? tagColors[tag.color] || tagColors.blue
+                                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                              }`}
+                            >
+                              {tag.name}
+                            </button>
+                          ))}
+                          {availableTags.length === 0 && (
+                            <span className="text-sm text-gray-400">Nenhuma etiqueta disponivel</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Channels */}
+                      {channels.length > 0 && (
+                        <div className="pt-4 border-t border-gray-100">
+                          <label className="text-xs font-medium text-gray-500 mb-2 block">Canais Conectados</label>
+                          <div className="space-y-2">
+                            {channels.map((channel, idx) => {
+                              const config = channelConfig[channel.type];
+                              if (!config) return null;
+                              const IconComponent = config.icon;
+                              return (
+                                <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                                  <div className={`p-1.5 rounded-full ${config.bg}`}>
+                                    <IconComponent className={`w-3.5 h-3.5 ${config.color}`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-700">{config.label}</p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {channel.username || channel.channelId || '-'}
+                                    </p>
+                                  </div>
+                                  {channel.isActive && (
+                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Conversations Tab */}
+                  {activeTab === 'conversations' && (
+                    <div>
+                      {conversations.length > 0 ? (
+                        <div className="space-y-2">
+                          {conversations.map(conv => {
+                            const config = channelConfig[conv.channel] || channelConfig.email;
+                            const IconComponent = config.icon;
+                            return (
+                              <div
+                                key={conv.id}
+                                onClick={() => handleOpenConversation(conv.id)}
+                                className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50/50 transition-colors cursor-pointer"
+                              >
+                                <div className={`p-2 rounded-full ${config.bg}`}>
+                                  <IconComponent className={`w-4 h-4 ${config.color}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium text-gray-900 truncate text-sm">
+                                      {conv.lead_name || 'Conversa'}
+                                    </h4>
+                                    {conv.unread_count > 0 && (
+                                      <span className="px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+                                        {conv.unread_count}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {conv.last_message_preview && (
+                                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                                      {conv.last_message_preview}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    {formatTimeAgo(conv.last_message_at)}
+                                  </p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Nenhuma conversa</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Opportunities Tab */}
+                  {activeTab === 'opportunities' && (
+                    <div>
+                      {leads.length > 0 ? (
+                        <div className="space-y-2">
+                          {leads.map(lead => (
+                            <div key={lead.id} className="p-3 border border-gray-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium text-gray-900 text-sm">{lead.name}</h4>
+                                {lead.is_primary_contact && (
+                                  <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                                    Principal
+                                  </span>
+                                )}
+                              </div>
+                              {lead.campaign_name && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Campanha: {lead.campaign_name}
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-400 mt-1">
+                                Atualizado {formatTimeAgo(lead.updated_at)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Building2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Nenhuma oportunidade</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right column - Notes timeline */}
+                <div className="w-80 flex flex-col bg-gray-50">
+                  <div className="px-4 py-3 border-b border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700">Observacoes</h3>
+                  </div>
+
+                  {/* Notes list */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {notes.length > 0 ? (
+                      notes.map(note => (
+                        <div key={note.id} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100 group">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <User className="w-3 h-3" />
+                              <span className="font-medium">{note.user_name || 'Usuario'}</span>
+                              <span>-</span>
+                              <span>{formatNoteDate(note.created_at)}</span>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{note.content}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs">Nenhuma observacao</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add note input */}
+                  <div className="p-4 border-t border-gray-200 bg-white">
+                    <div className="flex gap-2">
+                      <textarea
+                        ref={noteInputRef}
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Adicionar observacao..."
+                        rows={2}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <button
+                        onClick={handleAddNote}
+                        disabled={addingNote || !newNote.trim()}
+                        className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {addingNote ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Enter para enviar</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-96">
+              <p className="text-gray-500">Contato nao encontrado</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default UnifiedContactModal;

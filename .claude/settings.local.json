@@ -26,7 +26,14 @@
       "Bash(timeout /t 2 /nobreak)",
       "Bash(timeout /t 5 /nobreak)",
       "Bash(kill:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(cmd //c \"taskkill /PID 43932 /F\")",
+      "Bash(cmd //c \"taskkill /PID 47164 /F\")",
+      "Bash(cmd //c \"taskkill /PID 20864 /F\")",
+      "Bash(cmd //c \"taskkill /F /PID 20668\")",
+      "Bash(cmd //c \"taskkill /F /PID 54424\")",
+      "Bash(cmd //c \"taskkill /F /PID 67536\")",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")"
     ],
     "deny": [],
     "ask": []

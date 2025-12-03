@@ -21,6 +21,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDownloading, setIsDownloading] = useState({});
+  // Estado para modal de visualização de imagem
+  const [imageModal, setImageModal] = useState({ isOpen: false, url: '', name: '' });
   // Estado para edição de nome
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
@@ -956,8 +958,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                         src={imageUrl}
                                         alt={att.name}
                                         crossOrigin="anonymous"
-                                        className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90"
-                                        onClick={() => canDownload ? handleDownloadAttachment(att) : window.open(imageUrl, '_blank')}
+                                        className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setImageModal({ isOpen: true, url: imageUrl, name: att.name || 'Imagem' })}
                                         onError={(e) => {
                                           // Se falhar ao carregar, esconder a imagem
                                           e.target.style.display = 'none';
@@ -1239,6 +1241,38 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           </div>
         );
       })()}
+
+      {/* Modal de Visualização de Imagem */}
+      {imageModal.isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setImageModal({ isOpen: false, url: '', name: '' })}
+        >
+          <div className="relative max-w-[90vw] max-h-[90vh]">
+            {/* Botão fechar */}
+            <button
+              onClick={() => setImageModal({ isOpen: false, url: '', name: '' })}
+              className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Imagem */}
+            <img
+              src={imageModal.url}
+              alt={imageModal.name}
+              crossOrigin="anonymous"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Nome do arquivo */}
+            <p className="text-white text-center mt-3 text-sm opacity-75">
+              {imageModal.name}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

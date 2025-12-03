@@ -69,4 +69,25 @@ router.delete('/:id', googleMapsAgentController.deleteAgent);
  */
 router.get('/:id/stats', googleMapsAgentController.getAgentStats);
 
+/**
+ * @route   GET /api/google-maps-agents/:id/assignees
+ * @desc    Get rotation assignees for an agent
+ * @access  Private
+ */
+router.get('/:id/assignees', googleMapsAgentController.getAssignees);
+
+/**
+ * @route   PUT /api/google-maps-agents/:id/assignees
+ * @desc    Set rotation assignees for an agent
+ * @access  Private
+ */
+router.put('/:id/assignees', googleMapsAgentController.setAssignees);
+
+/**
+ * @route   GET /api/google-maps-agents/:id/assignments
+ * @desc    Get recent lead assignments for an agent
+ * @access  Private
+ */
+router.get('/:id/assignments', googleMapsAgentController.getAssignments);
+
 module.exports = router;
