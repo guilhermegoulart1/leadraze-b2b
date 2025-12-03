@@ -203,6 +203,39 @@ const warnIfLimited = async (req, res, next) => {
   }
 };
 
+/**
+ * Require paid subscription (block trial users from premium features)
+ * @param {string} feature - Feature name: 'api_keys', 'activation_campaigns', 'channels'
+ */
+const requirePaidSubscription = (feature) => async (req, res, next) => {
+  try {
+    const accountId = req.user.account_id;
+    const status = await subscriptionService.getStatus(accountId);
+
+    // If user is on trial, block access to premium features
+    if (status.isTrial) {
+      const blockedFeatures = ['api_keys', 'activation_campaigns', 'channels'];
+
+      if (blockedFeatures.includes(feature)) {
+        return res.status(402).json({
+          success: false,
+          message: 'Este recurso requer uma assinatura ativa',
+          code: 'TRIAL_FEATURE_BLOCKED',
+          feature,
+          isTrial: true,
+          daysRemaining: status.trialDaysRemaining,
+          upgradeRequired: true
+        });
+      }
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error checking paid subscription:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   requireActiveSubscription,
   checkUserLimit,
@@ -211,5 +244,6 @@ module.exports = {
   consumeGMapsCredits,
   attachSubscriptionStatus,
   blockIfSuspended,
-  warnIfLimited
+  warnIfLimited,
+  requirePaidSubscription
 };

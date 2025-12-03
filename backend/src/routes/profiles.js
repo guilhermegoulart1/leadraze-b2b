@@ -4,6 +4,7 @@ const router = express.Router();
 const profileController = require('../controllers/profileController');
 const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
+const { requirePaidSubscription } = require('../middleware/billing');
 
 // ================================
 // ROTAS PÚBLICAS (SEM AUTH) - CALLBACKS
@@ -22,11 +23,11 @@ router.use(apiLimiter);
 // LINKEDIN ACCOUNTS
 // ================================
 
-// Gerar hosted auth link (Unipile)
-router.get('/linkedin-accounts/hosted-auth-link', profileController.getHostedAuthLink);
+// Gerar hosted auth link (Unipile) - blocked for trial users
+router.get('/linkedin-accounts/hosted-auth-link', requirePaidSubscription('channels'), profileController.getHostedAuthLink);
 
-// ✅ MULTI-CHANNEL: Callback após Hosted Auth
-router.post('/channels/callback', profileController.handleHostedAuthCallback);
+// ✅ MULTI-CHANNEL: Callback após Hosted Auth - blocked for trial users
+router.post('/channels/callback', requirePaidSubscription('channels'), profileController.handleHostedAuthCallback);
 
 // ✅ MULTI-CHANNEL: Sincronizar contas da Unipile
 router.post('/channels/sync', profileController.syncUnipileAccounts);
@@ -37,8 +38,8 @@ router.patch('/channels/:id/settings', profileController.updateChannelSettings);
 // ✅ MULTI-CHANNEL: Obter tipos de canais disponíveis
 router.get('/channel-types', profileController.getChannelTypes);
 
-// Conectar nova conta (legado - LinkedIn direto)
-router.post('/linkedin-accounts/connect', profileController.connectLinkedInAccount);
+// Conectar nova conta (legado - LinkedIn direto) - blocked for trial users
+router.post('/linkedin-accounts/connect', requirePaidSubscription('channels'), profileController.connectLinkedInAccount);
 
 // Listar contas
 router.get('/linkedin-accounts', profileController.getLinkedInAccounts);

@@ -208,9 +208,9 @@ exports.createCheckoutSession = async (req, res) => {
     const userEmail = req.user.email;
     const userName = req.user.name;
 
-    // Validate inputs (max 10 extra channels, max 50 extra users)
-    const channels = Math.max(0, Math.min(10, parseInt(extraChannels) || 0));
-    const users = Math.max(0, Math.min(50, parseInt(extraUsers) || 0));
+    // Validate inputs (max 100 extra channels, max 100 extra users)
+    const channels = Math.max(0, Math.min(100, parseInt(extraChannels) || 0));
+    const users = Math.max(0, Math.min(100, parseInt(extraUsers) || 0));
 
     // Get base plan
     const plan = PLANS.base;
@@ -816,6 +816,156 @@ exports.purchaseAiCredits = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create checkout session'
+    });
+  }
+};
+
+/**
+ * Get saved payment methods
+ * Returns the customer's saved cards in Stripe
+ */
+exports.getPaymentMethods = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+
+    // Get customer ID
+    const accountResult = await db.query(
+      'SELECT stripe_customer_id FROM accounts WHERE id = $1',
+      [accountId]
+    );
+
+    const customerId = accountResult.rows[0]?.stripe_customer_id;
+    if (!customerId) {
+      return res.json({
+        success: true,
+        data: {
+          paymentMethods: [],
+          hasPaymentMethod: false
+        }
+      });
+    }
+
+    const paymentMethods = await stripeService.getCustomerPaymentMethods(customerId);
+
+    res.json({
+      success: true,
+      data: {
+        paymentMethods: paymentMethods.map(pm => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year
+        })),
+        hasPaymentMethod: paymentMethods.length > 0
+      }
+    });
+  } catch (error) {
+    console.error('Error getting payment methods:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment methods'
+    });
+  }
+};
+
+/**
+ * Resubscribe using existing payment method
+ * For users who canceled and want to come back without entering card again
+ * Body: { extraChannels?: number, extraUsers?: number, paymentMethodId?: string }
+ */
+exports.resubscribeWithPaymentMethod = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { extraChannels = 0, extraUsers = 0, paymentMethodId } = req.body;
+
+    // Get customer ID
+    const accountResult = await db.query(
+      'SELECT stripe_customer_id FROM accounts WHERE id = $1',
+      [accountId]
+    );
+
+    const customerId = accountResult.rows[0]?.stripe_customer_id;
+    if (!customerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No billing account found',
+        code: 'NO_CUSTOMER'
+      });
+    }
+
+    // Get payment method (use provided or get default)
+    let pmId = paymentMethodId;
+    if (!pmId) {
+      pmId = await stripeService.getDefaultPaymentMethod(customerId);
+    }
+
+    if (!pmId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No payment method on file. Please use checkout.',
+        code: 'NO_PAYMENT_METHOD'
+      });
+    }
+
+    // Check if already has active subscription
+    const hasSubscription = await stripeService.hasActiveSubscription(accountId);
+    if (hasSubscription) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account already has an active subscription'
+      });
+    }
+
+    // Get base plan
+    const plan = PLANS.base;
+    if (!plan || !plan.priceIdMonthly) {
+      return res.status(400).json({
+        success: false,
+        message: 'Plan not configured. Contact support.'
+      });
+    }
+
+    // Create subscription with existing payment method
+    const subscription = await stripeService.createSubscriptionWithPaymentMethod({
+      customerId,
+      paymentMethodId: pmId,
+      priceId: plan.priceIdMonthly,
+      extraChannels: Math.max(0, Math.min(10, parseInt(extraChannels) || 0)),
+      extraUsers: Math.max(0, Math.min(50, parseInt(extraUsers) || 0)),
+      metadata: {
+        account_id: accountId,
+        plan_type: 'base',
+        resubscription: 'true'
+      }
+    });
+
+    // The webhook will handle syncing the subscription to our database
+    // But we can return success immediately
+
+    res.json({
+      success: true,
+      message: 'Subscription reactivated successfully',
+      data: {
+        subscriptionId: subscription.id,
+        status: subscription.status
+      }
+    });
+  } catch (error) {
+    console.error('Error resubscribing with payment method:', error);
+
+    // Handle specific Stripe errors
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code: 'CARD_ERROR'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to resubscribe. Please try checkout instead.'
     });
   }
 };

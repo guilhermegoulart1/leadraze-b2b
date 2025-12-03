@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Zap, Infinity } from 'lucide-react';
 import api from '../services/api';
+import SubscribeModal from '../components/SubscribeModal';
 
 const BillingPage = () => {
   const { t } = useTranslation('billing');
@@ -28,6 +29,7 @@ const BillingPage = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showAiCreditsModal, setShowAiCreditsModal] = useState(false);
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [aiCredits, setAiCredits] = useState(null);
 
   useEffect(() => {
@@ -88,17 +90,17 @@ const BillingPage = () => {
 
   const getStatusBadge = (status) => {
     const badges = {
-      active: { bg: 'bg-green-100', text: 'text-green-700' },
-      trialing: { bg: 'bg-blue-100', text: 'text-blue-700' },
-      past_due: { bg: 'bg-amber-100', text: 'text-amber-700' },
-      canceled: { bg: 'bg-red-100', text: 'text-red-700' },
-      unpaid: { bg: 'bg-red-100', text: 'text-red-700' },
-      trial_expired: { bg: 'bg-gray-100', text: 'text-gray-700' }
+      active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Ativo' },
+      trialing: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Teste' },
+      past_due: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pagamento Pendente' },
+      canceled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelado' },
+      unpaid: { bg: 'bg-red-100', text: 'text-red-700', label: 'Não Pago' },
+      trial_expired: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Trial Expirado' }
     };
     const badge = badges[status] || badges.active;
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
-        {t(`status.${status}`)}
+        {badge.label}
       </span>
     );
   };
@@ -146,7 +148,9 @@ const BillingPage = () => {
               {/* Plan info */}
               <div className="bg-gray-50 rounded-xl p-5">
                 <p className="text-sm text-gray-500 mb-1">{t('currentPlan.plan')}</p>
-                <p className="text-xl font-bold text-gray-900">{currentPlan?.name || 'Base'}</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {subscription.status === 'trialing' ? 'Trial' : 'Premium'}
+                </p>
                 {subscription.status === 'trialing' && subscription.daysUntilEnd && (
                   <p className="text-sm text-blue-600 mt-2">
                     {t('currentPlan.trialEnds', { days: subscription.daysUntilEnd })}
@@ -162,30 +166,44 @@ const BillingPage = () => {
               {/* Price */}
               <div className="bg-gray-50 rounded-xl p-5">
                 <p className="text-sm text-gray-500 mb-1">{t('currentPlan.monthlyPrice')}</p>
-                <p className="text-xl font-bold text-gray-900">
-                  R$ {currentPlan?.price || 297}
-                  <span className="text-sm font-normal text-gray-500">/{t('currentPlan.month')}</span>
-                </p>
+                {subscription.status === 'trialing' ? (
+                  <p className="text-xl font-bold text-green-600">
+                    Grátis
+                    <span className="text-sm font-normal text-gray-500 ml-1">(trial)</span>
+                  </p>
+                ) : (
+                  <p className="text-xl font-bold text-gray-900">
+                    $ {((subscription.monthlyAmount || 4500) / 100).toFixed(0)}
+                    <span className="text-sm font-normal text-gray-500">/{t('currentPlan.month')}</span>
+                  </p>
+                )}
                 {subscription.extraChannels > 0 && (
                   <p className="text-sm text-gray-600 mt-1">
-                    {t('currentPlan.extraChannels', { amount: subscription.extraChannels * 147, count: subscription.extraChannels })}
+                    +{subscription.extraChannels} {subscription.extraChannels === 1 ? 'canal extra' : 'canais extras'}
                   </p>
                 )}
                 {subscription.extraUsers > 0 && (
                   <p className="text-sm text-gray-600">
-                    {t('currentPlan.extraUsers', { amount: subscription.extraUsers * 27, count: subscription.extraUsers })}
+                    +{subscription.extraUsers} {subscription.extraUsers === 1 ? 'usuário extra' : 'usuários extras'}
                   </p>
                 )}
               </div>
 
               {/* Next billing */}
               <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">{t('currentPlan.nextBillingDate')}</p>
+                <p className="text-sm text-gray-500 mb-1">
+                  {subscription.status === 'trialing' ? 'Fim do Trial' : t('currentPlan.nextBillingDate')}
+                </p>
                 <p className="text-xl font-bold text-gray-900">
                   {subscription.currentPeriodEnd
                     ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
                     : '-'}
                 </p>
+                {subscription.status === 'trialing' && (
+                  <p className="text-sm text-blue-600 mt-2">
+                    Após o trial: $45/mês
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -204,7 +222,7 @@ const BillingPage = () => {
           {subscription && (
             <div className="flex items-center gap-4 mt-6 pt-6 border-t">
               <button
-                onClick={() => navigate('/pricing')}
+                onClick={() => setShowSubscribeModal(true)}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm"
               >
                 {t('currentPlan.changePlan')}
@@ -631,6 +649,12 @@ const BillingPage = () => {
           </div>
         </div>
       )}
+
+      {/* Subscribe Modal */}
+      <SubscribeModal
+        isOpen={showSubscribeModal}
+        onClose={() => setShowSubscribeModal(false)}
+      />
     </div>
   );
 };

@@ -43,6 +43,7 @@ import ApiKeysPage from './pages/ApiKeysPage';
 import TasksPage from './pages/TasksPage';
 import ChecklistTemplatesPage from './pages/ChecklistTemplatesPage';
 import NextPage from './pages/NextPage';
+import PartnersAdminPage from './pages/PartnersAdminPage';
 
 // Layout
 import Layout from './components/Layout';
@@ -141,6 +142,7 @@ function AppRoutes() {
         <Route path="api-keys" element={<ApiKeysPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="checklist-templates" element={<ChecklistTemplatesPage />} />
+        <Route path="admin/partners" element={<PartnersAdminPage />} />
       </Route>
 
       {/* GetRaze Next - Layout próprio, sem sidebar */}

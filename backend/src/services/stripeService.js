@@ -43,39 +43,7 @@ const validatePriceIdMode = (priceId, context = '') => {
   }
 };
 
-// Launch promotion: 60% OFF first month
-const LAUNCH_COUPON = {
-  id: '60OFF',
-  percentOff: 60,
-  duration: 'once', // Only first month
-  name: '60% OFF - Launch Promotion'
-};
-
 class StripeService {
-  /**
-   * Get or create the launch coupon in Stripe
-   */
-  async getOrCreateLaunchCoupon() {
-    try {
-      // Try to retrieve existing coupon
-      const coupon = await stripe.coupons.retrieve(LAUNCH_COUPON.id);
-      return coupon.id;
-    } catch (error) {
-      // Coupon doesn't exist, create it
-      if (error.code === 'resource_missing') {
-        const coupon = await stripe.coupons.create({
-          id: LAUNCH_COUPON.id,
-          percent_off: LAUNCH_COUPON.percentOff,
-          duration: LAUNCH_COUPON.duration,
-          name: LAUNCH_COUPON.name
-          // Note: currency is not needed for percentage-off coupons
-        });
-        console.log(`✅ Created launch coupon: ${coupon.id}`);
-        return coupon.id;
-      }
-      throw error;
-    }
-  }
   /**
    * Create or get Stripe customer for an account
    */
@@ -150,9 +118,6 @@ class StripeService {
       });
     }
 
-    // Get or create launch coupon for 70% OFF first month
-    const couponId = await this.getOrCreateLaunchCoupon();
-
     const sessionConfig = {
       customer: customerId,
       payment_method_types: ['card'],
@@ -166,16 +131,15 @@ class StripeService {
         extra_users: extraUsers.toString(),
         ...metadata
       },
-      // Apply 70% OFF launch coupon
-      discounts: [{ coupon: couponId }],
       // Billing address collection
       billing_address_collection: 'auto'
       // Note: currency is determined by the Stripe price IDs (USD)
     };
 
-    // Add subscription metadata (no trial - using 70% OFF first month instead)
+    // Add subscription metadata with 7-day trial
     if (mode === 'subscription') {
       sessionConfig.subscription_data = {
+        trial_period_days: trialDays,
         metadata: {
           account_id: accountId,
           extra_channels: extraChannels.toString(),
@@ -232,9 +196,6 @@ class StripeService {
       });
     }
 
-    // Get or create launch coupon for 70% OFF first month
-    const couponId = await this.getOrCreateLaunchCoupon();
-
     const sessionConfig = {
       // NO customer - Stripe will automatically create one for subscription mode
       payment_method_types: ['card'],
@@ -244,8 +205,6 @@ class StripeService {
       cancel_url: cancelUrl,
       // Note: customer_creation is only for payment mode
       // For subscription mode, Stripe auto-creates customer when not provided
-      // Apply 70% OFF launch coupon
-      discounts: [{ coupon: couponId }],
       // Collect phone number (required)
       phone_number_collection: {
         enabled: true
@@ -261,6 +220,7 @@ class StripeService {
         ...metadata
       },
       subscription_data: {
+        trial_period_days: TRIAL_CONFIG.days,
         metadata: {
           is_guest: 'true',
           extra_channels: extraChannels.toString(),
@@ -646,6 +606,97 @@ class StripeService {
       expiring: result.rows.filter(pkg => !pkg.never_expires).reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
       permanent: result.rows.filter(pkg => pkg.never_expires).reduce((sum, pkg) => sum + pkg.remaining_credits, 0)
     };
+  }
+
+  /**
+   * Get customer's payment methods
+   */
+  async getCustomerPaymentMethods(customerId) {
+    try {
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: 'card'
+      });
+      return paymentMethods.data;
+    } catch (error) {
+      console.error('Error getting payment methods:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get customer's default payment method
+   */
+  async getDefaultPaymentMethod(customerId) {
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (customer.invoice_settings?.default_payment_method) {
+        return customer.invoice_settings.default_payment_method;
+      }
+      // Fallback: get first available payment method
+      const paymentMethods = await this.getCustomerPaymentMethods(customerId);
+      return paymentMethods.length > 0 ? paymentMethods[0].id : null;
+    } catch (error) {
+      console.error('Error getting default payment method:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Create subscription using existing payment method (for resubscription)
+   * This allows users who canceled to resubscribe without entering card again
+   */
+  async createSubscriptionWithPaymentMethod(options) {
+    const {
+      customerId,
+      paymentMethodId,
+      priceId,
+      extraChannels = 0,
+      extraUsers = 0,
+      metadata = {}
+    } = options;
+
+    // Build items array
+    const items = [{ price: priceId }];
+
+    // Add extra channels if requested
+    if (extraChannels > 0 && ADDONS.channel.priceId) {
+      items.push({
+        price: ADDONS.channel.priceId,
+        quantity: extraChannels
+      });
+    }
+
+    // Add extra users if requested
+    if (extraUsers > 0 && ADDONS.user.priceId) {
+      items.push({
+        price: ADDONS.user.priceId,
+        quantity: extraUsers
+      });
+    }
+
+    // Set the payment method as default for the customer
+    await stripe.customers.update(customerId, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId
+      }
+    });
+
+    // Create the subscription
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items,
+      default_payment_method: paymentMethodId,
+      trial_period_days: TRIAL_CONFIG.days,
+      metadata: {
+        ...metadata,
+        extra_channels: extraChannels.toString(),
+        extra_users: extraUsers.toString()
+      },
+      expand: ['latest_invoice.payment_intent']
+    });
+
+    return subscription;
   }
 
   /**

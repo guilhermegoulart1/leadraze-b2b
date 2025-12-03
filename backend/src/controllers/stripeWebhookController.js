@@ -9,7 +9,7 @@ const subscriptionService = require('../services/subscriptionService');
 const billingService = require('../services/billingService');
 const emailService = require('../services/emailService');
 const affiliateService = require('../services/affiliateService');
-const { CREDIT_PACKAGES, getPlanByPriceId } = require('../config/stripe');
+const { CREDIT_PACKAGES, getPlanByPriceId, TRIAL_LIMITS } = require('../config/stripe');
 const db = require('../config/database');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -351,6 +351,34 @@ async function handleSubscriptionUpdated(subscription) {
 
   // Sync subscription to database
   const localSubscription = await subscriptionService.syncFromStripe(subscription, accountId);
+
+  // If trial is starting, add one-time trial credits
+  if (subscription.status === 'trialing') {
+    // Check if we already gave trial credits to this account (using 'bonus' as source)
+    const existingTrialCredits = await db.query(
+      `SELECT id FROM credit_packages
+       WHERE account_id = $1 AND source = 'bonus' AND credit_type = 'gmaps' AND initial_credits = $2`,
+      [accountId, TRIAL_LIMITS.trialGmapsCredits]
+    );
+
+    if (existingTrialCredits.rows.length === 0) {
+      // Calculate trial end date (7 days from now or from subscription.trial_end)
+      const trialEndDate = subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      // Add trial credits (20 gmaps credits, expire at trial end, using 'bonus' as allowed source)
+      await db.query(
+        `INSERT INTO credit_packages (
+          account_id, credit_type, initial_credits, remaining_credits,
+          expires_at, never_expires, source, status
+        ) VALUES ($1, $2, $3, $3, $4, false, 'bonus', 'active')`,
+        [accountId, 'gmaps', TRIAL_LIMITS.trialGmapsCredits, trialEndDate]
+      );
+
+      console.log(`Added ${TRIAL_LIMITS.trialGmapsCredits} trial credits to account ${accountId}`);
+    }
+  }
 
   // If this is a new subscription or status changed to active, add monthly credits
   if (subscription.status === 'active') {

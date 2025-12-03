@@ -2,6 +2,7 @@
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { NotFoundError, ValidationError, UnauthorizedError } = require('../utils/errors');
+const roundRobinService = require('../services/roundRobinService');
 
 // Get all sectors for the account
 const getSectors = async (req, res) => {
@@ -12,10 +13,12 @@ const getSectors = async (req, res) => {
       `SELECT
         s.*,
         COUNT(DISTINCT us.user_id) as user_count,
-        COUNT(DISTINCT ss.supervisor_id) as supervisor_count
+        COUNT(DISTINCT ss.supervisor_id) as supervisor_count,
+        COUNT(DISTINCT su.user_id) as round_robin_user_count
       FROM sectors s
       LEFT JOIN user_sectors us ON us.sector_id = s.id
       LEFT JOIN supervisor_sectors ss ON ss.sector_id = s.id
+      LEFT JOIN sector_users su ON su.sector_id = s.id AND su.is_active = true
       WHERE s.account_id = $1
       GROUP BY s.id
       ORDER BY s.created_at DESC`,
@@ -484,6 +487,162 @@ const getSectorUsers = async (req, res) => {
   }
 };
 
+// ================================
+// ROUND-ROBIN MANAGEMENT
+// ================================
+
+/**
+ * Toggle round-robin for a sector
+ * PATCH /api/sectors/:id/round-robin
+ */
+const toggleSectorRoundRobin = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+    const { enabled } = req.body;
+
+    if (enabled === undefined) {
+      throw new ValidationError('Campo "enabled" é obrigatório');
+    }
+
+    const updated = await roundRobinService.toggleRoundRobin(id, accountId, enabled);
+
+    if (!updated) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    sendSuccess(res, updated, `Round-robin ${enabled ? 'ativado' : 'desativado'} com sucesso`);
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * Get users configured for round-robin in a sector
+ * GET /api/sectors/:id/round-robin-users
+ */
+const getSectorRoundRobinUsers = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+
+    // Verify sector belongs to account
+    const sectorCheck = await db.query(
+      'SELECT * FROM sectors WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+
+    if (sectorCheck.rows.length === 0) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    const users = await roundRobinService.getSectorUsers(id);
+
+    sendSuccess(res, { users, sector: sectorCheck.rows[0] });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * Add user to round-robin rotation
+ * POST /api/sectors/:id/round-robin-users
+ */
+const addUserToRoundRobin = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      throw new ValidationError('user_id é obrigatório');
+    }
+
+    // Verify sector belongs to account
+    const sectorCheck = await db.query(
+      'SELECT * FROM sectors WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+
+    if (sectorCheck.rows.length === 0) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    // Verify user belongs to account
+    const userCheck = await db.query(
+      'SELECT id, name, email, avatar_url FROM users WHERE id = $1 AND account_id = $2 AND is_active = true',
+      [user_id, accountId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      throw new NotFoundError('Usuário não encontrado ou inativo');
+    }
+
+    const result = await roundRobinService.addUserToSector(id, user_id);
+
+    sendSuccess(res, {
+      ...result,
+      user: userCheck.rows[0]
+    }, 'Usuário adicionado ao round-robin');
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * Remove user from round-robin rotation
+ * DELETE /api/sectors/:id/round-robin-users/:userId
+ */
+const removeUserFromRoundRobin = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id, userId } = req.params;
+
+    // Verify sector belongs to account
+    const sectorCheck = await db.query(
+      'SELECT * FROM sectors WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+
+    if (sectorCheck.rows.length === 0) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    await roundRobinService.removeUserFromSector(id, userId);
+
+    sendSuccess(res, null, 'Usuário removido do round-robin');
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/**
+ * Get assignment statistics for a sector
+ * GET /api/sectors/:id/assignment-stats
+ */
+const getSectorAssignmentStats = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+
+    // Verify sector belongs to account
+    const sectorCheck = await db.query(
+      'SELECT * FROM sectors WHERE id = $1 AND account_id = $2',
+      [id, accountId]
+    );
+
+    if (sectorCheck.rows.length === 0) {
+      throw new NotFoundError('Setor não encontrado');
+    }
+
+    const stats = await roundRobinService.getSectorAssignmentStats(id, accountId);
+
+    sendSuccess(res, { stats, sector: sectorCheck.rows[0] });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getSectors,
   getSector,
@@ -496,5 +655,11 @@ module.exports = {
   removeSupervisorFromSector,
   getUserSectors,
   getSupervisorSectors,
-  getSectorUsers
+  getSectorUsers,
+  // Round-robin management
+  toggleSectorRoundRobin,
+  getSectorRoundRobinUsers,
+  addUserToRoundRobin,
+  removeUserFromRoundRobin,
+  getSectorAssignmentStats
 };

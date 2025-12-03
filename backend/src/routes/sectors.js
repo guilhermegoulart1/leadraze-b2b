@@ -84,4 +84,38 @@ router.get('/supervisors/:supervisorId/sectors',
   sectorController.getSupervisorSectors
 );
 
+// ================================
+// ROUND-ROBIN MANAGEMENT
+// ================================
+
+// Toggle round-robin for a sector
+router.patch('/:id/round-robin',
+  checkPermission('sectors:edit'),
+  sectorController.toggleSectorRoundRobin
+);
+
+// Get users configured for round-robin
+router.get('/:id/round-robin-users',
+  checkPermission('sectors:view'),
+  sectorController.getSectorRoundRobinUsers
+);
+
+// Add user to round-robin rotation
+router.post('/:id/round-robin-users',
+  checkPermission('sectors:edit'),
+  sectorController.addUserToRoundRobin
+);
+
+// Remove user from round-robin rotation
+router.delete('/:id/round-robin-users/:userId',
+  checkPermission('sectors:edit'),
+  sectorController.removeUserFromRoundRobin
+);
+
+// Get assignment statistics for a sector
+router.get('/:id/assignment-stats',
+  checkPermission('sectors:view'),
+  sectorController.getSectorAssignmentStats
+);
+
 module.exports = router;

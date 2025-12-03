@@ -1,18 +1,36 @@
 /**
+ * @deprecated This service is DEPRECATED as of 2024-12.
+ *
+ * Please use the centralized roundRobinService instead:
+ * - roundRobinService.autoAssignLeadOnCreation() for all lead sources
+ *
+ * The centralized service provides:
+ * - Unified round-robin based on SECTORS (not agents)
+ * - Fallback to campaign's default_responsible_user_id
+ * - Support for all lead sources: Google Maps, LinkedIn, External API, Manual
+ *
+ * This file is kept for backwards compatibility but will be removed in a future version.
+ *
+ * ========================================================================
+ * ORIGINAL DESCRIPTION (DEPRECATED):
  * Google Maps Rotation Service
  *
  * Manages the round-robin rotation system for Google Maps agent assignees.
  * Distributes leads to users in a fixed order, cycling through all assignees.
+ * ========================================================================
  */
 
 const db = require('../config/database');
 
 /**
+ * @deprecated Use roundRobinService.getNextUser(sectorId, accountId) instead
+ *
  * Get the next assignee for an agent using round-robin rotation
  * @param {string} agentId - The agent ID
  * @returns {Promise<{userId: string, userName: string, userEmail: string} | null>}
  */
 async function getNextAssignee(agentId) {
+  console.warn('[DEPRECATED] googleMapsRotationService.getNextAssignee() is deprecated. Use roundRobinService.getNextUser() instead.');
   try {
     // 1. Get all active assignees ordered by rotation_order
     const assigneesResult = await db.query(`
@@ -198,6 +216,8 @@ async function logAssignment({
 }
 
 /**
+ * @deprecated Use roundRobinService.autoAssignLeadOnCreation() instead
+ *
  * Assign lead to next user and log the assignment
  * @param {Object} params
  * @returns {Promise<{userId: string, userName: string, userEmail: string, rotationPosition: number, totalAssignees: number} | null>}

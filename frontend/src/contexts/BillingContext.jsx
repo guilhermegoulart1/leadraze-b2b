@@ -27,6 +27,7 @@ export const BillingProvider = ({ children }) => {
   const [addons, setAddons] = useState({ recurring: [], credits: [] });
   const [usage, setUsage] = useState(null);
   const [credits, setCredits] = useState(null);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -91,6 +92,20 @@ export const BillingProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
+  // Fetch payment methods
+  const fetchPaymentMethods = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await api.getPaymentMethods();
+      if (response.success) {
+        setPaymentMethods(response.data.paymentMethods || []);
+      }
+    } catch (err) {
+      console.error('Error fetching payment methods:', err);
+    }
+  }, [isAuthenticated]);
+
   // Load all billing data
   const loadBillingData = useCallback(async () => {
     setLoading(true);
@@ -98,10 +113,11 @@ export const BillingProvider = ({ children }) => {
       fetchSubscription(),
       fetchPlans(),
       fetchUsage(),
-      fetchCredits()
+      fetchCredits(),
+      fetchPaymentMethods()
     ]);
     setLoading(false);
-  }, [fetchSubscription, fetchPlans, fetchUsage, fetchCredits]);
+  }, [fetchSubscription, fetchPlans, fetchUsage, fetchCredits, fetchPaymentMethods]);
 
   // Initial load
   useEffect(() => {
@@ -144,9 +160,15 @@ export const BillingProvider = ({ children }) => {
   }, [subscription]);
 
   // Create checkout session
-  const createCheckout = async (planId, currency = 'brl') => {
+  const createCheckout = async (planId, currency = 'brl', options = {}) => {
     try {
-      const response = await api.createCheckoutSession({ planId, currency });
+      const { extraChannels = 0, extraUsers = 0 } = options;
+      const response = await api.createCheckoutSession({
+        planId,
+        currency,
+        extraChannels,
+        extraUsers
+      });
       if (response.success && response.data.url) {
         window.location.href = response.data.url;
       }
@@ -241,6 +263,21 @@ export const BillingProvider = ({ children }) => {
     }
   };
 
+  // Resubscribe using existing payment method
+  const resubscribeWithPaymentMethod = async (options = {}) => {
+    try {
+      const response = await api.resubscribeWithPaymentMethod(options);
+      if (response.success) {
+        // Refresh billing data to get new subscription
+        await loadBillingData();
+      }
+      return response;
+    } catch (err) {
+      console.error('Error resubscribing:', err);
+      throw err;
+    }
+  };
+
   // Check if can perform action based on limits
   const canAddUser = useCallback(() => {
     if (!usage || !subscription?.limits) return false;
@@ -256,6 +293,22 @@ export const BillingProvider = ({ children }) => {
     if (!credits) return false;
     return credits.available >= amount;
   }, [credits]);
+
+  // Trial helpers
+  const isTrial = useCallback(() => {
+    return subscription?.status === 'trialing' || subscription?.isTrial === true;
+  }, [subscription]);
+
+  const getTrialDaysRemaining = useCallback(() => {
+    if (!isTrial()) return null;
+    return subscription?.trialDaysRemaining || subscription?.daysUntilTrialEnd || 0;
+  }, [subscription, isTrial]);
+
+  const isTrialFeatureBlocked = useCallback((feature) => {
+    if (!isTrial()) return false;
+    const blockedFeatures = ['api_keys', 'activation_campaigns', 'channels'];
+    return blockedFeatures.includes(feature);
+  }, [isTrial]);
 
   // Get block message
   const getBlockMessage = useCallback(() => {
@@ -327,6 +380,8 @@ export const BillingProvider = ({ children }) => {
     addons,
     usage,
     credits,
+    paymentMethods,
+    hasPaymentMethod: paymentMethods.length > 0,
     loading,
     error,
 
@@ -342,12 +397,18 @@ export const BillingProvider = ({ children }) => {
     canAddChannel,
     hasCredits,
 
+    // Trial helpers
+    isTrial: isTrial(),
+    trialDaysRemaining: getTrialDaysRemaining(),
+    isTrialFeatureBlocked,
+
     // Actions
     createCheckout,
     purchaseCredits,
     openPortal,
     cancelSubscription,
     reactivateSubscription,
+    resubscribeWithPaymentMethod,
     addExtraChannel,
     addExtraUser,
     refresh,
@@ -356,6 +417,7 @@ export const BillingProvider = ({ children }) => {
     fetchSubscription,
     fetchUsage,
     fetchCredits,
+    fetchPaymentMethods,
   };
 
   return (

@@ -8,6 +8,8 @@ const {
 } = require('../utils/errors');
 const { LEAD_STATUS } = require('../utils/helpers');
 const { getAccessibleSectorIds } = require('../middleware/permissions');
+const roundRobinService = require('../services/roundRobinService');
+const checklistService = require('../services/checklistService');
 
 // ================================
 // HELPER: Build sector filter for lead queries
@@ -95,9 +97,26 @@ const getLeads = async (req, res) => {
           WHEN l.status = 'invite_sent' AND l.sent_at IS NOT NULL
           THEN EXTRACT(DAY FROM NOW() - l.sent_at)::INTEGER
           ELSE 0
-        END as days_since_invite
+        END as days_since_invite,
+        ru.id as responsible_id,
+        ru.name as responsible_name,
+        ru.email as responsible_email,
+        ru.avatar_url as responsible_avatar,
+        -- Contact details from contacts table
+        ct.phone,
+        ct.email,
+        COALESCE(l.title, ct.title) as title,
+        ct.about,
+        ct.experience,
+        ct.education,
+        ct.skills,
+        ct.websites,
+        ct.custom_fields as contact_custom_fields
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN users ru ON l.responsible_user_id = ru.id
+      LEFT JOIN contact_leads cl ON cl.lead_id = l.id
+      LEFT JOIN contacts ct ON ct.id = cl.contact_id
       WHERE ${whereClause}
       ORDER BY
         CASE l.status
@@ -118,9 +137,11 @@ const getLeads = async (req, res) => {
 
     // Contar total
     const countQuery = `
-      SELECT COUNT(*)
+      SELECT COUNT(DISTINCT l.id)
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN contact_leads cl ON cl.lead_id = l.id
+      LEFT JOIN contacts ct ON ct.id = cl.contact_id
       WHERE ${whereClause}
     `;
 
@@ -269,6 +290,19 @@ const createLead = async (req, res) => {
 
     const lead = await db.insert('leads', leadData);
 
+    // Manual lead creation: assign to the creating user (not round-robin)
+    // Salespeople do active prospecting, so manual leads belong to them
+    try {
+      await db.query(
+        `UPDATE leads SET responsible_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [userId, lead.id]
+      );
+      lead.responsible_user_id = userId;
+      console.log(`👤 Lead manual atribuído ao criador: ${req.user.name || userId}`);
+    } catch (assignError) {
+      console.log(`⚠️ Auto-atribuição ao criador falhou: ${assignError.message}`);
+    }
+
     // Atualizar contador da campanha
     await db.query(
       'UPDATE campaigns SET total_leads = total_leads + 1, leads_pending = leads_pending + 1 WHERE id = $1',
@@ -343,9 +377,10 @@ const createLeadsBulk = async (req, res) => {
         }
 
         // Criar lead (inherit sector_id from campaign)
+        const sectorId = campaign.rows[0].sector_id || null;
         const newLead = await db.insert('leads', {
           campaign_id,
-          sector_id: campaign.rows[0].sector_id || null,
+          sector_id: sectorId,
           linkedin_profile_id: leadData.linkedin_profile_id || `manual_${Date.now()}_${i}`,
           provider_id: leadData.provider_id || null,
           name: leadData.name,
@@ -358,6 +393,19 @@ const createLeadsBulk = async (req, res) => {
           status: LEAD_STATUS.LEADS,
           score: 0
         });
+
+        // Manual bulk import: assign to the creating user (not round-robin)
+        // User doing the import owns these leads
+        try {
+          await db.query(
+            `UPDATE leads SET responsible_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [userId, newLead.id]
+          );
+          newLead.responsible_user_id = userId;
+        } catch (assignError) {
+          // Don't fail the lead creation if assignment fails
+          console.log(`⚠️ Auto-atribuição ao criador falhou para lead ${newLead.id}: ${assignError.message}`);
+        }
 
         createdLeads.push(newLead);
 
@@ -428,9 +476,8 @@ const updateLead = async (req, res) => {
 
     const lead = leadCheck.rows[0];
 
-    if (lead.user_id !== userId) {
-      throw new ForbiddenError('Access denied to this lead');
-    }
+    // Se o lead foi encontrado pela query (que já inclui sectorFilter), o usuário tem acesso
+    // Não verificamos user_id porque nem todo lead vem de campanha
 
     // Preparar dados para atualização
     const updateData = {};
@@ -483,6 +530,24 @@ const updateLead = async (req, res) => {
     // Atualizar contadores da campanha se mudou o status
     if (status && status !== lead.status) {
       await updateCampaignCounters(lead.campaign_id, lead.status, status);
+
+      // Criar tarefas automáticas do checklist da nova etapa
+      try {
+        const taskResult = await checklistService.onLeadStageChange({
+          leadId: id,
+          oldStage: lead.status,
+          newStage: status,
+          accountId: lead.account_id || accountId,
+          userId
+        });
+
+        if (taskResult.created > 0) {
+          console.log(`📋 ${taskResult.created} tarefas criadas do template "${taskResult.templateName}"`);
+        }
+      } catch (taskError) {
+        // Don't fail the lead update if task creation fails
+        console.error(`⚠️ Erro ao criar tarefas do checklist: ${taskError.message}`);
+      }
     }
 
     console.log(`✅ Lead atualizado`);
@@ -676,9 +741,176 @@ function getCounterField(status) {
     'qualified': 'leads_qualified',
     'discarded': 'leads_discarded'
   };
-  
+
   return mapping[status] || null;
 }
+
+// ================================
+// 8. ATRIBUIR RESPONSÁVEL AO LEAD
+// ================================
+const assignLead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`👤 Atribuindo lead ${id} ao usuário ${user_id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
+    // Verificar se lead existe e pertence à conta
+    const leadCheck = await db.query(
+      `SELECT l.*, c.account_id as campaign_account_id
+       FROM leads l
+       LEFT JOIN campaigns c ON l.campaign_id = c.id
+       WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}`,
+      [id, accountId, ...sectorParams]
+    );
+
+    if (leadCheck.rows.length === 0) {
+      throw new NotFoundError('Lead not found');
+    }
+
+    const lead = leadCheck.rows[0];
+
+    // Se user_id for null, estamos removendo o responsável
+    if (user_id === null) {
+      await db.query(
+        `UPDATE leads SET responsible_user_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [id]
+      );
+
+      console.log(`✅ Responsável removido do lead`);
+
+      return sendSuccess(res, { id, responsible_user_id: null }, 'Responsible removed');
+    }
+
+    // Verificar se o usuário existe e pertence à mesma conta
+    const userCheck = await db.query(
+      `SELECT id, name, email, avatar_url FROM users WHERE id = $1 AND account_id = $2 AND is_active = true`,
+      [user_id, accountId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      throw new NotFoundError('User not found or not in this account');
+    }
+
+    const assignedUser = userCheck.rows[0];
+
+    // Atribuir o lead
+    await roundRobinService.assignLeadToUser(id, user_id, lead.sector_id, accountId);
+
+    console.log(`✅ Lead atribuído ao usuário ${assignedUser.name}`);
+
+    sendSuccess(res, {
+      id,
+      responsible_user_id: user_id,
+      responsible: {
+        id: assignedUser.id,
+        name: assignedUser.name,
+        email: assignedUser.email,
+        avatar_url: assignedUser.avatar_url
+      }
+    }, 'Lead assigned successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 9. ATRIBUIÇÃO AUTOMÁTICA (ROUND-ROBIN)
+// ================================
+const autoAssignLead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`🔄 Atribuição automática do lead ${id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
+    // Verificar se lead existe e pertence à conta
+    const leadCheck = await db.query(
+      `SELECT l.*, c.account_id as campaign_account_id
+       FROM leads l
+       LEFT JOIN campaigns c ON l.campaign_id = c.id
+       WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}`,
+      [id, accountId, ...sectorParams]
+    );
+
+    if (leadCheck.rows.length === 0) {
+      throw new NotFoundError('Lead not found');
+    }
+
+    const lead = leadCheck.rows[0];
+
+    if (!lead.sector_id) {
+      throw new ValidationError('Lead must be in a sector to use auto-assignment');
+    }
+
+    // Tentar atribuição automática
+    const assignedUser = await roundRobinService.autoAssignLead(id, lead.sector_id, accountId);
+
+    if (!assignedUser) {
+      throw new ValidationError('Round-robin not enabled for this sector or no users available');
+    }
+
+    console.log(`✅ Lead auto-atribuído ao usuário ${assignedUser.name}`);
+
+    sendSuccess(res, {
+      id,
+      responsible_user_id: assignedUser.user_id,
+      responsible: {
+        id: assignedUser.user_id,
+        name: assignedUser.name,
+        email: assignedUser.email,
+        avatar_url: assignedUser.avatar_url
+      }
+    }, 'Lead auto-assigned successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 10. LISTAR USUÁRIOS PARA ATRIBUIÇÃO
+// ================================
+const getAssignableUsers = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { sector_id } = req.query;
+
+    console.log(`👥 Listando usuários atribuíveis`);
+
+    let users;
+
+    if (sector_id) {
+      // Se setor especificado, listar usuários do setor
+      users = await roundRobinService.getSectorUsers(sector_id);
+    } else {
+      // Senão, listar todos os usuários ativos da conta
+      const result = await db.query(
+        `SELECT id, name, email, avatar_url
+         FROM users
+         WHERE account_id = $1 AND is_active = true
+         ORDER BY name`,
+        [accountId]
+      );
+      users = result.rows;
+    }
+
+    sendSuccess(res, { users });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
 
 module.exports = {
   getLeads,
@@ -687,5 +919,8 @@ module.exports = {
   createLeadsBulk,
   updateLead,
   deleteLead,
-  getCampaignLeads
+  getCampaignLeads,
+  assignLead,
+  autoAssignLead,
+  getAssignableUsers
 };

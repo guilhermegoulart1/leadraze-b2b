@@ -8,6 +8,7 @@ const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   // SSL is required for cloud databases (Supabase, Railway, etc.) even in development
+  // Note: rlwy.net proxy doesn't support SSL
   ssl: process.env.DB_HOST && (process.env.DB_HOST.includes('supabase.co') || process.env.DB_HOST.includes('railway.app'))
     ? { rejectUnauthorized: false }
     : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),

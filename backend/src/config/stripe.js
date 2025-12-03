@@ -165,6 +165,27 @@ const TRIAL_CONFIG = {
 };
 
 /**
+ * Trial limits and feature restrictions
+ * Trial users have limited access to premium features
+ */
+const TRIAL_LIMITS = {
+  maxChannels: 0,           // Cannot connect channels during trial
+  maxUsers: 2,              // Same as Base plan
+  trialGmapsCredits: 20,    // One-time 20 credits at trial start
+  monthlyGmapsCredits: 0,   // No monthly renewal during trial
+  monthlyAiCredits: 5000,   // Same as Base plan
+  features: {
+    canGenerateApiKey: false,
+    canRunActivationCampaigns: false,
+    canConnectChannels: false,
+    canCreateAgents: true,
+    canAccessCRM: true,
+    canUploadLists: true,
+    canUseTasks: true
+  }
+};
+
+/**
  * Webhook events we process
  */
 const WEBHOOK_EVENTS = [
@@ -269,6 +290,7 @@ module.exports = {
   ADDONS,
   CREDIT_PACKAGES,
   TRIAL_CONFIG,
+  TRIAL_LIMITS,
   WEBHOOK_EVENTS,
   getPlan,
   getPlanByPriceId,

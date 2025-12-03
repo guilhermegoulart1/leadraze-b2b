@@ -4,12 +4,19 @@ import { getTranslation } from '../i18n/translations';
 const currentLocale = Astro.currentLocale || 'en';
 const t = getTranslation(currentLocale);
 
+// Helper to get localized path
+const getLocalizedPath = (path: string) => {
+  if (currentLocale === 'en') return path;
+  return `/${currentLocale}${path}`;
+};
+
 const navItems = [
   { href: '#features', label: t.nav.features },
   { href: '#benefits', label: t.nav.benefits },
   { href: '#testimonials', label: t.nav.testimonials },
   { href: '#pricing', label: t.nav.pricing },
   { href: '#faq', label: t.nav.faq },
+  { href: getLocalizedPath('/partners'), label: t.nav.partners },
   { href: 'https://developer.getraze.co', label: t.nav.documentation, external: true },
 ];
 

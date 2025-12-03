@@ -5,7 +5,10 @@ const db = require('../config/database');
 const serpApiClient = require('../config/serpapi');
 const { googleMapsAgentQueue } = require('../queues');
 const stripeService = require('./stripeService');
-const googleMapsRotationService = require('./googleMapsRotationService');
+const billingService = require('./billingService');
+const roundRobinService = require('./roundRobinService');
+// DEPRECATED: googleMapsRotationService - now using centralized roundRobinService
+// const googleMapsRotationService = require('./googleMapsRotationService');
 
 class GoogleMapsAgentService {
   /**
@@ -239,17 +242,31 @@ class GoogleMapsAgentService {
     console.log(`   Current Page: ${agent.current_page || 0}`);
     console.log(`==============================\n`);
 
-    // Check if account has credits before executing
-    const hasCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
-    if (!hasCredits) {
-      console.log(`⚠️  Insufficient credits for account ${agent.account_id}. Skipping execution.`);
+    // Check if account has AI credits before executing
+    const hasAiCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
+    if (!hasAiCredits) {
+      console.log(`⚠️  Insufficient AI credits for account ${agent.account_id}. Skipping execution.`);
       return {
         success: false,
         leads_inserted: 0,
         leads_skipped: 0,
         status: 'paused',
-        message: 'Insufficient credits',
-        reason: 'insufficient_credits'
+        message: 'Insufficient AI credits',
+        reason: 'insufficient_ai_credits'
+      };
+    }
+
+    // Check if account has GMaps credits for the search
+    const hasGmapsCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
+    if (!hasGmapsCredits) {
+      console.log(`⚠️  Insufficient GMaps credits for account ${agent.account_id}. Skipping execution.`);
+      return {
+        success: false,
+        leads_inserted: 0,
+        leads_skipped: 0,
+        status: 'paused',
+        message: 'Insufficient GMaps credits',
+        reason: 'insufficient_gmaps_credits'
       };
     }
 
@@ -304,6 +321,25 @@ class GoogleMapsAgentService {
       location: location,
       start: start
     });
+
+    // Consume 1 GMaps credit for the search (charged per API call)
+    const gmapsConsumed = await billingService.consumeCredits(
+      agent.account_id,
+      'gmaps',
+      1,
+      {
+        resourceType: 'google_maps_agent',
+        resourceId: agent.id,
+        userId: agent.user_id,
+        description: `Google Maps search: "${searchQuery}" in ${location} (page ${currentPage})`
+      }
+    );
+
+    if (gmapsConsumed) {
+      console.log(`💳 Consumed 1 GMaps credit for search (page ${currentPage})`);
+    } else {
+      console.log(`⚠️  Failed to consume GMaps credit - continuing anyway`);
+    }
 
     console.log(`\n📊 === SERPAPI RESPONSE ===`);
     console.log(`   Success: ${searchResults.success}`);
@@ -626,25 +662,24 @@ class GoogleMapsAgentService {
         );
         creditsConsumed++;
 
-        // Auto-assign to next user in rotation (if configured)
+        // Auto-assign to user using centralized round-robin service
         try {
-          const assignment = await googleMapsRotationService.assignAndLog({
-            agentId: agent.id,
-            accountId: agent.account_id,
-            contactId: contact.id,
+          const assignment = await roundRobinService.autoAssignLeadOnCreation({
             leadId: contact.lead_id,
-            leadData: {
-              name: contactData.name,
-              company: contactData.company
-            }
+            sectorId: agent.sector_id,
+            accountId: agent.account_id,
+            campaignId: null, // Google Maps agents don't use campaigns
+            source: 'google_maps'
           });
 
-          if (assignment) {
-            console.log(`   👤 ASSIGNED: Lead assigned to ${assignment.userName} (position ${assignment.rotationPosition}/${assignment.totalAssignees})`);
+          if (assignment.assigned) {
+            console.log(`   👤 ASSIGNED: Lead assigned to ${assignment.user.name} (method: ${assignment.method})`);
+          } else {
+            console.log(`   ⚠️  ASSIGNMENT: ${assignment.reason || 'No assignment method available'}`);
           }
         } catch (rotationError) {
           // Don't fail the insertion if rotation fails
-          console.log(`   ⚠️  ROTATION: No assignees configured or error: ${rotationError.message}`);
+          console.log(`   ⚠️  ROTATION ERROR: ${rotationError.message}`);
         }
 
         inserted++;

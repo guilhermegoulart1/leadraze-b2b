@@ -33,7 +33,10 @@
       "Bash(cmd //c \"taskkill /F /PID 20668\")",
       "Bash(cmd //c \"taskkill /F /PID 54424\")",
       "Bash(cmd //c \"taskkill /F /PID 67536\")",
-      "Bash(cmd //c \"taskkill /F /IM node.exe\")"
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
+      "Bash(npm run add-task-type:*)",
+      "Bash(del \"c:\\leadraze-b2b\\backend\\src\\routes\\taskComments.js\")",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

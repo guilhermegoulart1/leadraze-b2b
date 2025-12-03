@@ -12,6 +12,8 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import OnboardingChecklist from './OnboardingChecklist';
 import CreditsIndicator from './CreditsIndicator';
+import TrialIndicator from './TrialIndicator';
+import CanceledOverlay from './CanceledOverlay';
 
 const Layout = () => {
   const location = useLocation();
@@ -441,8 +443,11 @@ const Layout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-14 bg-[#7229f7] border-b border-purple-800 flex items-center justify-end px-6">
-          {/* Credits Indicator + Notification Icons */}
+          {/* Trial Indicator + Credits Indicator + Notification Icons */}
           <div className="flex items-center space-x-3">
+            {/* Trial Indicator - shows days remaining for trial users */}
+            <TrialIndicator />
+
             {/* Credits Indicator */}
             <CreditsIndicator />
 
@@ -527,6 +532,9 @@ const Layout = () => {
 
       {/* Onboarding Checklist */}
       <OnboardingChecklist />
+
+      {/* Canceled Subscription Overlay - blocks access for canceled users */}
+      <CanceledOverlay />
     </div>
   );
 };

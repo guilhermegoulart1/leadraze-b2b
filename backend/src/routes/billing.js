@@ -117,6 +117,19 @@ router.post('/add-channel', billingController.addExtraChannel);
  */
 router.post('/add-user', billingController.addExtraUser);
 
+/**
+ * GET /api/billing/payment-methods
+ * Get saved payment methods for current user
+ */
+router.get('/payment-methods', billingController.getPaymentMethods);
+
+/**
+ * POST /api/billing/resubscribe
+ * Resubscribe using existing payment method (for canceled users)
+ * Body: { extraChannels?: number, extraUsers?: number, paymentMethodId?: string }
+ */
+router.post('/resubscribe', billingController.resubscribeWithPaymentMethod);
+
 // ============================================
 // AI Credits Routes
 // ============================================

@@ -5,7 +5,7 @@
  */
 
 const db = require('../config/database');
-const { PLANS, getPlan, getPlanByPriceId } = require('../config/stripe');
+const { PLANS, getPlan, getPlanByPriceId, TRIAL_LIMITS } = require('../config/stripe');
 const stripeService = require('./stripeService');
 const billingService = require('./billingService');
 
@@ -345,6 +345,15 @@ class SubscriptionService {
         break;
     }
 
+    // Determine if user is on trial
+    const isTrial = subscription.status === 'trialing';
+
+    // For trial users, override limits with trial limits
+    const effectiveLimits = isTrial ? {
+      ...limits,
+      maxChannels: TRIAL_LIMITS.maxChannels  // 0 for trial
+    } : limits;
+
     return {
       status: subscription.status,
       planType: subscription.plan_type,
@@ -356,9 +365,13 @@ class SubscriptionService {
       daysUntilDeletion,
       canEdit,
       blockLevel,
-      limits,
+      limits: effectiveLimits,
       usage,
-      message
+      message,
+      // Trial-specific fields
+      isTrial,
+      trialDaysRemaining: isTrial ? daysUntilTrialEnd : null,
+      trialFeatures: isTrial ? TRIAL_LIMITS.features : null
     };
   }
 }

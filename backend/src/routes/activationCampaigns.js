@@ -4,6 +4,7 @@ const router = express.Router();
 const activationCampaignController = require('../controllers/activationCampaignController');
 const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter, campaignLimiter } = require('../middleware/rateLimiter');
+const { requirePaidSubscription } = require('../middleware/billing');
 
 // ================================
 // TODAS AS ROTAS REQUEREM AUTH
@@ -32,16 +33,17 @@ router.delete('/:id', activationCampaignController.deleteActivationCampaign);
 
 // ================================
 // CONTROLE DE AUTOMAÇÃO
+// (Blocked for trial users)
 // ================================
 
-// Iniciar campanha
-router.post('/:id/start', activationCampaignController.startCampaign);
+// Iniciar campanha (blocked for trial users)
+router.post('/:id/start', requirePaidSubscription('activation_campaigns'), activationCampaignController.startCampaign);
 
 // Pausar campanha
 router.post('/:id/pause', activationCampaignController.pauseCampaign);
 
-// Retomar campanha pausada
-router.post('/:id/resume', activationCampaignController.resumeCampaign);
+// Retomar campanha pausada (blocked for trial users)
+router.post('/:id/resume', requirePaidSubscription('activation_campaigns'), activationCampaignController.resumeCampaign);
 
 // Parar campanha definitivamente
 router.post('/:id/stop', activationCampaignController.stopCampaign);

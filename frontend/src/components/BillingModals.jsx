@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useBilling } from '../contexts/BillingContext';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import PremiumFeatureModal from './PremiumFeatureModal';
 
 // Modal para avisar que atingiu o limite de usuarios
 export const UserLimitModal = ({ isOpen, onClose }) => {
@@ -273,8 +274,10 @@ export const useBillingModals = () => {
   const [channelLimitOpen, setChannelLimitOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [premiumFeatureOpen, setPremiumFeatureOpen] = useState(false);
   const [creditsRequired, setCreditsRequired] = useState(1);
   const [upgradeFeature, setUpgradeFeature] = useState(null);
+  const [premiumFeature, setPremiumFeature] = useState(null);
 
   const showUserLimitModal = () => setUserLimitOpen(true);
   const showChannelLimitModal = () => setChannelLimitOpen(true);
@@ -286,6 +289,10 @@ export const useBillingModals = () => {
     setUpgradeFeature(feature);
     setUpgradeOpen(true);
   };
+  const showPremiumFeatureModal = (feature) => {
+    setPremiumFeature(feature);
+    setPremiumFeatureOpen(true);
+  };
 
   const BillingModalsComponent = () => (
     <>
@@ -293,6 +300,7 @@ export const useBillingModals = () => {
       <ChannelLimitModal isOpen={channelLimitOpen} onClose={() => setChannelLimitOpen(false)} />
       <CreditsModal isOpen={creditsOpen} onClose={() => setCreditsOpen(false)} requiredCredits={creditsRequired} />
       <UpgradeModal isOpen={upgradeOpen} onClose={() => setUpgradeOpen(false)} feature={upgradeFeature} />
+      <PremiumFeatureModal isOpen={premiumFeatureOpen} onClose={() => setPremiumFeatureOpen(false)} feature={premiumFeature} />
     </>
   );
 
@@ -301,6 +309,7 @@ export const useBillingModals = () => {
     showChannelLimitModal,
     showCreditsModal,
     showUpgradeModal,
+    showPremiumFeatureModal,
     BillingModalsComponent
   };
 };

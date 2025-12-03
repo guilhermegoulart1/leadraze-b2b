@@ -1635,37 +1635,48 @@ class ApiService {
   }
 
   async createPortalSession() {
-    return this.request('/billing/portal-session', {
+    return this.request('/billing/create-portal-session', {
       method: 'POST',
     });
   }
 
   async cancelSubscription() {
-    return this.request('/billing/cancel-subscription', {
+    return this.request('/billing/cancel', {
       method: 'POST',
     });
   }
 
   async reactivateSubscription() {
-    return this.request('/billing/reactivate-subscription', {
+    return this.request('/billing/reactivate', {
       method: 'POST',
     });
   }
 
   async addExtraChannel() {
-    return this.request('/billing/add-extra-channel', {
+    return this.request('/billing/add-channel', {
       method: 'POST',
     });
   }
 
   async addExtraUser() {
-    return this.request('/billing/add-extra-user', {
+    return this.request('/billing/add-user', {
       method: 'POST',
     });
   }
 
   async getInvoices() {
     return this.request('/billing/invoices');
+  }
+
+  async getPaymentMethods() {
+    return this.request('/billing/payment-methods');
+  }
+
+  async resubscribeWithPaymentMethod(data = {}) {
+    return this.request('/billing/resubscribe', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // ================================

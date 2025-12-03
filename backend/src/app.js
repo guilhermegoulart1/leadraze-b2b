@@ -213,6 +213,13 @@ try {
 }
 
 try {
+  app.use('/api/partners', require('./routes/partners'));
+  console.log('✅ Partners routes loaded');
+} catch (error) {
+  console.error('❌ Error loading partners routes:', error.message);
+}
+
+try {
   app.use('/api/profiles', require('./routes/profiles'));
   console.log('✅ Profile routes loaded');
 } catch (error) {
@@ -388,6 +395,60 @@ try {
   console.log('✅ Releases routes loaded');
 } catch (error) {
   console.error('❌ Error loading releases routes:', error.message);
+}
+
+// ================================
+// API KEYS MANAGEMENT
+// ================================
+
+try {
+  app.use('/api/api-keys', require('./routes/apiKeys'));
+  console.log('✅ API Keys management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading API Keys routes:', error.message);
+}
+
+// ================================
+// TASKS & CHECKLIST TEMPLATES
+// ================================
+
+try {
+  app.use('/api/tasks', require('./routes/tasks'));
+  console.log('✅ Tasks routes loaded');
+} catch (error) {
+  console.error('❌ Error loading tasks routes:', error.message);
+}
+
+try {
+  app.use('/api/checklist-templates', require('./routes/checklistTemplates'));
+  console.log('✅ Checklist templates routes loaded');
+} catch (error) {
+  console.error('❌ Error loading checklist templates routes:', error.message);
+}
+
+try {
+  app.use('/api/checklists', require('./routes/checklists'));
+  console.log('✅ Checklists routes loaded');
+} catch (error) {
+  console.error('❌ Error loading checklists routes:', error.message);
+}
+
+try {
+  app.use('/api/checklist-items', require('./routes/checklistItems'));
+  console.log('✅ Checklist items routes loaded');
+} catch (error) {
+  console.error('❌ Error loading checklist items routes:', error.message);
+}
+
+// ================================
+// EXTERNAL API ROUTES (API Key Authentication)
+// ================================
+
+try {
+  app.use('/external/v1', require('./routes/external'));
+  console.log('✅ External API routes loaded');
+} catch (error) {
+  console.error('❌ Error loading external API routes:', error.message);
 }
 
 // ================================
