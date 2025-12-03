@@ -555,11 +555,22 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     }
   };
 
-  // Verificar se attachment pode ser baixado
+  // Verificar se attachment pode ser baixado via proxy do backend
   const canDownloadAttachment = (attachment) => {
-    return attachment.message_id &&
-           attachment.id &&
-           !String(attachment.id).startsWith('local-');
+    // Precisa ter todos os IDs necessários
+    if (!attachment.conversation_id || !attachment.message_id || !attachment.id) {
+      return false;
+    }
+    // IDs locais não podem ser baixados
+    if (String(attachment.id).startsWith('local-')) {
+      return false;
+    }
+    // IDs que contêm caracteres problemáticos para URL (como : ou /) não funcionam
+    const hasInvalidChars = /[/:?#]/.test(String(attachment.id));
+    if (hasInvalidChars) {
+      return false;
+    }
+    return true;
   };
 
   // Verificar se é uma imagem que pode ser exibida inline
