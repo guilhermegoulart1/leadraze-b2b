@@ -26,7 +26,8 @@ function getSocketUrl() {
   // 1. Tentar usar VITE_API_URL se disponível e válida
   const apiUrl = import.meta.env.VITE_API_URL;
   if (apiUrl && apiUrl.startsWith('http')) {
-    return apiUrl.replace('/api', '');
+    // Remover apenas /api do FINAL da URL (não do meio do domínio)
+    return apiUrl.replace(/\/api$/, '');
   }
 
   // 2. Em produção, derivar do hostname atual
