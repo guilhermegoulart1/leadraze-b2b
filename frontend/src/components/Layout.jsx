@@ -51,41 +51,20 @@ const Layout = () => {
   };
 
   const navItems = [
-    { path: '/', label: t('menu.dashboard'), icon: Home, section: null },
+    { path: '/', label: 'Dashboard', icon: Home, section: null },
 
-    // Agentes de IA (Unificado)
-    { section: t('sections.aiAgents') },
-    { path: '/agents', label: t('menu.allAgents'), icon: Bot },
-
-    // Google Maps
-    { section: t('sections.googleMaps') },
-    { path: '/google-maps-agents', label: t('menu.campaigns'), icon: MapPin },
-
-    // LinkedIn
-    { section: t('sections.linkedin') },
-    { path: '/search', label: t('menu.profileSearch'), icon: Search },
-    { path: '/campaigns', label: t('menu.campaigns'), icon: Award },
-    { path: '/my-connections', label: 'Minhas Conexoes', icon: Users },
-
-    // Ativação de Listas
-    { section: t('sections.activation') },
-    { path: '/activation-campaigns', label: t('menu.campaigns'), icon: Award },
-    { path: '/contact-lists', label: t('menu.contactLists'), icon: Users },
-
-    // Emails
-    { section: t('sections.emails', 'EMAILS') },
-    { path: '/email-settings', label: t('menu.settings', 'Configurações'), icon: Settings },
-
-    // CRM
-    { section: t('sections.crm') },
-    { path: '/leads', label: t('menu.pipeline'), icon: BarChart3 },
+    // TRABALHO
+    { section: 'TRABALHO' },
+    { path: '/leads', label: 'Pipeline', icon: BarChart3 },
     { path: '/tasks', label: 'Tarefas', icon: CheckSquare },
-    { path: '/conversations', label: t('menu.conversations'), icon: MessageCircle, badge: unreadMessages },
-    { path: '/contacts', label: t('menu.contacts'), icon: Users },
+    { path: '/conversations', label: 'Conversas', icon: MessageCircle, badge: unreadMessages },
+    { path: '/contacts', label: 'Contatos', icon: Users },
 
-    // Insights
-    { section: 'Insights' },
-    { path: '/insights', label: t('menu.insights'), icon: Lightbulb },
+    // CAMPANHAS
+    { section: 'CAMPANHAS' },
+    { path: '/campaigns', label: 'LinkedIn', icon: Linkedin },
+    { path: '/google-maps-agents', label: 'Google Maps', icon: MapPin },
+    { path: '/activation-campaigns', label: 'Listas', icon: Award },
   ];
 
   const handleLogout = () => {
@@ -161,6 +140,20 @@ const Layout = () => {
                 <div key={index} className="pt-4 pb-1.5 px-2">
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                     {item.section}
+                  </p>
+                </div>
+              );
+            }
+
+            // Subsection Header (visual divider within a section)
+            if (item.subsection) {
+              if (isCollapsed) {
+                return <div key={index} className="my-1" />;
+              }
+              return (
+                <div key={index} className="pt-2 pb-1 px-3">
+                  <p className="text-[9px] font-medium text-gray-400">
+                    {item.subsection}
                   </p>
                 </div>
               );
@@ -328,6 +321,30 @@ const Layout = () => {
                   >
                     <Link2 className="w-4 h-4 text-gray-400" />
                     <span>{t('userMenu.channels')}</span>
+                  </Link>
+                </div>
+
+                {/* Configurações */}
+                <div className="border-t border-gray-100 mx-3" />
+                <div className="py-1">
+                  <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Configurações
+                  </p>
+                  <Link
+                    to="/agents"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Bot className="w-4 h-4 text-gray-400" />
+                    <span>Agentes de IA</span>
+                  </Link>
+                  <Link
+                    to="/email-settings"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span>Config. Emails</span>
                   </Link>
                 </div>
 

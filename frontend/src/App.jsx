@@ -13,6 +13,8 @@ import SearchPage from './pages/SearchPage';
 import GoogleMapsSearchPage from './pages/GoogleMapsSearchPage';
 import GoogleMapsAgentsPage from './pages/GoogleMapsAgentsPage';
 import CampaignsPage from './pages/CampaignsPage';
+import LinkedInPage from './pages/LinkedInPage';
+import ListasPage from './pages/ListasPage';
 import LeadsPage from './pages/LeadsPage';
 import ContactsPage from './pages/ContactsPage';
 import ConversationsPage from './pages/ConversationsPage';
@@ -116,7 +118,7 @@ function AppRoutes() {
         <Route path="search" element={<SearchPage />} />
         <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
-        <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="campaigns" element={<LinkedInPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
@@ -128,7 +130,7 @@ function AppRoutes() {
         <Route path="permissions" element={<PermissionsPage />} />
         <Route path="sectors" element={<SectorsPage />} />
         <Route path="activation-agents" element={<ActivationAgentsPage />} />
-        <Route path="activation-campaigns" element={<ActivationCampaignsPage />} />
+        <Route path="activation-campaigns" element={<ListasPage />} />
         <Route path="my-connections" element={<MyConnectionsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
         <Route path="billing" element={<BillingPage />} />
