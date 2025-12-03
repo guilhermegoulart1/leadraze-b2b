@@ -436,9 +436,31 @@ const LeadsPage = () => {
               </div>
             )}
 
-            {/* Footer - Date */}
-            <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
-              {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+            {/* Footer - Date & Responsible */}
+            <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+              </span>
+              {lead.responsible_name && (
+                <div className="flex items-center gap-1.5" title={`Responsável: ${lead.responsible_name}`}>
+                  {lead.responsible_avatar ? (
+                    <img
+                      src={lead.responsible_avatar}
+                      alt={lead.responsible_name}
+                      className="w-5 h-5 rounded-full object-cover border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-[10px] font-medium text-blue-600">
+                        {lead.responsible_name?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-[10px] text-gray-500 font-medium truncate max-w-[60px]">
+                    {lead.responsible_name.split(' ')[0]}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -543,6 +565,7 @@ const LeadsPage = () => {
               <TableHeader field="email" label={t('table.contact')} />
               <TableHeader field="campaign_name" label={t('table.campaign')} />
               <TableHeader field="status" label={t('table.stage')} />
+              <TableHeader field="responsible_name" label="Responsável" />
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 {t('table.tags')}
               </th>
@@ -679,6 +702,30 @@ const LeadsPage = () => {
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-${stage.color}-100 text-${stage.color}-700`}>
                       {stage.label}
                     </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {lead.responsible_name ? (
+                      <div className="flex items-center gap-2">
+                        {lead.responsible_avatar ? (
+                          <img
+                            src={lead.responsible_avatar}
+                            alt={lead.responsible_name}
+                            className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                            <span className="text-xs font-medium text-blue-600">
+                              {lead.responsible_name?.charAt(0) || '?'}
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-sm text-gray-700 truncate max-w-[100px]">
+                          {lead.responsible_name}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Não atribuído</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex flex-wrap gap-1">
@@ -860,6 +907,19 @@ const LeadsPage = () => {
           onNavigateToConversation={(leadId, channel) => {
             setSelectedLead(null);
             navigate(`/conversations?lead=${leadId}&channel=${channel}`);
+          }}
+          onLeadUpdated={async () => {
+            // Reload leads list
+            const response = await api.getLeads({});
+            if (response.success) {
+              const newLeads = response.data.leads || [];
+              setLeads(newLeads);
+              // Also update selectedLead with fresh data
+              const updatedLead = newLeads.find(l => l.id === selectedLead.id);
+              if (updatedLead) {
+                setSelectedLead(updatedLead);
+              }
+            }
           }}
         />
       )}

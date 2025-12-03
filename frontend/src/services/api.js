@@ -263,6 +263,25 @@ class ApiService {
     });
   }
 
+  // Lead Assignment
+  async assignLead(leadId, userId) {
+    return this.request(`/leads/${leadId}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify({ user_id: userId }),
+    });
+  }
+
+  async autoAssignLead(leadId) {
+    return this.request(`/leads/${leadId}/auto-assign`, {
+      method: 'POST',
+    });
+  }
+
+  async getAssignableUsers(sectorId = null) {
+    const params = sectorId ? `?sector_id=${sectorId}` : '';
+    return this.request(`/leads/assignable-users${params}`);
+  }
+
   // ================================
   // CONVERSATIONS
   // ================================
@@ -1040,6 +1059,35 @@ class ApiService {
    */
   async getSectorUsers(sectorId) {
     return this.request(`/sectors/${sectorId}/users`);
+  }
+
+  // Round-Robin Management
+  async toggleSectorRoundRobin(sectorId, enabled) {
+    return this.request(`/sectors/${sectorId}/round-robin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    });
+  }
+
+  async getSectorRoundRobinUsers(sectorId) {
+    return this.request(`/sectors/${sectorId}/round-robin-users`);
+  }
+
+  async addUserToRoundRobin(sectorId, userId) {
+    return this.request(`/sectors/${sectorId}/round-robin-users`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    });
+  }
+
+  async removeUserFromRoundRobin(sectorId, userId) {
+    return this.request(`/sectors/${sectorId}/round-robin-users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSectorAssignmentStats(sectorId) {
+    return this.request(`/sectors/${sectorId}/assignment-stats`);
   }
 
   // ================================
@@ -1998,6 +2046,254 @@ class ApiService {
   async deleteRelease(id) {
     return this.request(`/releases/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  // ================================
+  // API KEYS
+  // ================================
+
+  async getApiKeys() {
+    return this.request('/api-keys');
+  }
+
+  async getApiKey(id) {
+    return this.request(`/api-keys/${id}`);
+  }
+
+  async createApiKey(data) {
+    return this.request('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateApiKey(id, data) {
+    return this.request(`/api-keys/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async revokeApiKey(id) {
+    return this.request(`/api-keys/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteApiKeyPermanent(id) {
+    return this.request(`/api-keys/${id}/permanent`, {
+      method: 'DELETE',
+    });
+  }
+
+  async regenerateApiKey(id) {
+    return this.request(`/api-keys/${id}/regenerate`, {
+      method: 'POST',
+    });
+  }
+
+  async getApiKeyUsage(id, days = 30) {
+    return this.request(`/api-keys/${id}/usage?days=${days}`);
+  }
+
+  async getAvailableApiKeyPermissions() {
+    return this.request('/api-keys/permissions');
+  }
+
+  // ================================
+  // TASKS
+  // ================================
+
+  async getTasks(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/tasks${query ? '?' + query : ''}`);
+  }
+
+  async getTask(id) {
+    return this.request(`/tasks/${id}`);
+  }
+
+  async createTask(data) {
+    return this.request('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTask(id, data) {
+    return this.request(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTask(id) {
+    return this.request(`/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async completeTask(id) {
+    return this.request(`/tasks/${id}/complete`, {
+      method: 'PATCH',
+    });
+  }
+
+  async updateTaskStatus(id, status) {
+    return this.request(`/tasks/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getTasksBoard(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/tasks/board${query ? '?' + query : ''}`);
+  }
+
+  async getTaskStats(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/tasks/stats${query ? '?' + query : ''}`);
+  }
+
+  async getLeadTasks(leadId) {
+    return this.request(`/leads/${leadId}/tasks`);
+  }
+
+  // Task Comments
+  async getTaskComments(taskId) {
+    return this.request(`/tasks/${taskId}/comments`);
+  }
+
+  async createTaskComment(taskId, data) {
+    return this.request(`/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTaskComment(taskId, commentId) {
+    return this.request(`/tasks/${taskId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ================================
+  // CHECKLIST TEMPLATES
+  // ================================
+
+  async getChecklistTemplates(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/checklist-templates${query ? '?' + query : ''}`);
+  }
+
+  async getChecklistTemplate(id) {
+    return this.request(`/checklist-templates/${id}`);
+  }
+
+  async getChecklistTemplateByStage(stage) {
+    return this.request(`/checklist-templates/by-stage/${stage}`);
+  }
+
+  async createChecklistTemplate(data) {
+    return this.request('/checklist-templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChecklistTemplate(id, data) {
+    return this.request(`/checklist-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChecklistTemplate(id) {
+    return this.request(`/checklist-templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addChecklistTemplateItem(templateId, data) {
+    return this.request(`/checklist-templates/${templateId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChecklistTemplateItem(templateId, itemId, data) {
+    return this.request(`/checklist-templates/${templateId}/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChecklistTemplateItem(templateId, itemId) {
+    return this.request(`/checklist-templates/${templateId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderChecklistTemplateItems(templateId, items) {
+    return this.request(`/checklist-templates/${templateId}/items/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ items }),
+    });
+  }
+
+  // ================================
+  // LEAD CHECKLISTS (ClickUp-style)
+  // ================================
+
+  async getLeadChecklists(leadId) {
+    return this.request(`/leads/${leadId}/checklists`);
+  }
+
+  async createLeadChecklist(leadId, data) {
+    return this.request(`/leads/${leadId}/checklists`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChecklist(checklistId, data) {
+    return this.request(`/checklists/${checklistId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChecklist(checklistId) {
+    return this.request(`/checklists/${checklistId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async createChecklistItem(checklistId, data) {
+    return this.request(`/checklists/${checklistId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChecklistItem(itemId, data) {
+    return this.request(`/checklist-items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChecklistItem(itemId) {
+    return this.request(`/checklist-items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleChecklistItem(itemId) {
+    return this.request(`/checklist-items/${itemId}/toggle`, {
+      method: 'PATCH',
     });
   }
 

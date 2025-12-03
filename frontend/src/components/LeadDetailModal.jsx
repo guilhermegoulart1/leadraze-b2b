@@ -30,15 +30,24 @@ import {
   MessageSquare,
   Target,
   Zap,
-  UserCircle
+  UserCircle,
+  RefreshCw,
+  UserPlus,
+  CheckSquare,
+  Plus,
+  Check,
+  Flag,
+  Loader
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import MentionTextarea from './MentionTextarea';
+import TaskModal from './TaskModal';
+import LeadChecklists from './LeadChecklists';
 
-const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
+const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated }) => {
   const { t } = useTranslation('leads');
-  const [activeTab, setActiveTab] = useState('details'); // details | contact | comments
+  const [activeTab, setActiveTab] = useState('details'); // details | contact | comments | tasks
   const [activeChannel, setActiveChannel] = useState(null);
   const [conversations, setConversations] = useState({});
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -47,9 +56,38 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
   const [commentMentions, setCommentMentions] = useState([]);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(lead?.status || 'leads');
   const messagesEndRef = useRef(null);
+
+  // Sync currentStatus when lead prop changes
+  useEffect(() => {
+    setCurrentStatus(lead?.status || 'leads');
+  }, [lead?.status]);
+
+  // Responsible assignment states
+  const [showResponsibleDropdown, setShowResponsibleDropdown] = useState(false);
+  const [assignableUsers, setAssignableUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [currentResponsible, setCurrentResponsible] = useState({
+    id: lead?.responsible_id || null,
+    name: lead?.responsible_name || null,
+    avatar: lead?.responsible_avatar || null
+  });
+  const [assigningUser, setAssigningUser] = useState(false);
+
+  // Sync currentResponsible when lead prop changes
+  useEffect(() => {
+    setCurrentResponsible({
+      id: lead?.responsible_id || null,
+      name: lead?.responsible_name || null,
+      avatar: lead?.responsible_avatar || null
+    });
+  }, [lead?.responsible_id, lead?.responsible_name, lead?.responsible_avatar]);
 
   // Pipeline stages
   const pipelineStages = {
@@ -96,8 +134,85 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
     if (lead) {
       loadConversations();
       loadComments();
+      loadTasks();
+      loadAssignableUsers();
     }
   }, [lead]);
+
+  const loadAssignableUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await api.getAssignableUsers(lead.sector_id);
+      if (response.success) {
+        setAssignableUsers(response.data.users || []);
+      }
+    } catch (error) {
+      console.error('Error loading assignable users:', error);
+      setAssignableUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleAssignResponsible = async (userId) => {
+    try {
+      setAssigningUser(true);
+      const response = await api.assignLead(lead.id, userId);
+      if (response.success) {
+        const responsible = response.data.responsible;
+        setCurrentResponsible({
+          id: responsible?.id || userId,
+          name: responsible?.name || null,
+          avatar: responsible?.avatar_url || null
+        });
+        setShowResponsibleDropdown(false);
+        // Notify parent to refresh
+        onLeadUpdated?.();
+      }
+    } catch (error) {
+      console.error('Error assigning responsible:', error);
+    } finally {
+      setAssigningUser(false);
+    }
+  };
+
+  const handleRemoveResponsible = async () => {
+    try {
+      setAssigningUser(true);
+      const response = await api.assignLead(lead.id, null);
+      if (response.success) {
+        setCurrentResponsible({ id: null, name: null, avatar: null });
+        setShowResponsibleDropdown(false);
+        onLeadUpdated?.();
+      }
+    } catch (error) {
+      console.error('Error removing responsible:', error);
+    } finally {
+      setAssigningUser(false);
+    }
+  };
+
+  const handleAutoAssign = async () => {
+    try {
+      setAssigningUser(true);
+      const response = await api.autoAssignLead(lead.id);
+      if (response.success) {
+        const responsible = response.data.responsible;
+        setCurrentResponsible({
+          id: responsible?.id,
+          name: responsible?.name,
+          avatar: responsible?.avatar_url
+        });
+        setShowResponsibleDropdown(false);
+        onLeadUpdated?.();
+      }
+    } catch (error) {
+      console.error('Error auto-assigning:', error);
+      alert('Erro ao atribuir automaticamente. Round-robin pode não estar ativo neste setor.');
+    } finally {
+      setAssigningUser(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -183,6 +298,97 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
     } finally {
       setLoadingComments(false);
     }
+  };
+
+  const loadTasks = async () => {
+    try {
+      setLoadingTasks(true);
+      const response = await api.getLeadTasks(lead.id);
+      if (response.success) {
+        setTasks(response.data.tasks || []);
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      setTasks([]);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleCompleteTask = async (taskId) => {
+    try {
+      const response = await api.completeTask(taskId);
+      if (response.success) {
+        setTasks(prev => prev.map(task =>
+          task.id === taskId
+            ? { ...task, status: 'completed', completedAt: new Date().toISOString() }
+            : task
+        ));
+      }
+    } catch (error) {
+      console.error('Error completing task:', error);
+    }
+  };
+
+  const handleCreateTask = () => {
+    setSelectedTask(null);
+    setShowTaskModal(true);
+  };
+
+  const handleEditTask = (task) => {
+    setSelectedTask(task);
+    setShowTaskModal(true);
+  };
+
+  const handleTaskSaved = () => {
+    loadTasks();
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'text-red-600 bg-red-50';
+      case 'high': return 'text-orange-600 bg-orange-50';
+      case 'medium': return 'text-amber-600 bg-amber-50';
+      case 'low': return 'text-green-600 bg-green-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getPriorityLabel = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'Urgente';
+      case 'high': return 'Alta';
+      case 'medium': return 'Média';
+      case 'low': return 'Baixa';
+      default: return priority;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'text-green-600 bg-green-50';
+      case 'in_progress': return 'text-blue-600 bg-blue-50';
+      case 'cancelled': return 'text-gray-400 bg-gray-50';
+      default: return 'text-amber-600 bg-amber-50';
+    }
+  };
+
+  const formatDueDate = (date) => {
+    if (!date) return null;
+    const dueDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (dueDate < today) {
+      return { label: 'Atrasada', color: 'text-red-600' };
+    } else if (dueDate.toDateString() === today.toDateString()) {
+      return { label: 'Hoje', color: 'text-amber-600' };
+    } else if (dueDate.toDateString() === tomorrow.toDateString()) {
+      return { label: 'Amanhã', color: 'text-blue-600' };
+    }
+    return { label: dueDate.toLocaleDateString('pt-BR'), color: 'text-gray-600' };
   };
 
   const handleSendMessage = async () => {
@@ -331,7 +537,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header - Purple gradient like the app */}
@@ -445,6 +651,21 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
                     </span>
                   )}
                 </button>
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    activeTab === 'tasks'
+                      ? 'border-purple-600 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Tarefas
+                  {tasks.length > 0 && (
+                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      {tasks.filter(t => t.status !== 'completed').length}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -497,9 +718,111 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
                       </div>
                       <div className="flex-1">
                         <p className="text-xs text-gray-500 mb-1">Responsável</p>
-                        <button className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600">
-                          <span>Atribuir</span>
-                        </button>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowResponsibleDropdown(!showResponsibleDropdown)}
+                            className="flex items-center gap-2 text-sm hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors"
+                            disabled={assigningUser}
+                          >
+                            {currentResponsible.name ? (
+                              <>
+                                {currentResponsible.avatar ? (
+                                  <img
+                                    src={currentResponsible.avatar}
+                                    alt={currentResponsible.name}
+                                    className="w-5 h-5 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <span className="text-[10px] font-medium text-blue-600">
+                                      {currentResponsible.name?.charAt(0)}
+                                    </span>
+                                  </div>
+                                )}
+                                <span className="text-gray-900">{currentResponsible.name}</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-400">Atribuir</span>
+                            )}
+                            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                          </button>
+
+                          {showResponsibleDropdown && (
+                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[220px] max-h-[300px] overflow-y-auto">
+                              {/* Auto-assign option */}
+                              <button
+                                onClick={handleAutoAssign}
+                                disabled={assigningUser}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-purple-50 text-purple-600"
+                              >
+                                <RefreshCw className={`w-4 h-4 ${assigningUser ? 'animate-spin' : ''}`} />
+                                Atribuir automaticamente
+                              </button>
+
+                              <div className="border-t border-gray-100 my-1" />
+
+                              {/* Remove assignment if has one */}
+                              {currentResponsible.id && (
+                                <>
+                                  <button
+                                    onClick={handleRemoveResponsible}
+                                    disabled={assigningUser}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 text-red-600"
+                                  >
+                                    <X className="w-4 h-4" />
+                                    Remover atribuição
+                                  </button>
+                                  <div className="border-t border-gray-100 my-1" />
+                                </>
+                              )}
+
+                              {/* Users list */}
+                              {loadingUsers ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600" />
+                                </div>
+                              ) : assignableUsers.length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                                  Nenhum usuário disponível
+                                </div>
+                              ) : (
+                                assignableUsers.map((user) => (
+                                  <button
+                                    key={user.id || user.user_id}
+                                    onClick={() => handleAssignResponsible(user.id || user.user_id)}
+                                    disabled={assigningUser}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
+                                      currentResponsible.id === (user.id || user.user_id) ? 'bg-blue-50' : ''
+                                    }`}
+                                  >
+                                    {user.avatar_url ? (
+                                      <img
+                                        src={user.avatar_url}
+                                        alt={user.name}
+                                        className="w-6 h-6 rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                                        <span className="text-xs font-medium text-gray-600">
+                                          {user.name?.charAt(0)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div className="flex-1 text-left">
+                                      <div className="font-medium text-gray-900">{user.name}</div>
+                                      {user.email && (
+                                        <div className="text-xs text-gray-400">{user.email}</div>
+                                      )}
+                                    </div>
+                                    {currentResponsible.id === (user.id || user.user_id) && (
+                                      <UserCheck className="w-4 h-4 text-blue-600" />
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -998,6 +1321,15 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
                   </div>
                 </div>
               )}
+
+              {activeTab === 'tasks' && (
+                <div className="flex flex-col h-full">
+                  {/* Checklists */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    <LeadChecklists leadId={lead?.id} sectorId={lead?.sector_id} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1143,6 +1475,19 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation }) => {
           </div>
         </div>
       </div>
+
+      {/* Task Modal */}
+      <TaskModal
+        isOpen={showTaskModal}
+        onClose={() => {
+          setShowTaskModal(false);
+          setSelectedTask(null);
+        }}
+        task={selectedTask}
+        leadId={lead?.id}
+        onSave={handleTaskSaved}
+        isNested={true}
+      />
     </div>
   );
 };

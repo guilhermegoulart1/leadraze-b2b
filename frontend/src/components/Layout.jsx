@@ -5,7 +5,7 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2, Gift
+  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -79,6 +79,7 @@ const Layout = () => {
     // CRM
     { section: t('sections.crm') },
     { path: '/leads', label: t('menu.pipeline'), icon: BarChart3 },
+    { path: '/tasks', label: 'Tarefas', icon: CheckSquare },
     { path: '/conversations', label: t('menu.conversations'), icon: MessageCircle, badge: unreadMessages },
     { path: '/contacts', label: t('menu.contacts'), icon: Users },
 
@@ -376,6 +377,26 @@ const Layout = () => {
                         >
                           <Globe className="w-4 h-4 text-gray-400" />
                           <span>{t('userMenu.websiteAgents', 'Website Agents')}</span>
+                        </Link>
+                      )}
+                      {isAdmin && (
+                        <Link
+                          to="/api-keys"
+                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Key className="w-4 h-4 text-gray-400" />
+                          <span>{t('userMenu.apiKeys', 'API Keys')}</span>
+                        </Link>
+                      )}
+                      {(isAdmin || isSupervisor) && (
+                        <Link
+                          to="/checklist-templates"
+                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <ListTodo className="w-4 h-4 text-gray-400" />
+                          <span>Checklists por Etapa</span>
                         </Link>
                       )}
                     </div>

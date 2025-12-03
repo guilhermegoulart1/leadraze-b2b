@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Edit2, Trash2, Users as UsersIcon, Shield, AlertCircle, Loader, X
+  Plus, Edit2, Trash2, Users as UsersIcon, Shield, AlertCircle, Loader, X, RefreshCw, UserPlus, UserMinus
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +18,14 @@ const SectorsPage = () => {
     color: '#6366f1'
   });
   const [formErrors, setFormErrors] = useState({});
+
+  // Round-robin states
+  const [togglingRoundRobin, setTogglingRoundRobin] = useState(null);
+  const [showRoundRobinModal, setShowRoundRobinModal] = useState(false);
+  const [roundRobinSector, setRoundRobinSector] = useState(null);
+  const [roundRobinUsers, setRoundRobinUsers] = useState([]);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [loadingRoundRobinUsers, setLoadingRoundRobinUsers] = useState(false);
 
   useEffect(() => {
     loadSectors();
@@ -124,6 +132,68 @@ const SectorsPage = () => {
     }
   };
 
+  // Toggle round-robin for a sector
+  const handleToggleRoundRobin = async (sector) => {
+    try {
+      setTogglingRoundRobin(sector.id);
+      const newValue = !sector.enable_round_robin;
+      await api.toggleSectorRoundRobin(sector.id, newValue);
+      await loadSectors();
+    } catch (error) {
+      console.error('Error toggling round-robin:', error);
+      setError('Erro ao alterar configuração de round-robin');
+    } finally {
+      setTogglingRoundRobin(null);
+    }
+  };
+
+  // Open round-robin users modal
+  const handleOpenRoundRobinModal = async (sector) => {
+    setRoundRobinSector(sector);
+    setShowRoundRobinModal(true);
+    setLoadingRoundRobinUsers(true);
+
+    try {
+      // Load users in round-robin
+      const rrResponse = await api.getSectorRoundRobinUsers(sector.id);
+      setRoundRobinUsers(rrResponse.data?.users || []);
+
+      // Load all sector users for adding
+      const usersResponse = await api.getSectorUsers(sector.id);
+      setAvailableUsers(usersResponse.data || []);
+    } catch (error) {
+      console.error('Error loading round-robin users:', error);
+    } finally {
+      setLoadingRoundRobinUsers(false);
+    }
+  };
+
+  // Add user to round-robin
+  const handleAddToRoundRobin = async (userId) => {
+    try {
+      await api.addUserToRoundRobin(roundRobinSector.id, userId);
+      // Refresh users
+      const rrResponse = await api.getSectorRoundRobinUsers(roundRobinSector.id);
+      setRoundRobinUsers(rrResponse.data?.users || []);
+      await loadSectors();
+    } catch (error) {
+      console.error('Error adding user to round-robin:', error);
+    }
+  };
+
+  // Remove user from round-robin
+  const handleRemoveFromRoundRobin = async (userId) => {
+    try {
+      await api.removeUserFromRoundRobin(roundRobinSector.id, userId);
+      // Refresh users
+      const rrResponse = await api.getSectorRoundRobinUsers(roundRobinSector.id);
+      setRoundRobinUsers(rrResponse.data?.users || []);
+      await loadSectors();
+    } catch (error) {
+      console.error('Error removing user from round-robin:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -197,6 +267,9 @@ const SectorsPage = () => {
                   Supervisores
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                  Round-Robin
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
@@ -254,6 +327,47 @@ const SectorsPage = () => {
                       <span className="text-xs font-medium">
                         {sector.supervisor_count || 0}
                       </span>
+                    </div>
+                  </td>
+
+                  {/* Round-Robin */}
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      {/* Toggle Switch */}
+                      <button
+                        onClick={() => handleToggleRoundRobin(sector)}
+                        disabled={togglingRoundRobin === sector.id}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          sector.enable_round_robin
+                            ? 'bg-green-500'
+                            : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            sector.enable_round_robin ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                        {togglingRoundRobin === sector.id && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Loader className="w-4 h-4 animate-spin text-white" />
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Users in round-robin */}
+                      {sector.enable_round_robin && (
+                        <button
+                          onClick={() => handleOpenRoundRobinModal(sector)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full border border-blue-200 hover:bg-blue-200 transition-colors"
+                          title="Gerenciar usuários do round-robin"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span className="text-xs font-medium">
+                            {sector.round_robin_user_count || 0}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </td>
 
@@ -393,6 +507,162 @@ const SectorsPage = () => {
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
               >
                 {selectedSector ? 'Salvar' : 'Criar Setor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Round-Robin Users Modal */}
+      {showRoundRobinModal && roundRobinSector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Usuários do Round-Robin
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Setor: {roundRobinSector.name}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRoundRobinModal(false);
+                  setRoundRobinSector(null);
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-auto p-6">
+              {loadingRoundRobinUsers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="w-6 h-6 animate-spin text-purple-600" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Current Round-Robin Users */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-green-600" />
+                      Usuários na rotação ({roundRobinUsers.length})
+                    </h3>
+
+                    {roundRobinUsers.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                        Nenhum usuário adicionado à rotação
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {roundRobinUsers.map((user) => (
+                          <div
+                            key={user.user_id || user.id}
+                            className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              {user.avatar_url ? (
+                                <img
+                                  src={user.avatar_url}
+                                  alt={user.name}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center">
+                                  <span className="text-xs font-medium text-green-700">
+                                    {user.name?.charAt(0)}
+                                  </span>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                                <p className="text-xs text-gray-500">{user.email}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveFromRoundRobin(user.user_id || user.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                              title="Remover da rotação"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Available Users */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <UsersIcon className="w-4 h-4 text-blue-600" />
+                      Usuários do setor
+                    </h3>
+
+                    {availableUsers.filter(u =>
+                      !roundRobinUsers.some(rr => (rr.user_id || rr.id) === u.id)
+                    ).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                        Todos os usuários já estão na rotação
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {availableUsers
+                          .filter(u => !roundRobinUsers.some(rr => (rr.user_id || rr.id) === u.id))
+                          .map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                            >
+                              <div className="flex items-center gap-3">
+                                {user.avatar_url ? (
+                                  <img
+                                    src={user.avatar_url}
+                                    alt={user.name}
+                                    className="w-8 h-8 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <span className="text-xs font-medium text-gray-600">
+                                      {user.name?.charAt(0)}
+                                    </span>
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                                  <p className="text-xs text-gray-500">{user.email}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleAddToRoundRobin(user.id)}
+                                className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                title="Adicionar à rotação"
+                              >
+                                <UserPlus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowRoundRobinModal(false);
+                  setRoundRobinSector(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+              >
+                Fechar
               </button>
             </div>
           </div>

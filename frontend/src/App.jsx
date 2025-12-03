@@ -37,6 +37,9 @@ import AffiliatePage from './pages/AffiliatePage';
 import ProfilePage from './pages/ProfilePage';
 import EmailSettingsPage from './pages/EmailSettingsPage';
 import WebsiteAgentsPage from './pages/WebsiteAgentsPage';
+import ApiKeysPage from './pages/ApiKeysPage';
+import TasksPage from './pages/TasksPage';
+import ChecklistTemplatesPage from './pages/ChecklistTemplatesPage';
 import NextPage from './pages/NextPage';
 
 // Layout
@@ -133,6 +136,9 @@ function AppRoutes() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="email-settings" element={<EmailSettingsPage />} />
         <Route path="website-agents" element={<WebsiteAgentsPage />} />
+        <Route path="api-keys" element={<ApiKeysPage />} />
+        <Route path="tasks" element={<TasksPage />} />
+        <Route path="checklist-templates" element={<ChecklistTemplatesPage />} />
       </Route>
 
       {/* GetRaze Next - Layout próprio, sem sidebar */}
