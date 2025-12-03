@@ -696,6 +696,9 @@ const downloadAttachment = async (req, res) => {
       res.setHeader('Content-Type', attachment.contentType || 'application/octet-stream');
       res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
       res.setHeader('Content-Length', attachment.data.length);
+      // Headers para permitir cross-origin (app.getraze.co -> api.getraze.co)
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
 
       // Enviar arquivo
       res.send(Buffer.from(attachment.data));
@@ -758,6 +761,9 @@ const getAttachmentInline = async (req, res) => {
       res.setHeader('Content-Disposition', 'inline');
       res.setHeader('Content-Length', attachment.data.length);
       res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache de 1 hora
+      // Headers para permitir cross-origin (app.getraze.co -> api.getraze.co)
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
 
       // Enviar arquivo
       res.send(Buffer.from(attachment.data));
