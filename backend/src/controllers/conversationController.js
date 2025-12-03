@@ -645,14 +645,13 @@ const downloadAttachment = async (req, res) => {
 
     console.log(`📥 Baixando attachment ${attachmentId} da mensagem ${messageId}`);
 
-    // Buscar conversa - suporta tanto conversas de campanha quanto de webhook
+    // Buscar conversa e unipile_account_id
     const convQuery = `
       SELECT
         conv.*,
-        COALESCE(conv.unipile_account_id, la.unipile_account_id) as resolved_unipile_account_id
+        la.unipile_account_id
       FROM conversations conv
       LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE conv.id = $1
         AND conv.account_id = $2
     `;
@@ -664,7 +663,7 @@ const downloadAttachment = async (req, res) => {
     }
 
     const conversation = convResult.rows[0];
-    const unipileAccountId = conversation.resolved_unipile_account_id;
+    const unipileAccountId = conversation.unipile_account_id;
 
     if (!unipileAccountId) {
       console.error('❌ Conversa sem unipile_account_id:', id);
@@ -720,15 +719,13 @@ const getAttachmentInline = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
 
-    // Buscar conversa - suporta tanto conversas de campanha quanto de webhook
-    // Para conversas de webhook (WhatsApp), o unipile_account_id está diretamente na conversa
+    // Buscar conversa e unipile_account_id
     const convQuery = `
       SELECT
         conv.*,
-        COALESCE(conv.unipile_account_id, la.unipile_account_id) as resolved_unipile_account_id
+        la.unipile_account_id
       FROM conversations conv
       LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE conv.id = $1
         AND conv.account_id = $2
     `;
@@ -740,7 +737,7 @@ const getAttachmentInline = async (req, res) => {
     }
 
     const conversation = convResult.rows[0];
-    const unipileAccountId = conversation.resolved_unipile_account_id;
+    const unipileAccountId = conversation.unipile_account_id;
 
     if (!unipileAccountId) {
       console.error('❌ Conversa sem unipile_account_id:', id);
