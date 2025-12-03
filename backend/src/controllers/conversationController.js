@@ -667,7 +667,10 @@ const downloadAttachment = async (req, res) => {
 
     if (!unipileAccountId) {
       console.error('❌ Conversa sem unipile_account_id:', id);
-      throw new NotFoundError('Conversation has no linked Unipile account');
+      console.error('   linkedin_account_id:', conversation.linkedin_account_id);
+      console.error('   channel:', conversation.channel);
+      // Retornar 404 silencioso para não poluir logs do frontend
+      return res.status(404).json({ error: 'Attachment not available', code: 'NO_UNIPILE_ACCOUNT' });
     }
 
     // Buscar attachment via Unipile
@@ -741,7 +744,10 @@ const getAttachmentInline = async (req, res) => {
 
     if (!unipileAccountId) {
       console.error('❌ Conversa sem unipile_account_id:', id);
-      throw new NotFoundError('Conversation has no linked Unipile account');
+      console.error('   linkedin_account_id:', conversation.linkedin_account_id);
+      console.error('   channel:', conversation.channel);
+      // Retornar 404 silencioso para não poluir logs do frontend
+      return res.status(404).json({ error: 'Attachment not available', code: 'NO_UNIPILE_ACCOUNT' });
     }
 
     // Buscar attachment via Unipile
