@@ -15,8 +15,11 @@ const app = express();
 // MIDDLEWARES
 // ================================
 
-// Security
-app.use(helmet());
+// Security - configurado para permitir recursos cross-origin
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false
+}));
 
 // CORS - allow frontend app and www site
 app.use(cors({

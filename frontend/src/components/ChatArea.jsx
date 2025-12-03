@@ -955,6 +955,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                       <img
                                         src={imageUrl}
                                         alt={att.name}
+                                        crossOrigin="anonymous"
                                         className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90"
                                         onClick={() => canDownload ? handleDownloadAttachment(att) : window.open(imageUrl, '_blank')}
                                         onError={(e) => {
