@@ -645,31 +645,36 @@ const downloadAttachment = async (req, res) => {
 
     console.log(`📥 Baixando attachment ${attachmentId} da mensagem ${messageId}`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
-
-    // Verificar se conversa pertence ao usuário
+    // Buscar conversa - suporta tanto conversas de campanha quanto de webhook
     const convQuery = `
-      SELECT conv.*, la.unipile_account_id
+      SELECT
+        conv.*,
+        COALESCE(conv.unipile_account_id, la.unipile_account_id) as resolved_unipile_account_id
       FROM conversations conv
-      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1
+        AND conv.account_id = $2
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
-    const convResult = await db.query(convQuery, queryParams);
+    const convResult = await db.query(convQuery, [id, accountId]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
     const conversation = convResult.rows[0];
+    const unipileAccountId = conversation.resolved_unipile_account_id;
+
+    if (!unipileAccountId) {
+      console.error('❌ Conversa sem unipile_account_id:', id);
+      throw new NotFoundError('Conversation has no linked Unipile account');
+    }
 
     // Buscar attachment via Unipile
     try {
       const attachment = await unipileClient.messaging.getAttachment({
-        account_id: conversation.unipile_account_id,
+        account_id: unipileAccountId,
         message_id: messageId,
         attachment_id: attachmentId
       });
@@ -715,31 +720,37 @@ const getAttachmentInline = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
-
-    // Verificar se conversa pertence ao usuário
+    // Buscar conversa - suporta tanto conversas de campanha quanto de webhook
+    // Para conversas de webhook (WhatsApp), o unipile_account_id está diretamente na conversa
     const convQuery = `
-      SELECT conv.*, la.unipile_account_id
+      SELECT
+        conv.*,
+        COALESCE(conv.unipile_account_id, la.unipile_account_id) as resolved_unipile_account_id
       FROM conversations conv
-      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
+      WHERE conv.id = $1
+        AND conv.account_id = $2
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
-    const convResult = await db.query(convQuery, queryParams);
+    const convResult = await db.query(convQuery, [id, accountId]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversation not found');
     }
 
     const conversation = convResult.rows[0];
+    const unipileAccountId = conversation.resolved_unipile_account_id;
+
+    if (!unipileAccountId) {
+      console.error('❌ Conversa sem unipile_account_id:', id);
+      throw new NotFoundError('Conversation has no linked Unipile account');
+    }
 
     // Buscar attachment via Unipile
     try {
       const attachment = await unipileClient.messaging.getAttachment({
-        account_id: conversation.unipile_account_id,
+        account_id: unipileAccountId,
         message_id: messageId,
         attachment_id: attachmentId
       });
