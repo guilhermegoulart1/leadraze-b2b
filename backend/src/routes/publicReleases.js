@@ -17,12 +17,12 @@ const allowedOrigins = [
 
 // Manual CORS middleware for this route
 router.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
+  // Temporarily allow all origins to debug
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  console.log('📡 Public releases CORS - Origin:', req.headers.origin, 'Method:', req.method);
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
