@@ -182,20 +182,7 @@ try {
 }
 
 // Public releases for developer docs (no auth required)
-const releasesCorsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    process.env.WWW_URL || 'http://localhost:4321',
-    'https://getraze.co',
-    'https://www.getraze.co',
-    'https://developer.getraze.co'
-  ],
-  methods: ['GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-};
-app.options('/api/public/releases', cors(releasesCorsOptions)); // Preflight
-app.use('/api/public/releases', cors(releasesCorsOptions));
-
+// CORS is handled directly in the route file
 try {
   app.use('/api/public/releases', require('./routes/publicReleases'));
   console.log('✅ Public releases routes loaded (no auth)');

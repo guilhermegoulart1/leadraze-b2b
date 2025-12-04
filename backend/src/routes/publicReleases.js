@@ -6,6 +6,30 @@ const router = express.Router();
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 
+// Allowed origins for CORS
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4321',
+  'https://getraze.co',
+  'https://www.getraze.co',
+  'https://developer.getraze.co'
+];
+
+// Manual CORS middleware for this route
+router.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // GET /api/public/releases - List all releases (public)
 router.get('/', async (req, res) => {
   try {
