@@ -23,17 +23,19 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+  const [capturedEmail, setCapturedEmail] = useState<string | null>(null);
 
-  // Capture affiliate code from URL on mount
+  // Capture affiliate code and email from URL/localStorage on mount
   useEffect(() => {
     // Check URL for ref parameter
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
 
-    // Clear affiliate code after successful checkout
+    // Clear affiliate code and email after successful checkout
     const checkoutSuccess = urlParams.get('checkout');
     if (checkoutSuccess === 'success') {
       localStorage.removeItem('affiliate_ref');
+      localStorage.removeItem('captured_lead_email');
       return;
     }
 
@@ -61,6 +63,12 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
         setAffiliateCode(storedCode);
       }
     }
+
+    // Check for captured email from HeroEmailCapture
+    const storedEmail = localStorage.getItem('captured_lead_email');
+    if (storedEmail) {
+      setCapturedEmail(storedEmail);
+    }
   }, []);
 
   // Calculate price
@@ -86,18 +94,19 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
       firstMonth: 'first month',
       then: 'then',
       perMonth: '/mo',
-      cta: 'Subscribe Now',
+      cta: 'Start Free 7-Day Trial',
       processing: 'Processing...',
       error: 'Something went wrong. Please try again.',
       yourPlan: 'Your plan',
-      promoOffer: '60% OFF Launch Promotion',
-      promoDescription: 'Get 60% off your first month using code 60OFF at checkout',
-      promoCode: '60OFF',
+      promoOffer: '7-Day Free Trial',
+      promoDescription: 'Try GetRaze free for 7 days. Then $45/mo for the base plan.',
+      promoCode: 'FREE TRIAL',
       included: 'included',
       monthlyPayment: 'monthly payment',
-      totalPrice: 'Total price',
+      totalPrice: 'After trial',
       secureCheckout: 'Secure checkout',
       cancelAnytime: 'Cancel anytime',
+      trialInfo: '7 days free, then',
       items: {
         channel: 'Communication channel',
         users: 'Team members',
@@ -120,18 +129,19 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
       firstMonth: 'primeiro mês',
       then: 'depois',
       perMonth: '/mês',
-      cta: 'Assinar Agora',
+      cta: 'Iniciar Teste Grátis de 7 Dias',
       processing: 'Processando...',
       error: 'Algo deu errado. Tente novamente.',
       yourPlan: 'Seu plano',
-      promoOffer: '60% OFF Promoção de Lançamento',
-      promoDescription: 'Ganhe 60% de desconto no primeiro mês usando o código 60OFF no checkout',
-      promoCode: '60OFF',
+      promoOffer: 'Teste Grátis de 7 Dias',
+      promoDescription: 'Experimente a GetRaze grátis por 7 dias. Depois $45/mês para o plano base.',
+      promoCode: 'TESTE GRÁTIS',
       included: 'incluído',
       monthlyPayment: 'pagamento mensal',
-      totalPrice: 'Preço total',
+      totalPrice: 'Após o trial',
       secureCheckout: 'Checkout seguro',
       cancelAnytime: 'Cancele quando quiser',
+      trialInfo: '7 dias grátis, depois',
       items: {
         channel: 'Canal de comunicação',
         users: 'Membros do time',
@@ -154,18 +164,19 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
       firstMonth: 'primer mes',
       then: 'después',
       perMonth: '/mes',
-      cta: 'Suscribirse Ahora',
+      cta: 'Iniciar Prueba Gratis 7 Días',
       processing: 'Procesando...',
       error: 'Algo salió mal. Inténtalo de nuevo.',
       yourPlan: 'Tu plan',
-      promoOffer: '60% OFF Promoción de Lanzamiento',
-      promoDescription: 'Obtén 60% de descuento en tu primer mes usando el código 60OFF',
-      promoCode: '60OFF',
+      promoOffer: 'Prueba Gratis de 7 Días',
+      promoDescription: 'Prueba GetRaze gratis por 7 días. Luego $45/mes para el plan base.',
+      promoCode: 'PRUEBA GRATIS',
       included: 'incluido',
       monthlyPayment: 'pago mensual',
-      totalPrice: 'Precio total',
+      totalPrice: 'Después del trial',
       secureCheckout: 'Checkout seguro',
       cancelAnytime: 'Cancela cuando quieras',
+      trialInfo: '7 días gratis, después',
       items: {
         channel: 'Canal de comunicación',
         users: 'Miembros del equipo',
@@ -197,6 +208,7 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
           successUrl: `${window.location.origin}/${locale !== 'en' ? locale + '/' : ''}?checkout=success`,
           cancelUrl: `${window.location.origin}/${locale !== 'en' ? locale + '/' : ''}#pricing`,
           affiliateCode: affiliateCode || undefined,
+          customerEmail: capturedEmail || undefined,
         }),
       });
 
@@ -272,37 +284,37 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
               <p className="text-xs text-gray-500 mb-3">{channels} {texts.items.channel} + {users} {texts.items.users} {texts.included}.</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>{texts.items.agents}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>5,000 {texts.items.aiCredits}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-orange-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>200 {texts.items.gmapsCredits}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>{texts.items.leadCapture}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>{texts.items.automation}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>{texts.items.support}</span>
@@ -314,9 +326,9 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
           {/* Right Side - Summary & CTA */}
           <div className="w-full lg:w-80 p-6 lg:p-8 bg-gray-50">
             {/* Promo Banner */}
-            <div className="bg-purple-600 rounded-lg p-3 mb-5">
+            <div className="bg-emerald-600 rounded-lg p-3 mb-5">
               <p className="text-xs text-white">
-                <span className="font-semibold">🔥 {texts.promoOffer}:</span>{' '}
+                <span className="font-semibold">🎉 {texts.promoOffer}:</span>{' '}
                 {texts.promoDescription}
               </p>
             </div>
@@ -329,7 +341,7 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
               {/* Base Plan */}
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">{texts.basePlan}</span>
-                <span className="text-gray-900 font-medium">${formatPrice(Math.round(PRICES.basePlan * 0.4))}{texts.perMonth}</span>
+                <span className="text-gray-900 font-medium">${formatPrice(PRICES.basePlan)}{texts.perMonth}</span>
               </div>
 
               {/* Channels */}
@@ -360,7 +372,7 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
               {extraChannels > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-gray-700">+{extraChannels} {extraChannels === 1 ? texts.extraChannel : texts.extraChannels}</span>
-                  <span className="text-gray-900 font-medium">${formatPrice(Math.round(extraChannels * PRICES.extraChannel * 0.4))}</span>
+                  <span className="text-gray-900 font-medium">${formatPrice(extraChannels * PRICES.extraChannel)}</span>
                 </div>
               )}
 
@@ -368,7 +380,7 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
               {extraUsers > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">+{extraUsers} {extraUsers === 1 ? texts.extraUser : texts.extraUsers}</span>
-                  <span className="text-gray-900 font-medium">${formatPrice(Math.round(extraUsers * PRICES.extraUser * 0.4))}</span>
+                  <span className="text-gray-900 font-medium">${formatPrice(extraUsers * PRICES.extraUser)}</span>
                 </div>
               )}
             </div>
@@ -376,15 +388,13 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
             {/* Total */}
             <div className="border-t border-gray-200 pt-4 mb-5">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">{texts.totalPrice}</span>
-                <span className="text-red-500 line-through text-sm">${formatPrice(monthlyTotal)}{texts.perMonth}</span>
+                <span className="text-sm text-emerald-600 font-semibold">{texts.promoOffer}</span>
+                <span className="text-emerald-600 font-bold">$0.00</span>
               </div>
-              <div className="text-right mt-1">
-                <span className="text-2xl font-bold text-gray-900">${formatPrice(firstMonthTotal)}{texts.perMonth}</span>
+              <div className="text-right mt-2">
+                <p className="text-xs text-gray-500">{texts.totalPrice}:</p>
+                <span className="text-2xl font-bold text-gray-900">${formatPrice(monthlyTotal)}{texts.perMonth}</span>
               </div>
-              <p className="text-xs text-gray-400 text-right mt-1">
-                {texts.then} ${formatPrice(monthlyTotal)}{texts.perMonth}
-              </p>
             </div>
 
             {/* Error Message */}
@@ -398,7 +408,7 @@ export default function PricingCalculator({ locale = 'en' }: PricingCalculatorPr
             <button
               onClick={handleCheckout}
               disabled={loading}
-              className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg font-medium text-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

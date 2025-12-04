@@ -583,7 +583,7 @@ exports.addExtraChannel = async (req, res) => {
  */
 exports.createGuestCheckoutSession = async (req, res) => {
   try {
-    const { extraChannels = 0, extraUsers = 0, successUrl, cancelUrl, affiliateCode } = req.body;
+    const { extraChannels = 0, extraUsers = 0, successUrl, cancelUrl, affiliateCode, customerEmail } = req.body;
 
     // Validate inputs
     const channels = Math.max(0, Math.min(10, parseInt(extraChannels) || 0));
@@ -622,7 +622,8 @@ exports.createGuestCheckoutSession = async (req, res) => {
       extraUsers: users,
       successUrl: finalSuccessUrl,
       cancelUrl: finalCancelUrl,
-      metadata
+      metadata,
+      customerEmail: customerEmail || undefined
     });
 
     res.json({

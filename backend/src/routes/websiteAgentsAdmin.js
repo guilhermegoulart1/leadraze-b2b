@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const controller = require('../controllers/websiteAgentsAdminController');
+const leadsController = require('../controllers/websiteLeadsController');
 
 // All routes require authentication
 router.use(authenticateToken);
@@ -78,5 +79,30 @@ router.get('/conversations/:id', controller.getConversation);
  * @access Private (Admin)
  */
 router.get('/stats/overview', controller.getStats);
+
+// ================================
+// WEBSITE LEADS ROUTES
+// ================================
+
+/**
+ * @route GET /api/website-agents/leads/list
+ * @desc Get all website leads
+ * @access Private (Admin)
+ */
+router.get('/leads/list', leadsController.getLeads);
+
+/**
+ * @route GET /api/website-agents/leads/stats
+ * @desc Get website leads statistics
+ * @access Private (Admin)
+ */
+router.get('/leads/stats', leadsController.getLeadStats);
+
+/**
+ * @route GET /api/website-agents/leads/export
+ * @desc Export leads as CSV
+ * @access Private (Admin)
+ */
+router.get('/leads/export', leadsController.exportLeads);
 
 module.exports = router;

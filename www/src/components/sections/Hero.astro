@@ -1,5 +1,6 @@
 ---
 import { getTranslation } from '../../i18n/translations';
+import HeroEmailCapture from '../HeroEmailCapture';
 
 const locale = Astro.currentLocale || 'en';
 const t = getTranslation(locale);
@@ -101,28 +102,13 @@ const t = getTranslation(locale);
       </h1>
 
       <!-- Subheadline -->
-      <p class="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+      <p class="text-base sm:text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
         {t.hero.subtitle}
       </p>
 
-      <!-- CTA Button -->
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
-        <a
-          href="#pricing"
-          class="group relative inline-flex items-center gap-3 bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30 hover:-translate-y-0.5"
-        >
-          <span>{t.hero.ctaButton}</span>
-          <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
-        </a>
-      </div>
-
-      <!-- Price highlight -->
-      <div class="flex items-center justify-center gap-3 text-sm">
-        <span class="text-gray-400 line-through">{t.hero.originalPrice}</span>
-        <span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold">{t.hero.discount}</span>
-        <span class="text-gray-600">{t.hero.limitedTime}</span>
+      <!-- Email Capture Form -->
+      <div class="mb-8 relative z-30">
+        <HeroEmailCapture client:visible locale={locale} />
       </div>
 
     </div>

@@ -13,18 +13,18 @@ export const translations = {
       getStarted: 'Get Started Free'
     },
     hero: {
-      badge: '60% OFF Launch Promotion',
+      badge: 'Start now with 7 days free',
       title: 'What if your CRM',
       titleHighlight: 'did the hunting for you?',
-      subtitle: "The world's first self-prospecting CRM. AI agents find leads, start conversations, and fill your pipeline while you focus on closing deals.",
+      subtitle: "The world's first platform with DHE technology — AI agents that fill your pipeline automatically.",
       cta: 'Get Started',
-      ctaButton: 'Start for $18',
+      ctaButton: 'Start Free 7-Day Trial',
       originalPrice: '$45/mo',
-      discount: '60% OFF',
-      limitedTime: 'Limited time only',
+      discount: '7 DAYS FREE',
+      limitedTime: 'Cancel anytime',
       watchDemo: 'Watch Demo',
-      noCreditCard: 'No credit card required',
-      trialInfo: '60% OFF first month',
+      noCreditCard: 'Cancel anytime during trial',
+      trialInfo: '7-day free trial',
       cancelAnytime: 'Cancel anytime'
     },
     features: {
@@ -174,18 +174,18 @@ export const translations = {
       getStarted: 'Começar Grátis'
     },
     hero: {
-      badge: '60% OFF Promoção de Lançamento',
+      badge: 'Comece agora com 7 dias grátis',
       title: 'E se seu CRM',
       titleHighlight: 'fizesse a prospecção por você?',
-      subtitle: 'O primeiro CRM do mundo que prospecta sozinho. Agentes de IA encontram leads, iniciam conversas e enchem seu pipeline enquanto você foca em fechar negócios.',
+      subtitle: 'A primeira plataforma do mundo com tecnologia DHE — Agentes de IA que preenchem seu pipeline automaticamente.',
       cta: 'Começar Agora',
-      ctaButton: 'Comece por $18',
+      ctaButton: 'Teste Grátis por 7 Dias',
       originalPrice: '$45/mês',
-      discount: '60% OFF',
-      limitedTime: 'Por tempo limitado',
+      discount: '7 DIAS GRÁTIS',
+      limitedTime: 'Cancele quando quiser',
       watchDemo: 'Ver Demo',
-      noCreditCard: 'Sem cartão de crédito',
-      trialInfo: '60% OFF no primeiro mês',
+      noCreditCard: 'Cancele durante o trial',
+      trialInfo: 'Teste grátis de 7 dias',
       cancelAnytime: 'Cancele quando quiser'
     },
     features: {
@@ -335,18 +335,18 @@ export const translations = {
       getStarted: 'Empezar Gratis'
     },
     hero: {
-      badge: '60% OFF Promoción de Lanzamiento',
+      badge: 'Empieza ahora con 7 días gratis',
       title: '¿Y si tu CRM',
       titleHighlight: 'hiciera la prospección por ti?',
-      subtitle: 'El primer CRM del mundo que prospecta solo. Agentes de IA encuentran leads, inician conversaciones y llenan tu pipeline mientras te enfocas en cerrar negocios.',
+      subtitle: 'La primera plataforma del mundo con tecnología DHE — Agentes de IA que llenan tu pipeline automáticamente.',
       cta: 'Empezar Ahora',
-      ctaButton: 'Empieza por $18',
+      ctaButton: 'Prueba Gratis 7 Días',
       originalPrice: '$45/mes',
-      discount: '60% OFF',
-      limitedTime: 'Por tiempo limitado',
+      discount: '7 DÍAS GRATIS',
+      limitedTime: 'Cancela cuando quieras',
       watchDemo: 'Ver Demo',
-      noCreditCard: 'Sin tarjeta de crédito',
-      trialInfo: '60% OFF primer mes',
+      noCreditCard: 'Cancela durante el trial',
+      trialInfo: 'Prueba gratis de 7 días',
       cancelAnytime: 'Cancela cuando quieras'
     },
     features: {

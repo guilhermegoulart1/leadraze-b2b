@@ -182,11 +182,42 @@ try {
 }
 
 // Public releases for developer docs (no auth required)
+app.use('/api/public/releases', cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.WWW_URL || 'http://localhost:4321',
+    'https://getraze.co',
+    'https://www.getraze.co',
+    'https://developer.getraze.co'
+  ],
+  methods: ['GET', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
 try {
   app.use('/api/public/releases', require('./routes/publicReleases'));
   console.log('✅ Public releases routes loaded (no auth)');
 } catch (error) {
   console.error('❌ Error loading public releases routes:', error.message);
+}
+
+// Public website leads capture (no auth required)
+app.use('/api/public/website-leads', cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.WWW_URL || 'http://localhost:4321',
+    'https://getraze.co',
+    'https://www.getraze.co'
+  ],
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
+try {
+  app.use('/api/public/website-leads', require('./routes/publicWebsiteLeads'));
+  console.log('✅ Public website leads routes loaded (no auth)');
+} catch (error) {
+  console.error('❌ Error loading public website leads routes:', error.message);
 }
 
 // ================================

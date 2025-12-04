@@ -164,7 +164,8 @@ class StripeService {
       extraUsers = 0,
       successUrl,
       cancelUrl,
-      metadata = {}
+      metadata = {},
+      customerEmail
     } = options;
 
     // Log mode for debugging
@@ -203,6 +204,8 @@ class StripeService {
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
+      // Pre-fill email if captured from Hero form
+      ...(customerEmail && { customer_email: customerEmail }),
       // Note: customer_creation is only for payment mode
       // For subscription mode, Stripe auto-creates customer when not provided
       // Collect phone number (required)

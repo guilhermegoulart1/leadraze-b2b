@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Bot, MessageSquare, Book, BarChart3, Save, Plus, Trash2,
   Edit2, X, Check, Search, ChevronDown, Globe, Sparkles,
-  MessageCircle, Users, Clock, TrendingUp, RefreshCw, Eye
+  MessageCircle, Users, Clock, TrendingUp, RefreshCw, Eye,
+  Mail, UserPlus, Download, CheckCircle, PlayCircle, DollarSign
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -19,6 +20,8 @@ const WebsiteAgentsPage = () => {
   const [knowledge, setKnowledge] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [stats, setStats] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [leadStats, setLeadStats] = useState(null);
 
   // Modal states
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
@@ -29,11 +32,13 @@ const WebsiteAgentsPage = () => {
   // Filters
   const [knowledgeFilter, setKnowledgeFilter] = useState({ type: '', agent_key: '' });
   const [conversationFilter, setConversationFilter] = useState({ agent_key: '', escalated: '' });
+  const [leadsFilter, setLeadsFilter] = useState({ status: '', source: '' });
 
   const tabs = [
     { id: 'agents', label: t('tabs.agents', 'Agents'), icon: Bot },
     { id: 'knowledge', label: t('tabs.knowledge', 'Knowledge Base'), icon: Book },
     { id: 'conversations', label: t('tabs.conversations', 'Conversations'), icon: MessageSquare },
+    { id: 'leads', label: t('tabs.leads', 'Website Leads'), icon: Mail },
     { id: 'stats', label: t('tabs.stats', 'Statistics'), icon: BarChart3 },
   ];
 
@@ -88,6 +93,51 @@ const WebsiteAgentsPage = () => {
     }
   };
 
+  // Fetch leads
+  const fetchLeads = async () => {
+    try {
+      const response = await api.getWebsiteLeads(leadsFilter);
+      if (response.success) {
+        setLeads(response.data.leads || []);
+      }
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+    }
+  };
+
+  // Fetch lead stats
+  const fetchLeadStats = async () => {
+    try {
+      const response = await api.getWebsiteLeadStats();
+      if (response.success) {
+        setLeadStats(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching lead stats:', error);
+    }
+  };
+
+  // Export leads
+  const exportLeads = async () => {
+    try {
+      const response = await api.exportWebsiteLeads(leadsFilter);
+      if (response.success) {
+        // Create CSV download
+        const blob = new Blob([response.data.csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `website-leads-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error exporting leads:', error);
+    }
+  };
+
   // Initial load
   useEffect(() => {
     const loadData = async () => {
@@ -106,8 +156,11 @@ const WebsiteAgentsPage = () => {
       fetchConversations();
     } else if (activeTab === 'stats') {
       fetchStats();
+    } else if (activeTab === 'leads') {
+      fetchLeads();
+      fetchLeadStats();
     }
-  }, [activeTab, knowledgeFilter, conversationFilter]);
+  }, [activeTab, knowledgeFilter, conversationFilter, leadsFilter]);
 
   // Save agent
   const saveAgent = async () => {
@@ -622,6 +675,174 @@ const WebsiteAgentsPage = () => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Leads Tab */}
+          {activeTab === 'leads' && (
+            <div className="space-y-6">
+              {/* Lead Stats Cards */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">{t('leads.captured', 'Captured')}</p>
+                      <p className="text-2xl font-bold text-gray-900">{leadStats?.total || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <PlayCircle className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">{t('leads.trialStarted', 'Trial Started')}</p>
+                      <p className="text-2xl font-bold text-gray-900">{leadStats?.trial_started || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">{t('leads.subscribed', 'Subscribed')}</p>
+                      <p className="text-2xl font-bold text-gray-900">{leadStats?.subscribed || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">{t('leads.conversionRate', 'Conversion Rate')}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {leadStats?.total > 0
+                          ? ((leadStats?.subscribed / leadStats?.total) * 100).toFixed(1)
+                          : 0}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Leads List */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {t('leads.title', 'Website Leads')}
+                  </h3>
+                  <button
+                    onClick={exportLeads}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold text-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    {t('leads.export', 'Export CSV')}
+                  </button>
+                </div>
+
+                {/* Filters */}
+                <div className="flex gap-4 mb-6">
+                  <select
+                    value={leadsFilter.status}
+                    onChange={(e) => setLeadsFilter({ ...leadsFilter, status: e.target.value })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">{t('leads.allStatus', 'All Status')}</option>
+                    <option value="captured">{t('leads.statusCaptured', 'Captured')}</option>
+                    <option value="trial_started">{t('leads.statusTrial', 'Trial Started')}</option>
+                    <option value="subscribed">{t('leads.statusSubscribed', 'Subscribed')}</option>
+                    <option value="churned">{t('leads.statusChurned', 'Churned')}</option>
+                  </select>
+
+                  <select
+                    value={leadsFilter.source}
+                    onChange={(e) => setLeadsFilter({ ...leadsFilter, source: e.target.value })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">{t('leads.allSources', 'All Sources')}</option>
+                    <option value="hero">Hero</option>
+                    <option value="pricing">Pricing</option>
+                    <option value="footer">Footer</option>
+                  </select>
+
+                  <button
+                    onClick={fetchLeads}
+                    className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Leads Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.email', 'Email')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.status', 'Status')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.source', 'Source')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.date', 'Date')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.utmSource', 'UTM Source')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leads.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-12 text-gray-500">
+                            <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p>{t('leads.empty', 'No leads captured yet')}</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        leads.map((lead) => (
+                          <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <span className="font-medium text-gray-900">{lead.email}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`
+                                px-2 py-1 text-xs font-medium rounded-full
+                                ${lead.status === 'captured' ? 'bg-blue-100 text-blue-700' :
+                                  lead.status === 'trial_started' ? 'bg-yellow-100 text-yellow-700' :
+                                  lead.status === 'subscribed' ? 'bg-green-100 text-green-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }
+                              `}>
+                                {lead.status === 'captured' ? t('leads.statusCaptured', 'Captured') :
+                                 lead.status === 'trial_started' ? t('leads.statusTrial', 'Trial Started') :
+                                 lead.status === 'subscribed' ? t('leads.statusSubscribed', 'Subscribed') :
+                                 lead.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600 capitalize">{lead.source || '-'}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600">
+                                {new Date(lead.created_at).toLocaleDateString()}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600">{lead.utm_source || '-'}</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

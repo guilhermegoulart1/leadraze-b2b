@@ -1939,6 +1939,21 @@ class ApiService {
     return this.request(`/website-agents/stats/overview?days=${days}`);
   }
 
+  // Website Leads
+  async getWebsiteLeads(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/website-agents/leads/list${query ? '?' + query : ''}`);
+  }
+
+  async getWebsiteLeadStats() {
+    return this.request('/website-agents/leads/stats');
+  }
+
+  async exportWebsiteLeads(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/website-agents/leads/export${query ? '?' + query : ''}`);
+  }
+
   // ================================
   // AFFILIATE PROGRAM
   // ================================
