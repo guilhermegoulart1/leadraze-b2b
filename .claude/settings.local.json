@@ -4,7 +4,9 @@
       "Bash(dir /b \"c:\\leadraze-b2b\")",
       "Bash(copy:*)",
       "Bash(cmd /c \"mkdir c:\\leadraze-b2b\\www\\public\\logo 2>nul & copy c:\\leadraze-b2b\\frontend\\public\\logo\\getraze-white.svg c:\\leadraze-b2b\\www\\public\\logo\\getraze-white.svg\")",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(findstr:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

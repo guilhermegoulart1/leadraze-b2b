@@ -1,11 +1,13 @@
-# 📦 Release v8.2.1
+# 📦 Release v8.2.2
 
-Website Payment Link on Safari
+Conversation Assignment Error
 
-Fixed an issue where the payment link was not working correctly on Safari browsers. Payments now process smoothly across all supported browsers. ** Website Translation**
+Fixed an issue where assigning conversations would fail with a "Conversation not found" error. Conversations can now be assigned correctly without synchronization conflicts.
 
-Fixed missing translations on several pages. All pages are now fully translated and consistent throughout the website.
+WhatsApp Message Delivery Issues
 
-Changelog Access Error
+Resolved difficulties some customers were experiencing when sending WhatsApp messages to certain contacts. Message delivery now works consistently across all valid recipient numbers.
 
-Fixed a bug that was preventing users from accessing the Changelog page. The changelog is now accessible without errors.
+Conversation Filter Menu - Message Counts and Unread Notifications
+
+Fixed the conversation filter menu (All, Unassigned, Mine, etc.) to properly display message counts for each category. Unread message notifications are now correctly shown in the side menu and top navigation bar.

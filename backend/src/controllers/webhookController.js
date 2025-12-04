@@ -1008,17 +1008,20 @@ async function handleMessageReceived(payload) {
     console.log(`   - Sent at: ${messageData.sent_at}`);
 
     // ✅ EMIT WEBSOCKET: Nova mensagem em tempo real
+    // Sempre emitir - mensagens enviadas pelo celular precisam aparecer na plataforma
+    // A deduplicação é feita no frontend usando unipile_message_id
     const newUnreadCount = isOwnMessage ? conversation.unread_count : (conversation.unread_count || 0) + 1;
     publishNewMessage({
       conversationId: conversation.id,
       accountId: linkedinAccount.account_id,
       message: {
         ...messageData,
-        id: messageData.id || Date.now() // Temporário se não tiver ID
+        id: messageData.id || Date.now()
       },
-      unreadCount: newUnreadCount
+      unreadCount: newUnreadCount,
+      isOwnMessage // Flag para frontend identificar mensagens próprias
     });
-    console.log(`📡 WebSocket: Evento new_message emitido para account:${linkedinAccount.account_id}`);
+    console.log(`📡 WebSocket: Evento new_message emitido (isOwnMessage: ${isOwnMessage})`)
 
     // ✅ CANCELAR JOB DE DELAY SE LEAD ENVIOU MENSAGEM
     // (cancela o início automático de conversa se lead responder antes dos 5 minutos)

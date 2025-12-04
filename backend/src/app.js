@@ -24,7 +24,7 @@ app.use(helmet({
 // CORS - allow frontend app and www site
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5178',
+    process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.WWW_URL || 'http://localhost:4321',
     'https://getraze.co',
     'https://www.getraze.co',

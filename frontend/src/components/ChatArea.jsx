@@ -75,17 +75,42 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
         // Verificar se a mensagem já existe (evitar duplicatas)
         setMessages(prevMessages => {
-          const messageExists = prevMessages.some(m =>
-            m.id === data.message?.id ||
-            m.unipile_message_id === data.message?.unipile_message_id
+          const newMsg = data.message;
+          if (!newMsg) return prevMessages;
+
+          // Deduplicação por ID ou unipile_message_id
+          const existsById = prevMessages.some(m =>
+            m.id === newMsg.id ||
+            (m.unipile_message_id && m.unipile_message_id === newMsg.unipile_message_id)
           );
 
-          if (messageExists) {
+          if (existsById) {
+            console.log('ChatArea: Mensagem duplicada detectada por ID, ignorando');
             return prevMessages;
           }
 
+          // Deduplicação extra para mensagens próprias enviadas pela plataforma
+          // Verifica se existe mensagem recente (últimos 10s) com mesmo conteúdo e sender_type='user'
+          if (newMsg.sender_type === 'user' || data.isOwnMessage) {
+            const tenSecondsAgo = Date.now() - 10000;
+            const existsByContent = prevMessages.some(m => {
+              if (m.sender_type !== 'user') return false;
+              const msgTime = new Date(m.sent_at).getTime();
+              if (msgTime < tenSecondsAgo) return false;
+              // Comparar conteúdo (normalizado)
+              const existingContent = (m.content || '').trim().toLowerCase();
+              const newContent = (newMsg.content || '').trim().toLowerCase();
+              return existingContent === newContent && existingContent.length > 0;
+            });
+
+            if (existsByContent) {
+              console.log('ChatArea: Mensagem duplicada detectada por conteúdo, ignorando');
+              return prevMessages;
+            }
+          }
+
           // Adicionar nova mensagem
-          return [...prevMessages, data.message];
+          return [...prevMessages, newMsg];
         });
       }
     });

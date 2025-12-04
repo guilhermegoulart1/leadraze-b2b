@@ -554,12 +554,12 @@ const sendMessage = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar se conversa pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const convQuery = `
-      SELECT conv.*, la.unipile_account_id, camp.user_id, camp.account_id
+      SELECT conv.*, la.unipile_account_id
       FROM conversations conv
-      INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -838,11 +838,11 @@ const takeControl = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -886,11 +886,11 @@ const releaseControl = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -940,11 +940,11 @@ const updateStatus = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -1003,19 +1003,11 @@ const markAsRead = async (req, res) => {
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
-    // ✅ FIX: Usar LEFT JOIN para suportar conversas orgânicas (sem campanha)
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
-      LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      WHERE conv.id = $1
-      AND (
-        (camp.account_id = $2 AND camp.user_id = $3)
-        OR
-        (conv.campaign_id IS NULL AND la.account_id = $2)
-      )
-      ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -1058,23 +1050,24 @@ const getConversationStats = async (req, res) => {
     const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
 
     // Build sector filter for aggregate queries
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     let sectorFilter = '';
-    let sectorParams = [];
+    let queryParams = [accountId, userId];
+    let paramIndex = 3;
+
     if (accessibleSectorIds.length > 0) {
-      sectorFilter = 'AND (conv.sector_id = ANY($3) OR conv.sector_id IS NULL)';
-      sectorParams = [accessibleSectorIds];
+      sectorFilter = `AND (conv.sector_id = ANY($${paramIndex}) OR conv.sector_id IS NULL)`;
+      queryParams.push(accessibleSectorIds);
+      paramIndex++;
     } else {
       sectorFilter = 'AND conv.sector_id IS NULL';
     }
 
-    const queryParams = [accountId, userId, ...sectorParams];
-
-    // Total de conversas
+    // Total de conversas (usando conv.account_id e conv.user_id diretamente)
     const totalQuery = `
       SELECT COUNT(*) as total
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.account_id = $1 AND camp.user_id = $2 ${sectorFilter}
+      WHERE conv.account_id = $1 AND conv.user_id = $2 ${sectorFilter}
     `;
     const totalResult = await db.query(totalQuery, queryParams);
 
@@ -1082,9 +1075,8 @@ const getConversationStats = async (req, res) => {
     const mineQuery = `
       SELECT COUNT(*) as count
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.account_id = $1
-        AND camp.user_id = $2
+      WHERE conv.account_id = $1
+        AND conv.user_id = $2
         AND conv.assigned_user_id = $2
         AND conv.status != 'closed'
         ${sectorFilter}
@@ -1095,9 +1087,8 @@ const getConversationStats = async (req, res) => {
     const unassignedQuery = `
       SELECT COUNT(*) as count
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.account_id = $1
-        AND camp.user_id = $2
+      WHERE conv.account_id = $1
+        AND conv.user_id = $2
         AND conv.assigned_user_id IS NULL
         AND conv.status != 'closed'
         ${sectorFilter}
@@ -1108,9 +1099,8 @@ const getConversationStats = async (req, res) => {
     const closedQuery = `
       SELECT COUNT(*) as count
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.account_id = $1
-        AND camp.user_id = $2
+      WHERE conv.account_id = $1
+        AND conv.user_id = $2
         AND conv.status = 'closed'
         ${sectorFilter}
     `;
@@ -1120,8 +1110,7 @@ const getConversationStats = async (req, res) => {
     const unreadQuery = `
       SELECT COUNT(*) as unread_conversations
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE camp.account_id = $1 AND camp.user_id = $2 AND conv.unread_count > 0 ${sectorFilter}
+      WHERE conv.account_id = $1 AND conv.user_id = $2 AND conv.unread_count > 0 ${sectorFilter}
     `;
     const unreadResult = await db.query(unreadQuery, queryParams);
 
@@ -1159,11 +1148,11 @@ const closeConversation = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -1213,11 +1202,11 @@ const reopenConversation = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -1264,11 +1253,11 @@ const deleteConversation = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
-      WHERE conv.id = $1 AND camp.account_id = $2 AND camp.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
     const queryParams = [id, accountId, userId, ...sectorParams];
@@ -1313,13 +1302,13 @@ const assignConversation = async (req, res) => {
       4
     );
 
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE conv.id = $1
-        AND camp.account_id = $2
-        AND camp.user_id = $3
+        AND conv.account_id = $2
+        AND conv.user_id = $3
         ${sectorFilter}
     `;
     const convResult = await db.query(convQuery, [id, accountId, requestingUserId, ...sectorParams]);
@@ -1391,13 +1380,13 @@ const unassignConversation = async (req, res) => {
       4
     );
 
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE conv.id = $1
-        AND camp.account_id = $2
-        AND camp.user_id = $3
+        AND conv.account_id = $2
+        AND conv.user_id = $3
         ${sectorFilter}
     `;
     const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
@@ -1460,13 +1449,13 @@ const assignSectorToConversation = async (req, res) => {
       4
     );
 
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE conv.id = $1
-        AND camp.account_id = $2
-        AND camp.user_id = $3
+        AND conv.account_id = $2
+        AND conv.user_id = $3
         ${sectorFilter}
     `;
     const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
@@ -1511,13 +1500,13 @@ const unassignSectorFromConversation = async (req, res) => {
       4
     );
 
+    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
-      INNER JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE conv.id = $1
-        AND camp.account_id = $2
-        AND camp.user_id = $3
+        AND conv.account_id = $2
+        AND conv.user_id = $3
         ${sectorFilter}
     `;
     const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
