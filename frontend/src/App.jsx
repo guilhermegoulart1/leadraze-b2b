@@ -38,12 +38,21 @@ import BillingPage from './pages/BillingPage';
 import AffiliatePage from './pages/AffiliatePage';
 import ProfilePage from './pages/ProfilePage';
 import EmailSettingsPage from './pages/EmailSettingsPage';
+import SettingsPage from './pages/SettingsPage';
 import WebsiteAgentsPage from './pages/WebsiteAgentsPage';
 import ApiKeysPage from './pages/ApiKeysPage';
 import TasksPage from './pages/TasksPage';
 import ChecklistTemplatesPage from './pages/ChecklistTemplatesPage';
 import NextPage from './pages/NextPage';
 import PartnersAdminPage from './pages/PartnersAdminPage';
+import MyAccountPage from './pages/MyAccountPage';
+import ConfigPage from './pages/ConfigPage';
+import TeamPage from './pages/TeamPage';
+
+// Partner Pages
+import PartnerLoginPage from './pages/partner/PartnerLoginPage';
+import PartnerDashboard from './pages/partner/PartnerDashboard';
+import PartnerSetPasswordPage from './pages/partner/PartnerSetPasswordPage';
 
 // Layout
 import Layout from './components/Layout';
@@ -115,7 +124,6 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
-        <Route path="agents" element={<AgentsPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
@@ -125,24 +133,33 @@ function AppRoutes() {
         <Route path="conversations" element={<ConversationsPage />} />
         <Route path="ai-agents" element={<AIAgentsPage />} />
         <Route path="insights" element={<InsightsPage />} />
-        <Route path="channels" element={<ChannelsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="permissions" element={<PermissionsPage />} />
-        <Route path="sectors" element={<SectorsPage />} />
         <Route path="activation-agents" element={<ActivationAgentsPage />} />
         <Route path="activation-campaigns" element={<ListasPage />} />
         <Route path="my-connections" element={<MyConnectionsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
-        <Route path="billing" element={<BillingPage />} />
-        <Route path="affiliate" element={<AffiliatePage />} />
-        <Route path="profile" element={<ProfilePage />} />
-        <Route path="email-settings" element={<EmailSettingsPage />} />
-        <Route path="website-agents" element={<WebsiteAgentsPage />} />
-        <Route path="api-keys" element={<ApiKeysPage />} />
         <Route path="tasks" element={<TasksPage />} />
-        <Route path="checklist-templates" element={<ChecklistTemplatesPage />} />
         <Route path="admin/partners" element={<PartnersAdminPage />} />
+
+        {/* Novas páginas com abas */}
+        <Route path="my-account" element={<MyAccountPage />} />
+        <Route path="config" element={<ConfigPage />} />
+        <Route path="team" element={<TeamPage />} />
+
+        {/* Redirects das rotas antigas */}
+        <Route path="profile" element={<Navigate to="/my-account" replace />} />
+        <Route path="billing" element={<Navigate to="/my-account?tab=billing" replace />} />
+        <Route path="affiliate" element={<Navigate to="/my-account?tab=affiliate" replace />} />
+        <Route path="agents" element={<AgentsPage />} />
+        <Route path="api-keys" element={<Navigate to="/config?tab=api-keys" replace />} />
+        <Route path="channels" element={<Navigate to="/config?tab=channels" replace />} />
+        <Route path="checklist-templates" element={<Navigate to="/config?tab=checklists" replace />} />
+        <Route path="email-settings" element={<Navigate to="/config?tab=emails" replace />} />
+        <Route path="website-agents" element={<Navigate to="/config?tab=website-agents" replace />} />
+        <Route path="users" element={<Navigate to="/team?tab=users" replace />} />
+        <Route path="sectors" element={<Navigate to="/team?tab=sectors" replace />} />
+        <Route path="permissions" element={<Navigate to="/team?tab=permissions" replace />} />
+        <Route path="settings" element={<Navigate to="/my-account" replace />} />
       </Route>
 
       {/* GetRaze Next - Layout próprio, sem sidebar */}
@@ -154,6 +171,11 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Partner Portal - Rotas públicas */}
+      <Route path="/partner/login" element={<PartnerLoginPage />} />
+      <Route path="/partner/set-password" element={<PartnerSetPasswordPage />} />
+      <Route path="/partner" element={<PartnerDashboard />} />
 
       {/* 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />

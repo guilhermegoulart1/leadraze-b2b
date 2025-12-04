@@ -236,7 +236,8 @@ const createLead = async (req, res) => {
       location,
       profile_url,
       profile_picture,
-      headline
+      headline,
+      source // linkedin, google_maps, list, paid_traffic, other
     } = req.body;
 
     console.log(`📝 Criando novo lead: ${name}`);
@@ -285,7 +286,8 @@ const createLead = async (req, res) => {
       profile_picture: profile_picture || null,
       headline: headline || null,
       status: LEAD_STATUS.LEADS,
-      score: 0
+      score: 0,
+      source: source || 'linkedin' // Default to linkedin for campaign leads
     };
 
     const lead = await db.insert('leads', leadData);
@@ -391,7 +393,8 @@ const createLeadsBulk = async (req, res) => {
           profile_picture: leadData.profile_picture || null,
           headline: leadData.headline || null,
           status: LEAD_STATUS.LEADS,
-          score: 0
+          score: 0,
+          source: leadData.source || 'list' // Default to 'list' for bulk imports
         });
 
         // Manual bulk import: assign to the creating user (not round-robin)

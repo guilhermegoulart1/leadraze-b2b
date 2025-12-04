@@ -170,7 +170,6 @@ const PartnersAccessTab = () => {
           <li>• Partners são agências ou profissionais que ajudam a gerenciar sua conta</li>
           <li>• Ao conceder acesso, o partner poderá entrar na sua conta</li>
           <li>• Você pode revogar o acesso a qualquer momento</li>
-          <li>• Mesmo revogando o acesso, comissões de indicação permanecem ativas</li>
         </ul>
       </div>
     </div>

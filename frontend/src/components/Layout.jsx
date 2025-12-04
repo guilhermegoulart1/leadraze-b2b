@@ -64,6 +64,7 @@ const Layout = () => {
 
     // CAMPANHAS
     { section: 'CAMPANHAS' },
+    { path: '/agents', label: 'Agentes de IA', icon: Bot },
     { path: '/campaigns', label: 'LinkedIn', icon: Linkedin },
     { path: '/google-maps-agents', label: 'Google Maps', icon: MapPin },
     { path: '/activation-campaigns', label: 'Listas', icon: Award },
@@ -290,137 +291,36 @@ const Layout = () => {
                   </div>
                 </div>
 
-                {/* Account Section */}
+                {/* Menu simplificado */}
                 <div className="py-1">
                   <Link
-                    to="/profile"
+                    to="/my-account"
                     className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
                     <User className="w-4 h-4 text-gray-400" />
-                    <span>{t('userMenu.profile')}</span>
+                    <span>Minha Conta</span>
                   </Link>
                   <Link
-                    to="/billing"
+                    to="/config"
                     className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
-                    <CreditCard className="w-4 h-4 text-gray-400" />
-                    <span>{t('userMenu.billing', 'Billing')}</span>
+                    <Settings className="w-4 h-4 text-gray-400" />
+                    <span>Configurações</span>
                   </Link>
-                  <Link
-                    to="/affiliate"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Gift className="w-4 h-4 text-gray-400" />
-                    <span>{t('userMenu.affiliate', 'Affiliate Program')}</span>
-                  </Link>
-                  <Link
-                    to="/channels"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Link2 className="w-4 h-4 text-gray-400" />
-                    <span>{t('userMenu.channels')}</span>
-                  </Link>
+                  {(hasPermission('users:view:all') || hasPermission('users:view:team') ||
+                    hasPermission('sectors:view') || hasPermission('permissions:manage')) && (
+                    <Link
+                      to="/team"
+                      className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span>Equipe</span>
+                    </Link>
+                  )}
                 </div>
-
-                {/* Configurações */}
-                <div className="border-t border-gray-100 mx-3" />
-                <div className="py-1">
-                  <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                    Configurações
-                  </p>
-                  <Link
-                    to="/agents"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Bot className="w-4 h-4 text-gray-400" />
-                    <span>Agentes de IA</span>
-                  </Link>
-                  <Link
-                    to="/email-settings"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <span>Config. Emails</span>
-                  </Link>
-                </div>
-
-                {/* Admin & Supervisor Links */}
-                {(isAdmin || isSupervisor) && (
-                  <>
-                    <div className="border-t border-gray-100 mx-3" />
-                    <div className="py-1">
-                      <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                        Administracao
-                      </p>
-                      {(hasPermission('users:view:all') || hasPermission('users:view:team')) && (
-                        <Link
-                          to="/users"
-                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <Shield className="w-4 h-4 text-gray-400" />
-                          <span>{t('userMenu.users')}</span>
-                        </Link>
-                      )}
-                      {hasPermission('sectors:view') && (
-                        <Link
-                          to="/sectors"
-                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span>{t('userMenu.sectors')}</span>
-                        </Link>
-                      )}
-                      {hasPermission('permissions:manage') && (
-                        <Link
-                          to="/permissions"
-                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <Lock className="w-4 h-4 text-gray-400" />
-                          <span>{t('userMenu.permissions')}</span>
-                        </Link>
-                      )}
-                      {isAdmin && (
-                        <Link
-                          to="/website-agents"
-                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <Globe className="w-4 h-4 text-gray-400" />
-                          <span>{t('userMenu.websiteAgents', 'Website Agents')}</span>
-                        </Link>
-                      )}
-                      {isAdmin && (
-                        <Link
-                          to="/api-keys"
-                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <Key className="w-4 h-4 text-gray-400" />
-                          <span>{t('userMenu.apiKeys', 'API Keys')}</span>
-                        </Link>
-                      )}
-                      {(isAdmin || isSupervisor) && (
-                        <Link
-                          to="/checklist-templates"
-                          className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <ListTodo className="w-4 h-4 text-gray-400" />
-                          <span>Checklists por Etapa</span>
-                        </Link>
-                      )}
-                    </div>
-                  </>
-                )}
 
                 {/* Logout */}
                 <div className="border-t border-gray-100 mx-3" />

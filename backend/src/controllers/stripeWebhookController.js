@@ -9,6 +9,7 @@ const subscriptionService = require('../services/subscriptionService');
 const billingService = require('../services/billingService');
 const emailService = require('../services/emailService');
 const affiliateService = require('../services/affiliateService');
+const partnerService = require('../services/partnerService');
 const { CREDIT_PACKAGES, getPlanByPriceId, TRIAL_LIMITS } = require('../config/stripe');
 const db = require('../config/database');
 const crypto = require('crypto');
@@ -255,6 +256,32 @@ async function handleCheckoutCompleted(session) {
     }
   }
 
+  // Handle partner referral tracking
+  if (session.metadata?.partner_code) {
+    try {
+      const partnerCode = session.metadata.partner_code;
+      const partner = await partnerService.getByAffiliateCode(partnerCode);
+
+      if (partner) {
+        // Create referral record
+        const customerEmail = session.customer_details?.email || session.customer_email;
+        await partnerService.createReferral(partner.id, customerEmail, session.id);
+        console.log(`🤝 Created partner referral: ${partnerCode} -> ${customerEmail}`);
+
+        // If we have accountId and subscription, mark as converted immediately
+        if (accountId && session.subscription) {
+          await partnerService.convertReferral(accountId, session.subscription);
+          console.log(`✅ Partner referral converted for account ${accountId}`);
+        }
+      } else {
+        console.log(`⚠️ Partner code not found: ${partnerCode}`);
+      }
+    } catch (partnerError) {
+      console.error('Error processing partner referral:', partnerError.message);
+      // Don't fail the checkout for partner errors
+    }
+  }
+
   console.log(`✅ Checkout completed for account ${accountId}`);
 }
 
@@ -417,6 +444,16 @@ async function handleSubscriptionDeleted(subscription) {
     } catch (affError) {
       console.error('Error canceling affiliate referral:', affError.message);
     }
+
+    // Cancel partner referral if this account was referred
+    try {
+      const canceledPartnerReferral = await partnerService.cancelReferral(deletedSubscription.account_id);
+      if (canceledPartnerReferral) {
+        console.log(`🚫 Partner referral canceled for account ${deletedSubscription.account_id}`);
+      }
+    } catch (partnerError) {
+      console.error('Error canceling partner referral:', partnerError.message);
+    }
   }
 
   console.log(`Subscription ${subscription.id} deleted`);
@@ -491,6 +528,26 @@ async function handleInvoicePaid(invoice) {
     } catch (affError) {
       console.error('Error processing affiliate earning:', affError.message);
       // Don't fail invoice processing for affiliate errors
+    }
+
+    // Process partner commission if this account was referred by a partner
+    try {
+      const partnerReferral = await partnerService.getActiveReferralByAccount(accountId);
+      if (partnerReferral) {
+        const partnerEarning = await partnerService.recordEarning(
+          partnerReferral.id,
+          invoice.id,
+          invoice.amount_paid,
+          10 // 10% commission
+        );
+
+        if (partnerEarning) {
+          console.log(`💰 Partner earning recorded: $${(partnerEarning.earning_cents / 100).toFixed(2)} for referral ${partnerReferral.id}`);
+        }
+      }
+    } catch (partnerError) {
+      console.error('Error processing partner earning:', partnerError.message);
+      // Don't fail invoice processing for partner errors
     }
   }
 

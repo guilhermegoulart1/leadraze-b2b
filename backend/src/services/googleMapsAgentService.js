@@ -777,9 +777,10 @@ class GoogleMapsAgentService {
         linkedin_profile_id,
         name, company, location,
         profile_picture,
-        status, score
+        status, score,
+        source
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
       )
       RETURNING *
     `;
@@ -799,7 +800,8 @@ class GoogleMapsAgentService {
       contactData.location || contactData.address,
       profilePicture, // Thumbnail from Google Maps
       'leads', // Default status (valid value from check_status constraint)
-      0 // Default score
+      0, // Default score
+      'google_maps' // Source
     ];
 
     const leadResult = await db.query(leadQuery, leadValues);

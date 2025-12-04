@@ -5,10 +5,11 @@
  */
 
 const partnerService = require('../services/partnerService');
+const emailService = require('../services/emailService');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+const APP_URL = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
 
 /**
  * List partners with filters
@@ -107,8 +108,13 @@ exports.approve = async (req, res) => {
 
     const setPasswordUrl = `${APP_URL}/partner/set-password?token=${setPasswordToken}`;
 
-    // TODO: Send email to partner with setPasswordUrl
-    // For now, return the URL in response (for testing)
+    // Send approval email to partner
+    try {
+      await emailService.sendPartnerApprovalEmail(partner, setPasswordUrl);
+    } catch (emailError) {
+      console.error('Error sending partner approval email:', emailError);
+      // Don't fail the approval if email fails
+    }
 
     res.json({
       success: true,
@@ -118,8 +124,7 @@ exports.approve = async (req, res) => {
         name: partner.name,
         email: partner.email,
         affiliate_code: partner.affiliate_code,
-        status: partner.status,
-        set_password_url: setPasswordUrl // Remove in production, send via email
+        status: partner.status
       }
     });
   } catch (error) {
@@ -148,7 +153,13 @@ exports.reject = async (req, res) => {
       });
     }
 
-    // TODO: Send rejection email to partner
+    // Send rejection email to partner
+    try {
+      await emailService.sendPartnerRejectionEmail(partner);
+    } catch (emailError) {
+      console.error('Error sending partner rejection email:', emailError);
+      // Don't fail the rejection if email fails
+    }
 
     res.json({
       success: true,
@@ -353,14 +364,20 @@ exports.resendPasswordEmail = async (req, res) => {
 
     const setPasswordUrl = `${APP_URL}/partner/set-password?token=${setPasswordToken}`;
 
-    // TODO: Send email to partner
+    // Send email to partner
+    try {
+      await emailService.sendPartnerApprovalEmail(partner, setPasswordUrl);
+    } catch (emailError) {
+      console.error('Error sending partner password email:', emailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao enviar email'
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Email enviado',
-      data: {
-        set_password_url: setPasswordUrl // Remove in production
-      }
+      message: 'Email enviado com sucesso'
     });
   } catch (error) {
     console.error('Error resending password email:', error);

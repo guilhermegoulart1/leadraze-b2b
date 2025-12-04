@@ -30,6 +30,9 @@ router.get('/validate/:code', partnerController.validateCode);
 // Track click on affiliate link
 router.post('/track-click', partnerController.trackClick);
 
+// Quick approve/reject via email link (returns HTML page)
+router.get('/quick-approve/:id', partnerController.quickApprove);
+
 // ==========================================
 // PARTNER AUTHENTICATED ROUTES
 // ==========================================

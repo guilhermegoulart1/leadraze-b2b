@@ -312,9 +312,9 @@ async function saveProfiles(profiles, job) {
           location, profile_url, profile_picture, headline, status, score,
           email, phone, email_captured_at, phone_captured_at, email_source, phone_source,
           public_identifier, network_distance, profile_picture_large,
-          connections_count, follower_count, is_premium, member_urn)
+          connections_count, follower_count, is_premium, member_urn, source)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-                 $20, $21, $22, $23, $24, $25, $26)`;
+                 $20, $21, $22, $23, $24, $25, $26, $27)`;
 
       const insertValues = [
         job.account_id, // account_id para multi-tenancy
@@ -343,7 +343,8 @@ async function saveProfiles(profiles, job) {
         profile.shared_connections_count || 0,
         0, // follower_count (não vem na busca básica)
         profile.premium || false, // is_premium
-        profile.member_urn || null
+        profile.member_urn || null,
+        'linkedin' // source - leads coletados do LinkedIn
       ];
 
       await db.query(insertQuery, insertValues);

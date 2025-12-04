@@ -12,43 +12,43 @@ const { NotFoundError } = require('../utils/errors');
 const getDashboard = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { period = '30' } = req.query; // dias
 
-    console.log(`📊 Buscando dashboard para usuário ${userId} (${period} dias)`);
+    console.log(`📊 Buscando dashboard para account ${accountId} (${period} dias)`);
 
     const periodDays = parseInt(period);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - periodDays);
 
-    // 1. Totais gerais (com invite_sent para cálculo de taxa)
+    // 1. Totais gerais - usando account_id para incluir todos os leads (incluindo Google Maps)
     const totalsQuery = `
       SELECT
-        (SELECT COUNT(*) FROM campaigns WHERE user_id = $1) as total_campaigns,
-        (SELECT COUNT(*) FROM campaigns WHERE user_id = $1 AND status = 'active') as active_campaigns,
-        (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1) as total_leads,
-        (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1 AND l.status = 'qualified') as qualified_leads,
-        (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1 AND l.status = 'invite_sent') as invite_sent,
-        (SELECT COUNT(*) FROM leads l JOIN campaigns c ON l.campaign_id = c.id WHERE c.user_id = $1 AND l.status = 'accepted') as accepted,
-        (SELECT COUNT(*) FROM conversations WHERE user_id = $1) as total_conversations,
-        (SELECT COUNT(*) FROM conversations WHERE user_id = $1 AND ai_active = true) as ai_conversations,
-        (SELECT COUNT(*) FROM linkedin_accounts WHERE user_id = $1) as linkedin_accounts
+        (SELECT COUNT(*) FROM campaigns WHERE account_id = $1) as total_campaigns,
+        (SELECT COUNT(*) FROM campaigns WHERE account_id = $1 AND status = 'active') as active_campaigns,
+        (SELECT COUNT(*) FROM leads WHERE account_id = $1) as total_leads,
+        (SELECT COUNT(*) FROM leads WHERE account_id = $1 AND status = 'qualified') as qualified_leads,
+        (SELECT COUNT(*) FROM leads WHERE account_id = $1 AND status = 'invite_sent') as invite_sent,
+        (SELECT COUNT(*) FROM leads WHERE account_id = $1 AND status = 'accepted') as accepted,
+        (SELECT COUNT(*) FROM conversations WHERE account_id = $1) as total_conversations,
+        (SELECT COUNT(*) FROM conversations WHERE account_id = $1 AND ai_active = true) as ai_conversations,
+        (SELECT COUNT(*) FROM linkedin_accounts WHERE account_id = $1) as linkedin_accounts
     `;
 
-    const totalsResult = await db.query(totalsQuery, [userId]);
+    const totalsResult = await db.query(totalsQuery, [accountId]);
     const totals = totalsResult.rows[0];
 
-    // 2. Pipeline de Leads
+    // 2. Pipeline de Leads - usando account_id e normalizando status 'lead'/'leads' para 'leads'
     const pipelineQuery = `
-      SELECT 
-        l.status,
+      SELECT
+        CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END as status,
         COUNT(*) as count
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
-      WHERE c.user_id = $1
-      GROUP BY l.status
+      WHERE l.account_id = $1
+      GROUP BY CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END
     `;
 
-    const pipelineResult = await db.query(pipelineQuery, [userId]);
+    const pipelineResult = await db.query(pipelineQuery, [accountId]);
     
     const pipeline = {
       leads: 0,
@@ -74,16 +74,16 @@ const getDashboard = async (req, res) => {
 
     // 4. Conversas por status
     const conversationsQuery = `
-      SELECT 
+      SELECT
         status,
         COUNT(*) as count
       FROM conversations
-      WHERE user_id = $1
+      WHERE account_id = $1
       GROUP BY status
     `;
 
-    const conversationsResult = await db.query(conversationsQuery, [userId]);
-    
+    const conversationsResult = await db.query(conversationsQuery, [accountId]);
+
     const conversations = {
       hot: 0,
       warm: 0,
@@ -94,39 +94,38 @@ const getDashboard = async (req, res) => {
       conversations[row.status] = parseInt(row.count);
     });
 
-    // 5. Atividade recente (último período) - CORRIGIDO
+    // 5. Atividade recente (último período) - usando account_id
     const activityQuery = `
-      SELECT 
+      SELECT
         DATE(l.created_at) as date,
         COUNT(*) as count
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
-      WHERE c.user_id = $1 AND l.created_at >= $2
+      WHERE l.account_id = $1 AND l.created_at >= $2
       GROUP BY DATE(l.created_at)
       ORDER BY date ASC
     `;
 
-    const activityResult = await db.query(activityQuery, [userId, startDate]);
+    const activityResult = await db.query(activityQuery, [accountId, startDate]);
 
-    // 6. Top Campanhas
+    // 6. Top Campanhas - usando sent_at e accepted_at para contagem correta
     const topCampaignsQuery = `
-      SELECT 
+      SELECT
         c.id,
         c.name,
         c.status,
         COUNT(l.id) as total_leads,
         COUNT(l.id) FILTER (WHERE l.status = 'qualified') as qualified_leads,
-        COUNT(l.id) FILTER (WHERE l.status = 'invite_sent') as sent,
-        COUNT(l.id) FILTER (WHERE l.status = 'accepted') as accepted
+        COUNT(l.id) FILTER (WHERE l.sent_at IS NOT NULL) as sent,
+        COUNT(l.id) FILTER (WHERE l.accepted_at IS NOT NULL) as accepted
       FROM campaigns c
       LEFT JOIN leads l ON c.id = l.campaign_id
-      WHERE c.user_id = $1
+      WHERE c.account_id = $1
       GROUP BY c.id, c.name, c.status
       ORDER BY qualified_leads DESC, total_leads DESC
       LIMIT 5
     `;
 
-    const topCampaigns = await db.query(topCampaignsQuery, [userId]);
+    const topCampaigns = await db.query(topCampaignsQuery, [accountId]);
 
     // 7. Métricas de IA
     const aiMetricsQuery = `
@@ -135,10 +134,26 @@ const getDashboard = async (req, res) => {
         COUNT(*) FILTER (WHERE manual_control_taken = true) as manual_control,
         COUNT(DISTINCT ai_agent_id) as agents_in_use
       FROM conversations
-      WHERE user_id = $1
+      WHERE account_id = $1
     `;
 
-    const aiMetrics = await db.query(aiMetricsQuery, [userId]);
+    const aiMetrics = await db.query(aiMetricsQuery, [accountId]);
+
+    // 7.1. Interações por Agente de IA
+    const aiAgentInteractionsQuery = `
+      SELECT
+        aa.id,
+        aa.name,
+        COUNT(DISTINCT conv.id) as conversations,
+        COUNT(m.id) FILTER (WHERE m.sender_type = 'ai') as messages_sent
+      FROM ai_agents aa
+      LEFT JOIN conversations conv ON conv.ai_agent_id = aa.id AND conv.account_id = $1
+      LEFT JOIN messages m ON m.conversation_id = conv.id
+      WHERE aa.account_id = $1 AND aa.is_active = true
+      GROUP BY aa.id, aa.name
+      ORDER BY messages_sent DESC
+    `;
+    const aiAgentInteractions = await db.query(aiAgentInteractionsQuery, [accountId]);
 
     // 8. Métricas de Mensagens/Conversação
     const messagesMetricsQuery = `
@@ -148,9 +163,9 @@ const getDashboard = async (req, res) => {
         COUNT(*) FILTER (WHERE m.sender_type = 'lead') as lead_messages
       FROM messages m
       JOIN conversations conv ON m.conversation_id = conv.id
-      WHERE conv.user_id = $1
+      WHERE conv.account_id = $1
     `;
-    const messagesMetrics = await db.query(messagesMetricsQuery, [userId]);
+    const messagesMetrics = await db.query(messagesMetricsQuery, [accountId]);
     const msgMetrics = messagesMetrics.rows[0];
 
     const totalConvs = parseInt(totals.total_conversations) || 1;
@@ -171,34 +186,131 @@ const getDashboard = async (req, res) => {
         COUNT(m.id) as message_count,
         COUNT(m.id) FILTER (WHERE m.sender_type = 'lead') as lead_responses
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN conversations conv ON conv.lead_id = l.id
       LEFT JOIN messages m ON m.conversation_id = conv.id
-      WHERE c.user_id = $1 AND conv.id IS NOT NULL
+      WHERE l.account_id = $1 AND conv.id IS NOT NULL
       GROUP BY l.id, l.name, l.title, l.company
       ORDER BY message_count DESC
       LIMIT 5
     `;
-    const engagedLeads = await db.query(engagedLeadsQuery, [userId]);
+    const engagedLeads = await db.query(engagedLeadsQuery, [accountId]);
 
-    // 10. Performance por período (para o gráfico de linha)
-    const performanceQuery = `
+    // 10. Leads por dia (novos leads criados) - usando account_id
+    const leadsPerDayQuery = `
       SELECT
         DATE(l.created_at) as date,
-        COUNT(*) as leads,
-        COUNT(*) FILTER (WHERE l.status = 'qualified') as qualified,
-        COUNT(DISTINCT conv.id) as conversations
+        COUNT(*) as count
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN conversations conv ON conv.lead_id = l.id
-      WHERE c.user_id = $1 AND l.created_at >= $2
+      WHERE l.account_id = $1 AND l.created_at >= $2
       GROUP BY DATE(l.created_at)
       ORDER BY date ASC
     `;
-    const performanceData = await db.query(performanceQuery, [userId, startDate]);
+    const leadsPerDayData = await db.query(leadsPerDayQuery, [accountId, startDate]);
+
+    // 11. Faturamento por dia (deals ganhos) - usando account_id
+    const revenuePerDayQuery = `
+      SELECT
+        DATE(l.won_at) as date,
+        COALESCE(SUM(l.deal_value), 0) as value,
+        COUNT(*) as count
+      FROM leads l
+      WHERE l.account_id = $1
+        AND l.won_at IS NOT NULL
+        AND l.won_at >= $2
+      GROUP BY DATE(l.won_at)
+      ORDER BY date ASC
+    `;
+    const revenuePerDayData = await db.query(revenuePerDayQuery, [accountId, startDate]);
+
+    // 12. Total de faturamento no período - usando account_id
+    const revenueTotalQuery = `
+      SELECT
+        COALESCE(SUM(l.deal_value), 0) as total
+      FROM leads l
+      WHERE l.account_id = $1
+        AND l.won_at IS NOT NULL
+        AND l.won_at >= $2
+    `;
+    const revenueTotalData = await db.query(revenueTotalQuery, [accountId, startDate]);
+
+    // 13. Leads por fonte - usando account_id
+    const leadsBySourceQuery = `
+      SELECT
+        COALESCE(l.source, 'linkedin') as source,
+        COUNT(*) as count
+      FROM leads l
+      WHERE l.account_id = $1 AND l.created_at >= $2
+      GROUP BY COALESCE(l.source, 'linkedin')
+      ORDER BY count DESC
+    `;
+    const leadsBySourceData = await db.query(leadsBySourceQuery, [accountId, startDate]);
+
+    // Processar leads por fonte com labels e percentuais
+    const sourceLabels = {
+      'linkedin': 'LinkedIn',
+      'google_maps': 'Google Maps',
+      'list': 'Lista',
+      'paid_traffic': 'Tráfego Pago',
+      'other': 'Outros'
+    };
+    const totalLeadsBySource = leadsBySourceData.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
+    const leadsBySource = leadsBySourceData.rows.map(row => ({
+      source: row.source,
+      label: sourceLabels[row.source] || row.source,
+      count: parseInt(row.count),
+      percentage: totalLeadsBySource > 0 ? parseFloat(((parseInt(row.count) / totalLeadsBySource) * 100).toFixed(1)) : 0
+    }));
+
+    // 14. Pipeline expandido com scheduled, won e lost - usando account_id e normalizando status
+    const pipelineExpandedQuery = `
+      SELECT
+        CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END as status,
+        COUNT(*) as count,
+        COALESCE(SUM(l.deal_value), 0) as value
+      FROM leads l
+      WHERE l.account_id = $1
+      GROUP BY CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END
+    `;
+    const pipelineExpandedResult = await db.query(pipelineExpandedQuery, [accountId]);
+
+    const pipelineExpanded = {
+      leads: { count: 0, value: 0 },
+      invite_sent: { count: 0, value: 0 },
+      accepted: { count: 0, value: 0 },
+      qualifying: { count: 0, value: 0 },
+      scheduled: { count: 0, value: 0 },
+      won: { count: 0, value: 0 },
+      lost: { count: 0, value: 0 }
+    };
+
+    pipelineExpandedResult.rows.forEach(row => {
+      if (pipelineExpanded[row.status] !== undefined) {
+        pipelineExpanded[row.status] = {
+          count: parseInt(row.count),
+          value: parseFloat(row.value) || 0
+        };
+      }
+    });
+
+    // 15. Tarefas do usuário logado
+    const userTasksQuery = `
+      SELECT
+        COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date < CURRENT_DATE) as overdue,
+        COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date::date = CURRENT_DATE) as today,
+        COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date::date = CURRENT_DATE + INTERVAL '1 day') as tomorrow,
+        COUNT(*) FILTER (WHERE i.is_completed = false) as total_pending
+      FROM checklist_items i
+      JOIN lead_checklists c ON i.checklist_id = c.id
+      JOIN checklist_item_assignees cia ON cia.checklist_item_id = i.id
+      WHERE cia.user_id = $1
+    `;
+    const userTasksData = await db.query(userTasksQuery, [userId]);
+    const userTasks = userTasksData.rows[0] || { overdue: 0, today: 0, tomorrow: 0, total_pending: 0 };
 
     const dashboard = {
       period_days: periodDays,
+
+      // Totais gerais
       totals: {
         campaigns: parseInt(totals.total_campaigns),
         active_campaigns: parseInt(totals.active_campaigns),
@@ -210,18 +322,59 @@ const getDashboard = async (req, res) => {
         ai_conversations: parseInt(totals.ai_conversations),
         linkedin_accounts: parseInt(totals.linkedin_accounts)
       },
-      pipeline,
+
+      // Gráfico: Faturamento por dia
+      revenue_per_day: revenuePerDayData.rows.map(row => ({
+        date: row.date,
+        value: parseFloat(row.value) || 0,
+        count: parseInt(row.count) || 0
+      })),
+      revenue_total: parseFloat(revenueTotalData.rows[0]?.total) || 0,
+
+      // Gráfico: Leads por dia
+      leads_per_day: leadsPerDayData.rows.map(row => ({
+        date: row.date,
+        count: parseInt(row.count) || 0
+      })),
+      leads_total: leadsPerDayData.rows.reduce((sum, row) => sum + parseInt(row.count), 0),
+
+      // Gráfico: Leads por fonte
+      leads_by_source: leadsBySource,
+
+      // Pipeline expandido
+      pipeline: pipelineExpanded,
+
+      // Tarefas do usuário
+      user_tasks: {
+        overdue: parseInt(userTasks.overdue) || 0,
+        today: parseInt(userTasks.today) || 0,
+        tomorrow: parseInt(userTasks.tomorrow) || 0,
+        total_pending: parseInt(userTasks.total_pending) || 0
+      },
+
+      // Taxas de conversão
       conversion_rates: {
         invitation_to_acceptance: parseFloat(conversionRate),
         acceptance_to_qualified: parseFloat(qualificationRate)
       },
+
+      // Top campanhas
+      top_campaigns: topCampaigns.rows,
+
+      // Interações por agente de IA
+      ai_agent_interactions: aiAgentInteractions.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        conversations: parseInt(row.conversations) || 0,
+        messages_sent: parseInt(row.messages_sent) || 0
+      })),
+
+      // Dados legados (para compatibilidade)
       conversations_by_status: conversations,
       activity_chart: activityResult.rows,
-      top_campaigns: topCampaigns.rows,
       ai_metrics: aiMetrics.rows[0],
       conversation_metrics: conversationMetrics,
-      most_engaged_leads: engagedLeads.rows,
-      performance_over_time: performanceData.rows
+      most_engaged_leads: engagedLeads.rows
     };
 
     console.log('✅ Dashboard compilado');

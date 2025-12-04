@@ -5,6 +5,7 @@
  */
 
 const partnerService = require('../services/partnerService');
+const emailService = require('../services/emailService');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -45,6 +46,24 @@ exports.register = async (req, res) => {
       type,
       country
     });
+
+    // Generate approval token for quick-approve links
+    const approvalToken = jwt.sign(
+      {
+        partnerId: partner.id,
+        type: 'partner_approval'
+      },
+      JWT_SECRET,
+      { expiresIn: '30d' } // 30 days to approve
+    );
+
+    // Send notification email to admin with approve/reject buttons
+    try {
+      await emailService.sendPartnerRegistrationNotification(partner, approvalToken);
+    } catch (emailError) {
+      console.error('Error sending partner notification email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     res.status(201).json({
       success: true,
@@ -271,6 +290,200 @@ exports.trackClick = async (req, res) => {
     });
   }
 };
+
+/**
+ * Quick approve/reject partner via URL (from email button)
+ * GET /api/partners/quick-approve/:id
+ */
+exports.quickApprove = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { token, action } = req.query;
+
+    // Validate action
+    if (!['approve', 'reject'].includes(action)) {
+      return res.send(renderResultPage('error', 'Ação Inválida', 'A ação especificada não é válida.'));
+    }
+
+    // Validate token
+    if (!token) {
+      return res.send(renderResultPage('error', 'Token Inválido', 'O link de aprovação é inválido ou expirou.'));
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return res.send(renderResultPage('error', 'Link Expirado', 'O link de aprovação expirou. Acesse o painel admin para aprovar manualmente.'));
+    }
+
+    if (decoded.type !== 'partner_approval' || decoded.partnerId !== id) {
+      return res.send(renderResultPage('error', 'Token Inválido', 'O link de aprovação é inválido.'));
+    }
+
+    // Get partner
+    const partner = await partnerService.getById(id);
+
+    if (!partner) {
+      return res.send(renderResultPage('error', 'Partner não encontrado', 'O partner solicitado não foi encontrado.'));
+    }
+
+    if (partner.status !== 'pending') {
+      const statusText = partner.status === 'approved' ? 'aprovado' : 'processado';
+      return res.send(renderResultPage('info', 'Já Processado', `Este partner já foi ${statusText} anteriormente.`));
+    }
+
+    if (action === 'approve') {
+      // Approve partner
+      const approvedPartner = await partnerService.approve(id, null);
+
+      if (!approvedPartner) {
+        return res.send(renderResultPage('error', 'Erro na Aprovação', 'Não foi possível aprovar o partner.'));
+      }
+
+      // Generate set password token
+      const setPasswordToken = jwt.sign(
+        {
+          partnerId: approvedPartner.id,
+          type: 'partner_set_password'
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      const setPasswordUrl = `${WEBSITE_URL}/partner/set-password?token=${setPasswordToken}`;
+
+      // Send approval email to partner
+      try {
+        await emailService.sendPartnerApprovalEmail(approvedPartner, setPasswordUrl);
+      } catch (emailError) {
+        console.error('Error sending partner approval email:', emailError);
+      }
+
+      return res.send(renderResultPage(
+        'success',
+        'Partner Aprovado!',
+        `<strong>${approvedPartner.name}</strong> foi aprovado com sucesso!<br><br>
+        <strong>Código de afiliado:</strong> ${approvedPartner.affiliate_code}<br><br>
+        Um email foi enviado para ${approvedPartner.email} com o link para definir a senha.`
+      ));
+    } else {
+      // Reject partner
+      const rejectedPartner = await partnerService.reject(id);
+
+      if (!rejectedPartner) {
+        return res.send(renderResultPage('error', 'Erro na Rejeição', 'Não foi possível rejeitar o partner.'));
+      }
+
+      // Send rejection email to partner
+      try {
+        await emailService.sendPartnerRejectionEmail(rejectedPartner);
+      } catch (emailError) {
+        console.error('Error sending partner rejection email:', emailError);
+      }
+
+      return res.send(renderResultPage(
+        'warning',
+        'Partner Reprovado',
+        `<strong>${rejectedPartner.name}</strong> foi reprovado.<br><br>
+        Um email de notificação foi enviado para ${rejectedPartner.email}.`
+      ));
+    }
+  } catch (error) {
+    console.error('Error in quick approve:', error);
+    return res.send(renderResultPage('error', 'Erro Interno', 'Ocorreu um erro ao processar sua solicitação.'));
+  }
+};
+
+/**
+ * Render a simple HTML result page
+ */
+function renderResultPage(type, title, message) {
+  const colors = {
+    success: { bg: '#10B981', icon: '✓' },
+    error: { bg: '#EF4444', icon: '✗' },
+    warning: { bg: '#F59E0B', icon: '!' },
+    info: { bg: '#3B82F6', icon: 'i' }
+  };
+
+  const { bg, icon } = colors[type] || colors.info;
+  const frontendUrl = process.env.FRONTEND_URL || 'https://app.getraze.co';
+
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${title} - GetRaze Partners</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .card {
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+          padding: 40px;
+          max-width: 500px;
+          text-align: center;
+        }
+        .icon {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: ${bg};
+          color: white;
+          font-size: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 24px;
+        }
+        h1 {
+          color: #111827;
+          margin-bottom: 16px;
+          font-size: 24px;
+        }
+        .message {
+          color: #6B7280;
+          line-height: 1.6;
+          margin-bottom: 32px;
+        }
+        .message strong {
+          color: #111827;
+        }
+        .btn {
+          display: inline-block;
+          background: #6366F1;
+          color: white;
+          padding: 12px 24px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-weight: 600;
+          transition: background 0.2s;
+        }
+        .btn:hover { background: #4F46E5; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="icon">${icon}</div>
+        <h1>${title}</h1>
+        <p class="message">${message}</p>
+        <a href="${frontendUrl}/admin/partners" class="btn">Ver Painel de Partners</a>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 // ==========================================
 // AUTHENTICATED ROUTES (partner logged in)

@@ -229,7 +229,8 @@ exports.createOpportunity = async (req, res) => {
       notes,
       campaign_id,
       responsible_user_id,
-      sector_id
+      sector_id,
+      source // linkedin, google_maps, list, paid_traffic, other
     } = req.body;
 
     // Validate required fields
@@ -275,11 +276,12 @@ exports.createOpportunity = async (req, res) => {
     const result = await db.query(
       `INSERT INTO leads
         (account_id, name, title, company, location, headline, profile_url, profile_picture,
-         email, phone, status, score, notes, campaign_id, responsible_user_id, sector_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+         email, phone, status, score, notes, campaign_id, responsible_user_id, sector_id, source)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [accountId, name.trim(), title, company, location, headline, profile_url, profile_picture,
-       email, phone, status, score || 0, notes, campaign_id, responsible_user_id || null, sector_id]
+       email, phone, status, score || 0, notes, campaign_id, responsible_user_id || null, sector_id,
+       source || 'other'] // Default to 'other' for API-created leads
     );
 
     const lead = result.rows[0];

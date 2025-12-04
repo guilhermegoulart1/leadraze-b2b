@@ -10,12 +10,15 @@ const getLocalizedPath = (path: string) => {
   return `/${currentLocale}${path}`;
 };
 
+// Get base URL for anchor links (homepage)
+const homeUrl = currentLocale === 'en' ? '/' : `/${currentLocale}/`;
+
 const navItems = [
-  { href: '#features', label: t.nav.features },
-  { href: '#benefits', label: t.nav.benefits },
-  { href: '#testimonials', label: t.nav.testimonials },
-  { href: '#pricing', label: t.nav.pricing },
-  { href: '#faq', label: t.nav.faq },
+  { href: `${homeUrl}#features`, label: t.nav.features },
+  { href: `${homeUrl}#benefits`, label: t.nav.benefits },
+  { href: `${homeUrl}#testimonials`, label: t.nav.testimonials },
+  { href: `${homeUrl}#pricing`, label: t.nav.pricing },
+  { href: `${homeUrl}#faq`, label: t.nav.faq },
   { href: getLocalizedPath('/partners'), label: t.nav.partners },
   { href: 'https://developer.getraze.co', label: t.nav.documentation, external: true },
 ];
