@@ -182,7 +182,7 @@ try {
 }
 
 // Public releases for developer docs (no auth required)
-app.use('/api/public/releases', cors({
+const releasesCorsOptions = {
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.WWW_URL || 'http://localhost:4321',
@@ -192,7 +192,9 @@ app.use('/api/public/releases', cors({
   ],
   methods: ['GET', 'OPTIONS'],
   allowedHeaders: ['Content-Type']
-}));
+};
+app.options('/api/public/releases', cors(releasesCorsOptions)); // Preflight
+app.use('/api/public/releases', cors(releasesCorsOptions));
 
 try {
   app.use('/api/public/releases', require('./routes/publicReleases'));
