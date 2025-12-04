@@ -24,11 +24,12 @@ app.use(helmet({
 // CORS - allow frontend app and www site
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.FRONTEND_URL || 'http://localhost:5178',
     process.env.WWW_URL || 'http://localhost:4321',
     'https://getraze.co',
     'https://www.getraze.co',
-    'https://app.getraze.co'
+    'https://app.getraze.co',
+    'https://developer.getraze.co'
   ],
   credentials: true
 }));
@@ -178,6 +179,14 @@ try {
   console.log('✅ Public website chat routes loaded (no auth)');
 } catch (error) {
   console.error('❌ Error loading public website chat routes:', error.message);
+}
+
+// Public releases for developer docs (no auth required)
+try {
+  app.use('/api/public/releases', require('./routes/publicReleases'));
+  console.log('✅ Public releases routes loaded (no auth)');
+} catch (error) {
+  console.error('❌ Error loading public releases routes:', error.message);
 }
 
 // ================================

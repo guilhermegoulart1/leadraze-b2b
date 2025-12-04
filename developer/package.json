@@ -10,6 +10,7 @@
     "start": "npx serve .vitepress/dist -l $PORT"
   },
   "dependencies": {
+    "marked": "^17.0.1",
     "serve": "^14.2.4"
   },
   "devDependencies": {

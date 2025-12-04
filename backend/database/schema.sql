@@ -305,6 +305,26 @@ CREATE TRIGGER update_ai_agents_updated_at BEFORE UPDATE ON ai_agents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ================================
+-- RELEASES TABLE (Changelog)
+-- ================================
+
+CREATE TABLE IF NOT EXISTS releases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  version VARCHAR(50) NOT NULL,
+  title VARCHAR(255),
+  content TEXT NOT NULL,
+  published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_releases_published_at ON releases(published_at DESC);
+
+CREATE TRIGGER update_releases_updated_at BEFORE UPDATE ON releases
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ================================
 -- INITIAL DATA
 -- ================================
 

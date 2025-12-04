@@ -3,10 +3,10 @@
 const express = require('express');
 const router = express.Router();
 const releasesController = require('../controllers/releasesController');
-const { authenticate } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 // All routes require authentication
-router.use(authenticate);
+router.use(authenticateToken);
 
 // GET /api/releases - List all releases
 router.get('/', releasesController.getReleases);

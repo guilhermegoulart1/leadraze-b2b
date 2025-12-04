@@ -36,7 +36,9 @@
       "Bash(cmd //c \"taskkill /F /IM node.exe\")",
       "Bash(npm run add-task-type:*)",
       "Bash(del \"c:\\leadraze-b2b\\backend\\src\\routes\\taskComments.js\")",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(ls -la \"c:\\leadraze-b2b\\backend\\database\\migrations\"\" | grep -E \"releases)",
+      "Bash(feedback \")"
     ],
     "deny": [],
     "ask": []

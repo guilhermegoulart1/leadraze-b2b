@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import MDEditor from '@uiw/react-md-editor';
 import {
   Lightbulb,
   ChevronUp,
@@ -104,6 +105,7 @@ export default function NextPage() {
   const [releaseFormLoading, setReleaseFormLoading] = useState(false);
   const [releaseFormError, setReleaseFormError] = useState('');
   const [isEditingRelease, setIsEditingRelease] = useState(false);
+  const [editorMode, setEditorMode] = useState('edit'); // 'edit' or 'preview'
 
   // Load feedback
   useEffect(() => {
@@ -372,6 +374,7 @@ export default function NextPage() {
       content: release.content
     });
     setIsEditingRelease(true);
+    setEditorMode('edit');
     setShowReleaseModal(true);
   };
 
@@ -664,6 +667,7 @@ export default function NextPage() {
                     setIsEditingRelease(false);
                     setSelectedRelease(null);
                     setReleaseForm({ version: '', title: '', content: '' });
+                    setEditorMode('edit');
                     setShowReleaseModal(true);
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium shadow-sm"
@@ -706,56 +710,54 @@ export default function NextPage() {
                       {/* Release Card */}
                       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
                         {/* Header */}
-                        <div className="p-5 border-b border-slate-100">
+                        <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-full text-sm font-semibold shadow-sm">
                                 <Tag className="w-3.5 h-3.5" />
                                 {release.version}
                               </span>
-                              {release.title && (
-                                <h3 className="font-semibold text-slate-900 text-lg">
-                                  {release.title}
-                                </h3>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
                               <span className="text-sm text-slate-400">
                                 {new Date(release.published_at).toLocaleDateString('en-US', {
                                   year: 'numeric',
-                                  month: 'short',
+                                  month: 'long',
                                   day: 'numeric'
                                 })}
                               </span>
-                              {isAdmin && (
-                                <>
-                                  <button
-                                    onClick={() => startEditingRelease(release)}
-                                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Edit3 className="w-4 h-4 text-slate-500" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteRelease(release.id)}
-                                    className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                  </button>
-                                </>
-                              )}
                             </div>
+                            {isAdmin && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => startEditingRelease(release)}
+                                  className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit3 className="w-4 h-4 text-slate-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRelease(release.id)}
+                                  className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </button>
+                              </div>
+                            )}
                           </div>
+                          {release.title && (
+                            <h3 className="font-bold text-slate-900 text-xl mt-3">
+                              {release.title}
+                            </h3>
+                          )}
                         </div>
 
-                        {/* Content */}
-                        <div className="p-5">
-                          <div className="prose prose-slate prose-sm max-w-none">
-                            <pre className="whitespace-pre-wrap font-sans text-slate-700 leading-relaxed">
-                              {release.content}
-                            </pre>
-                          </div>
+                        {/* Content - Markdown Rendered */}
+                        <div className="p-5" data-color-mode="light">
+                          <MDEditor.Markdown
+                            source={release.content}
+                            className="!bg-transparent !text-slate-700"
+                            style={{ backgroundColor: 'transparent' }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1121,8 +1123,8 @@ export default function NextPage() {
       {/* Release Modal */}
       {showReleaseModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white">
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white z-10">
               <h2 className="text-lg font-semibold text-slate-900">
                 {isEditingRelease ? 'Edit Release' : 'New Release'}
               </h2>
@@ -1133,6 +1135,7 @@ export default function NextPage() {
                   setReleaseFormError('');
                   setSelectedRelease(null);
                   setIsEditingRelease(false);
+                  setEditorMode('edit');
                 }}
                 className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
               >
@@ -1178,22 +1181,90 @@ export default function NextPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Release Notes *
                 </label>
-                <textarea
-                  value={releaseForm.content}
-                  onChange={(e) => setReleaseForm({ ...releaseForm, content: e.target.value })}
-                  placeholder={`✨ New Features
-• Feature 1
-• Feature 2
 
-🐛 Bug Fixes
-• Fixed issue X
-• Fixed issue Y
+                {/* Badge Shortcuts */}
+                <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-t-xl border border-b-0 border-slate-200">
+                  <span className="text-xs text-slate-500 font-medium mr-2 self-center">Badges:</span>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## ✨ New Features\n\n- ' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200 transition-colors"
+                  >
+                    ✨ New
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🔧 Improvements\n\n- ' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors"
+                  >
+                    🔧 Improved
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🐛 Bug Fixes\n\n- ' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold hover:bg-amber-200 transition-colors"
+                  >
+                    🐛 Fixed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🗑 Removed\n\n- ' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200 transition-colors"
+                  >
+                    🗑 Removed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🔒 Security\n\n- ' })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold hover:bg-purple-200 transition-colors"
+                  >
+                    🔒 Security
+                  </button>
+                </div>
 
-🔧 Improvements
-• Performance improvements`}
-                  rows={12}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-mono text-sm"
-                />
+                {/* Markdown Editor */}
+                <div data-color-mode="light" className="border border-t-0 border-slate-200 rounded-b-xl overflow-hidden">
+                  <MDEditor
+                    value={releaseForm.content}
+                    onChange={(val) => setReleaseForm({ ...releaseForm, content: val || '' })}
+                    height={400}
+                    preview="live"
+                    hideToolbar={false}
+                    enableScroll={true}
+                  />
+                </div>
+
+                {/* Legend */}
+                <div className="mt-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-3">
+                    Badge shortcuts guide
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">✨ New</span>
+                      <span className="text-slate-600">New features & additions</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">🔧 Improved</span>
+                      <span className="text-slate-600">Enhancements & updates</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded font-semibold">🐛 Fixed</span>
+                      <span className="text-slate-600">Bug fixes & corrections</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded font-semibold">🗑 Removed</span>
+                      <span className="text-slate-600">Deprecated & removed</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-semibold">🔒 Security</span>
+                      <span className="text-slate-600">Security patches</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-3 pt-3 border-t border-slate-200">
+                    <strong>Tip:</strong> Use the toolbar above to format text (bold, italic, lists, links, code, etc.)
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3">
@@ -1205,6 +1276,7 @@ export default function NextPage() {
                     setReleaseFormError('');
                     setSelectedRelease(null);
                     setIsEditingRelease(false);
+                    setEditorMode('edit');
                   }}
                   className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors font-medium"
                 >
