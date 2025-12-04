@@ -8,7 +8,7 @@ const error = ref(null)
 const activeRelease = ref(null)
 
 const API_URL = import.meta.env.PROD
-  ? 'https://app.getraze.co/api/public/releases'
+  ? 'https://api.getraze.co/api/public/releases'
   : 'http://localhost:3001/api/public/releases'
 
 // Configure marked for safe rendering
