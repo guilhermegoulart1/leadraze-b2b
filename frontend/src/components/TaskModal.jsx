@@ -2,32 +2,31 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Calendar, User, Flag, FileText, Link as LinkIcon, Loader,
   Phone, Video, Mail, MessageSquare, FileCheck, MoreHorizontal,
-  Building, Clock, CheckCircle2, Send, AtSign, Smile, Trash2
+  Building, Clock, CheckCircle2, Send, AtSign, Smile, Trash2, Search, ChevronDown
 } from 'lucide-react';
 import api from '../services/api';
 import MentionTextarea from './MentionTextarea';
 
 const TASK_TYPES = [
-  { value: 'call', label: 'Ligacao', icon: Phone, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-  { value: 'meeting', label: 'Reuniao', icon: Video, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
-  { value: 'email', label: 'Email', icon: Mail, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
-  { value: 'follow_up', label: 'Follow-up', icon: MessageSquare, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-  { value: 'proposal', label: 'Proposta', icon: FileCheck, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
-  { value: 'other', label: 'Outro', icon: MoreHorizontal, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' }
+  { value: 'call', label: 'Ligacao', icon: Phone },
+  { value: 'meeting', label: 'Reuniao', icon: Video },
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'follow_up', label: 'Follow-up', icon: MessageSquare },
+  { value: 'proposal', label: 'Proposta', icon: FileCheck },
+  { value: 'other', label: 'Outro', icon: MoreHorizontal }
 ];
 
 const PRIORITIES = [
-  { value: 'low', label: 'Baixa', color: 'text-green-600', bg: 'bg-green-50' },
-  { value: 'medium', label: 'Media', color: 'text-yellow-600', bg: 'bg-yellow-50' },
-  { value: 'high', label: 'Alta', color: 'text-orange-600', bg: 'bg-orange-50' },
-  { value: 'urgent', label: 'Urgente', color: 'text-red-600', bg: 'bg-red-50' }
+  { value: 'urgent', label: 'Urgente', color: 'text-red-600', bg: 'bg-red-50', icon: '🔴' },
+  { value: 'high', label: 'Alta', color: 'text-orange-600', bg: 'bg-orange-50', icon: '🟠' },
+  { value: 'medium', label: 'Normal', color: 'text-blue-600', bg: 'bg-blue-50', icon: '🔵' },
+  { value: 'low', label: 'Baixa', color: 'text-gray-600', bg: 'bg-gray-50', icon: '⚪' }
 ];
 
 const STATUSES = [
-  { value: 'pending', label: 'Pendente', color: 'text-yellow-600', bg: 'bg-yellow-50' },
-  { value: 'in_progress', label: 'Em Andamento', color: 'text-blue-600', bg: 'bg-blue-50' },
-  { value: 'completed', label: 'Concluida', color: 'text-green-600', bg: 'bg-green-50' },
-  { value: 'cancelled', label: 'Cancelada', color: 'text-gray-400', bg: 'bg-gray-50' }
+  { value: 'pending', label: 'Pendente', color: 'text-gray-600', bg: 'bg-gray-100' },
+  { value: 'in_progress', label: 'Em Andamento', color: 'text-blue-600', bg: 'bg-blue-100' },
+  { value: 'completed', label: 'Concluida', color: 'text-green-600', bg: 'bg-green-100' }
 ];
 
 const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNested = false }) => {
@@ -38,14 +37,15 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     status: 'pending',
     priority: 'medium',
     due_date: '',
-    assigned_to: '',
+    assignees: [],
     lead_id: leadId || ''
   });
   const [users, setUsers] = useState([]);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [autoSaving, setAutoSaving] = useState(false);
+  const saveTimeoutRef = useRef(null);
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
 
   // Comments state
   const [comments, setComments] = useState([]);
@@ -57,10 +57,16 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
 
   useEffect(() => {
     if (isOpen) {
-      if (!isNested) {
-        loadData();
-      }
+      loadData();
       if (task) {
+        // Parse assignees - could be array of objects or array of IDs
+        let assignees = [];
+        if (task.assignees && Array.isArray(task.assignees)) {
+          assignees = task.assignees;
+        } else if (task.assignedTo) {
+          assignees = [task.assignedTo];
+        }
+
         setFormData({
           title: task.title || '',
           description: task.description || '',
@@ -68,10 +74,9 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
           status: task.status || 'pending',
           priority: task.priority || 'medium',
           due_date: task.dueDate ? formatDateForInput(task.dueDate) : '',
-          assigned_to: task.assignedTo?.id || '',
+          assignees: assignees,
           lead_id: task.lead?.id || leadId || ''
         });
-        // Load comments for existing task
         loadComments(task.id);
       } else {
         const today = new Date();
@@ -83,31 +88,31 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
           status: 'pending',
           priority: 'medium',
           due_date: formatDateForInput(today),
-          assigned_to: '',
+          assignees: [],
           lead_id: leadId || ''
         });
-        setComments([]);
       }
-      setErrors({});
     }
-  }, [isOpen, task, leadId, isNested]);
+  }, [isOpen, task, leadId]);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
-    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [comments]);
+    const handleClickOutside = (e) => {
+      if (showAssigneeDropdown && !e.target.closest('.relative')) {
+        setShowAssigneeDropdown(false);
+      }
+    };
 
-  const formatDateForInput = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toISOString().slice(0, 16);
-  };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAssigneeDropdown]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [usersResponse, leadsResponse] = await Promise.all([
         api.getAssignableUsers(),
-        api.getLeads({ limit: 100 })
+        leadId ? Promise.resolve({ data: { leads: [] } }) : api.getLeads({ page: 1, limit: 100 })
       ]);
       setUsers(usersResponse.data?.users || []);
       setLeads(leadsResponse.data?.leads || []);
@@ -123,44 +128,77 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     setLoadingComments(true);
     try {
       const response = await api.getTaskComments(taskId);
-      if (response.success) {
-        setComments(response.data?.comments || []);
-      }
+      setComments(response.data?.comments || []);
     } catch (error) {
       console.error('Error loading comments:', error);
-      setComments([]);
     } finally {
       setLoadingComments(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Auto-save function
+  const autoSaveTask = async (updatedData) => {
+    if (!task) return; // Only auto-save for existing tasks
+
+    setAutoSaving(true);
+    try {
+      const payload = {
+        title: updatedData.title.trim() || 'Sem titulo',
+        description: updatedData.description.trim() || null,
+        task_type: updatedData.task_type,
+        status: updatedData.status,
+        priority: updatedData.priority,
+        due_date: updatedData.due_date || null,
+        assignees: updatedData.assignees.map(a => a.id || a),
+        lead_id: (leadId || updatedData.lead_id) || null
+      };
+
+      await api.updateTask(task.id, payload);
+      onSave?.();
+    } catch (error) {
+      console.error('Error auto-saving task:', error);
+    } finally {
+      setAutoSaving(false);
     }
   };
 
-  const handleTypeSelect = (type) => {
-    setFormData(prev => ({ ...prev, task_type: type }));
+  // Debounced auto-save
+  const handleFieldChange = (field, value) => {
+    const updatedData = { ...formData, [field]: value };
+    setFormData(updatedData);
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Only auto-save for existing tasks and after 500ms of inactivity
+    if (task) {
+      saveTimeoutRef.current = setTimeout(() => {
+        autoSaveTask(updatedData);
+      }, 500);
+    }
   };
 
-  const validate = () => {
-    const newErrors = {};
+  const handleCreateTask = async () => {
     if (!formData.title.trim()) {
-      newErrors.title = 'Titulo e obrigatorio';
+      alert('Título é obrigatório');
+      return;
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!validate()) return;
-
-    setSaving(true);
+    setLoading(true);
     try {
       const payload = {
         title: formData.title.trim(),
@@ -169,24 +207,83 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
         status: formData.status,
         priority: formData.priority,
         due_date: formData.due_date || null,
-        assigned_to: isNested ? null : (formData.assigned_to || null),
-        lead_id: leadId || formData.lead_id || null
+        assignees: formData.assignees.map(a => a.id || a),
+        lead_id: (leadId || formData.lead_id) || null
       };
 
-      if (task) {
-        await api.updateTask(task.id, payload);
-      } else {
-        await api.createTask(payload);
-      }
-
+      await api.createTask(payload);
       onSave?.();
       onClose();
     } catch (error) {
-      console.error('Error saving task:', error);
-      setErrors({ general: error.message || 'Erro ao salvar tarefa' });
+      console.error('Error creating task:', error);
+      alert('Erro ao criar tarefa');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
+  };
+
+  // Toggle assignee
+  const toggleAssignee = (user) => {
+    const assignees = formData.assignees || [];
+    const exists = assignees.some(a => (a.id || a) === user.id);
+
+    const newAssignees = exists
+      ? assignees.filter(a => (a.id || a) !== user.id)
+      : [...assignees, user];
+
+    handleFieldChange('assignees', newAssignees);
+  };
+
+  // Render avatar
+  const renderUserAvatar = (user) => {
+    if (!user) return null;
+
+    // Check both camelCase and snake_case for compatibility
+    const avatarUrl = user.avatarUrl || user.avatar_url;
+
+    if (avatarUrl) {
+      return (
+        <img
+          src={avatarUrl}
+          alt={user.name}
+          className="w-6 h-6 rounded-full object-cover border-2 border-white dark:border-gray-800"
+        />
+      );
+    }
+
+    const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?';
+    return (
+      <div className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-medium flex items-center justify-center border-2 border-white dark:border-gray-800">
+        {initials}
+      </div>
+    );
+  };
+
+  // Render assignees avatars
+  const renderAssigneesAvatars = (assignees = [], maxShow = 3) => {
+    if (!assignees || assignees.length === 0) {
+      return (
+        <span className="text-sm text-gray-500 dark:text-gray-400">Nenhum</span>
+      );
+    }
+
+    const shown = assignees.slice(0, maxShow);
+    const remaining = assignees.length - maxShow;
+
+    return (
+      <div className="flex -space-x-1">
+        {shown.map((user, idx) => (
+          <div key={user.id} className="relative" style={{ zIndex: maxShow - idx }} title={user.name}>
+            {renderUserAvatar(user)}
+          </div>
+        ))}
+        {remaining > 0 && (
+          <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 border-2 border-white dark:border-gray-800">
+            +{remaining}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleAddComment = async () => {
@@ -240,514 +337,269 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     return timestamp.toLocaleDateString('pt-BR');
   };
 
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const handleModalClick = (e) => {
-    e.stopPropagation();
-  };
-
   if (!isOpen) return null;
 
   const selectedType = TASK_TYPES.find(t => t.value === formData.task_type) || TASK_TYPES[0];
   const TypeIcon = selectedType.icon;
-  const selectedPriority = PRIORITIES.find(p => p.value === formData.priority) || PRIORITIES[1];
+  const selectedPriority = PRIORITIES.find(p => p.value === formData.priority) || PRIORITIES[2];
   const selectedStatus = STATUSES.find(s => s.value === formData.status) || STATUSES[0];
 
-  // Simple modal for nested mode (inside LeadDetailModal)
-  if (isNested) {
-    return (
-      <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
-        onClick={handleBackdropClick}
-      >
-        <div
-          className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
-          onClick={handleModalClick}
-        >
-          {/* Simple Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {task ? 'Editar Tarefa' : 'Nova Tarefa'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Simple Form */}
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
-            {errors.general && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {errors.general}
-              </div>
-            )}
-
-            {/* Task Type Selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Atividade
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {TASK_TYPES.map((type) => {
-                  const Icon = type.icon;
-                  const isSelected = formData.task_type === type.value;
-                  return (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => handleTypeSelect(type.value)}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? `${type.bg} ${type.color} ${type.border}`
-                          : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="text-xs font-medium">{type.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Titulo *</label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
-                  errors.title ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder={`Ex: ${selectedType.label} com o lead`}
-              />
-              {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
-            </div>
-
-            {/* Priority & Due Date */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                >
-                  {PRIORITIES.map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prazo</label>
-                <input
-                  type="datetime-local"
-                  name="due_date"
-                  value={formData.due_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {saving && <Loader className="w-4 h-4 animate-spin" />}
-                {task ? 'Salvar' : 'Criar Tarefa'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Full-screen modal for standalone mode (similar to LeadDetailModal)
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden"
-        onClick={handleModalClick}
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - Purple gradient */}
-        <div className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
-          <div className="px-6 py-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                {/* Task Type Icon */}
-                <div className={`w-12 h-12 rounded-xl ${selectedType.bg} flex items-center justify-center`}>
-                  <TypeIcon className={`w-6 h-6 ${selectedType.color}`} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">
-                    {task ? formData.title || 'Editar Tarefa' : 'Nova Tarefa'}
-                  </h2>
-                  <div className="flex items-center gap-3 mt-1 text-sm text-purple-200">
-                    <span className="flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${selectedType.bg}`} />
-                      {selectedType.label}
-                    </span>
-                    {task?.lead && (
-                      <span className="flex items-center gap-1">
-                        <Building className="w-3.5 h-3.5" />
-                        {task.lead.name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        {/* Compact Header */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <TypeIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => handleFieldChange('title', e.target.value)}
+              placeholder="Nome da tarefa"
+              className="flex-1 text-lg font-semibold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
+            />
+            {autoSaving && (
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <Loader className="w-3 h-3 animate-spin" />
+                Salvando...
+              </span>
+            )}
           </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Main Content - Two columns */}
+        {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Panel - Form */}
-          <div className="w-[55%] border-r border-gray-200 overflow-y-auto p-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {errors.general && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {errors.general}
-                </div>
-              )}
-
-              {/* Task Type Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Atividade
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {TASK_TYPES.map((type) => {
-                    const Icon = type.icon;
-                    const isSelected = formData.task_type === type.value;
-                    return (
-                      <button
-                        key={type.value}
-                        type="button"
-                        onClick={() => handleTypeSelect(type.value)}
-                        className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
-                          isSelected
-                            ? `${type.bg} ${type.color} ${type.border}`
-                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                        <span className="text-xs font-medium">{type.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+          {/* Left Panel - Details */}
+          <div className="flex-1 p-6 space-y-4 flex flex-col">
+            {/* Properties in line - ClickUp style */}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
+              {/* Column 1 - Task Type */}
+              <div className="flex items-center gap-2">
+                <TypeIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Tipo</span>
+                <select
+                  value={formData.task_type}
+                  onChange={(e) => handleFieldChange('task_type', e.target.value)}
+                  className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
+                >
+                  {TASK_TYPES.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Titulo *</label>
+              {/* Column 2 - Assignee */}
+              <div className="relative flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Responsavel</span>
+                <div
+                  onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
+                  className="flex-1 flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                >
+                  {renderAssigneesAvatars(formData.assignees)}
+                  <ChevronDown className="w-3 h-3 text-gray-400 ml-auto" />
+                </div>
+
+                {/* Dropdown */}
+                {showAssigneeDropdown && (
+                  <div className="absolute top-full mt-1 left-0 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                    <div className="p-2 space-y-1">
+                      {users.map(user => {
+                        const isSelected = formData.assignees.some(a => (a.id || a) === user.id);
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleAssignee(user);
+                            }}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              isSelected ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                            }`}
+                          >
+                            <div className="flex-shrink-0">
+                              {renderUserAvatar(user)}
+                            </div>
+                            <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 text-left">{user.name}</span>
+                            {isSelected && (
+                              <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Column 1 - Status */}
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Status</span>
+                <select
+                  value={formData.status}
+                  onChange={(e) => handleFieldChange('status', e.target.value)}
+                  className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
+                >
+                  {STATUSES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Column 2 - Priority */}
+              <div className="flex items-center gap-2">
+                <Flag className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Prioridade</span>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => handleFieldChange('priority', e.target.value)}
+                  className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
+                >
+                  {PRIORITIES.map(p => (
+                    <option key={p.value} value={p.value}>{p.icon} {p.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Column 1 - Due Date */}
+              <div className="flex items-center gap-2 col-span-2">
+                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Prazo</span>
                 <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
-                    errors.title ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder={`Ex: ${selectedType.label} com o lead`}
-                />
-                {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <FileText className="w-4 h-4 inline mr-1" />
-                  Observacoes
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  placeholder="Detalhes ou notas sobre a tarefa..."
+                  type="datetime-local"
+                  value={formData.due_date}
+                  onChange={(e) => handleFieldChange('due_date', e.target.value)}
+                  className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
                 />
               </div>
-
-              {/* Grid: Priority, Status, Due Date */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Flag className="w-4 h-4 inline mr-1" />
-                    Prioridade
-                  </label>
-                  <select
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  >
-                    {PRIORITIES.map(p => (
-                      <option key={p.value} value={p.value}>{p.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {task && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <CheckCircle2 className="w-4 h-4 inline mr-1" />
-                      Status
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    >
-                      {STATUSES.map(s => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className={task ? '' : 'col-span-2'}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Calendar className="w-4 h-4 inline mr-1" />
-                    Prazo
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="due_date"
-                    value={formData.due_date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
-
-              {/* Lead & Assigned */}
-              <div className="grid grid-cols-2 gap-4">
-                {!leadId && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <LinkIcon className="w-4 h-4 inline mr-1" />
-                      Lead Vinculado
-                    </label>
-                    <select
-                      name="lead_id"
-                      value={formData.lead_id}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                      disabled={loading}
-                    >
-                      <option value="">Nenhum lead</option>
-                      {leads.map(lead => (
-                        <option key={lead.id} value={lead.id}>
-                          {lead.name} {lead.company ? `(${lead.company})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className={leadId ? 'col-span-2' : ''}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <User className="w-4 h-4 inline mr-1" />
-                    Responsavel
-                  </label>
-                  <select
-                    name="assigned_to"
-                    value={formData.assigned_to}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    disabled={loading}
-                  >
-                    <option value="">Nenhum</option>
-                    {users.map(user => (
-                      <option key={user.id} value={user.id}>{user.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {saving && <Loader className="w-4 h-4 animate-spin" />}
-                  {task ? 'Salvar Alteracoes' : 'Criar Tarefa'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Right Panel - Comments */}
-          <div className="w-[45%] flex flex-col bg-gray-50">
-            {/* Comments Header */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
-              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-purple-600" />
-                Comentarios
-                {comments.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-purple-100 text-purple-600 text-xs rounded-full">
-                    {comments.length}
-                  </span>
-                )}
-              </h3>
             </div>
 
-            {/* Comments List */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {!task ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <MessageSquare className="w-12 h-12 mb-3 opacity-50" />
-                  <p className="text-sm font-medium">Salve a tarefa primeiro</p>
-                  <p className="text-xs mt-1">Comentarios podem ser adicionados apos criar a tarefa</p>
-                </div>
-              ) : loadingComments ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader className="w-6 h-6 animate-spin text-purple-600" />
-                </div>
-              ) : comments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <MessageSquare className="w-12 h-12 mb-3 opacity-50" />
-                  <p className="text-sm font-medium">Nenhum comentario</p>
-                  <p className="text-xs mt-1">Seja o primeiro a comentar</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3 group">
-                      {comment.user?.avatar ? (
-                        <img
-                          src={comment.user.avatar}
-                          alt={comment.user.name}
-                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                          {comment.user?.name?.charAt(0) || '?'}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-900">
-                              {comment.user?.name || 'Usuario'}
+            {/* Description - Large space */}
+            <div className="flex-1 min-h-0">
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleFieldChange('description', e.target.value)}
+                placeholder="Adicione uma descricao detalhada da tarefa..."
+                className="w-full h-full px-0 py-0 text-sm bg-transparent border-none outline-none text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 resize-none overflow-auto"
+              />
+            </div>
+
+            {/* Create button for new tasks */}
+            {!task && (
+              <button
+                onClick={handleCreateTask}
+                disabled={loading || !formData.title.trim()}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading && <Loader className="w-4 h-4 animate-spin" />}
+                Criar Tarefa
+              </button>
+            )}
+          </div>
+
+          {/* Right Panel - Comments (only for existing tasks) */}
+          {task && (
+            <div className="w-80 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+              {/* Comments Header */}
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comentarios</h3>
+              </div>
+
+              {/* Comments List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {loadingComments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader className="w-5 h-5 animate-spin text-gray-400" />
+                  </div>
+                ) : comments.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-8">Nenhum comentario ainda</p>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="group">
+                      <div className="flex items-start gap-2">
+                        {comment.user?.avatarUrl ? (
+                          <img
+                            src={comment.user.avatarUrl}
+                            alt={comment.user.name}
+                            className="w-6 h-6 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                            <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                              {comment.user?.name?.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                              {comment.user?.name}
                             </span>
                             <span className="text-xs text-gray-400">
                               {formatTimestamp(comment.createdAt)}
                             </span>
                           </div>
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            className="p-1 text-gray-300 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Excluir comentario"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">
+                            {comment.content}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
-                          {comment.content}
-                        </p>
-                        {comment.mentionedUserNames && comment.mentionedUserNames.length > 0 && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <AtSign className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">
-                              {comment.mentionedUserNames.join(', ')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={commentsEndRef} />
-                </div>
-              )}
-            </div>
-
-            {/* Comment Input */}
-            {task && (
-              <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                    U
-                  </div>
-                  <div className="flex-1">
-                    <MentionTextarea
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      onMentionsChange={setCommentMentions}
-                      placeholder="Escreva um comentario... Use @ para mencionar"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      rows={2}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleAddComment();
-                        }
-                      }}
-                    />
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1">
-                        <button className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded">
-                          <Smile className="w-4 h-4" />
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded transition-opacity"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <button
-                        onClick={handleAddComment}
-                        disabled={!newComment.trim() || sendingComment}
-                        className="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                      >
-                        {sendingComment && <Loader className="w-3 h-3 animate-spin" />}
-                        Comentar
-                      </button>
                     </div>
-                  </div>
+                  ))
+                )}
+                <div ref={commentsEndRef} />
+              </div>
+
+              {/* Add Comment */}
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2">
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddComment();
+                      }
+                    }}
+                    placeholder="Adicionar comentario..."
+                    rows={2}
+                    className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-gray-400"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim() || sendingComment}
+                    className="self-end p-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sendingComment ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

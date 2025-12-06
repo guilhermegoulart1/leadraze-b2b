@@ -252,27 +252,27 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {campaign ? 'Editar Campanha' : 'Nova Campanha de Ativação'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Configure sua campanha de ativação automatizada
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Progress Steps */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => {
               const Icon = step.icon;
@@ -288,7 +288,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                           ? 'bg-purple-600 text-white'
                           : isCompleted
                           ? 'bg-green-500 text-white'
-                          : 'bg-gray-200 text-gray-500'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                       }`}
                     >
                       {isCompleted ? (
@@ -299,7 +299,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                     </div>
                     <span
                       className={`text-xs mt-2 font-medium ${
-                        isActive ? 'text-purple-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                        isActive ? 'text-purple-600 dark:text-purple-400' : isCompleted ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
                       }`}
                     >
                       {step.title}
@@ -308,7 +308,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                   {index < steps.length - 1 && (
                     <div
                       className={`flex-1 h-1 mx-2 rounded transition-colors ${
-                        currentStep > step.number ? 'bg-green-500' : 'bg-gray-200'
+                        currentStep > step.number ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'
                       }`}
                     />
                   )}
@@ -324,41 +324,41 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                   Informações da Campanha
                 </h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Comece definindo um nome e descrição para sua campanha
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Nome da Campanha *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleChange('name', e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder="Ex: Campanha de Outreach Q1 2024"
                 />
                 {errors.name && (
-                  <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.name}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Descrição
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => handleChange('description', e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   placeholder="Descreva o objetivo e estratégia desta campanha..."
                 />
               </div>
@@ -369,16 +369,16 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                   Selecione a Lista de Contatos
                 </h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Escolha a lista que será usada para esta campanha
                 </p>
               </div>
 
               {errors.contact_list_id && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
                   <AlertCircle className="w-4 h-4" />
                   {errors.contact_list_id}
                 </div>
@@ -388,8 +388,8 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                 {lists.length === 0 ? (
                   <div className="text-center py-8">
                     <List className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600">Nenhuma lista disponível</p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-gray-600 dark:text-gray-400">Nenhuma lista disponível</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
                       Crie uma lista primeiro para continuar
                     </p>
                   </div>
@@ -404,20 +404,20 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                         onClick={() => handleChange('contact_list_id', list.id)}
                         className={`p-4 border-2 rounded-lg text-left transition-all ${
                           isSelected
-                            ? 'border-purple-600 bg-purple-50'
-                            : 'border-gray-200 hover:border-purple-300'
+                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
                         }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">{list.name}</h4>
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{list.name}</h4>
                             {list.description && (
-                              <p className="text-sm text-gray-600 mt-1">{list.description}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{list.description}</p>
                             )}
-                            <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+                            <div className="flex items-center gap-4 mt-3 text-sm text-gray-600 dark:text-gray-400">
                               <span>{itemCount} contatos</span>
                               {list.activated_count > 0 && (
-                                <span className="text-green-600">
+                                <span className="text-green-600 dark:text-green-400">
                                   {list.activated_count} ativados
                                 </span>
                               )}
@@ -443,16 +443,16 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                   Canais e Agentes de Ativação
                 </h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Escolha os canais e selecione um agente para cada um. Você pode ativar múltiplos canais simultaneamente.
                 </p>
               </div>
 
               {errors.agents && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
                   <AlertCircle className="w-4 h-4" />
                   {errors.agents}
                 </div>
@@ -461,35 +461,35 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
               <div className="space-y-4">
                 {/* Email Activation */}
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.activate_email}
                       onChange={(e) => handleChange('activate_email', e.target.checked)}
                       className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                     />
-                    <Mail className="w-5 h-5 text-blue-600" />
+                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Ativar por Email</span>
-                      <p className="text-xs text-gray-500">Enviar mensagens por email</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por Email</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagens por email</p>
                     </div>
                   </label>
 
                   {formData.activate_email && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Agente de Email *
                       </label>
                       {agents.filter(a => a.agent_type === 'email').length === 0 ? (
-                        <div className="text-sm text-amber-600">
+                        <div className="text-sm text-amber-600 dark:text-amber-400">
                           Nenhum agente de Email ativo. Crie um agente na página de Agentes.
                         </div>
                       ) : (
                         <select
                           value={formData.email_agent_id || ''}
                           onChange={(e) => handleChange('email_agent_id', e.target.value)}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
-                            errors.email_agent ? 'border-red-500' : 'border-gray-300'
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            errors.email_agent ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           }`}
                         >
                           <option value="">Selecione um agente de Email</option>
@@ -501,7 +501,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                         </select>
                       )}
                       {errors.email_agent && (
-                        <p className="text-red-500 text-sm mt-1">{errors.email_agent}</p>
+                        <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.email_agent}</p>
                       )}
                     </div>
                   )}
@@ -509,35 +509,35 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
 
                 {/* WhatsApp Activation */}
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.activate_whatsapp}
                       onChange={(e) => handleChange('activate_whatsapp', e.target.checked)}
                       className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                     />
-                    <MessageCircle className="w-5 h-5 text-green-600" />
+                    <MessageCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Ativar por WhatsApp</span>
-                      <p className="text-xs text-gray-500">Enviar mensagens pelo WhatsApp</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por WhatsApp</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagens pelo WhatsApp</p>
                     </div>
                   </label>
 
                   {formData.activate_whatsapp && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Agente de WhatsApp *
                       </label>
                       {agents.filter(a => a.agent_type === 'whatsapp').length === 0 ? (
-                        <div className="text-sm text-amber-600">
+                        <div className="text-sm text-amber-600 dark:text-amber-400">
                           Nenhum agente de WhatsApp ativo. Crie um agente na página de Agentes.
                         </div>
                       ) : (
                         <select
                           value={formData.whatsapp_agent_id || ''}
                           onChange={(e) => handleChange('whatsapp_agent_id', e.target.value)}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
-                            errors.whatsapp_agent ? 'border-red-500' : 'border-gray-300'
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            errors.whatsapp_agent ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           }`}
                         >
                           <option value="">Selecione um agente de WhatsApp</option>
@@ -549,7 +549,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                         </select>
                       )}
                       {errors.whatsapp_agent && (
-                        <p className="text-red-500 text-sm mt-1">{errors.whatsapp_agent}</p>
+                        <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.whatsapp_agent}</p>
                       )}
                     </div>
                   )}
@@ -557,35 +557,35 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
 
                 {/* LinkedIn Activation */}
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.activate_linkedin}
                       onChange={(e) => handleChange('activate_linkedin', e.target.checked)}
                       className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
                     />
-                    <Linkedin className="w-5 h-5 text-purple-600" />
+                    <Linkedin className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Ativar por LinkedIn</span>
-                      <p className="text-xs text-gray-500">Enviar mensagens pelo LinkedIn</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por LinkedIn</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagens pelo LinkedIn</p>
                     </div>
                   </label>
 
                   {formData.activate_linkedin && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Agente de LinkedIn *
                       </label>
                       {agents.filter(a => a.agent_type === 'linkedin').length === 0 ? (
-                        <div className="text-sm text-amber-600">
+                        <div className="text-sm text-amber-600 dark:text-amber-400">
                           Nenhum agente de LinkedIn ativo. Crie um agente na página de Agentes.
                         </div>
                       ) : (
                         <select
                           value={formData.linkedin_agent_id || ''}
                           onChange={(e) => handleChange('linkedin_agent_id', e.target.value)}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
-                            errors.linkedin_agent ? 'border-red-500' : 'border-gray-300'
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            errors.linkedin_agent ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           }`}
                         >
                           <option value="">Selecione um agente de LinkedIn</option>
@@ -597,7 +597,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                         </select>
                       )}
                       {errors.linkedin_agent && (
-                        <p className="text-red-500 text-sm mt-1">{errors.linkedin_agent}</p>
+                        <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.linkedin_agent}</p>
                       )}
                     </div>
                   )}
@@ -610,16 +610,16 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                   Configurações da Campanha
                 </h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Configure os limites e programação da sua campanha
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Limite Diário de Ativações *
                 </label>
                 <input
@@ -628,20 +628,20 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                   max="1000"
                   value={formData.daily_limit}
                   onChange={(e) => handleChange('daily_limit', parseInt(e.target.value) || 0)}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    errors.daily_limit ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    errors.daily_limit ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
                 />
                 {errors.daily_limit && (
-                  <p className="text-red-500 text-sm mt-1">{errors.daily_limit}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.daily_limit}</p>
                 )}
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Número máximo de contatos que serão ativados por dia
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Data de Início *
                 </label>
                 <input
@@ -649,26 +649,26 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                   value={formData.start_date}
                   onChange={(e) => handleChange('start_date', e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    errors.start_date ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    errors.start_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
                 />
                 {errors.start_date && (
-                  <p className="text-red-500 text-sm mt-1">{errors.start_date}</p>
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.start_date}</p>
                 )}
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   A campanha começará nesta data (você pode ativá-la depois)
                 </p>
               </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
                 <div className="flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-semibold text-yellow-900 mb-1">
+                    <h4 className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 mb-1">
                       Campanha em modo de rascunho
                     </h4>
-                    <p className="text-sm text-yellow-800">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300">
                       A campanha será criada no modo pausado. Você precisará ativá-la manualmente
                       na página de campanhas quando estiver pronto para começar.
                     </p>
@@ -682,27 +682,27 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
           {currentStep === 5 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                   Revisão da Campanha
                 </h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                   Confira todos os detalhes antes de criar sua campanha
                 </p>
               </div>
 
               <div className="space-y-4">
                 {/* Basic Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Informações Básicas</h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Informações Básicas</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Nome:</span>
-                      <span className="font-medium text-gray-900">{formData.name}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Nome:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{formData.name}</span>
                     </div>
                     {formData.description && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Descrição:</span>
-                        <span className="font-medium text-gray-900 text-right max-w-xs">
+                        <span className="text-gray-600 dark:text-gray-400">Descrição:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100 text-right max-w-xs">
                           {formData.description}
                         </span>
                       </div>
@@ -711,33 +711,33 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                 </div>
 
                 {/* List */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Lista de Contatos</h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Lista de Contatos</h4>
                   {selectedList && (
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Lista:</span>
-                        <span className="font-medium text-gray-900">{selectedList.name}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Lista:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{selectedList.name}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Total de contatos:</span>
-                        <span className="font-medium text-gray-900">{selectedList.item_count || 0}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Total de contatos:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{selectedList.item_count || 0}</span>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Agents by Channel */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Agentes e Canais de Ativação</h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Agentes e Canais de Ativação</h4>
                   <div className="space-y-3">
                     {/* Email */}
                     {formData.activate_email && (
-                      <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <Mail className="w-5 h-5 text-blue-600" />
+                      <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">Email</p>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Email</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
                             {selectedEmailAgent ? selectedEmailAgent.name : 'Agente não encontrado'}
                           </p>
                         </div>
@@ -746,11 +746,11 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
 
                     {/* WhatsApp */}
                     {formData.activate_whatsapp && (
-                      <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <MessageCircle className="w-5 h-5 text-green-600" />
+                      <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <MessageCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">WhatsApp</p>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">WhatsApp</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
                             {selectedWhatsappAgent ? selectedWhatsappAgent.name : 'Agente não encontrado'}
                           </p>
                         </div>
@@ -759,11 +759,11 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
 
                     {/* LinkedIn */}
                     {formData.activate_linkedin && (
-                      <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <Linkedin className="w-5 h-5 text-purple-600" />
+                      <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <Linkedin className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">LinkedIn</p>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">LinkedIn</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
                             {selectedLinkedinAgent ? selectedLinkedinAgent.name : 'Agente não encontrado'}
                           </p>
                         </div>
@@ -773,29 +773,29 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
                 </div>
 
                 {/* Settings */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Configurações</h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Configurações</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Limite diário:</span>
-                      <span className="font-medium text-gray-900">{formData.daily_limit} ativações/dia</span>
+                      <span className="text-gray-600 dark:text-gray-400">Limite diário:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{formData.daily_limit} ativações/dia</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Data de início:</span>
-                      <span className="font-medium text-gray-900">
+                      <span className="text-gray-600 dark:text-gray-400">Data de início:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
                         {new Date(formData.start_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Status inicial:</span>
-                      <span className="font-medium text-yellow-600">Pausada</span>
+                      <span className="text-gray-600 dark:text-gray-400">Status inicial:</span>
+                      <span className="font-medium text-yellow-600 dark:text-yellow-400">Pausada</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {errors.submit && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
                   <AlertCircle className="w-4 h-4" />
                   {errors.submit}
                 </div>
@@ -805,10 +805,10 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Cancelar
           </button>
@@ -817,7 +817,7 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
             {currentStep > 1 && (
               <button
                 onClick={handleBack}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Voltar

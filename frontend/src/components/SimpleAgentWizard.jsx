@@ -388,20 +388,20 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             {mode !== CREATION_MODES.SELECTION && mode !== CREATION_MODES.TEMPLATE_EDIT && (
               <button
                 onClick={handleBack}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
             )}
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 {mode === CREATION_MODES.SELECTION && 'Criar Novo Agente'}
                 {mode === CREATION_MODES.SIMPLE && (reviewMode ? 'Revisar Configuração' : 'Modo Simples')}
                 {mode === CREATION_MODES.TEMPLATES && (
@@ -410,7 +410,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                 )}
                 {mode === CREATION_MODES.TEMPLATE_EDIT && 'Editar Agente'}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {mode === CREATION_MODES.SELECTION && 'Escolha como você quer criar seu agente'}
                 {mode === CREATION_MODES.SIMPLE && (reviewMode ? 'Revise e ajuste a configuração gerada' : 'Informe seu produto e objetivo')}
                 {mode === CREATION_MODES.TEMPLATES && (
@@ -423,9 +423,9 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
@@ -437,7 +437,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               {/* Simple Mode */}
               <button
                 onClick={() => setMode(CREATION_MODES.SIMPLE)}
-                className="group relative p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:shadow-lg transition-all text-left"
+                className="group relative p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl border-2 border-purple-200 dark:border-purple-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-lg transition-all text-left"
               >
                 <div className="absolute top-3 right-3">
                   <span className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-full">
@@ -447,11 +447,11 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                 <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Wand2 className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Modo Simples</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Modo Simples</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Descreva seu agente em linguagem natural e deixe a IA criar a configuração completa para você.
                 </p>
-                <div className="flex items-center text-purple-600 font-medium">
+                <div className="flex items-center text-purple-600 dark:text-purple-400 font-medium">
                   Começar <ChevronRight className="w-4 h-4 ml-1" />
                 </div>
               </button>
@@ -459,16 +459,16 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               {/* Template Mode */}
               <button
                 onClick={() => setMode(CREATION_MODES.TEMPLATES)}
-                className="group p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 hover:border-blue-400 hover:shadow-lg transition-all text-left"
+                className="group p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl border-2 border-blue-200 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg transition-all text-left"
               >
                 <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <BookTemplate className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Templates</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Templates</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Escolha entre 8 metodologias de vendas consagradas como SPIN, Challenger, Sandler e mais.
                 </p>
-                <div className="flex items-center text-blue-600 font-medium">
+                <div className="flex items-center text-blue-600 dark:text-blue-400 font-medium">
                   Ver Templates <ChevronRight className="w-4 h-4 ml-1" />
                 </div>
               </button>
@@ -476,16 +476,16 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               {/* Advanced Mode */}
               <button
                 onClick={() => setMode(CREATION_MODES.ADVANCED)}
-                className="group p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all text-left"
+                className="group p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-600/50 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-lg transition-all text-left"
               >
                 <div className="w-14 h-14 bg-gray-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Settings2 className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Modo Avançado</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Modo Avançado</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Controle total sobre todas as configurações do agente. Para usuários experientes.
                 </p>
-                <div className="flex items-center text-gray-600 font-medium">
+                <div className="flex items-center text-gray-600 dark:text-gray-400 font-medium">
                   Configurar <ChevronRight className="w-4 h-4 ml-1" />
                 </div>
               </button>
@@ -497,7 +497,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
             <div className="max-w-2xl mx-auto space-y-6">
               {/* Agent Type Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Tipo de Agente
                 </label>
                 <div className="grid grid-cols-3 gap-3">
@@ -509,8 +509,8 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                         onClick={() => setAgentType(type)}
                         className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
                           agentType === type
-                            ? 'border-purple-500 bg-purple-50 text-purple-700'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         <Icon className="w-5 h-5" />
@@ -523,7 +523,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
               {/* Product/Service Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   O que você vende? <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -531,16 +531,16 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                   value={productService}
                   onChange={(e) => setProductService(e.target.value)}
                   placeholder="Ex: Software de gestão financeira, Consultoria de marketing, Plataforma de e-commerce..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Descreva brevemente seu produto ou serviço
                 </p>
               </div>
 
               {/* Objective Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Qual o objetivo do agente? <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -551,14 +551,14 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                       onClick={() => setObjective(obj.id)}
                       className={`p-3 rounded-lg border-2 text-left transition-all ${
                         objective === obj.id
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}
                     >
-                      <span className={`font-medium text-sm ${objective === obj.id ? 'text-purple-700' : 'text-gray-700'}`}>
+                      <span className={`font-medium text-sm ${objective === obj.id ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300'}`}>
                         {obj.label}
                       </span>
-                      <p className="text-xs text-gray-500 mt-0.5">{obj.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{obj.description}</p>
                     </button>
                   ))}
                 </div>
@@ -566,23 +566,23 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
               {/* Description Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Detalhes adicionais <span className="text-gray-400">(opcional)</span>
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ex: Meu público-alvo são pequenas empresas. O agente deve ser empático, fazer perguntas para entender as dores do cliente e apresentar a solução de forma personalizada."
-                  className="w-full h-28 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full h-28 p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
                     Adicione instruções específicas sobre tom, público-alvo, etc.
                   </span>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="text-sm border border-gray-300 rounded-lg px-3 py-1"
+                    className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     <option value="pt">Português</option>
                     <option value="en">English</option>
@@ -593,7 +593,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
               {/* Error Message */}
               {generationError && (
-                <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <p className="text-sm">{generationError}</p>
                 </div>
@@ -754,7 +754,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
               {/* Error Message */}
               {generationError && (
-                <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <p className="text-sm">{generationError}</p>
                 </div>
@@ -785,7 +785,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
           {mode === CREATION_MODES.TEMPLATE_EDIT && editableConfig && !reviewMode && (
             <div className="space-y-6">
               {/* Agent Header */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
                 <div className="flex items-start gap-4">
                   <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
                     <Bot className="w-8 h-8 text-white" />
@@ -795,20 +795,20 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                       type="text"
                       value={editableConfig.name || ''}
                       onChange={(e) => setEditableConfig({ ...editableConfig, name: e.target.value })}
-                      className="text-xl font-bold text-gray-900 bg-transparent border-b-2 border-transparent hover:border-blue-300 focus:border-blue-500 focus:outline-none w-full"
+                      className="text-xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-blue-300 dark:hover:border-blue-600 focus:border-blue-500 focus:outline-none w-full"
                       placeholder="Nome do Agente"
                     />
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">
                         {getAgentTypeLabel(agentType)}
                       </span>
                       {editableConfig.template_name ? (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full flex items-center gap-1">
+                        <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-full flex items-center gap-1">
                           <BookTemplate className="w-3 h-3" />
                           {editableConfig.template_name}
                         </span>
                       ) : (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-medium rounded-full flex items-center gap-1">
                           <Sparkles className="w-3 h-3" />
                           Gerado por IA
                         </span>
@@ -819,35 +819,35 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               </div>
 
               {/* Description */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Descrição
                 </label>
                 <input
                   type="text"
                   value={editableConfig.description || ''}
                   onChange={(e) => setEditableConfig({ ...editableConfig, description: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   placeholder="Uma breve descrição do agente..."
                 />
               </div>
 
               {/* Initial Message */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Mensagem Inicial
                 </label>
                 <textarea
                   ref={initialMessageRef}
                   value={editableConfig.initial_message || ''}
                   onChange={(e) => setEditableConfig({ ...editableConfig, initial_message: e.target.value })}
-                  className="w-full h-28 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                  className="w-full h-28 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 />
                 {/* Variable Badges */}
                 <div className="mt-3">
                   <div className="flex items-center gap-1.5 mb-2">
-                    <Variable className="w-3.5 h-3.5 text-gray-500" />
-                    <span className="text-xs text-gray-500 font-medium">Variáveis - clique para inserir:</span>
+                    <Variable className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Variáveis - clique para inserir:</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {AVAILABLE_VARIABLES.map((variable) => (
@@ -855,7 +855,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                         key={variable.key}
                         type="button"
                         onClick={() => insertVariable(variable.key)}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-mono rounded-md border border-blue-200 hover:border-blue-300 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-mono rounded-md border border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors cursor-pointer"
                         title={variable.description}
                       >
                         {variable.key}
@@ -866,24 +866,24 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               </div>
 
               {/* System Prompt (collapsible) */}
-              <details className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <summary className="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Prompt do Sistema</span>
-                  <span className="text-xs text-gray-500">Clique para expandir</span>
+              <details className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                <summary className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Prompt do Sistema</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Clique para expandir</span>
                 </summary>
-                <div className="p-4 pt-0 border-t border-gray-100">
+                <div className="p-4 pt-0 border-t border-gray-100 dark:border-gray-700">
                   <textarea
                     value={editableConfig.system_prompt || ''}
                     onChange={(e) => setEditableConfig({ ...editableConfig, system_prompt: e.target.value })}
-                    className="w-full h-48 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                    className="w-full h-48 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   />
                 </div>
               </details>
 
               {/* Behavioral Profile */}
               {editableConfig.behavioral_profile && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Perfil Comportamental
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -894,7 +894,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                       { key: 'professionalism', label: 'Profissionalismo' }
                     ].map((trait) => (
                       <div key={trait.key} className="text-center">
-                        <label className="text-xs text-gray-500 mb-1 block">{trait.label}</label>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{trait.label}</label>
                         <input
                           type="range"
                           min="0"
@@ -909,7 +909,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                           })}
                           className="w-full accent-blue-600"
                         />
-                        <div className="text-sm font-medium text-blue-600">
+                        <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
                           {editableConfig.behavioral_profile[trait.key] || 50}%
                         </div>
                       </div>
@@ -920,19 +920,19 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
               {/* Conversation Steps Preview */}
               {editableConfig.conversation_steps?.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Passos da Conversa ({editableConfig.conversation_steps.length})
                   </label>
                   <div className="space-y-2">
                     {editableConfig.conversation_steps.map((step, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm p-2 bg-gray-50 rounded-lg">
-                        <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">
+                      <div key={idx} className="flex items-center gap-2 text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <span className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full flex items-center justify-center text-xs font-medium">
                           {idx + 1}
                         </span>
-                        <span className="text-gray-700 font-medium">{step.name || step.step_name}</span>
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">{step.name || step.step_name}</span>
                         {step.description && (
-                          <span className="text-gray-500 text-xs">- {step.description}</span>
+                          <span className="text-gray-500 dark:text-gray-400 text-xs">- {step.description}</span>
                         )}
                       </div>
                     ))}
@@ -946,7 +946,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
           {reviewMode && editableConfig && mode !== CREATION_MODES.TEMPLATE_EDIT && (
             <div className="space-y-6">
               {/* Config Summary Card */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 rounded-xl p-6 border border-purple-200 dark:border-purple-700">
                 <div className="flex items-start gap-4">
                   <div className="w-16 h-16 bg-purple-600 rounded-xl flex items-center justify-center">
                     <Bot className="w-8 h-8 text-white" />
@@ -956,20 +956,20 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                       type="text"
                       value={editableConfig.name || ''}
                       onChange={(e) => setEditableConfig({ ...editableConfig, name: e.target.value })}
-                      className="text-xl font-bold text-gray-900 bg-transparent border-b-2 border-transparent hover:border-purple-300 focus:border-purple-500 focus:outline-none w-full"
+                      className="text-xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-purple-300 dark:hover:border-purple-600 focus:border-purple-500 focus:outline-none w-full"
                       placeholder="Nome do Agente"
                     />
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                      <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-full">
                         {getAgentTypeLabel(agentType)}
                       </span>
                       {mode === CREATION_MODES.TEMPLATES && selectedTemplate && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                        <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">
                           {selectedTemplate.name}
                         </span>
                       )}
                       {mode === CREATION_MODES.SIMPLE && (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-medium rounded-full flex items-center gap-1">
                           <Sparkles className="w-3 h-3" /> Gerado por IA
                         </span>
                       )}
@@ -981,33 +981,33 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               {/* Editable Sections */}
               <div className="grid gap-4">
                 {/* System Prompt */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Prompt do Sistema
                   </label>
                   <textarea
                     value={editableConfig.system_prompt || ''}
                     onChange={(e) => setEditableConfig({ ...editableConfig, system_prompt: e.target.value })}
-                    className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
+                    className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   />
                 </div>
 
                 {/* Initial Message */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Mensagem Inicial
                   </label>
                   <textarea
                     ref={initialMessageRef}
                     value={editableConfig.initial_message || ''}
                     onChange={(e) => setEditableConfig({ ...editableConfig, initial_message: e.target.value })}
-                    className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
+                    className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   />
                   {/* Variable Badges */}
                   <div className="mt-3">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <Variable className="w-3.5 h-3.5 text-gray-500" />
-                      <span className="text-xs text-gray-500 font-medium">Variables - click to insert:</span>
+                      <Variable className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Variables - click to insert:</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {AVAILABLE_VARIABLES.map((variable) => (
@@ -1015,7 +1015,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                           key={variable.key}
                           type="button"
                           onClick={() => insertVariable(variable.key)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-mono rounded-md border border-purple-200 hover:border-purple-300 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-mono rounded-md border border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 transition-colors cursor-pointer"
                           title={variable.description}
                         >
                           {variable.key}
@@ -1027,15 +1027,15 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
                 {/* Behavioral Profile Summary */}
                 {editableConfig.behavioral_profile && (
-                  <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Perfil Comportamental
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {['formality', 'friendliness', 'assertiveness', 'professionalism'].map((trait) => (
-                        <div key={trait} className="text-center p-2 bg-gray-50 rounded-lg">
-                          <div className="text-xs text-gray-500 capitalize mb-1">{trait}</div>
-                          <div className="font-medium text-purple-600">
+                        <div key={trait} className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 capitalize mb-1">{trait}</div>
+                          <div className="font-medium text-purple-600 dark:text-purple-400">
                             {editableConfig.behavioral_profile[trait] || 0}%
                           </div>
                         </div>
@@ -1046,21 +1046,21 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
                 {/* Conversation Steps Preview */}
                 {editableConfig.conversation_steps?.length > 0 && (
-                  <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Passos da Conversa ({editableConfig.conversation_steps.length} passos)
                     </label>
                     <div className="space-y-2">
                       {editableConfig.conversation_steps.slice(0, 3).map((step, idx) => (
                         <div key={idx} className="flex items-center gap-2 text-sm">
-                          <span className="w-6 h-6 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-xs font-medium">
+                          <span className="w-6 h-6 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full flex items-center justify-center text-xs font-medium">
                             {idx + 1}
                           </span>
-                          <span className="text-gray-700">{step.name || step.step_name}</span>
+                          <span className="text-gray-700 dark:text-gray-300">{step.name || step.step_name}</span>
                         </div>
                       ))}
                       {editableConfig.conversation_steps.length > 3 && (
-                        <p className="text-sm text-gray-500 ml-8">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
                           + {editableConfig.conversation_steps.length - 3} mais passos
                         </p>
                       )}
@@ -1071,11 +1071,11 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
               {/* Refine with AI (only for simple mode) */}
               {mode === CREATION_MODES.SIMPLE && (
-                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-xl p-4">
                   {!showRefineInput ? (
                     <button
                       onClick={() => setShowRefineInput(true)}
-                      className="flex items-center gap-2 text-purple-700 font-medium hover:text-purple-800"
+                      className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-medium hover:text-purple-800 dark:hover:text-purple-200"
                     >
                       <RefreshCw className="w-4 h-4" />
                       Refinar com IA
@@ -1087,7 +1087,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                         value={refineFeedback}
                         onChange={(e) => setRefineFeedback(e.target.value)}
                         placeholder="Descreva o que você quer mudar..."
-                        className="w-full p-3 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full p-3 border border-purple-300 dark:border-purple-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
                       />
                       <div className="flex items-center gap-2">
@@ -1108,7 +1108,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                             setShowRefineInput(false);
                             setRefineFeedback('');
                           }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                          className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                         >
                           Cancelar
                         </button>
@@ -1123,11 +1123,11 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
         {/* Footer for Template Edit Mode - exclusive, not when reviewMode is active */}
         {mode === CREATION_MODES.TEMPLATE_EDIT && !reviewMode && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setMode(CREATION_MODES.ADVANCED)}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               >
                 <Settings2 className="w-4 h-4" />
                 Modo avançado
@@ -1135,7 +1135,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                 >
                   Cancelar
                 </button>
@@ -1158,11 +1158,11 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
         {/* Footer for Review Mode - exclusive, not for TEMPLATE_EDIT mode */}
         {reviewMode && mode !== CREATION_MODES.TEMPLATE_EDIT && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setMode(CREATION_MODES.ADVANCED)}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+                className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               >
                 <Settings2 className="w-4 h-4" />
                 Editar no modo avançado
@@ -1170,7 +1170,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                 >
                   Cancelar
                 </button>

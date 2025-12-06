@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { DollarSign } from 'lucide-react';
 
@@ -26,13 +27,13 @@ const RevenueChart = ({ data = [], total = 0 }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-semibold text-gray-900 mb-1">{label}</p>
+        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{label}</p>
           <p className="text-sm text-emerald-600 font-medium">
             {formatCurrency(payload[0].value)}
           </p>
           {payload[0].payload.count > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
               {payload[0].payload.count} {payload[0].payload.count === 1 ? 'deal' : 'deals'}
             </p>
           )}
@@ -43,11 +44,11 @@ const RevenueChart = ({ data = [], total = 0 }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Faturamento por Dia</h3>
-          <p className="text-sm text-gray-500">Deals fechados no período</p>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Faturamento por Dia</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Deals fechados no período</p>
         </div>
         <div className="p-2 rounded-lg bg-emerald-50">
           <DollarSign className="w-5 h-5 text-emerald-600" />
@@ -81,15 +82,15 @@ const RevenueChart = ({ data = [], total = 0 }) => {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+          <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
             Sem dados no período
           </div>
         )}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-100">
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">Total no período</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total no período</span>
           <span className="text-lg font-bold text-emerald-600">{formatCurrency(total)}</span>
         </div>
       </div>

@@ -50,9 +50,9 @@ const ConnectionProfileModal = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-blue-700">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
               {profile.profile_picture ? (
@@ -118,7 +118,7 @@ const ConnectionProfileModal = ({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex overflow-x-auto">
             {tabs.map((tab) => (
               <button
@@ -126,8 +126,8 @@ const ConnectionProfileModal = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -144,46 +144,46 @@ const ConnectionProfileModal = ({
             <div className="space-y-6">
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                     {profile.connections_count || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Conexoes</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Conexoes</p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                     {profile.followers_count || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Seguidores</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Seguidores</p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                     {profile.experience?.length || 0}
                   </p>
-                  <p className="text-sm text-gray-600">Experiencias</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Experiencias</p>
                 </div>
               </div>
 
               {/* About */}
               {profile.about && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Sobre</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{profile.about}</p>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Sobre</h3>
+                  <p className="text-gray-600 dark:text-gray-400 whitespace-pre-line">{profile.about}</p>
                 </div>
               )}
 
               {/* Info Cards */}
               <div className="grid grid-cols-2 gap-4">
                 {profile.industry && (
-                  <div className="p-4 border border-gray-200 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Setor</p>
-                    <p className="font-medium text-gray-900">{profile.industry}</p>
+                  <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Setor</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{profile.industry}</p>
                   </div>
                 )}
                 {profile.location && (
-                  <div className="p-4 border border-gray-200 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Localizacao</p>
-                    <p className="font-medium text-gray-900">{profile.location}</p>
+                  <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Localizacao</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{profile.location}</p>
                   </div>
                 )}
               </div>
@@ -191,22 +191,22 @@ const ConnectionProfileModal = ({
               {/* Campaign History */}
               {profile.previous_campaigns?.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
                     Historico de Campanhas
                   </h3>
                   <div className="space-y-2">
                     {profile.previous_campaigns.map((campaign, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                       >
-                        <span className="font-medium text-gray-900">{campaign.name}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{campaign.name}</span>
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           campaign.status === 'active'
-                            ? 'bg-green-100 text-green-700'
+                            ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
                             : campaign.status === 'completed'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                            : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                         }`}>
                           {campaign.status}
                         </span>
@@ -225,27 +225,27 @@ const ConnectionProfileModal = ({
                 profile.experience.map((exp, idx) => (
                   <div
                     key={idx}
-                    className="p-4 border border-gray-200 rounded-lg"
+                    className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                         <Briefcase className="w-6 h-6 text-gray-400" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">
                           {exp.title || exp.position}
                         </h4>
-                        <p className="text-gray-600">{exp.company || exp.company_name}</p>
+                        <p className="text-gray-600 dark:text-gray-400">{exp.company || exp.company_name}</p>
                         {(exp.start_date || exp.dates) && (
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                             {exp.start_date} - {exp.end_date || 'Presente'}
                           </p>
                         )}
                         {exp.description && (
-                          <p className="text-sm text-gray-600 mt-2">{exp.description}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{exp.description}</p>
                         )}
                         {exp.location && (
-                          <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {exp.location}
                           </p>
@@ -255,7 +255,7 @@ const ConnectionProfileModal = ({
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                   Nenhuma experiencia profissional encontrada
                 </p>
               )}
@@ -269,24 +269,24 @@ const ConnectionProfileModal = ({
                 profile.education.map((edu, idx) => (
                   <div
                     key={idx}
-                    className="p-4 border border-gray-200 rounded-lg"
+                    className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                         <GraduationCap className="w-6 h-6 text-gray-400" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">
                           {edu.school || edu.school_name}
                         </h4>
                         {edu.degree && (
-                          <p className="text-gray-600">{edu.degree}</p>
+                          <p className="text-gray-600 dark:text-gray-400">{edu.degree}</p>
                         )}
                         {edu.field_of_study && (
-                          <p className="text-gray-600">{edu.field_of_study}</p>
+                          <p className="text-gray-600 dark:text-gray-400">{edu.field_of_study}</p>
                         )}
                         {(edu.start_date || edu.dates) && (
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                             {edu.start_date} - {edu.end_date || 'Presente'}
                           </p>
                         )}
@@ -295,7 +295,7 @@ const ConnectionProfileModal = ({
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                   Nenhuma formacao encontrada
                 </p>
               )}
@@ -310,14 +310,14 @@ const ConnectionProfileModal = ({
                   {profile.skills.map((skill, idx) => (
                     <span
                       key={idx}
-                      className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
+                      className="px-3 py-1 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-sm"
                     >
                       {typeof skill === 'string' ? skill : skill.name || skill.skill}
                     </span>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                   Nenhuma competencia encontrada
                 </p>
               )}
@@ -330,7 +330,7 @@ const ConnectionProfileModal = ({
               {/* Languages */}
               {profile.languages?.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                     <Languages className="w-5 h-5" />
                     Idiomas
                   </h3>
@@ -338,7 +338,7 @@ const ConnectionProfileModal = ({
                     {profile.languages.map((lang, idx) => (
                       <span
                         key={idx}
-                        className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                        className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"
                       >
                         {typeof lang === 'string' ? lang : lang.name || lang.language}
                         {lang.proficiency && ` (${lang.proficiency})`}
@@ -351,7 +351,7 @@ const ConnectionProfileModal = ({
               {/* Certifications */}
               {profile.certifications?.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                     <Award className="w-5 h-5" />
                     Certificacoes
                   </h3>
@@ -359,13 +359,13 @@ const ConnectionProfileModal = ({
                     {profile.certifications.map((cert, idx) => (
                       <div
                         key={idx}
-                        className="p-3 border border-gray-200 rounded-lg"
+                        className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
                       >
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
                           {typeof cert === 'string' ? cert : cert.name}
                         </p>
                         {cert.issuing_organization && (
-                          <p className="text-sm text-gray-600">{cert.issuing_organization}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{cert.issuing_organization}</p>
                         )}
                       </div>
                     ))}
@@ -375,10 +375,10 @@ const ConnectionProfileModal = ({
 
               {/* Raw data for debugging */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
                   Dados Completos
                 </h3>
-                <pre className="p-4 bg-gray-100 rounded-lg text-xs overflow-auto max-h-60">
+                <pre className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-xs text-gray-900 dark:text-gray-100 overflow-auto max-h-60">
                   {JSON.stringify(profile, null, 2)}
                 </pre>
               </div>

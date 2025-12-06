@@ -40,7 +40,7 @@ const OnboardingChecklist = () => {
       <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={toggleMinimize}
-          className="flex items-center gap-3 bg-white border border-gray-200 rounded-full py-3 px-5 shadow-lg hover:shadow-xl transition-all group"
+          className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full py-3 px-5 shadow-lg dark:shadow-gray-900/50 hover:shadow-xl dark:shadow-gray-900/50 transition-all group"
         >
           <div className="relative w-8 h-8">
             <svg className="w-8 h-8 -rotate-90">
@@ -63,11 +63,11 @@ const OnboardingChecklist = () => {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-purple-600">
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-purple-600 dark:text-purple-400">
               {completedSteps.length}/{steps.length}
             </span>
           </div>
-          <span className="text-sm font-medium text-gray-700 group-hover:text-purple-600 transition-colors">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-purple-600 dark:text-purple-400 transition-colors">
             {t('title')}
           </span>
           <ChevronUp className="w-4 h-4 text-gray-400" />
@@ -78,7 +78,7 @@ const OnboardingChecklist = () => {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80">
-      <div className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-3">
           <div className="flex items-center justify-between">
@@ -112,7 +112,7 @@ const OnboardingChecklist = () => {
             </div>
             <div className="h-1.5 bg-purple-800/50 rounded-full overflow-hidden">
               <div
-                className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+                className="h-full bg-white dark:bg-gray-800 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -123,18 +123,18 @@ const OnboardingChecklist = () => {
         <div className="p-3 max-h-80 overflow-y-auto">
           {isOnboardingComplete ? (
             <div className="text-center py-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-1">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 {t('complete.title')}
               </h4>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {t('complete.description')}
               </p>
               <button
                 onClick={dismissOnboarding}
-                className="mt-3 text-xs text-purple-600 hover:text-purple-700 font-medium"
+                className="mt-3 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 font-medium"
               >
                 {t('complete.closeButton')}
               </button>
@@ -157,8 +157,8 @@ const OnboardingChecklist = () => {
                         w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
                         transition-all group
                         ${completed
-                          ? 'bg-gray-50'
-                          : 'hover:bg-purple-50 hover:border-purple-200 border border-transparent'
+                          ? 'bg-gray-50 dark:bg-gray-900/50'
+                          : 'hover:bg-purple-50 dark:bg-purple-900/20 hover:border-purple-200 border border-transparent'
                         }
                       `}
                     >
@@ -167,14 +167,14 @@ const OnboardingChecklist = () => {
                         flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center
                         transition-colors
                         ${completed
-                          ? 'bg-green-100'
-                          : 'bg-purple-100 group-hover:bg-purple-200'
+                          ? 'bg-green-100 dark:bg-green-900/30'
+                          : 'bg-purple-100 dark:bg-purple-900/30 group-hover:bg-purple-200'
                         }
                       `}>
                         {completed ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                          <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
                         ) : (
-                          <Icon className="w-4 h-4 text-purple-600" />
+                          <Icon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         )}
                       </div>
 
@@ -184,7 +184,7 @@ const OnboardingChecklist = () => {
                           text-sm font-medium transition-all
                           ${completed
                             ? 'text-gray-400 line-through'
-                            : 'text-gray-700 group-hover:text-purple-600'
+                            : 'text-gray-700 dark:text-gray-300 group-hover:text-purple-600 dark:text-purple-400'
                           }
                         `}>
                           {t(`steps.${step.id}.title`)}
@@ -213,15 +213,15 @@ const OnboardingChecklist = () => {
 
         {/* Footer */}
         {!isOnboardingComplete && (
-          <div className="px-4 py-2.5 bg-purple-50 border-t border-purple-100">
+          <div className="px-4 py-2.5 bg-purple-50 dark:bg-purple-900/20 border-t border-purple-100">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-purple-600">
+              <p className="text-xs text-purple-600 dark:text-purple-400">
                 <span className="font-medium">{t('tip.label')}</span>{' '}
                 {t('tip.text')}
               </p>
               <button
                 onClick={dismissOnboarding}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors whitespace-nowrap ml-2"
+                className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-400 transition-colors whitespace-nowrap ml-2"
               >
                 {t('dismissAll')}
               </button>

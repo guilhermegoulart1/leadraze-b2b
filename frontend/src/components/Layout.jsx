@@ -5,10 +5,11 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo
+  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo, Tag
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
 import OnboardingChecklist from './OnboardingChecklist';
 import CreditsIndicator from './CreditsIndicator';
@@ -20,6 +21,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('navigation');
   const { user, logout, isAdmin, isSupervisor, hasPermission } = useAuth();
+  const { isDark } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -77,34 +79,35 @@ const Layout = () => {
 
   const getUserInitials = () => {
     if (!user?.name) return 'US';
-    return user.name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
+    const names = user.name.trim().split(' ').filter(n => n.length > 0);
+    if (names.length === 1) {
+      // Se só tem um nome, pega as 2 primeiras letras
+      return names[0].substring(0, 2).toUpperCase();
+    }
+    // Pega primeira letra do primeiro nome + primeira letra do segundo nome
+    return (names[0][0] + names[1][0]).toUpperCase();
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={`
           ${isCollapsed ? 'w-16' : 'w-56'}
-          bg-white border-r border-gray-200 flex flex-col
+          bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col
           transition-all duration-300 ease-in-out relative
         `}
       >
         {/* Logo */}
-        <div className="h-14 border-b border-gray-200 flex items-center justify-between px-3">
+        <div className="h-14 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3">
           {isCollapsed ? (
             <button
               onClick={() => setIsCollapsed(false)}
-              className="w-full flex items-center justify-center hover:bg-gray-50 rounded transition-colors p-2"
+              className="w-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors p-2"
               title={t('userMenu.expandMenu')}
             >
               <img
-                src="/logo/getraze-square-purple.svg"
+                src={isDark ? "/logo/getraze-square-white.svg" : "/logo/getraze-square-purple.svg"}
                 alt="GetRaze"
                 className="w-8 h-8"
               />
@@ -113,17 +116,17 @@ const Layout = () => {
             <>
               <div className="flex items-center space-x-2 flex-1 min-w-0">
                 <img
-                  src="/logo/getraze-purple.svg"
+                  src={isDark ? "/logo/getraze-white.svg" : "/logo/getraze-purple.svg"}
                   alt="GetRaze"
                   className="h-8 w-auto"
                 />
               </div>
               <button
                 onClick={() => setIsCollapsed(true)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0"
                 title={t('userMenu.collapseMenu')}
               >
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
+                <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
               </button>
             </>
           )}
@@ -136,12 +139,12 @@ const Layout = () => {
             if (item.section) {
               if (isCollapsed) {
                 return (
-                  <div key={index} className="my-2 border-t border-gray-200" />
+                  <div key={index} className="my-2 border-t border-gray-200 dark:border-gray-700" />
                 );
               }
               return (
                 <div key={index} className="pt-4 pb-1.5 px-2">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     {item.section}
                   </p>
                 </div>
@@ -155,7 +158,7 @@ const Layout = () => {
               }
               return (
                 <div key={index} className="pt-2 pb-1 px-3">
-                  <p className="text-[9px] font-medium text-gray-400">
+                  <p className="text-[9px] font-medium text-gray-400 dark:text-gray-500">
                     {item.subsection}
                   </p>
                 </div>
@@ -176,7 +179,7 @@ const Layout = () => {
                   rel="noopener noreferrer"
                   className={`
                     flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative
-                    text-gray-700 hover:bg-gray-50 hover:text-purple-600
+                    text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400
                   `}
                   title={isCollapsed ? item.label : ''}
                 >
@@ -195,8 +198,8 @@ const Layout = () => {
                 className={`
                   flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative
                   ${active
-                    ? 'bg-purple-50 text-purple-600 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-purple-600'
+                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400'
                   }
                 `}
                 title={isCollapsed ? item.label : ''}
@@ -221,17 +224,22 @@ const Layout = () => {
         </nav>
 
         {/* User Profile Footer */}
-        <div className="border-t border-gray-200 relative">
+        <div className="border-t border-gray-200 dark:border-gray-700 relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className={`
               w-full ${isCollapsed ? 'p-2' : 'p-3'} flex items-center ${isCollapsed ? 'justify-center' : 'space-x-2.5'}
-              hover:bg-gray-50 transition-colors
+              hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors
             `}
           >
-            {user?.profile_picture ? (
+            {(user?.profile_picture || user?.avatar_url) ? (
               <img
-                src={user.profile_picture}
+                src={
+                  user.profile_picture ||
+                  (user.avatar_url && user.avatar_url.startsWith('http')
+                    ? `${user.avatar_url}?v=${user.updated_at || Date.now()}`
+                    : user.avatar_url)
+                }
                 alt={user.name}
                 className="w-8 h-8 rounded-full object-cover"
               />
@@ -243,14 +251,14 @@ const Layout = () => {
             {!isCollapsed && (
               <>
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-xs font-semibold text-gray-900 truncate">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
                     {user?.name || t('userMenu.user')}
                   </p>
-                  <p className="text-[10px] text-gray-500">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
                     {user?.role === 'admin' ? t('roles.admin') : user?.role === 'supervisor' ? t('roles.supervisor') : t('roles.user')}
                   </p>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </>
             )}
           </button>
@@ -265,28 +273,33 @@ const Layout = () => {
               <div
                 className={`
                   absolute bottom-full mb-2 left-0
-                  bg-white border border-gray-200 rounded-xl shadow-xl z-20
+                  bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl dark:shadow-gray-900/50 z-20
                   min-w-[240px] overflow-hidden
                 `}
               >
 
                 {/* User Header */}
-                <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-white border-b border-gray-100">
+                <div className="px-4 py-3 bg-gradient-to-r from-purple-50 dark:from-purple-900/20 to-white dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-center gap-3">
-                    {user?.profile_picture ? (
+                    {(user?.profile_picture || user?.avatar_url) ? (
                       <img
-                        src={user.profile_picture}
+                        src={
+                          user.profile_picture ||
+                          (user.avatar_url && user.avatar_url.startsWith('http')
+                            ? `${user.avatar_url}?v=${user.updated_at || Date.now()}`
+                            : user.avatar_url)
+                        }
                         alt={user.name}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-purple-200"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-purple-200 dark:border-purple-900/30"
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-purple-200">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-purple-200 dark:border-purple-900/30">
                         {getUserInitials()}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{user?.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
                     </div>
                   </div>
                 </div>
@@ -295,39 +308,47 @@ const Layout = () => {
                 <div className="py-1">
                   <Link
                     to="/my-account"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
-                    <User className="w-4 h-4 text-gray-400" />
+                    <User className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span>Minha Conta</span>
                   </Link>
                   <Link
                     to="/config"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
-                    <Settings className="w-4 h-4 text-gray-400" />
+                    <Settings className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span>Configurações</span>
+                  </Link>
+                  <Link
+                    to="/tags"
+                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <span>Etiquetas</span>
                   </Link>
                   {(hasPermission('users:view:all') || hasPermission('users:view:team') ||
                     hasPermission('sectors:view') || hasPermission('permissions:manage')) && (
                     <Link
                       to="/team"
-                      className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 text-sm transition-colors"
+                      className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition-colors"
                       onClick={() => setShowUserMenu(false)}
                     >
-                      <Users className="w-4 h-4 text-gray-400" />
+                      <Users className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                       <span>Equipe</span>
                     </Link>
                   )}
                 </div>
 
                 {/* Logout */}
-                <div className="border-t border-gray-100 mx-3" />
+                <div className="border-t border-gray-100 dark:border-gray-700 mx-3" />
                 <div className="py-1">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center space-x-3 px-4 py-2.5 hover:bg-red-50 text-red-600 text-sm transition-colors"
+                    className="w-full flex items-center space-x-3 px-4 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>{t('userMenu.logout')}</span>

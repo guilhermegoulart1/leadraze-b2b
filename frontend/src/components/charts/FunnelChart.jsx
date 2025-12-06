@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { TrendingDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -54,7 +55,7 @@ const FunnelChart = ({ data }) => {
 
             {/* Conversion Rate */}
             {conversionRate !== null && (
-              <div className="flex items-center gap-1 text-xs text-gray-500 mb-2 ml-1">
+              <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2 ml-1">
                 <TrendingDown className="w-3 h-3" />
                 <span>{t('funnel.conversionFromPrevious', { rate: conversionRate })}</span>
               </div>

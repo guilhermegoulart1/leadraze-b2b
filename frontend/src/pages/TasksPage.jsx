@@ -18,10 +18,10 @@ const TASK_TYPES = {
 };
 
 const PRIORITY_CONFIG = {
-  low: { label: 'Baixa', color: 'text-gray-500' },
-  medium: { label: 'Media', color: 'text-gray-600' },
-  high: { label: 'Alta', color: 'text-orange-500' },
-  urgent: { label: 'Urgente', color: 'text-red-500' }
+  low: { label: 'Baixa', color: 'text-gray-500 dark:text-gray-400', dotColor: 'bg-gray-400' },
+  medium: { label: 'Media', color: 'text-yellow-600 dark:text-yellow-500', dotColor: 'bg-yellow-500' },
+  high: { label: 'Alta', color: 'text-orange-600 dark:text-orange-500', dotColor: 'bg-orange-500' },
+  urgent: { label: 'Urgente', color: 'text-red-600 dark:text-red-500', dotColor: 'bg-red-500' }
 };
 
 const COLUMN_CONFIG = {
@@ -30,7 +30,7 @@ const COLUMN_CONFIG = {
   tomorrow: { title: 'Amanha', color: 'text-purple-500', dotColor: 'bg-purple-500' },
   this_week: { title: 'Esta Semana', color: 'text-indigo-500', dotColor: 'bg-indigo-500' },
   next_week: { title: 'Proxima Semana', color: 'text-cyan-500', dotColor: 'bg-cyan-500' },
-  later: { title: 'Futuras', color: 'text-gray-500', dotColor: 'bg-gray-400' },
+  later: { title: 'Futuras', color: 'text-gray-500 dark:text-gray-400', dotColor: 'bg-gray-400' },
   no_date: { title: 'Sem Data', color: 'text-gray-400', dotColor: 'bg-gray-300' }
 };
 
@@ -57,6 +57,7 @@ const TasksPage = () => {
   });
   const [users, setUsers] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -98,10 +99,28 @@ const TasksPage = () => {
   const handleCompleteTask = async (taskId, e) => {
     e?.stopPropagation();
     try {
+      // Optimistic update - remove task from UI immediately
+      setTasks(prev => {
+        const updated = {};
+        Object.keys(prev).forEach(key => {
+          updated[key] = prev[key].map(task =>
+            task.id === taskId
+              ? { ...task, status: 'completed', completedAt: new Date().toISOString() }
+              : task
+          );
+        });
+        return updated;
+      });
+
+      // Then update on server
       await api.completeTask(taskId);
+
+      // Reload to sync with server and reorganize groups
       loadData();
     } catch (error) {
       console.error('Error completing task:', error);
+      // Reload to restore correct state
+      loadData();
     }
   };
 
@@ -109,10 +128,24 @@ const TasksPage = () => {
     e?.stopPropagation();
     if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
     try {
+      // Optimistic update - remove task from UI immediately
+      setTasks(prev => {
+        const updated = {};
+        Object.keys(prev).forEach(key => {
+          updated[key] = prev[key].filter(task => task.id !== taskId);
+        });
+        return updated;
+      });
+
+      // Then delete on server
       await api.deleteTask(taskId);
+
+      // Reload to sync with server
       loadData();
     } catch (error) {
       console.error('Error deleting task:', error);
+      // Reload to restore correct state
+      loadData();
     }
   };
 
@@ -135,31 +168,74 @@ const TasksPage = () => {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
+  // Selection functions
+  const toggleTaskSelection = (taskId, e) => {
+    e.stopPropagation();
+    setSelectedTaskIds(prev =>
+      prev.includes(taskId)
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    );
+  };
+
+  const handleBulkComplete = async () => {
+    try {
+      await Promise.all(
+        selectedTaskIds.map(taskId => api.completeTask(taskId))
+      );
+      setSelectedTaskIds([]);
+      loadData();
+    } catch (error) {
+      console.error('Error completing tasks:', error);
+      loadData();
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Excluir ${selectedTaskIds.length} tarefa(s)?`)) return;
+
+    try {
+      await Promise.all(
+        selectedTaskIds.map(taskId => api.deleteTask(taskId))
+      );
+      setSelectedTaskIds([]);
+      loadData();
+    } catch (error) {
+      console.error('Error deleting tasks:', error);
+      loadData();
+    }
+  };
+
   // Board View Card (styled like LeadCard)
   const TaskCard = ({ task }) => {
     const isCompleted = task.status === 'completed';
     const taskType = TASK_TYPES[task.taskType] || TASK_TYPES.other;
     const TaskTypeIcon = taskType.icon;
     const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+    const isSelected = selectedTaskIds.includes(task.id);
 
     return (
       <div
-        className={`bg-white rounded-lg border p-3 cursor-pointer group shadow-sm hover:shadow-md transition-all ${
-          isCompleted ? 'opacity-50 border-gray-200' : 'border-gray-200 hover:border-gray-300'
+        className={`bg-white dark:bg-gray-800 rounded-lg border p-3 cursor-pointer group shadow-sm hover:shadow-md transition-all ${
+          isSelected
+            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/10'
+            : isCompleted
+              ? 'opacity-50 border-gray-200 dark:border-gray-700'
+              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
         }`}
         onClick={() => handleEditTask(task)}
       >
         <div className="flex items-start gap-3">
-          {/* Checkbox */}
+          {/* Selection Checkbox */}
           <button
-            onClick={(e) => handleCompleteTask(task.id, e)}
+            onClick={(e) => toggleTaskSelection(task.id, e)}
             className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border ${
-              isCompleted
-                ? 'bg-green-500 border-green-500 text-white'
-                : 'border-gray-300 hover:border-purple-400'
+              isSelected
+                ? 'bg-purple-600 border-purple-600 text-white'
+                : 'border-gray-300 dark:border-gray-600 hover:border-purple-400'
             } flex items-center justify-center transition-colors`}
           >
-            {isCompleted && <Check className="w-3 h-3" />}
+            {isSelected && <Check className="w-3 h-3" />}
           </button>
 
           {/* Content */}
@@ -167,57 +243,89 @@ const TasksPage = () => {
             {/* Title with Type Icon */}
             <div className="flex items-start gap-2">
               <TaskTypeIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-              <h4 className={`text-sm font-medium text-gray-900 ${isCompleted ? 'line-through' : ''}`}>
+              <h4 className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${isCompleted ? 'line-through' : ''}`}>
                 {task.title}
               </h4>
             </div>
 
             {/* Lead */}
             {task.lead && (
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5 ml-6">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5 ml-6">
                 <LinkIcon className="w-3 h-3 text-gray-400" />
                 <span className="truncate">{task.lead.name}</span>
               </p>
             )}
 
-            {/* Footer: Priority & Assignee */}
-            <div className="flex items-center justify-between mt-2 ml-6">
-              <span className={`text-xs font-medium ${priority.color}`}>
-                {priority.label}
-              </span>
-
-              <div className="flex items-center gap-2">
-                {/* Due Date */}
-                {task.dueDate && (
-                  <span className="text-[10px] text-gray-400">
-                    {formatDate(task.dueDate)}
+            {/* Footer: Priority, Due Date & Assignee */}
+            <div className="flex items-center justify-between mt-2.5 ml-6">
+              <div className="flex items-center gap-3">
+                {/* Priority with colored dot */}
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${priority.dotColor}`}></div>
+                  <span className={`text-xs font-medium ${priority.color}`}>
+                    {priority.label}
                   </span>
-                )}
+                </div>
 
-                {/* Assignee */}
-                {task.assignedTo && (
-                  <div className="flex items-center" title={task.assignedTo.name}>
-                    {task.assignedTo.avatarUrl ? (
-                      <img src={task.assignedTo.avatarUrl} alt="" className="w-5 h-5 rounded-full border border-gray-100" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center">
-                        <span className="text-[10px] font-medium text-purple-600">{task.assignedTo.name?.charAt(0)}</span>
-                      </div>
-                    )}
+                {/* Due Date with calendar icon */}
+                {task.dueDate && (
+                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                    <Calendar className="w-3 h-3" />
+                    <span className="text-xs">
+                      {formatDate(task.dueDate)}
+                    </span>
                   </div>
                 )}
               </div>
+
+              {/* Assignee Avatar */}
+              {task.assignedTo && (
+                <div className="flex items-center" title={task.assignedTo.name}>
+                  {task.assignedTo.avatarUrl ? (
+                    <img
+                      src={
+                        task.assignedTo.avatarUrl.startsWith('http')
+                          ? `${task.assignedTo.avatarUrl}?v=${task.assignedTo.updatedAt || Date.now()}`
+                          : task.assignedTo.avatarUrl
+                      }
+                      alt=""
+                      className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-700 shadow-sm object-cover"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center">
+                      <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">
+                        {(() => {
+                          const names = (task.assignedTo.name || '').trim().split(' ').filter(n => n.length > 0);
+                          if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                          return (names[0][0] + names[1][0]).toUpperCase();
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Delete button on hover */}
-          <button
-            onClick={(e) => handleDeleteTask(task.id, e)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded flex-shrink-0"
-            title="Excluir"
-          >
-            <X className="w-4 h-4 text-red-500" />
-          </button>
+          {/* Action buttons on hover */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isCompleted && (
+              <button
+                onClick={(e) => handleCompleteTask(task.id, e)}
+                className="p-1 hover:bg-green-50 dark:bg-green-900/20 rounded flex-shrink-0"
+                title="Concluir"
+              >
+                <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </button>
+            )}
+            <button
+              onClick={(e) => handleDeleteTask(task.id, e)}
+              className="p-1 hover:bg-red-50 dark:bg-red-900/20 rounded flex-shrink-0"
+              title="Excluir"
+            >
+              <X className="w-4 h-4 text-red-500" />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -233,26 +341,26 @@ const TasksPage = () => {
         <div className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-            <h3 className="font-semibold text-sm text-gray-700">{config.title}</h3>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600`}>
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">{config.title}</h3>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400`}>
               {count}
             </span>
           </div>
           <button
             onClick={handleCreateTask}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
           >
-            <Plus className="w-4 h-4 text-gray-400" />
+            <Plus className="w-4 h-4 text-gray-400 dark:text-gray-500" />
           </button>
         </div>
 
         {/* Column Content */}
         <div
-          className="flex-1 rounded-lg bg-gray-50 p-2 overflow-y-auto"
+          className="flex-1 rounded-lg bg-gray-50 dark:bg-gray-900 p-2 overflow-y-auto"
           style={{ maxHeight: 'calc(100vh - 220px)', minHeight: '400px' }}
         >
           {count === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm border-2 border-dashed border-gray-200 rounded-lg text-gray-400">
+            <div className="flex items-center justify-center h-32 text-sm border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-400 dark:text-gray-500">
               Nenhuma tarefa
             </div>
           ) : (
@@ -274,7 +382,7 @@ const TasksPage = () => {
 
     return (
       <div
-        className={`flex items-center gap-4 px-4 py-2.5 border-b border-gray-100 hover:bg-gray-50 cursor-pointer group ${
+        className={`flex items-center gap-4 px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group ${
           isCompleted ? 'opacity-50' : ''
         }`}
         onClick={() => handleEditTask(task)}
@@ -285,18 +393,18 @@ const TasksPage = () => {
           className={`flex-shrink-0 w-4 h-4 rounded border ${
             isCompleted
               ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 hover:border-gray-400'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
           } flex items-center justify-center`}
         >
           {isCompleted && <Check className="w-3 h-3" />}
         </button>
 
         {/* Task Type Icon */}
-        <TaskTypeIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <TaskTypeIcon className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
 
         {/* Title */}
         <div className="flex-1 min-w-0">
-          <span className={`text-sm text-gray-900 ${isCompleted ? 'line-through' : ''}`}>
+          <span className={`text-sm text-gray-900 dark:text-gray-100 ${isCompleted ? 'line-through' : ''}`}>
             {task.title}
           </span>
         </div>
@@ -304,21 +412,21 @@ const TasksPage = () => {
         {/* Lead/Lista */}
         <div className="w-32 flex-shrink-0">
           {task.lead ? (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded truncate block">
+            <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded truncate block">
               {task.lead.name}
             </span>
           ) : (
-            <span className="text-xs text-gray-300">-</span>
+            <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
           )}
         </div>
 
         {/* Due Date (Previsto) */}
-        <div className="w-24 flex-shrink-0 text-xs text-gray-500">
+        <div className="w-24 flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
           {formatDate(task.dueDate)}
         </div>
 
         {/* Completed Date (Conclusao) */}
-        <div className="w-24 flex-shrink-0 text-xs text-gray-500">
+        <div className="w-24 flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
           {task.completedAt ? formatDate(task.completedAt) : '-'}
         </div>
 
@@ -334,23 +442,47 @@ const TasksPage = () => {
           {task.assignedTo ? (
             <div className="flex items-center gap-2" title={task.assignedTo.name}>
               {task.assignedTo.avatarUrl ? (
-                <img src={task.assignedTo.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
+                <img
+                  src={
+                    task.assignedTo.avatarUrl.startsWith('http')
+                      ? `${task.assignedTo.avatarUrl}?v=${task.assignedTo.updatedAt || Date.now()}`
+                      : task.assignedTo.avatarUrl
+                  }
+                  alt=""
+                  className="w-6 h-6 rounded-full"
+                />
               ) : (
-                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                  <span className="text-xs text-gray-600">{task.assignedTo.name?.charAt(0)}</span>
+                <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    {(() => {
+                      const names = (task.assignedTo.name || '').trim().split(' ').filter(n => n.length > 0);
+                      if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                      return (names[0][0] + names[1][0]).toUpperCase();
+                    })()}
+                  </span>
                 </div>
               )}
             </div>
           ) : (
-            <span className="text-xs text-gray-300">-</span>
+            <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
           )}
         </div>
 
         {/* Actions */}
-        <div className="w-8 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-16 flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!isCompleted && (
+            <button
+              onClick={(e) => handleCompleteTask(task.id, e)}
+              className="p-1 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 rounded"
+              title="Concluir"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={(e) => handleDeleteTask(task.id, e)}
-            className="p-1 text-gray-400 hover:text-red-500 rounded"
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded"
+            title="Excluir"
           >
             <X className="w-4 h-4" />
           </button>
@@ -368,7 +500,7 @@ const TasksPage = () => {
       <div className="mb-1">
         {/* Group Header */}
         <div
-          className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800"
           onClick={() => toggleGroup(groupKey)}
         >
           {isCollapsed ? (
@@ -377,7 +509,7 @@ const TasksPage = () => {
             <ChevronDown className="w-4 h-4 text-gray-400" />
           )}
           <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-          <span className="font-medium text-sm text-gray-700">{config.title}</span>
+          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">{config.title}</span>
           <span className="text-xs text-gray-400 ml-1">{count}</span>
         </div>
 
@@ -460,113 +592,68 @@ const TasksPage = () => {
   if (loading && Object.keys(tasks).length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader className="w-8 h-8 animate-spin text-purple-600" />
+        <Loader className="w-8 h-8 animate-spin text-purple-600 dark:text-purple-400" />
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-800">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Tarefas</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* View Mode Toggle */}
-            <div className="flex items-center border border-gray-200 rounded-lg p-0.5">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                title="Lista"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('board')}
-                className={`p-1.5 rounded ${viewMode === 'board' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                title="Kanban"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-            </div>
-
-            <button
-              onClick={loadData}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-              title="Atualizar"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={handleCreateTask}
-              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Nova Tarefa
-            </button>
-          </div>
-        </div>
-
-        {/* Filters Row */}
-        <div className="flex items-center gap-4 mt-3">
+      <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+        {/* Filters and Controls Row */}
+        <div className="flex items-center gap-2">
           {/* Status Filter Tabs */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
             <button
               onClick={() => setFilters(prev => ({ ...prev, status: '' }))}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                filters.status === '' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                filters.status === '' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
               Todas
             </button>
             <button
               onClick={() => setFilters(prev => ({ ...prev, status: 'open' }))}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                filters.status === 'open' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                filters.status === 'open' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Em Aberto
+              Aberto
             </button>
             <button
               onClick={() => setFilters(prev => ({ ...prev, status: 'completed' }))}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                filters.status === 'completed' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                filters.status === 'completed' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Concluidas
+              Concluído
             </button>
           </div>
 
-          <div className="w-px h-5 bg-gray-200" />
-
           {/* Period Filter */}
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <select
               value={filters.period}
               onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+              className="text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
             >
-              <option value="7days">Ultimos 7 dias</option>
-              <option value="15days">Ultimos 15 dias</option>
-              <option value="30days">Ultimos 30 dias</option>
-              <option value="90days">Ultimos 90 dias</option>
+              <option value="7days">7 dias</option>
+              <option value="15days">15 dias</option>
+              <option value="30days">30 dias</option>
+              <option value="90days">90 dias</option>
               <option value="all">Todas</option>
             </select>
           </div>
 
-          <div className="w-px h-5 bg-gray-200" />
-
           {/* Assignee Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <select
               value={filters.assigned_to}
               onChange={(e) => setFilters(prev => ({ ...prev, assigned_to: e.target.value }))}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+              className="text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
             >
               <option value="">Todos</option>
               {users.map(u => (
@@ -575,33 +662,101 @@ const TasksPage = () => {
             </select>
           </div>
 
-          <div className="w-px h-5 bg-gray-200" />
-
           {/* Group By */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
             <button
               onClick={() => setGroupBy('due_date')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                groupBy === 'due_date' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                groupBy === 'due_date' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Por Data
+              Data
             </button>
             <button
               onClick={() => setGroupBy('status')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                groupBy === 'status' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                groupBy === 'status' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Por Status
+              Status
             </button>
           </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1 rounded ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300'}`}
+              title="Lista"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('board')}
+              className={`p-1 rounded ${viewMode === 'board' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300'}`}
+              title="Kanban"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+
+          <button
+            onClick={loadData}
+            className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            title="Atualizar"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            onClick={handleCreateTask}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nova Tarefa
+          </button>
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedTaskIds.length > 0 && (
+        <div className="mx-6 mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-purple-900 dark:text-purple-100">
+              {selectedTaskIds.length} {selectedTaskIds.length === 1 ? 'tarefa selecionada' : 'tarefas selecionadas'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkComplete}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Concluir Todos
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Excluir Todos
+            </button>
+            <button
+              onClick={() => setSelectedTaskIds([])}
+              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
-        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -626,7 +781,7 @@ const TasksPage = () => {
           /* List View */
           <div className="h-full overflow-y-auto">
             {/* List Header */}
-            <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0">
+            <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0">
               <div className="w-4" /> {/* Checkbox space */}
               <div className="w-4" /> {/* Icon space */}
               <div className="flex-1">Nome</div>
@@ -635,7 +790,7 @@ const TasksPage = () => {
               <div className="w-24">Conclusao</div>
               <div className="w-20">Prioridade</div>
               <div className="w-24">Responsavel</div>
-              <div className="w-8" /> {/* Actions space */}
+              <div className="w-16" /> {/* Actions space */}
             </div>
 
             {/* List Groups */}

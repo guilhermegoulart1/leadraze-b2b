@@ -8,6 +8,7 @@ const {
 } = require('../utils/errors');
 const { CAMPAIGN_STATUS } = require('../utils/helpers');
 const { getAccessibleSectorIds } = require('../middleware/permissions');
+const inviteQueueService = require('../services/inviteQueueService');
 
 // ================================
 // HELPER: Build sector filter for campaign queries
@@ -64,7 +65,7 @@ const getCampaigns = async (req, res) => {
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
 
-    // Query com JOIN para pegar dados da conta LinkedIn e contagens de leads
+    // Query simplificada sem contagens de leads (melhor performance)
     const query = `
       SELECT
         c.*,
@@ -72,21 +73,11 @@ const getCampaigns = async (req, res) => {
         la.profile_name as linkedin_profile_name,
         la.profile_name as linkedin_account_name,
         la.status as linkedin_account_status,
-        aa.name as ai_agent_name,
-        COALESCE(COUNT(l.id), 0) as total_leads,
-        COALESCE(SUM(CASE WHEN l.status = 'leads' THEN 1 ELSE 0 END), 0) as leads_count,
-        COALESCE(SUM(CASE WHEN l.status = 'qualifying' THEN 1 ELSE 0 END), 0) as leads_qualifying,
-        COALESCE(SUM(CASE WHEN l.status = 'invite_sent' THEN 1 ELSE 0 END), 0) as leads_invited,
-        COALESCE(SUM(CASE WHEN l.status = 'accepted' THEN 1 ELSE 0 END), 0) as leads_accepted,
-        COALESCE(SUM(CASE WHEN l.status = 'qualified' THEN 1 ELSE 0 END), 0) as leads_won,
-        COALESCE(SUM(CASE WHEN l.status = 'discarded' THEN 1 ELSE 0 END), 0) as leads_lost,
-        0 as leads_scheduled
+        aa.name as ai_agent_name
       FROM campaigns c
       LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
-      LEFT JOIN leads l ON c.id = l.campaign_id
       WHERE ${whereClause}
-      GROUP BY c.id, la.linkedin_username, la.profile_name, la.status, aa.name
       ORDER BY c.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -529,54 +520,105 @@ const startCampaign = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
 
-    console.log(`▶️ Iniciando campanha ${id} (conta ${accountId})`);
+    console.log('\n');
+    console.log('🚀 ═══════════════════════════════════════════════════════════');
+    console.log('🚀 [CAMPAIGN] INICIANDO CAMPANHA');
+    console.log(`🚀    Campaign ID: ${id}`);
+    console.log(`🚀    User ID: ${userId}`);
+    console.log(`🚀    Account ID: ${accountId}`);
+    console.log('🚀 ═══════════════════════════════════════════════════════════');
 
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
 
     // Verificar se campanha pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
     const campaign = await db.query(
-      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      `SELECT c.*, crc.is_reviewed
+       FROM campaigns c
+       LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
+       WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
       [id, userId, accountId, ...sectorParams]
     );
 
     if (campaign.rows.length === 0) {
+      console.log('🚀 ❌ Campanha não encontrada!');
       throw new NotFoundError('Campaign not found');
     }
 
     const campaignData = campaign.rows[0];
+    console.log(`🚀 [STEP 1] Campanha encontrada: ${campaignData.name}`);
+    console.log(`🚀    Status atual: ${campaignData.status}`);
+    console.log(`🚀    Automation active: ${campaignData.automation_active}`);
+    console.log(`🚀    Review completed: ${campaignData.is_reviewed}`);
+
+    // Verificar se foi revisada
+    if (!campaignData.is_reviewed && !campaignData.review_completed) {
+      console.log('🚀 ❌ Campanha não foi revisada!');
+      throw new ValidationError('Campaign must be reviewed before starting. Configure round robin and invite settings first.');
+    }
 
     // Verificar se já está ativa
     if (campaignData.automation_active) {
+      console.log('🚀 ⚠️ Campanha já está ativa!');
       throw new ValidationError('Campaign is already active');
     }
 
     // Verificar se tem leads pendentes
     const leadsCount = await db.query(
-      'SELECT COUNT(*) FROM leads WHERE campaign_id = $1 AND status = $2',
-      [id, 'leads']
+      `SELECT COUNT(*) FROM leads WHERE campaign_id = $1 AND status IN ('leads', 'lead')`,
+      [id]
     );
 
     const pendingLeads = parseInt(leadsCount.rows[0].count);
+    console.log(`🚀 [STEP 2] Leads pendentes: ${pendingLeads}`);
 
     if (pendingLeads === 0) {
+      console.log('🚀 ❌ Nenhum lead pendente!');
       throw new ValidationError('Campaign has no pending leads. Add leads first.');
     }
 
+    // 🆕 CRIAR FILA DE CONVITES
+    console.log('🚀 [STEP 3] Criando fila de convites...');
+    let queueResult = null;
+    try {
+      queueResult = await inviteQueueService.createInviteQueue(id, accountId);
+      console.log('🚀 ✅ Fila de convites criada:', queueResult);
+    } catch (queueError) {
+      console.error('🚀 ❌ Erro ao criar fila de convites:', queueError.message);
+      // Se falhar na criação da fila, ainda assim podemos ativar a campanha
+      // mas sem convites agendados (modo legado)
+      console.log('🚀 ⚠️ Continuando sem fila de convites (modo legado)');
+    }
+
     // Atualizar campanha
+    console.log('🚀 [STEP 4] Atualizando status da campanha...');
     const updatedCampaign = await db.update('campaigns', {
       automation_active: true,
       status: CAMPAIGN_STATUS.ACTIVE
     }, { id });
 
-    console.log(`✅ Campanha iniciada - ${pendingLeads} leads pendentes`);
+    console.log('🚀 ═══════════════════════════════════════════════════════════');
+    console.log('🚀 ✅ CAMPANHA INICIADA COM SUCESSO!');
+    console.log(`🚀    Nome: ${campaignData.name}`);
+    console.log(`🚀    Leads pendentes: ${pendingLeads}`);
+    if (queueResult) {
+      console.log(`🚀    Convites na fila: ${queueResult.totalQueued}`);
+      console.log(`🚀    Agendados para hoje: ${queueResult.scheduledToday}`);
+      if (queueResult.nextScheduledAt) {
+        console.log(`🚀    Próximo envio: ${queueResult.nextScheduledAt}`);
+      }
+    }
+    console.log('🚀 ═══════════════════════════════════════════════════════════');
+    console.log('\n');
 
     sendSuccess(res, {
       ...updatedCampaign,
-      pending_leads: pendingLeads
+      pending_leads: pendingLeads,
+      queue: queueResult
     }, 'Campaign started successfully');
 
   } catch (error) {
+    console.error('🚀 ❌ [CAMPAIGN] Erro ao iniciar campanha:', error.message);
     sendError(res, error, error.statusCode || 500);
   }
 };
@@ -854,6 +896,491 @@ const getCollectionStatus = async (req, res) => {
   }
 };
 
+// ================================
+// 11. SALVAR CONFIGURAÇÃO DE REVISÃO
+// ================================
+const saveReviewConfig = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    const {
+      sector_id,
+      round_robin_users,
+      invite_expiry_days,
+      max_pending_invites,
+      withdraw_expired_invites,
+      send_start_hour,
+      send_end_hour,
+      timezone,
+      ai_initiate_delay_min,
+      ai_initiate_delay_max
+    } = req.body;
+
+    console.log('\n');
+    console.log('⚙️ ═══════════════════════════════════════════════════════════');
+    console.log('⚙️ [REVIEW-CONFIG] SALVANDO CONFIGURAÇÃO DE REVISÃO');
+    console.log(`⚙️    Campaign ID: ${id}`);
+    console.log('⚙️ ───────────────────────────────────────────────────────────');
+    console.log('⚙️ Configurações recebidas:');
+    console.log(`⚙️    Setor: ${sector_id || 'Nenhum'}`);
+    console.log(`⚙️    Usuários Round Robin: ${round_robin_users?.length || 0} usuários`);
+    console.log(`⚙️    Dias para expirar: ${invite_expiry_days || 7}`);
+    console.log(`⚙️    Max convites pendentes: ${max_pending_invites || 100}`);
+    console.log(`⚙️    Retirar expirados: ${withdraw_expired_invites !== false}`);
+    console.log(`⚙️    Horário envio: ${send_start_hour || 9}h - ${send_end_hour || 18}h`);
+    console.log(`⚙️    Timezone: ${timezone || 'America/Sao_Paulo'}`);
+    console.log(`⚙️    Delay IA: ${ai_initiate_delay_min || 5} - ${ai_initiate_delay_max || 60} minutos`);
+    console.log('⚙️ ───────────────────────────────────────────────────────────');
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+
+    // Verificar se campanha pertence ao usuário E à conta
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Validar sector_id se fornecido
+    if (sector_id) {
+      const sectorCheck = await db.query(
+        'SELECT id FROM sectors WHERE id = $1 AND account_id = $2 AND is_active = true',
+        [sector_id, accountId]
+      );
+      if (sectorCheck.rows.length === 0) {
+        throw new NotFoundError('Sector not found');
+      }
+    }
+
+    // Validar usuários do round robin se fornecidos
+    if (round_robin_users && round_robin_users.length > 0) {
+      const usersCheck = await db.query(
+        'SELECT id FROM users WHERE id = ANY($1) AND account_id = $2',
+        [round_robin_users, accountId]
+      );
+      if (usersCheck.rows.length !== round_robin_users.length) {
+        throw new ValidationError('One or more users not found in your account');
+      }
+    }
+
+    // Validar invite_expiry_days
+    const expiryDays = invite_expiry_days || 7;
+    if (expiryDays < 1 || expiryDays > 14) {
+      throw new ValidationError('Invite expiry days must be between 1 and 14');
+    }
+
+    // Verificar se já existe configuração
+    const existingConfig = await db.query(
+      'SELECT id FROM campaign_review_config WHERE campaign_id = $1',
+      [id]
+    );
+
+    let config;
+    if (existingConfig.rows.length > 0) {
+      // Atualizar existente
+      const updateResult = await db.query(
+        `UPDATE campaign_review_config SET
+          sector_id = $1,
+          round_robin_users = $2,
+          invite_expiry_days = $3,
+          max_pending_invites = $4,
+          withdraw_expired_invites = $5,
+          send_start_hour = $6,
+          send_end_hour = $7,
+          timezone = $8,
+          ai_initiate_delay_min = $9,
+          ai_initiate_delay_max = $10,
+          is_reviewed = true,
+          reviewed_at = NOW(),
+          reviewed_by = $11,
+          updated_at = NOW()
+        WHERE campaign_id = $12
+        RETURNING *`,
+        [
+          sector_id || null,
+          round_robin_users || [],
+          expiryDays,
+          max_pending_invites || 100,
+          withdraw_expired_invites !== false,
+          send_start_hour || 9,
+          send_end_hour || 18,
+          timezone || 'America/Sao_Paulo',
+          ai_initiate_delay_min || 5,
+          ai_initiate_delay_max || 60,
+          userId,
+          id
+        ]
+      );
+      config = updateResult.rows[0];
+    } else {
+      // Criar nova configuração
+      const insertResult = await db.query(
+        `INSERT INTO campaign_review_config (
+          account_id, campaign_id, sector_id, round_robin_users,
+          invite_expiry_days, max_pending_invites, withdraw_expired_invites,
+          send_start_hour, send_end_hour, timezone,
+          ai_initiate_delay_min, ai_initiate_delay_max,
+          is_reviewed, reviewed_at, reviewed_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, NOW(), $13)
+        RETURNING *`,
+        [
+          accountId,
+          id,
+          sector_id || null,
+          round_robin_users || [],
+          expiryDays,
+          max_pending_invites || 100,
+          withdraw_expired_invites !== false,
+          send_start_hour || 9,
+          send_end_hour || 18,
+          timezone || 'America/Sao_Paulo',
+          ai_initiate_delay_min || 5,
+          ai_initiate_delay_max || 60,
+          userId
+        ]
+      );
+      config = insertResult.rows[0];
+    }
+
+    // Marcar campanha como revisada
+    await db.query(
+      'UPDATE campaigns SET review_completed = true WHERE id = $1',
+      [id]
+    );
+
+    console.log('⚙️ ═══════════════════════════════════════════════════════════');
+    console.log('⚙️ ✅ CONFIGURAÇÃO DE REVISÃO SALVA COM SUCESSO!');
+    console.log(`⚙️    Config ID: ${config.id}`);
+    console.log(`⚙️    Campaign ID: ${id}`);
+    console.log('⚙️ ═══════════════════════════════════════════════════════════');
+    console.log('\n');
+
+    sendSuccess(res, config, 'Review configuration saved successfully');
+
+  } catch (error) {
+    console.error('⚙️ ❌ Erro ao salvar configuração:', error.message);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 12. OBTER CONFIGURAÇÃO DE REVISÃO
+// ================================
+const getReviewConfig = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`🔍 Buscando configuração de revisão para campanha ${id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+
+    // Verificar se campanha pertence ao usuário E à conta
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Buscar configuração
+    const configResult = await db.query(
+      `SELECT crc.*,
+              s.name as sector_name,
+              u.name as reviewed_by_name
+       FROM campaign_review_config crc
+       LEFT JOIN sectors s ON crc.sector_id = s.id
+       LEFT JOIN users u ON crc.reviewed_by = u.id
+       WHERE crc.campaign_id = $1`,
+      [id]
+    );
+
+    if (configResult.rows.length === 0) {
+      // Retornar configuração padrão se não existir
+      sendSuccess(res, {
+        campaign_id: id,
+        sector_id: null,
+        round_robin_users: [],
+        invite_expiry_days: 7,
+        max_pending_invites: 100,
+        withdraw_expired_invites: true,
+        send_start_hour: 9,
+        send_end_hour: 18,
+        timezone: 'America/Sao_Paulo',
+        ai_initiate_delay_min: 5,
+        ai_initiate_delay_max: 60,
+        is_reviewed: false
+      });
+      return;
+    }
+
+    const config = configResult.rows[0];
+
+    // Buscar detalhes dos usuários do round robin
+    if (config.round_robin_users && config.round_robin_users.length > 0) {
+      const usersResult = await db.query(
+        'SELECT id, name, email, avatar_url FROM users WHERE id = ANY($1)',
+        [config.round_robin_users]
+      );
+      config.round_robin_users_details = usersResult.rows;
+    } else {
+      config.round_robin_users_details = [];
+    }
+
+    console.log(`✅ Configuração de revisão encontrada`);
+
+    sendSuccess(res, config);
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 13. OBTER RELATÓRIO DA CAMPANHA
+// ================================
+const getCampaignReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { status, page = 1, limit = 50 } = req.query;
+
+    console.log(`📊 Buscando relatório da campanha ${id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+
+    // Verificar se campanha pertence ao usuário E à conta
+    const campaignResult = await db.query(
+      `SELECT c.*,
+              crc.invite_expiry_days,
+              crc.sector_id,
+              s.name as sector_name
+       FROM campaigns c
+       LEFT JOIN campaign_review_config crc ON c.id = crc.campaign_id
+       LEFT JOIN sectors s ON crc.sector_id = s.id
+       WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    const campaign = campaignResult.rows[0];
+
+    // Buscar relatório via inviteQueueService
+    const report = await inviteQueueService.getCampaignReport(id, {
+      status,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+
+    // Adicionar informações da campanha
+    report.campaign = {
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+      automation_active: campaign.automation_active,
+      invite_expiry_days: campaign.invite_expiry_days || 7,
+      sector_name: campaign.sector_name
+    };
+
+    console.log(`✅ Relatório da campanha gerado`);
+
+    sendSuccess(res, report);
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 14. OBTER STATUS DA FILA DE CONVITES
+// ================================
+const getQueueStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`📋 Buscando status da fila de convites para campanha ${id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+
+    // Verificar se campanha pertence ao usuário E à conta
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Buscar contagens por status
+    const statusCounts = await db.query(
+      `SELECT status, COUNT(*) as count
+       FROM campaign_invite_queue
+       WHERE campaign_id = $1
+       GROUP BY status`,
+      [id]
+    );
+
+    // Organizar contagens
+    const counts = {
+      pending: 0,
+      scheduled: 0,
+      sent: 0,
+      accepted: 0,
+      expired: 0,
+      withdrawn: 0,
+      failed: 0
+    };
+
+    statusCounts.rows.forEach(row => {
+      counts[row.status] = parseInt(row.count);
+    });
+
+    // Buscar próximos agendados
+    const nextScheduled = await db.query(
+      `SELECT ciq.id, ciq.scheduled_for, l.name as lead_name
+       FROM campaign_invite_queue ciq
+       JOIN leads l ON ciq.lead_id = l.id
+       WHERE ciq.campaign_id = $1 AND ciq.status = 'scheduled'
+       ORDER BY ciq.scheduled_for ASC
+       LIMIT 5`,
+      [id]
+    );
+
+    // Buscar últimos enviados
+    const lastSent = await db.query(
+      `SELECT ciq.id, ciq.sent_at, l.name as lead_name
+       FROM campaign_invite_queue ciq
+       JOIN leads l ON ciq.lead_id = l.id
+       WHERE ciq.campaign_id = $1 AND ciq.status IN ('sent', 'accepted')
+       ORDER BY ciq.sent_at DESC
+       LIMIT 5`,
+      [id]
+    );
+
+    console.log(`✅ Status da fila obtido`);
+
+    sendSuccess(res, {
+      campaign_id: id,
+      counts,
+      total: Object.values(counts).reduce((sum, c) => sum + c, 0),
+      next_scheduled: nextScheduled.rows,
+      last_sent: lastSent.rows
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 15. CANCELAR CAMPANHA
+// ================================
+const cancelCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`🛑 Cancelando campanha ${id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+
+    // Verificar se campanha pertence ao usuário E à conta
+    const campaignResult = await db.query(
+      `SELECT c.*, crc.withdraw_expired_invites
+       FROM campaigns c
+       LEFT JOIN campaign_review_config crc ON c.id = crc.campaign_id
+       WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    const campaign = campaignResult.rows[0];
+
+    // Cancelar todos os convites pendentes e agendados
+    const pendingInvites = await db.query(
+      `SELECT ciq.*, l.linkedin_profile_id, la.unipile_account_id
+       FROM campaign_invite_queue ciq
+       JOIN leads l ON ciq.lead_id = l.id
+       JOIN linkedin_accounts la ON ciq.linkedin_account_id = la.id
+       WHERE ciq.campaign_id = $1 AND ciq.status IN ('pending', 'scheduled', 'sent')`,
+      [id]
+    );
+
+    let withdrawnCount = 0;
+    let cancelledCount = 0;
+
+    for (const invite of pendingInvites.rows) {
+      try {
+        // Se o convite foi enviado e está configurado para retirar, chamar API
+        if (invite.status === 'sent' && campaign.withdraw_expired_invites) {
+          const inviteExpirationWorker = require('../workers/inviteExpirationWorker');
+          await inviteExpirationWorker.withdrawInvite(
+            invite.unipile_account_id,
+            invite.linkedin_profile_id
+          );
+          withdrawnCount++;
+        }
+
+        // Marcar como cancelado
+        await db.query(
+          `UPDATE campaign_invite_queue SET status = 'withdrawn', withdrawn_at = NOW()
+           WHERE id = $1`,
+          [invite.id]
+        );
+        cancelledCount++;
+
+      } catch (error) {
+        console.error(`Erro ao cancelar convite ${invite.id}:`, error.message);
+      }
+    }
+
+    // Atualizar status da campanha
+    await db.query(
+      `UPDATE campaigns SET
+        automation_active = false,
+        status = 'cancelled',
+        pending_invites_count = 0
+       WHERE id = $1`,
+      [id]
+    );
+
+    console.log(`✅ Campanha cancelada - ${cancelledCount} convites cancelados, ${withdrawnCount} retirados`);
+
+    sendSuccess(res, {
+      campaign_id: id,
+      cancelled_count: cancelledCount,
+      withdrawn_count: withdrawnCount
+    }, 'Campaign cancelled successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getCampaigns,
   getCampaign,
@@ -866,5 +1393,10 @@ module.exports = {
   stopCampaign,
   getCampaignStats,
   startCollection,
-  getCollectionStatus
+  getCollectionStatus,
+  saveReviewConfig,
+  getReviewConfig,
+  getCampaignReport,
+  getQueueStatus,
+  cancelCampaign
 };

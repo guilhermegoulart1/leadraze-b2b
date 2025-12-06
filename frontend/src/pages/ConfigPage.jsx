@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Key, Link2, CheckSquare, Mail, Globe } from 'lucide-react';
+import { Key, Link2, CheckSquare, Mail, Globe, Users } from 'lucide-react';
 import ApiKeysPage from './ApiKeysPage';
 import ChannelsPage from './ChannelsPage';
 import ChecklistTemplatesPage from './ChecklistTemplatesPage';
 import EmailSettingsPage from './EmailSettingsPage';
 import WebsiteAgentsPage from './WebsiteAgentsPage';
+import WebsiteLeadsPage from './WebsiteLeadsPage';
 
 const ConfigPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -27,6 +28,7 @@ const ConfigPage = () => {
     { id: 'checklists', label: 'CRM Checklists', icon: CheckSquare },
     { id: 'emails', label: 'Emails', icon: Mail },
     { id: 'website-agents', label: 'Website Agents', icon: Globe },
+    { id: 'website-leads', label: 'Website Leads', icon: Users },
   ];
 
   const renderContent = () => {
@@ -41,6 +43,8 @@ const ConfigPage = () => {
         return <EmailSettingsPage />;
       case 'website-agents':
         return <WebsiteAgentsPage />;
+      case 'website-leads':
+        return <WebsiteLeadsPage />;
       default:
         return <ApiKeysPage />;
     }

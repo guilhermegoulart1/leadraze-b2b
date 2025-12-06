@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users } from 'lucide-react';
 
@@ -17,9 +18,9 @@ const LeadsChart = ({ data = [], total = 0 }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-semibold text-gray-900 mb-1">{label}</p>
-          <p className="text-sm text-violet-600 font-medium">
+        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{label}</p>
+          <p className="text-sm text-violet-600 dark:text-purple-400 font-medium">
             {payload[0].value} {payload[0].value === 1 ? 'lead' : 'leads'}
           </p>
         </div>
@@ -29,14 +30,14 @@ const LeadsChart = ({ data = [], total = 0 }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Novos Leads por Dia</h3>
-          <p className="text-sm text-gray-500">Leads adicionados no período</p>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Novos Leads por Dia</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Leads adicionados no período</p>
         </div>
-        <div className="p-2 rounded-lg bg-violet-50">
-          <Users className="w-5 h-5 text-violet-600" />
+        <div className="p-2 rounded-lg bg-violet-50 dark:bg-purple-900/20">
+          <Users className="w-5 h-5 text-violet-600 dark:text-purple-400" />
         </div>
       </div>
 
@@ -66,16 +67,16 @@ const LeadsChart = ({ data = [], total = 0 }) => {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+          <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
             Sem dados no período
           </div>
         )}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-100">
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">Total no período</span>
-          <span className="text-lg font-bold text-violet-600">{total.toLocaleString('pt-BR')} leads</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total no período</span>
+          <span className="text-lg font-bold text-violet-600 dark:text-purple-400">{total.toLocaleString('pt-BR')} leads</span>
         </div>
       </div>
     </div>

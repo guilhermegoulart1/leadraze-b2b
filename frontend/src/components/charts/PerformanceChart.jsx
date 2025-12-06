@@ -1,20 +1,21 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const PerformanceChart = ({ data, type = 'line' }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-semibold text-gray-900 mb-2">{label}</p>
+        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">{label}</p>
           {payload.map((entry, index) => (
             <div key={index} className="flex items-center gap-2 text-xs">
               <div
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="text-gray-600">{entry.name}:</span>
-              <span className="font-semibold text-gray-900">{entry.value}</span>
+              <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500">{entry.name}:</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{entry.value}</span>
             </div>
           ))}
         </div>

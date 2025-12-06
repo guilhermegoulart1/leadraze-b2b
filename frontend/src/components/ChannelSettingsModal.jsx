@@ -108,7 +108,7 @@ const ChannelSettingsModal = ({ channel, channelConfig, onClose, onUpdate }) => 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className={`bg-gradient-to-r ${channelConfig?.gradient || 'from-purple-600 to-purple-700'} px-6 py-4 rounded-t-xl`}>
+        <div className={`${channelConfig?.gradient ? 'bg-gradient-to-r ' + channelConfig.gradient : 'bg-[#7229f7]'} px-6 py-4 rounded-t-xl`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-white">
               <ChannelIcon className="w-6 h-6" />

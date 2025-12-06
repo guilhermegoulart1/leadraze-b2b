@@ -235,15 +235,18 @@ async function processDelayedConversation(job) {
 }
 
 /**
- * Agendar início de conversa com delay de 5 minutos
+ * Agendar início de conversa com delay configurável
  * @param {string} leadId - ID do lead
  * @param {string} conversationId - ID da conversa
+ * @param {number} delayMs - Delay em milissegundos (opcional, padrão: 5 minutos)
  * @returns {Promise<Object>} Job agendado
  */
-async function scheduleDelayedConversation(leadId, conversationId) {
-  const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutos em ms
+async function scheduleDelayedConversation(leadId, conversationId, delayMs = null) {
+  const DEFAULT_DELAY = 5 * 60 * 1000; // 5 minutos em ms
+  const actualDelay = delayMs || DEFAULT_DELAY;
+  const delayMinutes = Math.round(actualDelay / 60000);
 
-  console.log(`📅 Agendando início de conversa para daqui 5 minutos - Lead: ${leadId}`);
+  console.log(`📅 Agendando início de conversa para daqui ${delayMinutes} minuto(s) - Lead: ${leadId}`);
 
   const job = await delayedConversationQueue.add(
     {
@@ -251,7 +254,7 @@ async function scheduleDelayedConversation(leadId, conversationId) {
       conversationId
     },
     {
-      delay: FIVE_MINUTES,
+      delay: actualDelay,
       attempts: 2,
       backoff: {
         type: 'exponential',
@@ -264,7 +267,7 @@ async function scheduleDelayedConversation(leadId, conversationId) {
     }
   );
 
-  console.log(`✅ Job agendado - ID: ${job.id}`);
+  console.log(`✅ Job agendado - ID: ${job.id} (delay: ${delayMinutes} min)`);
 
   return job;
 }

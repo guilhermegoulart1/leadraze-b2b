@@ -71,10 +71,10 @@ const SearchResults = ({
 
     return (
       <div
-        className={`bg-white rounded-lg shadow-sm p-4 border-2 transition-all cursor-pointer hover:shadow-md ${
+        className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border-2 transition-all cursor-pointer hover:shadow-md ${
           isSelected
-            ? 'border-purple-500 bg-purple-50'
-            : 'border-gray-100 hover:border-gray-300'
+            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+            : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
         }`}
         onClick={() => onToggleProfile(profile)}
       >
@@ -111,7 +111,7 @@ const SearchResults = ({
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <h3 className="text-base font-semibold text-gray-900 truncate">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                     {profile.name}
                   </h3>
                   {profile.is_premium && (
@@ -123,21 +123,21 @@ const SearchResults = ({
                 </div>
 
                 {title && (
-                  <p className="text-sm text-gray-600 truncate mb-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
                     {title}
                   </p>
                 )}
 
                 <div className="space-y-1.5">
                   {company && (
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
                       <Building className="w-4 h-4 flex-shrink-0 text-gray-400" />
                       <span className="truncate">{company}</span>
                     </div>
                   )}
 
                   {profile.location && (
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
                       <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400" />
                       <span className="truncate">{profile.location}</span>
                     </div>
@@ -145,19 +145,19 @@ const SearchResults = ({
 
                   {/* Conexões / Seguidores */}
                   {((profile.connections || profile.connections_count) || profile.follower_count) && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                       <Users className="w-4 h-4 flex-shrink-0 text-gray-400" />
                       <div className="flex items-center gap-2">
                         {(profile.connections || profile.connections_count) && (
                           <span>
-                            <span className="font-medium text-gray-700">{profile.connections || profile.connections_count}</span> {t('table.connectionsLabel')}
+                            <span className="font-medium text-gray-700 dark:text-gray-300">{profile.connections || profile.connections_count}</span> {t('table.connectionsLabel')}
                           </span>
                         )}
                         {profile.follower_count && (
                           <>
                             {(profile.connections || profile.connections_count) && <span>•</span>}
                             <span>
-                              <span className="font-medium text-gray-700">{profile.follower_count}</span> {t('table.followersLabel')}
+                              <span className="font-medium text-gray-700 dark:text-gray-300">{profile.follower_count}</span> {t('table.followersLabel')}
                             </span>
                           </>
                         )}
@@ -175,7 +175,7 @@ const SearchResults = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     title={t('table.viewProfile')}
                   >
                     <Linkedin className="w-5 h-5 text-blue-600" />
@@ -237,8 +237,8 @@ const SearchResults = ({
       <tr
         className={`transition-colors ${
           isSelected
-            ? 'bg-purple-50'
-            : 'hover:bg-gray-50'
+            ? 'bg-purple-50 dark:bg-purple-900/30'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-700'
         }`}
       >
         {/* Checkbox */}
@@ -266,7 +266,7 @@ const SearchResults = ({
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <div className="font-semibold text-sm text-gray-900 truncate">
+                <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
                   {profile.name}
                 </div>
                 {profile.is_premium && (
@@ -277,7 +277,7 @@ const SearchResults = ({
                 )}
               </div>
               {title && (
-                <div className="text-xs text-gray-500 truncate">{title}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{title}</div>
               )}
             </div>
           </div>
@@ -286,7 +286,7 @@ const SearchResults = ({
         {/* Localização */}
         <td className="px-4 py-3" style={{ width: '220px' }} onClick={() => onToggleProfile(profile)}>
           {profile.location && (
-            <div className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
               <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span className="truncate">{profile.location}</span>
             </div>
@@ -297,17 +297,17 @@ const SearchResults = ({
         <td className="px-4 py-3" style={{ width: '180px' }} onClick={() => onToggleProfile(profile)}>
           <div className="flex flex-col gap-1 cursor-pointer">
             {(profile.connections || profile.connections_count) && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="font-medium">{profile.connections || profile.connections_count}</span>
-                <span className="text-gray-500">{t('table.connectionsLabel')}</span>
+                <span className="text-gray-500 dark:text-gray-400">{t('table.connectionsLabel')}</span>
               </div>
             )}
             {profile.follower_count && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="font-medium">{profile.follower_count}</span>
-                <span className="text-gray-500">{t('table.followersLabel')}</span>
+                <span className="text-gray-500 dark:text-gray-400">{t('table.followersLabel')}</span>
               </div>
             )}
             {!profile.connections && !profile.connections_count && !profile.follower_count && (
@@ -326,7 +326,7 @@ const SearchResults = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center justify-center p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              className="inline-flex items-center justify-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title={t('table.viewOnLinkedin')}
             >
               <Linkedin className="w-4 h-4 text-blue-600" />
@@ -339,11 +339,11 @@ const SearchResults = ({
 
   if (loading && results.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
+      <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-800">
         <div className="text-center">
-          <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('results.loading')}</h3>
-          <p className="text-sm text-gray-500">{t('results.loadingHint')}</p>
+          <Loader className="w-12 h-12 text-purple-600 dark:text-purple-400 animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{t('results.loading')}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('results.loadingHint')}</p>
         </div>
       </div>
     );
@@ -351,13 +351,13 @@ const SearchResults = ({
 
   if (!loading && results.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
+      <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-800">
         <div className="text-center max-w-md px-6">
-          <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <Search className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
             {t('results.noResults')}
           </h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {t('results.noResultsHint')}
           </p>
         </div>
@@ -366,13 +366,13 @@ const SearchResults = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white overflow-hidden">
+    <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
+      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{t('results.title')}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('results.title')}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {results.length === 1 ? t('results.foundSingular', { count: results.length }) : t('results.found', { count: results.length })}
               {selectedProfiles.length > 0 && ` • ${selectedProfiles.length === 1 ? t('results.selectedSingular', { count: selectedProfiles.length }) : t('results.selected', { count: selectedProfiles.length })}`}
             </p>
@@ -380,13 +380,13 @@ const SearchResults = ({
 
           <div className="flex items-center gap-3">
             {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+            <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
               <button
                 onClick={() => setViewMode('table')}
                 className={`p-2 rounded transition-colors ${
                   viewMode === 'table'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
                 title={t('results.tableView')}
               >
@@ -396,8 +396,8 @@ const SearchResults = ({
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
                 title={t('results.gridView')}
               >
@@ -433,24 +433,24 @@ const SearchResults = ({
         ) : (
           /* Table View */
           <table className="w-full table-fixed">
-            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '60px' }}></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '320px' }}>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '60px' }}></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '320px' }}>
                   {t('table.profile')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '220px' }}>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '220px' }}>
                   {t('table.location')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase" style={{ width: '180px' }}>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '180px' }}>
                   {t('table.connections')}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase" style={{ width: '100px' }}>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '100px' }}>
                   {t('table.actions')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {results.map(profile => (
                 <ProfileRow key={profile.id} profile={profile} />
               ))}
@@ -460,7 +460,7 @@ const SearchResults = ({
 
         {/* Load More Button */}
         {hasMoreResults && (
-          <div className="py-8 px-6 text-center border-t border-gray-200">
+          <div className="py-8 px-6 text-center border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={onLoadMore}
               disabled={loadingMore}
@@ -470,7 +470,7 @@ const SearchResults = ({
               <span>{loadingMore ? t('results.loadingMore') : t('results.loadMore')}</span>
               {!loadingMore && <ArrowRight className="w-5 h-5" />}
             </button>
-            <p className="text-sm text-gray-500 mt-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
               {t('results.showingProfiles', { count: results.length })}
             </p>
           </div>
@@ -478,7 +478,7 @@ const SearchResults = ({
 
         {/* End of Results */}
         {!hasMoreResults && results.length > 0 && (
-          <div className="py-6 text-center text-gray-500 border-t border-gray-200">
+          <div className="py-6 text-center text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm">✓ {t('results.allLoaded')}</p>
           </div>
         )}

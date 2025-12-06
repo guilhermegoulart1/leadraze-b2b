@@ -6,7 +6,22 @@
       "Bash(cmd /c \"mkdir c:\\leadraze-b2b\\www\\public\\logo 2>nul & copy c:\\leadraze-b2b\\frontend\\public\\logo\\getraze-white.svg c:\\leadraze-b2b\\www\\public\\logo\\getraze-white.svg\")",
       "Bash(cmd /c:*)",
       "Bash(findstr:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(node src/migrations/009_create_website_leads.js:*)",
+      "Bash(node -e:*)",
+      "Bash(ls:*)",
+      "Bash(npm run dev:*)",
+      "Bash(dir c:leadraze-b2bfrontend)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "Bash(dir /b c:leadraze-b2bfrontendpubliclogo)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 5 bash:*)",
+      "Bash(npm install:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

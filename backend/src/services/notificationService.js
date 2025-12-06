@@ -264,6 +264,50 @@ async function createBulk(userIds, notificationData) {
   }
 }
 
+/**
+ * Create notification for invite accepted
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyInviteAccepted({ accountId, userId, leadName, leadId, campaignId, campaignName }) {
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'invite_accepted',
+    title: 'Convite aceito',
+    message: `${leadName} aceitou seu convite no LinkedIn`,
+    lead_id: leadId,
+    metadata: {
+      campaign_id: campaignId,
+      campaign_name: campaignName,
+      lead_name: leadName,
+      link: `/campaigns/${campaignId}/report`
+    }
+  });
+}
+
+/**
+ * Create notification for invite expired
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyInviteExpired({ accountId, userId, leadName, leadId, campaignId, campaignName }) {
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'invite_expired',
+    title: 'Convite expirado',
+    message: `O convite para ${leadName} expirou sem resposta`,
+    lead_id: leadId,
+    metadata: {
+      campaign_id: campaignId,
+      campaign_name: campaignName,
+      lead_name: leadName,
+      link: `/campaigns/${campaignId}/report`
+    }
+  });
+}
+
 module.exports = {
   create,
   getByUser,
@@ -272,5 +316,7 @@ module.exports = {
   countUnread,
   deleteNotification,
   deleteOldNotifications,
-  createBulk
+  createBulk,
+  notifyInviteAccepted,
+  notifyInviteExpired
 };

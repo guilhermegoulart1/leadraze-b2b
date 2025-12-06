@@ -48,8 +48,10 @@ const formatTask = (row, assignees = []) => {
   return {
     id: row.id,
     title: row.title,
+    description: row.description || null,
     taskType: row.task_type || 'call',
     status: row.is_completed ? 'completed' : 'pending',
+    priority: row.priority || 'medium',
     isCompleted: row.is_completed,
     dueDate: row.due_date,
     completedAt: row.completed_at,
@@ -626,9 +628,12 @@ const updateTask = async (req, res) => {
 
     const {
       title,
+      description,
       task_type,
       due_date,
-      assignees
+      assignees,
+      status,
+      priority
     } = req.body;
 
     // Get existing item
@@ -654,6 +659,10 @@ const updateTask = async (req, res) => {
       updates.title = title.trim();
     }
 
+    if (description !== undefined) {
+      updates.description = description ? description.trim() : null;
+    }
+
     if (task_type !== undefined) {
       if (VALID_TASK_TYPES.includes(task_type)) {
         updates.task_type = task_type;
@@ -662,6 +671,22 @@ const updateTask = async (req, res) => {
 
     if (due_date !== undefined) {
       updates.due_date = due_date || null;
+    }
+
+    if (priority !== undefined) {
+      const validPriorities = ['low', 'medium', 'high', 'urgent'];
+      if (validPriorities.includes(priority)) {
+        updates.priority = priority;
+      }
+    }
+
+    if (status !== undefined) {
+      updates.is_completed = status === 'completed';
+      if (status === 'completed' && !existingResult.rows[0].is_completed) {
+        updates.completed_at = new Date();
+      } else if (status !== 'completed' && existingResult.rows[0].is_completed) {
+        updates.completed_at = null;
+      }
     }
 
     await db.update('checklist_items', updates, { id });

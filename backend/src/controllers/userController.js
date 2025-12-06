@@ -520,7 +520,7 @@ exports.getProfile = async (req, res) => {
       SELECT
         id, email, name, company, role, is_active,
         avatar_url, profile_picture, preferred_language,
-        timezone, created_at, updated_at
+        preferred_theme, timezone, created_at, updated_at
       FROM users
       WHERE id = $1
     `, [userId]);
@@ -546,7 +546,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, company, profile_picture, preferred_language, timezone } = req.body;
+    const { name, company, profile_picture, preferred_language, preferred_theme, timezone } = req.body;
 
     // Build update query dynamically
     const updates = [];
@@ -644,6 +644,16 @@ exports.updateProfile = async (req, res) => {
       paramIndex++;
     }
 
+    if (preferred_theme !== undefined) {
+      const validThemes = ['light', 'dark', 'system'];
+      if (!validThemes.includes(preferred_theme)) {
+        throw new BadRequestError(`Invalid theme. Must be one of: ${validThemes.join(', ')}`);
+      }
+      updates.push(`preferred_theme = $${paramIndex}`);
+      values.push(preferred_theme);
+      paramIndex++;
+    }
+
     if (timezone !== undefined) {
       updates.push(`timezone = $${paramIndex}`);
       values.push(timezone);
@@ -663,7 +673,7 @@ exports.updateProfile = async (req, res) => {
       WHERE id = $${paramIndex}
       RETURNING id, email, name, company, role, is_active,
                 avatar_url, profile_picture, preferred_language,
-                timezone, created_at, updated_at
+                preferred_theme, timezone, created_at, updated_at
     `;
 
     const result = await db.query(query, values);

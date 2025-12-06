@@ -493,7 +493,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
     }
@@ -623,11 +623,11 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   // Empty State
   if (!conversationId) {
     return (
-      <div className="flex-1 bg-white flex items-center justify-center">
+      <div className="flex-1 bg-white dark:bg-gray-800 flex items-center justify-center">
         <div className="text-center">
-          <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Selecione uma conversa</p>
-          <p className="text-sm text-gray-500 mt-1">
+          <Bot className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Selecione uma conversa</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Escolha uma conversa da lista para começar
           </p>
         </div>
@@ -636,9 +636,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   }
 
   return (
-    <div className="flex-1 bg-white flex flex-col h-full">
+    <div className="flex-1 bg-white dark:bg-gray-800 flex flex-col h-full">
       {/* Chat Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           {/* Avatar - só usar se for URL HTTP válida */}
           {conversation?.lead_picture && conversation.lead_picture.startsWith('http') ? (
@@ -660,8 +660,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           <div className="min-w-0 flex-1">
             {loadingConversation ? (
               <>
-                <div className="h-5 bg-gray-200 rounded animate-pulse w-32 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-48"></div>
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-32 mb-2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-48"></div>
               </>
             ) : (
               <>
@@ -675,13 +675,13 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         value={editedName}
                         onChange={(e) => setEditedName(e.target.value)}
                         onKeyDown={handleNameKeyDown}
-                        className="font-semibold text-gray-900 border border-purple-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="font-semibold text-gray-900 dark:text-gray-100 border border-purple-300 dark:border-purple-600 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700"
                         disabled={isSavingName}
                       />
                       <button
                         onClick={handleSaveName}
                         disabled={isSavingName || !editedName.trim()}
-                        className="p-1 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50"
+                        className="p-1 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full transition-colors disabled:opacity-50"
                         title="Salvar"
                       >
                         {isSavingName ? (
@@ -693,7 +693,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                       <button
                         onClick={handleCancelEditName}
                         disabled={isSavingName}
-                        className="p-1 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                         title="Cancelar"
                       >
                         <X className="w-4 h-4" />
@@ -701,7 +701,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 group">
-                      <h2 className="font-semibold text-gray-900 truncate">
+                      <h2 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {/* Mostrar group_name para grupos, senão lead_name */}
                         {conversation?.is_group && conversation?.group_name
                           ? conversation.group_name
@@ -711,7 +711,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                       {!conversation?.is_group && (
                         <button
                           onClick={handleStartEditName}
-                          className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-1 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-full transition-colors opacity-0 group-hover:opacity-100"
                           title="Editar nome"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -726,7 +726,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-sm text-gray-600">
+                <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
                   {conversation?.is_group ? (
                     <span className="truncate">
                       {conversation?.attendee_count || 2} participantes
@@ -735,7 +735,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     <>
                       {/* Mostrar telefone se for conversa orgânica */}
                       {conversation?.lead_phone && (
-                        <span className="truncate text-purple-600">{conversation.lead_phone}</span>
+                        <span className="truncate text-purple-600 dark:text-purple-400">{conversation.lead_phone}</span>
                       )}
                       {conversation?.lead_phone && conversation?.lead_title && <span>•</span>}
                       <span className="truncate">{conversation?.lead_title}</span>
@@ -755,32 +755,44 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* AI Toggle */}
-          <button
-            onClick={handleToggleAI}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          {/* AI Toggle Switch */}
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-medium transition-colors ${
               conversation?.status === 'ai_active'
-                ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-            }`}
-          >
-            {conversation?.status === 'ai_active' ? (
-              <>
-                <ToggleRight className="w-4 h-4" />
-                <span>IA Ativa</span>
-              </>
-            ) : (
-              <>
-                <ToggleLeft className="w-4 h-4" />
-                <span>Manual</span>
-              </>
-            )}
-          </button>
+                ? 'text-gray-400 dark:text-gray-500'
+                : 'text-orange-600 dark:text-orange-400'
+            }`}>
+              Manual
+            </span>
+            <button
+              onClick={handleToggleAI}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                conversation?.status === 'ai_active'
+                  ? 'bg-purple-600 focus:ring-purple-500'
+                  : 'bg-orange-500 focus:ring-orange-500'
+              }`}
+              title={conversation?.status === 'ai_active' ? 'Desativar IA' : 'Ativar IA'}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  conversation?.status === 'ai_active' ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className={`text-xs font-medium transition-colors flex items-center gap-1 ${
+              conversation?.status === 'ai_active'
+                ? 'text-purple-600 dark:text-purple-400'
+                : 'text-gray-400 dark:text-gray-500'
+            }`}>
+              <Bot className="w-3.5 h-3.5" />
+              IA
+            </span>
+          </div>
 
           {/* Channel Indicator */}
           {conversation?.channel === 'email' || conversation?.source === 'email' ? (
             <div
-              className="p-2 text-blue-600 bg-blue-50 rounded-lg"
+              className="p-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg"
               title="Conversa por Email"
             >
               <Mail className="w-5 h-5" />
@@ -790,7 +802,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               href={conversation.lead_profile_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
               title="Ver perfil no LinkedIn"
             >
               <Linkedin className="w-5 h-5" />
@@ -801,18 +813,18 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           <div className="relative" ref={optionsMenuRef}>
             <button
               onClick={() => setShowOptionsMenu(!showOptionsMenu)}
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Mais opções"
             >
               <MoreVertical className="w-5 h-5" />
             </button>
 
             {showOptionsMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 py-1 z-50">
                 {conversation?.status === 'closed' ? (
                   <button
                     onClick={handleReopenConversation}
-                    className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
                     Reabrir conversa
@@ -820,7 +832,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 ) : (
                   <button
                     onClick={handleCloseConversation}
-                    className="w-full px-4 py-2 text-left text-sm text-green-700 hover:bg-green-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" />
                     Fechar conversa
@@ -833,35 +845,35 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           {/* Toggle Details Panel */}
           <button
             onClick={onToggleDetails}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             title={showDetailsPanel ? 'Esconder detalhes' : 'Mostrar detalhes'}
           >
             {showDetailsPanel ? (
-              <SidebarClose className="w-5 h-5" />
-            ) : (
               <SidebarOpen className="w-5 h-5" />
+            ) : (
+              <SidebarClose className="w-5 h-5" />
             )}
           </button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Carregando mensagens...</p>
+              <Loader className="w-12 h-12 text-blue-600 dark:text-blue-400 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Carregando mensagens...</p>
             </div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <p className="text-red-600 font-medium">{error}</p>
+              <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+              <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
               <button
                 onClick={loadMessages}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="mt-4 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 Tentar novamente
               </button>
@@ -870,9 +882,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">Nenhuma mensagem ainda</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <Bot className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400 font-medium">Nenhuma mensagem ainda</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Envie a primeira mensagem para iniciar a conversa
               </p>
             </div>
@@ -940,7 +952,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         className={`rounded-2xl px-4 py-2 ${
                           isUser
                             ? 'bg-purple-600 text-white'
-                            : 'bg-white border border-gray-200 text-gray-900'
+                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100'
                         }`}
                       >
                         {/* Texto da mensagem */}
@@ -1063,11 +1075,11 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                               return (
                                 <div
                                   key={att.id || attIdx}
-                                  className={`flex items-center gap-2 p-2 rounded-lg ${isUser ? 'bg-purple-700' : 'bg-gray-100'}`}
+                                  className={`flex items-center gap-2 p-2 rounded-lg ${isUser ? 'bg-purple-700' : 'bg-gray-100 dark:bg-gray-700'}`}
                                 >
-                                  <FileIcon className={`w-5 h-5 ${isUser ? 'text-purple-200' : 'text-gray-500'}`} />
+                                  <FileIcon className={`w-5 h-5 ${isUser ? 'text-purple-200' : 'text-gray-500 dark:text-gray-400'}`} />
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-sm truncate ${isUser ? 'text-white' : 'text-gray-900'}`}>
+                                    <p className={`text-sm truncate ${isUser ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
                                       {att.name}
                                     </p>
                                     {att.size > 0 && (
@@ -1164,9 +1176,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
         // Regular chat input for other channels
         return (
-          <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+          <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
             {error && (
-              <div className="mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+              <div className="mb-3 px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
                 <AlertCircle className="w-4 h-4" />
                 {error}
                 <button onClick={() => setError(null)} className="ml-auto">
@@ -1183,15 +1195,15 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   return (
                     <div
                       key={index}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-sm"
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm"
                     >
-                      <FileIcon className="w-4 h-4 text-gray-600" />
-                      <span className="max-w-[150px] truncate">{file.name}</span>
-                      <span className="text-gray-500 text-xs">({formatFileSize(file.size)})</span>
+                      <FileIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <span className="max-w-[150px] truncate text-gray-900 dark:text-gray-100">{file.name}</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-xs">({formatFileSize(file.size)})</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveFile(index)}
-                        className="text-gray-400 hover:text-red-500"
+                        className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1217,7 +1229,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSending || selectedFiles.length >= 5}
-                className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Anexar arquivo (máx. 5)"
               >
                 <Paperclip className="w-5 h-5" />
@@ -1229,8 +1241,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   value={newMessage}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
-                  placeholder={selectedFiles.length > 0 ? "Adicione uma mensagem (opcional)..." : "Digite sua mensagem... (Enter para enviar)"}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  placeholder={selectedFiles.length > 0 ? "Adicione uma mensagem (opcional)..." : "Digite sua mensagem... (Shift + Enter para enviar)"}
+                  className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 leading-normal"
                   rows="1"
                   style={{ maxHeight: '120px' }}
                   disabled={isSending}
@@ -1240,7 +1252,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               <button
                 type="submit"
                 disabled={(!newMessage.trim() && selectedFiles.length === 0) || isSending}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
+                className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 text-sm"
               >
                 {isSending ? (
                   <>
@@ -1255,14 +1267,6 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 )}
               </button>
             </form>
-
-            <p className="text-xs text-gray-500 mt-2">
-              {conversation?.status === 'ai_active'
-                ? 'A IA está monitorando esta conversa e responderá automaticamente'
-                : 'Você está no controle manual desta conversa'}
-              {' • '}
-              <span className="text-gray-400">Arquivos: imagens, PDF, documentos (máx. 15MB cada)</span>
-            </p>
           </div>
         );
       })()}

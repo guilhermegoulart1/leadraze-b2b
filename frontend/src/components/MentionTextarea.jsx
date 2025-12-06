@@ -68,7 +68,8 @@ const MentionTextarea = ({
     const searchUsers = async () => {
       try {
         setLoadingUsers(true);
-        const response = await api.searchUsersForMentions(leadId, userSearchQuery);
+        // Se a query está vazia, buscar todos os usuários
+        const response = await api.searchUsersForMentions(leadId, userSearchQuery || '');
 
         if (response.success) {
           setUsers(response.data.users);
@@ -82,8 +83,13 @@ const MentionTextarea = ({
       }
     };
 
-    const debounce = setTimeout(searchUsers, 300);
-    return () => clearTimeout(debounce);
+    // Buscar imediatamente se a query está vazia, senão debounce
+    if (userSearchQuery === '') {
+      searchUsers();
+    } else {
+      const debounce = setTimeout(searchUsers, 300);
+      return () => clearTimeout(debounce);
+    }
   }, [showUserList, userSearchQuery, leadId]);
 
   // Navegação por teclado na lista de usuários
@@ -195,13 +201,13 @@ const MentionTextarea = ({
 
       {/* Lista de usuários para mention */}
       {showUserList && (
-        <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+        <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 max-h-48 overflow-y-auto z-50">
           {loadingUsers ? (
-            <div className="p-3 text-center text-sm text-gray-500">
+            <div className="p-3 text-center text-sm text-gray-500 dark:text-gray-400">
               Buscando usuários...
             </div>
           ) : users.length === 0 ? (
-            <div className="p-3 text-center text-sm text-gray-500">
+            <div className="p-3 text-center text-sm text-gray-500 dark:text-gray-400">
               Nenhum usuário encontrado
             </div>
           ) : (
@@ -211,8 +217,8 @@ const MentionTextarea = ({
                   key={user.id}
                   onClick={() => selectUser(user)}
                   onMouseEnter={() => setSelectedUserIndex(index)}
-                  className={`w-full flex items-center gap-3 p-2 text-left hover:bg-purple-50 transition-colors ${
-                    index === selectedUserIndex ? 'bg-purple-50' : ''
+                  className={`w-full flex items-center gap-3 p-2 text-left hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors ${
+                    index === selectedUserIndex ? 'bg-purple-50 dark:bg-purple-900/20' : ''
                   }`}
                 >
                   {/* Avatar */}
@@ -230,10 +236,10 @@ const MentionTextarea = ({
 
                   {/* User info */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {user.name}
                     </div>
-                    <div className="text-xs text-gray-500 truncate">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                       {user.email}
                     </div>
                   </div>

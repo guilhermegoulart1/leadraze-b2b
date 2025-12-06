@@ -43,7 +43,7 @@ const Dashboard = () => {
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-600 mx-auto mb-3"></div>
-          <p className="text-gray-500 text-sm">Carregando dashboard...</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Carregando dashboard...</p>
         </div>
       </div>
     );
@@ -52,7 +52,7 @@ const Dashboard = () => {
   const data = dashboardData || {};
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Filters */}
       <DashboardFilters
         period={period}

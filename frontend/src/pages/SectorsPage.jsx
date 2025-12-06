@@ -567,14 +567,22 @@ const SectorsPage = () => {
                             <div className="flex items-center gap-3">
                               {user.avatar_url ? (
                                 <img
-                                  src={user.avatar_url}
+                                  src={
+                                    user.avatar_url.startsWith('http')
+                                      ? `${user.avatar_url}?v=${user.updated_at || Date.now()}`
+                                      : user.avatar_url
+                                  }
                                   alt={user.name}
                                   className="w-8 h-8 rounded-full object-cover"
                                 />
                               ) : (
                                 <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center">
                                   <span className="text-xs font-medium text-green-700">
-                                    {user.name?.charAt(0)}
+                                    {(() => {
+                                      const names = (user.name || '').trim().split(' ').filter(n => n.length > 0);
+                                      if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                                      return names.length >= 2 ? (names[0][0] + names[1][0]).toUpperCase() : '?';
+                                    })()}
                                   </span>
                                 </div>
                               )}
@@ -621,14 +629,22 @@ const SectorsPage = () => {
                               <div className="flex items-center gap-3">
                                 {user.avatar_url ? (
                                   <img
-                                    src={user.avatar_url}
+                                    src={
+                                      user.avatar_url.startsWith('http')
+                                        ? `${user.avatar_url}?v=${user.updated_at || Date.now()}`
+                                        : user.avatar_url
+                                    }
                                     alt={user.name}
                                     className="w-8 h-8 rounded-full object-cover"
                                   />
                                 ) : (
                                   <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                                     <span className="text-xs font-medium text-gray-600">
-                                      {user.name?.charAt(0)}
+                                      {(() => {
+                                        const names = (user.name || '').trim().split(' ').filter(n => n.length > 0);
+                                        if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                                        return names.length >= 2 ? (names[0][0] + names[1][0]).toUpperCase() : '?';
+                                      })()}
                                     </span>
                                   </div>
                                 )}

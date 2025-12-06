@@ -212,6 +212,36 @@ class ApiService {
   }
 
   // ================================
+  // CAMPAIGN REVIEW CONFIG & INVITE QUEUE
+  // ================================
+
+  async saveReviewConfig(campaignId, config) {
+    return this.request(`/campaigns/${campaignId}/review-config`, {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async getReviewConfig(campaignId) {
+    return this.request(`/campaigns/${campaignId}/review-config`);
+  }
+
+  async getCampaignReport(campaignId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/campaigns/${campaignId}/report${query ? '?' + query : ''}`);
+  }
+
+  async getQueueStatus(campaignId) {
+    return this.request(`/campaigns/${campaignId}/queue-status`);
+  }
+
+  async cancelCampaign(campaignId) {
+    return this.request(`/campaigns/${campaignId}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  // ================================
   // LEADS
   // ================================
   
@@ -900,7 +930,40 @@ class ApiService {
 
   async getTags(params = {}) {
     const query = new URLSearchParams(params).toString();
-    return this.request(`/contacts/tags${query ? '?' + query : ''}`);
+    return this.request(`/tags${query ? '?' + query : ''}`);
+  }
+
+  async createTag(tagData) {
+    return this.request('/tags', {
+      method: 'POST',
+      body: JSON.stringify(tagData),
+    });
+  }
+
+  async updateTag(tagId, tagData) {
+    return this.request(`/tags/${tagId}`, {
+      method: 'PUT',
+      body: JSON.stringify(tagData),
+    });
+  }
+
+  async deleteTag(tagId) {
+    return this.request(`/tags/${tagId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addTagToLead(leadId, tagId) {
+    return this.request(`/leads/${leadId}/tags`, {
+      method: 'POST',
+      body: JSON.stringify({ tag_id: tagId }),
+    });
+  }
+
+  async removeTagFromLead(leadId, tagId) {
+    return this.request(`/leads/${leadId}/tags/${tagId}`, {
+      method: 'DELETE',
+    });
   }
 
   async exportContacts(filters = {}) {

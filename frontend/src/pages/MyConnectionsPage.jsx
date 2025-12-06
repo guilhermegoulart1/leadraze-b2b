@@ -218,26 +218,26 @@ const MyConnectionsPage = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               Minhas Conexoes
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               Ative suas conexoes de 1 grau no LinkedIn com mensagens personalizadas
             </p>
           </div>
 
           <div className="flex items-center gap-4">
             {/* Daily Limit Info */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-              <span className="text-sm text-gray-600">Limite diario:</span>
-              <span className="font-semibold text-gray-900">
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Limite diario:</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
                 {dailyLimit.today_sent}/{dailyLimit.daily_limit}
               </span>
               <button
                 onClick={() => setShowLimitSettings(!showLimitSettings)}
-                className="p-1 hover:bg-gray-200 rounded"
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
               >
-                <Settings className="w-4 h-4 text-gray-500" />
+                <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
@@ -259,9 +259,9 @@ const MyConnectionsPage = () => {
 
         {/* Limit Settings Dropdown */}
         {showLimitSettings && (
-          <div className="absolute right-8 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50">
-            <h3 className="font-semibold text-gray-900 mb-2">Limite Diario de Ativacoes</h3>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="absolute right-8 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Limite Diario de Ativacoes</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Defina quantas conexoes voce pode ativar por dia. Recomendamos comecar com 100 para evitar restricoes do LinkedIn.
             </p>
 
@@ -272,14 +272,14 @@ const MyConnectionsPage = () => {
                 onChange={(e) => setNewLimit(parseInt(e.target.value) || 100)}
                 min={1}
                 max={500}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
-              <span className="text-sm text-gray-600">/dia</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">/dia</span>
             </div>
 
-            <div className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg mb-4">
-              <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
-              <p className="text-xs text-yellow-800">
+            <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg mb-4">
+              <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+              <p className="text-xs text-yellow-800 dark:text-yellow-300">
                 Limites acima de 150/dia podem aumentar o risco de restricoes temporarias na sua conta LinkedIn.
               </p>
             </div>
@@ -287,7 +287,7 @@ const MyConnectionsPage = () => {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowLimitSettings(false)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
               >
                 Cancelar
               </button>
@@ -306,7 +306,7 @@ const MyConnectionsPage = () => {
       <div className="mb-6 flex flex-col md:flex-row gap-4">
         {/* LinkedIn Account Selector */}
         <div className="w-full md:w-64">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Conta LinkedIn
           </label>
           <select
@@ -315,7 +315,7 @@ const MyConnectionsPage = () => {
               const account = linkedinAccounts.find(a => a.id === e.target.value);
               setSelectedAccount(account);
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="">Selecione uma conta...</option>
             {linkedinAccounts.map(account => (
@@ -328,7 +328,7 @@ const MyConnectionsPage = () => {
 
         {/* Search */}
         <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Buscar conexoes
           </label>
           <div className="flex gap-2">
@@ -340,19 +340,19 @@ const MyConnectionsPage = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
             <button
               onClick={handleSearch}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
             >
               Buscar
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`px-4 py-2 rounded-lg border ${
-                showFilters ? 'bg-purple-50 border-purple-300 text-purple-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                showFilters ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <Filter className="w-4 h-4" />
@@ -363,10 +363,10 @@ const MyConnectionsPage = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cargo
               </label>
               <input
@@ -374,11 +374,11 @@ const MyConnectionsPage = () => {
                 placeholder="CEO, Diretor, Gerente..."
                 value={filters.job_title}
                 onChange={(e) => setFilters(prev => ({ ...prev, job_title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Localizacao
               </label>
               <input
@@ -386,7 +386,7 @@ const MyConnectionsPage = () => {
                 placeholder="Sao Paulo, Brasil..."
                 value={filters.location}
                 onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
             <div className="flex items-end">
@@ -395,7 +395,7 @@ const MyConnectionsPage = () => {
                   setFilters({ job_title: '', company: '', location: '' });
                   loadConnections(true);
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900"
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
               >
                 Limpar filtros
               </button>
@@ -406,14 +406,14 @@ const MyConnectionsPage = () => {
 
       {/* Selection Bar */}
       {connections.length > 0 && (
-        <div className="mb-4 flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mb-4 flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <button
               onClick={toggleSelectAll}
-              className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+              className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
             >
               {selectAll ? (
-                <CheckSquare className="w-5 h-5 text-purple-600" />
+                <CheckSquare className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               ) : (
                 <Square className="w-5 h-5" />
               )}
@@ -421,7 +421,7 @@ const MyConnectionsPage = () => {
             </button>
 
             {selectedConnections.length > 0 && (
-              <span className="text-sm text-purple-600 font-medium">
+              <span className="text-sm text-purple-600 dark:text-purple-400 font-medium">
                 {selectedConnections.length} selecionada(s)
               </span>
             )}
@@ -429,7 +429,7 @@ const MyConnectionsPage = () => {
 
           <button
             onClick={() => loadConnections(true)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
           >
             <RefreshCw className="w-4 h-4" />
             Atualizar
@@ -439,12 +439,12 @@ const MyConnectionsPage = () => {
 
       {/* Connections List */}
       {linkedinAccounts.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
           <Linkedin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Nenhuma conta LinkedIn conectada
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             Conecte uma conta LinkedIn para ver suas conexoes
           </p>
           <a
@@ -456,29 +456,29 @@ const MyConnectionsPage = () => {
           </a>
         </div>
       ) : !selectedAccount ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
           <Linkedin className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Selecione uma conta LinkedIn
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             Escolha uma conta no menu acima para ver suas conexoes de 1 grau
           </p>
         </div>
       ) : loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-purple-600 animate-spin mx-auto" />
-            <p className="mt-4 text-gray-600">Carregando conexoes...</p>
+            <Loader2 className="w-12 h-12 text-purple-600 dark:text-purple-400 animate-spin mx-auto" />
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Carregando conexoes...</p>
           </div>
         </div>
       ) : connections.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
           <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Nenhuma conexao encontrada
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             {searchQuery
               ? 'Tente ajustar seus filtros de busca'
               : 'Suas conexoes de 1 grau aparecerao aqui'}
@@ -486,34 +486,34 @@ const MyConnectionsPage = () => {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                   <th className="w-12 px-4 py-3"></th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Nome</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Cargo</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Empresa</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Localizacao</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Campanhas</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Nome</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Cargo</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Empresa</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Localizacao</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Campanhas</th>
                   <th className="w-20 px-4 py-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {connections.map((connection) => (
                   <tr
                     key={connection.provider_id}
-                    className={`hover:bg-gray-50 ${
-                      isConnectionSelected(connection) ? 'bg-purple-50' : ''
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                      isConnectionSelected(connection) ? 'bg-purple-50 dark:bg-purple-900/30' : ''
                     }`}
                   >
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleConnectionSelection(connection)}
-                        className="text-gray-400 hover:text-purple-600"
+                        className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
                       >
                         {isConnectionSelected(connection) ? (
-                          <CheckSquare className="w-5 h-5 text-purple-600" />
+                          <CheckSquare className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         ) : (
                           <Square className="w-5 h-5" />
                         )}
@@ -528,27 +528,27 @@ const MyConnectionsPage = () => {
                             className="w-10 h-10 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                            <span className="text-purple-600 font-semibold">
+                          <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                            <span className="text-purple-600 dark:text-purple-400 font-semibold">
                               {connection.first_name?.[0] || connection.name?.[0] || '?'}
                             </span>
                           </div>
                         )}
                         <div>
-                          <p className="font-medium text-gray-900">{connection.name}</p>
-                          <p className="text-xs text-gray-500">{connection.first_name}</p>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{connection.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{connection.first_name}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-sm text-gray-900 truncate max-w-[200px]">
+                      <p className="text-sm text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
                         {connection.title || connection.headline || '-'}
                       </p>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-gray-400" />
-                        <p className="text-sm text-gray-700 truncate max-w-[150px]">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
                           {connection.company || '-'}
                         </p>
                       </div>
@@ -556,7 +556,7 @@ const MyConnectionsPage = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-400" />
-                        <p className="text-sm text-gray-700 truncate max-w-[150px]">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[150px]">
                           {connection.location || '-'}
                         </p>
                       </div>
@@ -569,8 +569,8 @@ const MyConnectionsPage = () => {
                               key={idx}
                               className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full ${
                                 campaign.status === 'active'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-600'
+                                  ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                               }`}
                             >
                               <Tag className="w-3 h-3" />
@@ -578,7 +578,7 @@ const MyConnectionsPage = () => {
                             </span>
                           ))
                         ) : connection.in_crm ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
                             No CRM
                           </span>
                         ) : (
@@ -589,7 +589,7 @@ const MyConnectionsPage = () => {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleViewProfile(connection)}
-                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                        className="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg"
                         title="Ver perfil completo"
                       >
                         <Eye className="w-4 h-4" />
@@ -607,7 +607,7 @@ const MyConnectionsPage = () => {
               <button
                 onClick={() => loadConnections(false)}
                 disabled={loadingMore}
-                className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+                className="px-6 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
               >
                 {loadingMore ? (
                   <span className="flex items-center gap-2">

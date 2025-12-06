@@ -111,25 +111,25 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Users className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Atribuições
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {agent?.name}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,47 +137,47 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
 
         {/* Stats Cards */}
         {stats && (
-          <div className="p-4 bg-gray-50 border-b border-gray-200">
+          <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-3 rounded-lg border border-gray-200">
-                <div className="text-2xl font-bold text-purple-600">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                   {stats.total_assignments || 0}
                 </div>
-                <div className="text-xs text-gray-500">Total Atribuições</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Total Atribuições</div>
               </div>
-              <div className="bg-white p-3 rounded-lg border border-gray-200">
-                <div className="text-2xl font-bold text-blue-600">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {stats.unique_users || 0}
                 </div>
-                <div className="text-xs text-gray-500">Usuários</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Usuários</div>
               </div>
-              <div className="bg-white p-3 rounded-lg border border-gray-200">
-                <div className="text-2xl font-bold text-green-600">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {stats.unique_leads || 0}
                 </div>
-                <div className="text-xs text-gray-500">Leads Únicos</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Leads Únicos</div>
               </div>
-              <div className="bg-white p-3 rounded-lg border border-gray-200">
-                <div className="text-sm text-gray-600">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="text-sm text-gray-600 dark:text-gray-300">
                   {stats.last_assignment ? formatDate(stats.last_assignment) : '-'}
                 </div>
-                <div className="text-xs text-gray-500">Última Atribuição</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Última Atribuição</div>
               </div>
             </div>
 
             {/* Per User Stats */}
             {stats.per_user && stats.per_user.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <div className="text-xs font-medium text-gray-500 mb-2">Por Usuário:</div>
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Por Usuário:</div>
                 <div className="flex flex-wrap gap-2">
                   {stats.per_user.map((user, idx) => (
                     <span
                       key={idx}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-full text-xs"
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-full text-xs text-gray-700 dark:text-gray-300"
                     >
                       <User className="w-3 h-3 text-gray-400" />
                       <span className="font-medium">{user.user_name}</span>
-                      <span className="text-purple-600">{user.assignment_count}</span>
+                      <span className="text-purple-600 dark:text-purple-400">{user.assignment_count}</span>
                     </span>
                   ))}
                 </div>
@@ -187,15 +187,15 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
         )}
 
         {/* Filters & Actions */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                   showFilters
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 <Filter className="w-4 h-4" />
@@ -203,7 +203,7 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
               </button>
               <button
                 onClick={() => loadAssignments(pagination.page)}
-                className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                 title="Atualizar"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -222,23 +222,23 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
 
           {/* Filter Fields */}
           {showFilters && (
-            <div className="mt-3 pt-3 border-t border-gray-200 flex items-end gap-3">
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-end gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Data Inicial</label>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Data Inicial</label>
                 <input
                   type="date"
                   value={filters.start_date}
                   onChange={(e) => setFilters(f => ({ ...f, start_date: e.target.value }))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Data Final</label>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Data Final</label>
                 <input
                   type="date"
                   value={filters.end_date}
                   onChange={(e) => setFilters(f => ({ ...f, end_date: e.target.value }))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
               </div>
               <button
@@ -252,7 +252,7 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
                   setFilters({ user_id: '', start_date: '', end_date: '' });
                   loadAssignments(1);
                 }}
-                className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+                className="px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm"
               >
                 Limpar
               </button>
@@ -264,36 +264,36 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
         <div className="flex-1 overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 dark:border-purple-400"></div>
             </div>
           ) : assignments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-              <Users className="w-12 h-12 text-gray-300 mb-3" />
+            <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+              <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
               <p className="font-medium">Nenhuma atribuição encontrada</p>
               <p className="text-sm">As atribuições automáticas aparecerão aqui</p>
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
                     Data/Hora
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
                     Lead
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
                     Atribuído Para
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
                     Posição
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {assignments.map((assignment) => (
-                  <tr key={assignment.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                  <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-4 h-4 text-gray-400" />
                         {formatDate(assignment.created_at)}
@@ -313,11 +313,11 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
                           </div>
                         )}
                         <div>
-                          <div className="font-medium text-sm text-gray-900">
+                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
                             {assignment.lead_name || '-'}
                           </div>
                           {assignment.lead_company && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               {assignment.lead_company}
                             </div>
                           )}
@@ -333,17 +333,17 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
                             className="w-6 h-6 rounded-full"
                           />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center">
-                            <User className="w-3 h-3 text-gray-500" />
+                          <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                            <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                           </div>
                         )}
-                        <span className="text-sm text-gray-900">
+                        <span className="text-sm text-gray-900 dark:text-gray-100">
                           {assignment.assigned_to_user_name}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                      <span className="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-medium">
                         {assignment.rotation_position}/{assignment.total_assignees}
                       </span>
                     </td>
@@ -356,8 +356,8 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-            <p className="text-sm text-gray-600">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               {((pagination.page - 1) * 20) + 1} - {Math.min(pagination.page * 20, pagination.total)} de {pagination.total}
             </p>
 
@@ -365,19 +365,19 @@ const AgentAssignmentsModal = ({ isOpen, onClose, agent }) => {
               <button
                 onClick={() => loadAssignments(pagination.page - 1)}
                 disabled={pagination.page === 1}
-                className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
 
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 {pagination.page} / {pagination.pages}
               </span>
 
               <button
                 onClick={() => loadAssignments(pagination.page + 1)}
                 disabled={pagination.page === pagination.pages}
-                className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>

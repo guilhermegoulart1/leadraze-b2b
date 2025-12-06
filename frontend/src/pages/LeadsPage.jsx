@@ -24,6 +24,8 @@ import {
   Plus,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   AlertCircle,
   Crown,
@@ -33,6 +35,8 @@ import {
   ExternalLink,
   X,
   Linkedin,
+  Zap,
+  Package,
   Globe,
   GraduationCap,
   Award,
@@ -56,6 +60,8 @@ const LeadsPage = () => {
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [selectedLead, setSelectedLead] = useState(null); // For details modal
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Pipeline stages matching backend
   const pipelineStages = {
@@ -91,9 +97,51 @@ const LeadsPage = () => {
     }
   };
 
+  // Helper functions for dynamic Tailwind classes
+  const getStageIconClasses = (color) => {
+    const colorMap = {
+      slate: 'w-5 h-5 text-slate-600 dark:text-slate-400',
+      blue: 'w-5 h-5 text-blue-600 dark:text-blue-400',
+      amber: 'w-5 h-5 text-amber-600 dark:text-amber-400',
+      purple: 'w-5 h-5 text-purple-600 dark:text-purple-400',
+      emerald: 'w-5 h-5 text-emerald-600 dark:text-emerald-400',
+      red: 'w-5 h-5 text-red-600 dark:text-red-400'
+    };
+    return colorMap[color] || colorMap.slate;
+  };
+
+  const getStageBadgeClasses = (color) => {
+    const colorMap = {
+      slate: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-900/20 text-slate-700 dark:text-slate-400',
+      blue: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
+      amber: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+      purple: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400',
+      emerald: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400',
+      red: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+    };
+    return colorMap[color] || colorMap.slate;
+  };
+
+  const getStageInlineBadgeClasses = (color) => {
+    const colorMap = {
+      slate: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-900/20 text-slate-700 dark:text-slate-400',
+      blue: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',
+      amber: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+      purple: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400',
+      emerald: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400',
+      red: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+    };
+    return colorMap[color] || colorMap.slate;
+  };
+
   useEffect(() => {
     loadLeads();
   }, []);
+
+  // Reset pagination when search/filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortField, sortDirection]);
 
   const loadLeads = async () => {
     try {
@@ -265,10 +313,10 @@ const LeadsPage = () => {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`bg-white rounded-lg border p-3 cursor-move group overflow-hidden ${
+            className={`bg-white dark:bg-gray-800 rounded-lg border p-3 cursor-move group overflow-hidden ${
               snapshot.isDragging
-                ? 'shadow-xl ring-2 ring-blue-400 border-blue-300'
-                : 'shadow-sm border-gray-200 hover:shadow-md'
+                ? 'shadow-xl dark:shadow-gray-900/50 ring-2 ring-blue-400 border-blue-300'
+                : 'shadow-sm border-gray-200 dark:border-gray-700 hover:shadow-md'
             }`}
             style={{
               ...provided.draggableProps.style,
@@ -298,19 +346,19 @@ const LeadsPage = () => {
 
               {/* Info */}
               <div className="flex-1 min-w-0 overflow-hidden">
-                <h4 className="text-sm font-semibold text-gray-900 truncate mb-1">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">
                   {lead.name}
                 </h4>
 
                 {lead.title && (
-                  <p className="text-xs text-gray-600 mb-0.5 flex items-center gap-1.5 min-w-0">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-0.5 flex items-center gap-1.5 min-w-0">
                     <Briefcase className="w-3 h-3 text-gray-400 flex-shrink-0" />
                     <span className="truncate">{lead.title}</span>
                   </p>
                 )}
 
                 {lead.company && (
-                  <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1.5 min-w-0">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5 flex items-center gap-1.5 min-w-0">
                     <Building className="w-3 h-3 text-gray-400 flex-shrink-0" />
                     <span className="truncate">{lead.company}</span>
                   </p>
@@ -323,67 +371,96 @@ const LeadsPage = () => {
                   e.stopPropagation();
                   setSelectedLead(lead);
                 }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-50 rounded flex-shrink-0"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-50 dark:bg-blue-900/20 rounded flex-shrink-0"
                 title={t('tooltips.viewDetails')}
               >
-                <Eye className="w-4 h-4 text-blue-600" />
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </button>
             </div>
 
             {/* Campaign & Draft Badge */}
             {!isOrganic && lead.campaign_name && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5 overflow-hidden">
-                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 border border-purple-200 rounded min-w-0 max-w-full">
-                  <FileText className="w-2.5 h-2.5 text-purple-600 flex-shrink-0" />
+                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 rounded min-w-0 max-w-full">
+                  <FileText className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                   <span className="text-purple-700 font-medium text-[10px] leading-tight truncate">
                     {lead.campaign_name}
                   </span>
                 </div>
                 {isDraft && lead.status === 'leads' && (
-                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded flex-shrink-0">
-                    <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
+                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded flex-shrink-0">
+                    <AlertCircle className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
                     <span className="text-amber-700 font-semibold text-[10px] leading-tight">{t('badges.draft')}</span>
                   </div>
                 )}
               </div>
             )}
 
+            {/* Tags */}
+            {lead.tags && lead.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1 overflow-hidden">
+                {lead.tags.map((tag) => {
+                  const colorClasses = {
+                    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+                    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+                    green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+                    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+                    red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+                    pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+                    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+                    gray: 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
+                  };
+                  const colorClass = colorClasses[tag.color] || colorClasses.purple;
+
+                  return (
+                    <span
+                      key={tag.id}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${colorClass}`}
+                      title={tag.name}
+                    >
+                      {tag.name}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Profile Badges & Stats */}
             {(lead.is_premium || lead.is_creator || lead.is_influencer || lead.connections_count > 0 || lead.follower_count > 0) && (
-              <div className="mt-2 pt-2 border-t border-gray-100">
+              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                 {/* Badges */}
                 <div className="flex flex-wrap gap-1 mb-1.5">
                   {lead.is_premium && (
                     <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title={t('badges.linkedInPremium')}>
-                      <Crown className="w-2.5 h-2.5 text-amber-600" />
+                      <Crown className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
                       <span className="text-amber-700 font-semibold text-[9px] leading-tight">{t('badges.premium')}</span>
                     </div>
                   )}
                   {lead.is_creator && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-300 rounded" title={t('badges.creatorMode')}>
-                      <Star className="w-2.5 h-2.5 text-blue-600" />
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 rounded" title={t('badges.creatorMode')}>
+                      <Star className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
                       <span className="text-blue-700 font-semibold text-[9px] leading-tight">{t('badges.creator')}</span>
                     </div>
                   )}
                   {lead.is_influencer && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 border border-purple-300 rounded" title={t('badges.linkedInInfluencer')}>
-                      <Star className="w-2.5 h-2.5 text-purple-600 fill-purple-600" />
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-300 rounded" title={t('badges.linkedInInfluencer')}>
+                      <Star className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 fill-purple-600" />
                       <span className="text-purple-700 font-semibold text-[9px] leading-tight">{t('badges.influencer')}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-2 text-[10px] text-gray-600">
+                <div className="flex items-center gap-2 text-[10px] text-gray-600 dark:text-gray-400">
                   {lead.connections_count > 0 && (
                     <div className="flex items-center gap-0.5" title={`${lead.connections_count} ${t('stats.connections')}`}>
-                      <Users className="w-3 h-3 text-gray-500" />
+                      <Users className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium">{lead.connections_count.toLocaleString()}</span>
                     </div>
                   )}
                   {lead.follower_count > 0 && (
                     <div className="flex items-center gap-0.5" title={`${lead.follower_count} ${t('stats.followers')}`}>
-                      <UserCheck className="w-3 h-3 text-gray-500" />
+                      <UserCheck className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium">{lead.follower_count.toLocaleString()}</span>
                     </div>
                   )}
@@ -392,7 +469,7 @@ const LeadsPage = () => {
                       href={`https://www.linkedin.com/in/${lead.public_identifier}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-0.5 text-blue-600 hover:text-blue-700 hover:underline ml-auto"
+                      className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline ml-auto"
                       title={t('tooltips.viewLinkedIn')}
                     >
                       <ExternalLink className="w-3 h-3" />
@@ -404,64 +481,94 @@ const LeadsPage = () => {
             )}
 
             {/* Contact Info */}
-            {(lead.email || lead.phone) && (
-              <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
-                {lead.email && (
-                  <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
-                    <Mail className="w-3 h-3 text-blue-500" />
-                    {lead.email}
-                  </p>
-                )}
-
-                {lead.phone && (
-                  <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
-                    <Phone className="w-3 h-3 text-emerald-500" />
-                    {lead.phone}
-                  </p>
-                )}
+            {lead.email && (
+              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
+                <p className="text-xs text-gray-600 dark:text-gray-400 truncate flex items-center gap-1.5">
+                  <Mail className="w-3 h-3 text-blue-500" />
+                  {lead.email}
+                </p>
               </div>
             )}
 
-            {/* Tags - if any */}
-            {lead.tags && lead.tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {lead.tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${tag.colorClass || 'bg-gray-100 text-gray-700'}`}
-                  >
-                    {tag.name}
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* Footer - Source & Responsible */}
+            {(lead.source || lead.responsible_name) && (
+              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                {/* Source */}
+                {lead.source && (() => {
+                  const sourceConfig = {
+                    linkedin: {
+                      icon: Linkedin,
+                      label: 'LinkedIn',
+                      className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                    },
+                    google_maps: {
+                      icon: MapPin,
+                      label: 'Google Maps',
+                      className: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                    },
+                    list: {
+                      icon: ListIcon,
+                      label: 'Lista',
+                      className: 'bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-800'
+                    },
+                    paid_traffic: {
+                      icon: Zap,
+                      label: 'Tráfego Pago',
+                      className: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
+                    },
+                    other: {
+                      icon: Package,
+                      label: 'Outro',
+                      className: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800'
+                    }
+                  };
 
-            {/* Footer - Date & Responsible */}
-            <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-xs text-gray-400">
-                {new Date(lead.created_at).toLocaleDateString('pt-BR')}
-              </span>
-              {lead.responsible_name && (
-                <div className="flex items-center gap-1.5" title={`Responsável: ${lead.responsible_name}`}>
+                  const config = sourceConfig[lead.source] || sourceConfig.other;
+                  const SourceIcon = config.icon;
+
+                  return (
+                    <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium ${config.className}`}>
+                      <SourceIcon className="w-2.5 h-2.5" />
+                      <span>{config.label}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Responsible */}
+                {lead.responsible_name && (
+                  <div className="flex items-center gap-1.5" title={`Responsável: ${lead.responsible_name}`}>
                   {lead.responsible_avatar ? (
                     <img
-                      src={lead.responsible_avatar}
+                      src={
+                        lead.responsible_avatar.startsWith('http')
+                          ? `${lead.responsible_avatar}?v=${lead.responsible_updated_at || Date.now()}`
+                          : lead.responsible_avatar
+                      }
                       alt={lead.responsible_name}
-                      className="w-5 h-5 rounded-full object-cover border border-gray-200"
+                      className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                     />
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-[10px] font-medium text-blue-600">
-                        {lead.responsible_name?.charAt(0) || '?'}
+                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                        {(() => {
+                          const names = (lead.responsible_name || '').trim().split(' ').filter(n => n.length > 0);
+                          if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                          return (names[0][0] + names[1][0]).toUpperCase();
+                        })()}
                       </span>
                     </div>
                   )}
-                  <span className="text-[10px] text-gray-500 font-medium truncate max-w-[60px]">
-                    {lead.responsible_name.split(' ')[0]}
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate max-w-[60px]">
+                    {(() => {
+                      const names = (lead.responsible_name || '').trim().split(' ').filter(n => n.length > 0);
+                      if (names.length === 1) return names[0];
+                      return `${names[0]} ${names[1][0]}.`;
+                    })()}
                   </span>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Draggable>
@@ -475,19 +582,19 @@ const LeadsPage = () => {
     const count = stageLeads.length;
 
     return (
-      <div className="flex-1 min-w-[300px] max-w-[340px] flex flex-col">
+      <div className="flex-1 min-w-[270px] max-w-[290px] flex flex-col">
         {/* Column Header */}
         <div className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Icon className={`w-5 h-5 text-${stage.color}-600`} />
-            <h3 className="font-semibold text-sm text-gray-700">
+            <Icon className={getStageIconClasses(stage.color)} />
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
               {stage.label}
             </h3>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold bg-${stage.color}-100 text-${stage.color}-700`}>
+            <span className={getStageBadgeClasses(stage.color)}>
               {count}
             </span>
           </div>
-          <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+          <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded transition-colors">
             <Plus className="w-4 h-4 text-gray-400" />
           </button>
         </div>
@@ -500,11 +607,11 @@ const LeadsPage = () => {
               {...provided.droppableProps}
               className={`flex-1 rounded-lg p-2 overflow-y-auto scrollbar-thin ${
                 snapshot.isDraggingOver
-                  ? 'bg-blue-50 ring-2 ring-blue-300'
-                  : 'bg-gray-50'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-300'
+                  : 'bg-gray-50 dark:bg-gray-900'
               }`}
               style={{
-                maxHeight: 'calc(100vh - 280px)',
+                maxHeight: 'calc(100vh - 200px)',
                 minHeight: '400px'
               }}
             >
@@ -517,8 +624,8 @@ const LeadsPage = () => {
               ) : (
                 <div className={`flex items-center justify-center h-32 text-sm border-2 border-dashed rounded-lg ${
                   snapshot.isDraggingOver
-                    ? 'border-blue-400 bg-blue-100 text-blue-600'
-                    : 'border-gray-300 text-gray-400'
+                    ? 'border-blue-400 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-400'
                 }`}>
                   {snapshot.isDraggingOver ? t('messages.dropHere') : t('messages.noLeads')}
                 </div>
@@ -536,16 +643,16 @@ const LeadsPage = () => {
     const isActive = sortField === field;
     return (
       <th
-        className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+        className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 transition-colors select-none"
         onClick={() => handleSort(field)}
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <span>{label}</span>
           {isActive && (
             sortDirection === 'asc' ? (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="w-3 h-3" />
             ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="w-3 h-3" />
             )
           )}
         </div>
@@ -555,51 +662,61 @@ const LeadsPage = () => {
 
   // List View Component
   const ListView = () => {
+    // Calculate pagination
+    const totalPages = Math.ceil(sortedLeads.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedLeads = sortedLeads.slice(startIndex, endIndex);
+
     return (
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <TableHeader field="name" label={t('table.lead')} />
-              <TableHeader field="company" label={t('table.company')} />
-              <TableHeader field="email" label={t('table.contact')} />
-              <TableHeader field="campaign_name" label={t('table.campaign')} />
-              <TableHeader field="status" label={t('table.stage')} />
-              <TableHeader field="responsible_name" label="Responsável" />
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                {t('table.tags')}
-              </th>
-              <TableHeader field="created_at" label={t('table.date')} />
-              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                {t('table.actions')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {sortedLeads.map((lead) => {
+      <div className="space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+              <tr>
+                <TableHeader field="name" label={t('table.lead')} />
+                <TableHeader field="email" label={t('table.contact')} />
+                <TableHeader field="status" label={t('table.stage')} />
+                <TableHeader field="responsible_name" label="Responsável" />
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  {t('table.tags')}
+                </th>
+                <TableHeader field="created_at" label={t('table.date')} />
+                <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  {t('table.actions')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {paginatedLeads.map((lead) => {
               const stage = pipelineStages[lead.status] || pipelineStages.leads;
               const isOrganic = lead.campaign_name?.toLowerCase().includes('organic');
               const isDraft = lead.campaign_status === 'draft';
 
               return (
-                <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
+                <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors">
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
                       {lead.profile_picture ? (
                         <img
                           src={lead.profile_picture}
                           alt={lead.name}
-                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                          className="w-7 h-7 rounded-full object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
                           {lead.name?.charAt(0) || '?'}
                         </div>
                       )}
                       <div className="min-w-0 max-w-[250px]">
-                        <div className="font-semibold text-sm text-gray-900 truncate">{lead.name}</div>
+                        <div className="font-semibold text-xs text-gray-900 dark:text-gray-100 truncate">{lead.name}</div>
+                        {lead.company && (
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate" title={lead.company}>
+                            {lead.company}
+                          </div>
+                        )}
                         {lead.title && (
-                          <div className="text-xs text-gray-500 truncate" title={lead.title}>
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate" title={lead.title}>
                             {lead.title}
                           </div>
                         )}
@@ -610,33 +727,33 @@ const LeadsPage = () => {
                             {/* Badges */}
                             {lead.is_premium && (
                               <div className="flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title={t('badges.linkedInPremium')}>
-                                <Crown className="w-2 h-2 text-amber-600" />
+                                <Crown className="w-2 h-2 text-amber-600 dark:text-amber-400" />
                                 <span className="text-amber-700 font-semibold text-[8px] leading-tight">{t('badges.premium')}</span>
                               </div>
                             )}
                             {lead.is_creator && (
-                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 border border-blue-300 rounded" title={t('badges.creatorMode')}>
-                                <Star className="w-2 h-2 text-blue-600" />
+                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 rounded" title={t('badges.creatorMode')}>
+                                <Star className="w-2 h-2 text-blue-600 dark:text-blue-400" />
                                 <span className="text-blue-700 font-semibold text-[8px] leading-tight">{t('badges.creator')}</span>
                               </div>
                             )}
                             {lead.is_influencer && (
-                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-purple-50 border border-purple-300 rounded" title={t('badges.linkedInInfluencer')}>
-                                <Star className="w-2 h-2 text-purple-600 fill-purple-600" />
+                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-300 rounded" title={t('badges.linkedInInfluencer')}>
+                                <Star className="w-2 h-2 text-purple-600 dark:text-purple-400 fill-purple-600" />
                                 <span className="text-purple-700 font-semibold text-[8px] leading-tight">{t('badges.influencer')}</span>
                               </div>
                             )}
 
                             {/* Stats */}
                             {lead.connections_count > 0 && (
-                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600" title={`${lead.connections_count} ${t('stats.connections')}`}>
-                                <Users className="w-2.5 h-2.5 text-gray-500" />
+                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600 dark:text-gray-400" title={`${lead.connections_count} ${t('stats.connections')}`}>
+                                <Users className="w-2.5 h-2.5 text-gray-500 dark:text-gray-400" />
                                 <span className="font-medium">{lead.connections_count > 999 ? `${(lead.connections_count / 1000).toFixed(1)}k` : lead.connections_count}</span>
                               </div>
                             )}
                             {lead.follower_count > 0 && (
-                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600" title={`${lead.follower_count} ${t('stats.followers')}`}>
-                                <UserCheck className="w-2.5 h-2.5 text-gray-500" />
+                              <div className="flex items-center gap-0.5 text-[9px] text-gray-600 dark:text-gray-400" title={`${lead.follower_count} ${t('stats.followers')}`}>
+                                <UserCheck className="w-2.5 h-2.5 text-gray-500 dark:text-gray-400" />
                                 <span className="font-medium">{lead.follower_count > 999 ? `${(lead.follower_count / 1000).toFixed(1)}k` : lead.follower_count}</span>
                               </div>
                             )}
@@ -645,7 +762,7 @@ const LeadsPage = () => {
                                 href={`https://www.linkedin.com/in/${lead.public_identifier}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-0.5 text-blue-600 hover:text-blue-700 text-[9px]"
+                                className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 text-[9px]"
                                 title={t('tooltips.viewLinkedIn')}
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -657,110 +774,97 @@ const LeadsPage = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5">
-                    {lead.company && (
-                      <div className="text-sm text-gray-700 truncate max-w-[180px]" title={lead.company}>
-                        {lead.company}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="space-y-0.5 max-w-[200px]">
+                  <td className="px-3 py-2">
+                    <div className="space-y-0.5 max-w-[180px]">
                       {lead.email && (
-                        <div className="text-xs text-gray-600 flex items-center gap-1.5 truncate" title={lead.email}>
-                          <Mail className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                        <div className="text-[10px] text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate" title={lead.email}>
+                          <Mail className="w-2.5 h-2.5 text-blue-500 flex-shrink-0" />
                           <span className="truncate">{lead.email}</span>
                         </div>
                       )}
                       {lead.phone && (
-                        <div className="text-xs text-gray-600 flex items-center gap-1.5 truncate" title={lead.phone}>
-                          <Phone className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                        <div className="text-[10px] text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate" title={lead.phone}>
+                          <Phone className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
                           <span className="truncate">{lead.phone}</span>
                         </div>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-2.5">
-                    {!isOrganic && lead.campaign_name && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 border border-purple-200 rounded text-xs max-w-[150px]" title={lead.campaign_name}>
-                          <FileText className="w-3 h-3 text-purple-600 flex-shrink-0" />
-                          <span className="text-purple-700 font-medium truncate">
-                            {lead.campaign_name}
-                          </span>
-                        </div>
-                        {isDraft && lead.status === 'leads' && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs flex-shrink-0" title={t('tooltips.draftCampaign')}>
-                            <AlertCircle className="w-3 h-3 text-amber-600" />
-                            <span className="text-amber-700 font-semibold">{t('badges.draft')}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-${stage.color}-100 text-${stage.color}-700`}>
+                  <td className="px-3 py-2">
+                    <span className={getStageInlineBadgeClasses(stage.color)}>
                       {stage.label}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2">
                     {lead.responsible_name ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {lead.responsible_avatar ? (
                           <img
-                            src={lead.responsible_avatar}
+                            src={
+                              lead.responsible_avatar.startsWith('http')
+                                ? `${lead.responsible_avatar}?v=${lead.responsible_updated_at || Date.now()}`
+                                : lead.responsible_avatar
+                            }
                             alt={lead.responsible_name}
-                            className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                            className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                           />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-xs font-medium text-blue-600">
-                              {lead.responsible_name?.charAt(0) || '?'}
+                          <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400">
+                              {(() => {
+                                const names = (lead.responsible_name || '').trim().split(' ').filter(n => n.length > 0);
+                                if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                                return (names[0][0] + names[1][0]).toUpperCase();
+                              })()}
                             </span>
                           </div>
                         )}
-                        <span className="text-sm text-gray-700 truncate max-w-[100px]">
-                          {lead.responsible_name}
+                        <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate max-w-[90px]">
+                          {(() => {
+                            const names = (lead.responsible_name || '').trim().split(' ').filter(n => n.length > 0);
+                            if (names.length === 1) return names[0];
+                            return `${names[0]} ${names[1][0]}.`;
+                          })()}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">Não atribuído</span>
+                      <span className="text-[10px] text-gray-400 italic">Não atribuído</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex flex-wrap gap-1">
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap gap-0.5">
                       {lead.tags && lead.tags.slice(0, 2).map((tag, idx) => (
                         <span
                           key={idx}
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${tag.colorClass || 'bg-gray-100 text-gray-700'}`}
+                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium ${tag.colorClass || 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
                         >
                           {tag.name}
                         </span>
                       ))}
                       {lead.tags && lead.tags.length > 2 && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                           +{lead.tags.length - 2}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500">
+                  <td className="px-3 py-2 text-[10px] text-gray-500 dark:text-gray-400">
                     {new Date(lead.created_at).toLocaleDateString('pt-BR')}
                   </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex items-center justify-end gap-0.5">
                       <button
                         onClick={() => setSelectedLead(lead)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
                         title={t('tooltips.viewDetails')}
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5" />
                       </button>
-                      <button className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors" title={t('tooltips.edit')}>
-                        <Edit className="w-4 h-4" />
+                      <button className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded transition-colors" title={t('tooltips.edit')}>
+                        <Edit className="w-3.5 h-3.5" />
                       </button>
-                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors" title={t('tooltips.delete')}>
-                        <Trash2 className="w-4 h-4" />
+                      <button className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors" title={t('tooltips.delete')}>
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -769,6 +873,98 @@ const LeadsPage = () => {
             })}
           </tbody>
         </table>
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+            {/* Left side - Items per page */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-600 dark:text-gray-400">Itens por página:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 text-[10px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                Mostrando {startIndex + 1}-{Math.min(endIndex, sortedLeads.length)} de {sortedLeads.length}
+              </span>
+            </div>
+
+            {/* Right side - Page navigation */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-2 py-1 text-[10px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Primeira
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-1 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const pages = [];
+                  const maxVisible = 5;
+                  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+                  if (endPage - startPage < maxVisible - 1) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
+                  }
+
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                          currentPage === i
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-2 py-1 text-[10px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Última
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -776,8 +972,8 @@ const LeadsPage = () => {
   // Calendar View Component (placeholder)
   const CalendarView = () => {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <div className="text-center text-gray-500">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8">
+        <div className="text-center text-gray-500 dark:text-gray-400">
           <CalendarIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
           <p className="text-sm font-medium">{t('calendar.view')}</p>
           <p className="text-xs mt-1">{t('calendar.inDevelopment')}</p>
@@ -791,56 +987,44 @@ const LeadsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('loading')}</p>
+          <p className="text-gray-600 dark:text-gray-400">{t('loading')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-white overflow-hidden">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
-            <p className="text-sm text-gray-500 mt-1">{t('subtitle')}</p>
-          </div>
-
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 shadow-sm text-sm transition-colors">
-            <Download className="w-4 h-4" />
-            <span>{t('exportButton')}</span>
-          </button>
-        </div>
-
+      <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-gray-200 dark:border-gray-700">
         {/* Filters & View Toggle */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute left-2.5 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             />
           </div>
 
           {/* Filters Button */}
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors">
-            <Filter className="w-4 h-4" />
+          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors">
+            <Filter className="w-3.5 h-3.5" />
             <span>{t('filtersButton')}</span>
           </button>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
+              className={`p-1.5 rounded transition-colors ${
                 viewMode === 'kanban'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
               title={t('viewModes.kanban')}
             >
@@ -848,25 +1032,14 @@ const LeadsPage = () => {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors ${
+              className={`p-1.5 rounded transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
               title={t('viewModes.list')}
             >
               <ListIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`px-4 py-2 text-sm font-medium border-l border-gray-300 transition-colors ${
-                viewMode === 'calendar'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-              title={t('viewModes.calendar')}
-            >
-              <CalendarIcon className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -908,18 +1081,13 @@ const LeadsPage = () => {
             setSelectedLead(null);
             navigate(`/conversations?lead=${leadId}&channel=${channel}`);
           }}
-          onLeadUpdated={async () => {
-            // Reload leads list
-            const response = await api.getLeads({});
-            if (response.success) {
-              const newLeads = response.data.leads || [];
-              setLeads(newLeads);
-              // Also update selectedLead with fresh data
-              const updatedLead = newLeads.find(l => l.id === selectedLead.id);
-              if (updatedLead) {
-                setSelectedLead(updatedLead);
-              }
-            }
+          onLeadUpdated={(updatedLead) => {
+            // Optimistic update - just update the specific lead in the list
+            setLeads(prevLeads =>
+              prevLeads.map(l => l.id === updatedLead.id ? updatedLead : l)
+            );
+            // Update selectedLead with the new data
+            setSelectedLead(updatedLead);
           }}
         />
       )}

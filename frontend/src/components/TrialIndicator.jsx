@@ -32,7 +32,7 @@ const TrialIndicator = () => {
         </span>
         <button
           onClick={() => setShowModal(true)}
-          className="ml-1 px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 bg-white hover:bg-gray-100 shadow-sm"
+          className="ml-1 px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 shadow-sm"
           style={{ color: '#ff6b35' }}
         >
           <Sparkles className="w-3 h-3" />

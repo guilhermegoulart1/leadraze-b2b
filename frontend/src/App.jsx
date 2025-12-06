@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { BillingProvider } from './contexts/BillingContext';
 import { OnboardingProvider } from './contexts/OnboardingContext';
 
@@ -13,6 +14,7 @@ import SearchPage from './pages/SearchPage';
 import GoogleMapsSearchPage from './pages/GoogleMapsSearchPage';
 import GoogleMapsAgentsPage from './pages/GoogleMapsAgentsPage';
 import CampaignsPage from './pages/CampaignsPage';
+import CampaignReportPage from './pages/CampaignReportPage';
 import LinkedInPage from './pages/LinkedInPage';
 import ListasPage from './pages/ListasPage';
 import LeadsPage from './pages/LeadsPage';
@@ -46,6 +48,7 @@ import ChecklistTemplatesPage from './pages/ChecklistTemplatesPage';
 import NextPage from './pages/NextPage';
 import PartnersAdminPage from './pages/PartnersAdminPage';
 import MyAccountPage from './pages/MyAccountPage';
+import TagsPage from './pages/TagsPage';
 import ConfigPage from './pages/ConfigPage';
 import TeamPage from './pages/TeamPage';
 
@@ -128,6 +131,7 @@ function AppRoutes() {
         <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
         <Route path="campaigns" element={<LinkedInPage />} />
+        <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
@@ -151,6 +155,7 @@ function AppRoutes() {
         <Route path="billing" element={<Navigate to="/my-account?tab=billing" replace />} />
         <Route path="affiliate" element={<Navigate to="/my-account?tab=affiliate" replace />} />
         <Route path="agents" element={<AgentsPage />} />
+        <Route path="tags" element={<TagsPage />} />
         <Route path="api-keys" element={<Navigate to="/config?tab=api-keys" replace />} />
         <Route path="channels" element={<Navigate to="/config?tab=channels" replace />} />
         <Route path="checklist-templates" element={<Navigate to="/config?tab=checklists" replace />} />
@@ -187,11 +192,13 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <BillingProvider>
-          <OnboardingProvider>
-            <AppRoutes />
-          </OnboardingProvider>
-        </BillingProvider>
+        <ThemeProvider>
+          <BillingProvider>
+            <OnboardingProvider>
+              <AppRoutes />
+            </OnboardingProvider>
+          </BillingProvider>
+        </ThemeProvider>
       </AuthProvider>
     </Router>
   );

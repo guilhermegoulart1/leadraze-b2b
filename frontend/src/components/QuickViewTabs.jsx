@@ -30,7 +30,7 @@ export default function QuickViewTabs({
       {/* Botão Esquerda */}
       <button
         onClick={() => scroll('left')}
-        className="flex-shrink-0 p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+        className="flex-shrink-0 p-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
         aria-label="Rolar para esquerda"
       >
         <ChevronLeft className="w-4 h-4" />
@@ -55,7 +55,7 @@ export default function QuickViewTabs({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
                 activeView === view.id
                   ? 'bg-[#7229f7] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
               {view.label}
@@ -63,7 +63,7 @@ export default function QuickViewTabs({
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
                   activeView === view.id
                     ? 'bg-white bg-opacity-30 text-white'
-                    : 'bg-gray-300 text-gray-700'
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                 }`}>
                   {view.count}
                 </span>
@@ -76,7 +76,7 @@ export default function QuickViewTabs({
       {/* Botão Direita */}
       <button
         onClick={() => scroll('right')}
-        className="flex-shrink-0 p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+        className="flex-shrink-0 p-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
         aria-label="Rolar para direita"
       >
         <ChevronRight className="w-4 h-4" />

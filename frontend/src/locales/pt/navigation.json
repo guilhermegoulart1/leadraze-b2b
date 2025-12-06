@@ -7,7 +7,7 @@
     "profileSearch": "Busca de Perfis",
     "linkedin": "LinkedIn",
     "campaigns": "Campanhas",
-    "pipeline": "Pipeline",
+    "pipeline": "Oportunidades",
     "activation": "Ativação de Listas",
     "crm": "CRM",
     "conversations": "Conversas",
@@ -49,7 +49,7 @@
     "title": "Notificações",
     "viewAll": "Ver todas notificações",
     "newCampaign": "Nova campanha criada",
-    "newLeads": "{{count}} novos leads adicionados",
+    "newLeads": "{{count}} novas oportunidades adicionadas",
     "timeAgo": {
       "minutes": "Há {{count}} minutos",
       "hours": "Há {{count}} horas",

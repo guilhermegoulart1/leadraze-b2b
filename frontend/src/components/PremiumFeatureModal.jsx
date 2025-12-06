@@ -66,8 +66,8 @@ const PremiumFeatureModal = ({ isOpen, onClose, feature }) => {
       {isOpen && (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl max-w-md w-full relative overflow-hidden shadow-2xl">
-          {/* Gradient background decoration */}
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-purple-600 to-blue-600" />
+          {/* Background decoration */}
+          <div className="absolute top-0 left-0 right-0 h-32 bg-[#7229f7]" />
 
           {/* Close button */}
           <button

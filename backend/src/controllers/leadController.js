@@ -135,6 +135,39 @@ const getLeads = async (req, res) => {
 
     const leads = await db.query(query, queryParams);
 
+    // Buscar tags para todos os leads via contato vinculado (contact_tags)
+    if (leads.rows.length > 0) {
+      const leadIds = leads.rows.map(l => l.id);
+      const tagsQuery = `
+        SELECT cl.lead_id, t.id, t.name, t.color, t.created_at
+        FROM tags t
+        JOIN contact_tags ct ON ct.tag_id = t.id
+        JOIN contact_leads cl ON cl.contact_id = ct.contact_id
+        WHERE cl.lead_id = ANY($1)
+        ORDER BY t.name ASC
+      `;
+      const tagsResult = await db.query(tagsQuery, [leadIds]);
+
+      // Mapear tags para os leads
+      const tagsByLead = {};
+      tagsResult.rows.forEach(tag => {
+        if (!tagsByLead[tag.lead_id]) {
+          tagsByLead[tag.lead_id] = [];
+        }
+        tagsByLead[tag.lead_id].push({
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          created_at: tag.created_at
+        });
+      });
+
+      // Adicionar tags aos leads
+      leads.rows.forEach(lead => {
+        lead.tags = tagsByLead[lead.id] || [];
+      });
+    }
+
     // Contar total
     const countQuery = `
       SELECT COUNT(DISTINCT l.id)
@@ -210,7 +243,19 @@ const getLead = async (req, res) => {
       throw new ForbiddenError('Access denied to this lead');
     }
 
-    console.log(`✅ Lead encontrado: ${lead.name}`);
+    // Buscar tags do lead via contato vinculado (contact_tags)
+    const tagsQuery = `
+      SELECT t.id, t.name, t.color, t.created_at
+      FROM tags t
+      JOIN contact_tags ct ON ct.tag_id = t.id
+      JOIN contact_leads cl ON cl.contact_id = ct.contact_id
+      WHERE cl.lead_id = $1
+      ORDER BY t.name ASC
+    `;
+    const tagsResult = await db.query(tagsQuery, [id]);
+    lead.tags = tagsResult.rows || [];
+
+    console.log(`✅ Lead encontrado: ${lead.name} com ${lead.tags.length} tags`);
 
     sendSuccess(res, lead);
 
@@ -459,7 +504,8 @@ const updateLead = async (req, res) => {
       location,
       discard_reason,
       email,
-      phone
+      phone,
+      source
     } = req.body;
 
     console.log(`📝 Atualizando lead ${id}`);
@@ -507,6 +553,9 @@ const updateLead = async (req, res) => {
         updateData.phone_source = 'manual';
       }
     }
+
+    // 🏷️ Atualizar fonte do lead
+    if (source !== undefined) updateData.source = source;
 
     // Adicionar timestamps baseado no status
     if (status) {

@@ -5,7 +5,7 @@
 # git tag -a "v8.2.2" -F release-notes.md
 # git push origin --tags
 # git push origin "v8.2.2"
-# gh release create Release v8.2.3 --title "Versão Release v8.2.2" --notes-file release-notes.md  
+# gh release create v8.2.2 --title "Versão Release v8.2.2" --notes-file release-notes.md  
 
 ## LIMPAR REDIS
 

@@ -1,5 +1,6 @@
 // frontend/src/pages/CampaignsPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, Play, Pause, BarChart3, Users, Target, Calendar, Trophy, XCircle,
   Sparkles, Edit, Trash2, Rocket, RefreshCw, CheckCircle, Clock, Loader,
@@ -16,6 +17,7 @@ import { useOnboarding } from '../contexts/OnboardingContext';
 const CampaignsPage = () => {
   const { t } = useTranslation(['campaigns', 'common']);
   const { completeStep } = useOnboarding();
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [collectionStatuses, setCollectionStatuses] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +26,14 @@ const CampaignsPage = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
   const [reviewCampaign, setReviewCampaign] = useState(null);
   const [linkedinAccountId, setLinkedinAccountId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [reviewCount, setReviewCount] = useState(0);
 
   // Usar ref para manter referência atualizada de campaigns
   const campaignsRef = useRef(campaigns);
@@ -43,41 +53,67 @@ const CampaignsPage = () => {
     }
   }, [campaigns, completeStep]);
 
-  // Calcular estatísticas gerais
-  const stats = {
-    totalCampaigns: campaigns.length,
-    activeCampaigns: campaigns.filter(c => c.status === 'active').length,
-    totalLeads: campaigns.reduce((sum, c) => sum + Number(c.total_leads || 0), 0),
-    leadsWon: campaigns.reduce((sum, c) => sum + Number(c.leads_won || 0), 0),
-  };
-
   useEffect(() => {
-    loadCampaigns();
-    checkCollectionStatus();
+    const loadInitialData = async () => {
+      try {
+        await loadCampaigns();
+        await checkCollectionStatus();
+        await loadReviewCount();
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    const interval = setInterval(() => {
-      loadCampaigns();
-      checkCollectionStatus();
+    loadInitialData();
+
+    const interval = setInterval(async () => {
+      await loadCampaigns();
+      await checkCollectionStatus();
+      await loadReviewCount();
     }, 10000); // Aumentado para 10 segundos
 
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [statusFilter, pagination.page]);
 
   const loadCampaigns = async () => {
     try {
       console.log('📥 Loading campaigns...');
-      const response = await api.getCampaigns();
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+      };
+
+      // Mapear filtros para status da API
+      if (statusFilter === 'review') {
+        params.status = 'draft'; // Em revisão = draft com coleta completa
+      } else if (statusFilter === 'active') {
+        params.status = 'active';
+      } else if (statusFilter === 'completed') {
+        params.status = 'completed';
+      }
+
+      const response = await api.getCampaigns(params);
       console.log('📊 Campaigns API response:', response);
       if (response.success) {
-        console.log('✅ Setting campaigns:', response.data.campaigns?.length || 0, 'campaigns');
-        setCampaigns(response.data.campaigns || []);
+        const campaignsData = response.data.campaigns || [];
+        console.log('✅ Setting campaigns:', campaignsData.length, 'campaigns');
+        setCampaigns(campaignsData);
+        // Atualizar ref imediatamente para checkCollectionStatus poder usar
+        campaignsRef.current = campaignsData;
+
+        // Atualizar paginação
+        if (response.data.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            total: response.data.pagination.total,
+            totalPages: response.data.pagination.pages,
+          }));
+        }
       }
     } catch (error) {
       console.error('❌ Erro ao carregar campanhas:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -109,6 +145,17 @@ const CampaignsPage = () => {
           console.error(`Erro ao verificar status da campanha ${campaign.id}:`, error);
         }
       }
+    }
+  };
+
+  const loadReviewCount = async () => {
+    try {
+      const response = await api.getCampaigns({ status: 'draft' });
+      if (response.success && response.data.pagination) {
+        setReviewCount(response.data.pagination.total || 0);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar contador de revisão:', error);
     }
   };
 
@@ -194,9 +241,9 @@ const CampaignsPage = () => {
         return {
           label: t('statusBadges.waiting'),
           color: 'bg-gray-500',
-          textColor: 'text-gray-700',
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
+          textColor: 'text-gray-700 dark:text-gray-300',
+          bgColor: 'bg-gray-50 dark:bg-gray-900',
+          borderColor: 'border-gray-200 dark:border-gray-700',
           icon: Clock,
           iconClass: ''
         };
@@ -206,7 +253,7 @@ const CampaignsPage = () => {
           label: t('statusBadges.collecting'),
           color: 'bg-blue-500',
           textColor: 'text-blue-700',
-          bgColor: 'bg-blue-50',
+          bgColor: 'bg-blue-50 dark:bg-blue-900/20',
           borderColor: 'border-blue-200',
           icon: RefreshCw,
           iconClass: 'animate-spin'
@@ -231,7 +278,7 @@ const CampaignsPage = () => {
           label: t('status.active'),
           color: 'bg-green-500',
           textColor: 'text-green-700',
-          bgColor: 'bg-green-50',
+          bgColor: 'bg-green-50 dark:bg-green-900/20',
           borderColor: 'border-green-200',
           icon: CheckCircle,
           iconClass: ''
@@ -251,9 +298,9 @@ const CampaignsPage = () => {
         return {
           label: t('status.draft'),
           color: 'bg-gray-500',
-          textColor: 'text-gray-700',
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
+          textColor: 'text-gray-700 dark:text-gray-300',
+          bgColor: 'bg-gray-50 dark:bg-gray-900',
+          borderColor: 'border-gray-200 dark:border-gray-700',
           icon: Edit,
           iconClass: ''
         };
@@ -264,8 +311,8 @@ const CampaignsPage = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">{t('messages.loading')}</p>
+          <Loader className="w-12 h-12 text-purple-600 dark:text-purple-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">{t('messages.loading')}</p>
         </div>
       </div>
     );
@@ -273,11 +320,73 @@ const CampaignsPage = () => {
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
-          <p className="text-sm text-gray-500 mt-1">{t('messages.subtitle')}</p>
+      {/* Filtros Rápidos */}
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por:</span>
+          <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setStatusFilter('all');
+              setPagination(prev => ({ ...prev, page: 1 }));
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === 'all'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900'
+            }`}
+          >
+            Todas
+          </button>
+          <button
+            onClick={() => {
+              setStatusFilter('review');
+              setPagination(prev => ({ ...prev, page: 1 }));
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === 'review'
+                ? 'bg-yellow-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900'
+            }`}
+          >
+            Em Revisão
+            {reviewCount > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                statusFilter === 'review'
+                  ? 'bg-yellow-700 text-white'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                {reviewCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setStatusFilter('active');
+              setPagination(prev => ({ ...prev, page: 1 }));
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === 'active'
+                ? 'bg-green-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900'
+            }`}
+          >
+            Ativas
+          </button>
+          <button
+            onClick={() => {
+              setStatusFilter('completed');
+              setPagination(prev => ({ ...prev, page: 1 }));
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === 'completed'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900'
+            }`}
+          >
+            Concluídas
+          </button>
+          </div>
         </div>
         <button
           onClick={() => setShowWizard(true)}
@@ -288,99 +397,54 @@ const CampaignsPage = () => {
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{t('stats.total')}</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalCampaigns}</p>
-            </div>
-            <FolderOpen className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{t('stats.active')}</p>
-              <p className="text-2xl font-bold text-green-600">{stats.activeCampaigns}</p>
-            </div>
-            <Zap className="w-8 h-8 text-green-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{t('stats.totalLeads')}</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.totalLeads}</p>
-            </div>
-            <Users className="w-8 h-8 text-purple-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{t('stats.qualified')}</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.leadsWon}</p>
-            </div>
-            <Trophy className="w-8 h-8 text-blue-400" />
-          </div>
-        </div>
-      </div>
-
       {/* Campaigns Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
         {campaigns.length === 0 ? (
           <div className="text-center py-12">
             <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noCampaigns')}</h3>
-            <p className="text-gray-500 mb-4">{t('createFirst')}</p>
-            <button
-              onClick={() => setShowWizard(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              {t('newCampaign')}
-            </button>
+            {pagination.total === 0 && statusFilter === 'all' ? (
+              <>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Nenhuma campanha ainda</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">Crie sua primeira campanha para começar a gerar leads</p>
+                <button
+                  onClick={() => setShowWizard(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  {t('newCampaign')}
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  Nenhuma campanha {statusFilter === 'review' ? 'em revisão' : statusFilter === 'active' ? 'ativa' : statusFilter === 'completed' ? 'concluída' : ''}
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Não há campanhas com este status no momento
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {t('table.name')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {t('table.status')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {t('table.total')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('table.qualified')}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('table.scheduled')}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('table.won')}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('table.lost')}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('table.conversionRate')}
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {t('table.actions')}
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {campaigns.map((campaign) => {
                   const collectionStatus = collectionStatuses[campaign.id];
                   const statusBadge = getStatusBadge(campaign);
@@ -391,25 +455,20 @@ const CampaignsPage = () => {
                     campaign.status === 'draft' &&
                     collectionStatus.collected_count > 0;
 
-                  // Calcular taxa de conversão
-                  const conversionRate = campaign.total_leads > 0
-                    ? ((campaign.leads_won / campaign.total_leads) * 100).toFixed(1)
-                    : '0.0';
-
                   return (
-                    <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={campaign.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors">
                       {/* Nome da Campanha */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900">{campaign.name}</h3>
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{campaign.name}</h3>
                           {campaign.ai_agent_name && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium border border-purple-200">
+                            <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 rounded text-xs font-medium border border-purple-200">
                               <Sparkles className="w-3 h-3" />
                               IA
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                           {campaign.ai_agent_name && (
                             <span>{t('info.agent')} {campaign.ai_agent_name}</span>
                           )}
@@ -432,8 +491,8 @@ const CampaignsPage = () => {
 
                       {/* Total */}
                       <td className="px-6 py-4 text-center">
-                        <div className="text-sm font-medium text-gray-900">
-                          {campaign.total_leads || 0} <span className="text-gray-500">{t('table.of')} {collectionStatus?.target_count || campaign.total_leads || 0}</span>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {collectionStatus?.collected_count || 0} <span className="text-gray-500 dark:text-gray-400">{t('table.of')} {collectionStatus?.target_count || 0}</span>
                         </div>
                         {collectionStatus?.status === 'processing' && (
                           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
@@ -445,41 +504,6 @@ const CampaignsPage = () => {
                             />
                           </div>
                         )}
-                      </td>
-
-                      {/* Qualificados */}
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-sm font-medium text-purple-600">
-                          {campaign.leads_won || 0}
-                        </span>
-                      </td>
-
-                      {/* Agendados */}
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-sm font-medium text-blue-600">
-                          {campaign.leads_scheduled || 0}
-                        </span>
-                      </td>
-
-                      {/* Ganhos */}
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-sm font-medium text-green-600">
-                          {campaign.leads_won || 0}
-                        </span>
-                      </td>
-
-                      {/* Perdidos */}
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-sm font-medium text-red-600">
-                          {campaign.leads_lost || 0}
-                        </span>
-                      </td>
-
-                      {/* Conversão % */}
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-sm font-medium text-gray-900">
-                          {conversionRate}%
-                        </span>
                       </td>
 
                       {/* Ações */}
@@ -527,6 +551,14 @@ const CampaignsPage = () => {
                           {campaign.status === 'active' && (
                             <>
                               <button
+                                onClick={() => navigate(`/campaigns/${campaign.id}/report`)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+                                title={t('info.viewReport', 'Ver Relatório')}
+                              >
+                                <BarChart3 className="w-3.5 h-3.5" />
+                                {t('buttons.report', 'Relatório')}
+                              </button>
+                              <button
                                 onClick={() => handlePauseCampaign(campaign.id)}
                                 disabled={isActionLoading === 'pausing'}
                                 className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-50"
@@ -544,9 +576,17 @@ const CampaignsPage = () => {
                           {campaign.status === 'paused' && (
                             <>
                               <button
+                                onClick={() => navigate(`/campaigns/${campaign.id}/report`)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+                                title={t('info.viewReport', 'Ver Relatório')}
+                              >
+                                <BarChart3 className="w-3.5 h-3.5" />
+                                {t('buttons.report', 'Relatório')}
+                              </button>
+                              <button
                                 onClick={() => handleResumeCampaign(campaign.id)}
                                 disabled={isActionLoading === 'resuming'}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title={t('info.resumeCampaign')}
                               >
                                 {isActionLoading === 'resuming' ? (
@@ -558,7 +598,7 @@ const CampaignsPage = () => {
                               <button
                                 onClick={() => handleStopCampaign(campaign.id)}
                                 disabled={isActionLoading === 'stopping'}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title={t('info.stopCampaign')}
                               >
                                 {isActionLoading === 'stopping' ? (
@@ -573,7 +613,7 @@ const CampaignsPage = () => {
                           <button
                             onClick={() => setDeleteConfirmation(campaign)}
                             disabled={isActionLoading === 'deleting'}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                             title={t('info.deleteCampaign')}
                           >
                             {isActionLoading === 'deleting' ? (
@@ -589,6 +629,34 @@ const CampaignsPage = () => {
                 })}
               </tbody>
             </table>
+
+            {/* Paginação */}
+            {pagination.totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Mostrando {campaigns.length} de {pagination.total} campanhas
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page <= 1}
+                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Página {pagination.page} de {pagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.totalPages, prev.page + 1) }))}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Próxima →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -619,19 +687,19 @@ const CampaignsPage = () => {
       {/* Delete Confirmation Modal */}
       {deleteConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   {t('deleteCampaign')}
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {t('messages.confirmDeleteMessage')} <strong>"{deleteConfirmation.name}"</strong>?
                 </p>
-                <p className="text-sm text-red-600 mt-2">
+                <p className="text-sm text-red-600 dark:text-red-400 mt-2">
                   {t('messages.confirmDeleteWarning')}
                 </p>
               </div>
@@ -640,7 +708,7 @@ const CampaignsPage = () => {
               <button
                 onClick={() => setDeleteConfirmation(null)}
                 disabled={loadingActions[deleteConfirmation.id] === 'deleting'}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors font-medium disabled:opacity-50"
               >
                 {t('common:buttons.cancel')}
               </button>

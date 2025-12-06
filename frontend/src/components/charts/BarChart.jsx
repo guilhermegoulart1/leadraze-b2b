@@ -1,13 +1,14 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 
 const BarChart = ({ data, dataKey = 'value', nameKey = 'name', color = '#7229f7', showValues = true }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-semibold text-gray-900 mb-1">{label}</p>
-          <p className="text-xs text-gray-600">
+        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{label}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">
             {payload[0].name}: <span className="font-semibold">{payload[0].value}</span>
           </p>
         </div>

@@ -4,8 +4,8 @@ import { MapPin, Building2, Briefcase, Users, CheckCircle, ExternalLink } from '
 const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
   return (
     <div 
-      className={`bg-white rounded-xl p-6 border-2 transition-all cursor-pointer hover:shadow-lg ${
-        isSelected ? 'border-purple-600 bg-purple-50' : 'border-gray-200'
+      className={`bg-white dark:bg-gray-800 rounded-xl p-6 border-2 transition-all cursor-pointer hover:shadow-lg dark:shadow-gray-900/50 ${
+        isSelected ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-gray-700'
       }`}
       onClick={onToggleSelect}
     >
@@ -16,7 +16,7 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
           <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
             isSelected 
               ? 'bg-purple-600 border-purple-600' 
-              : 'border-gray-300'
+              : 'border-gray-300 dark:border-gray-600'
           }`}>
             {isSelected && <CheckCircle className="w-5 h-5 text-white" />}
           </div>
@@ -41,14 +41,14 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between mb-2">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {profile.name}
                 {profile.is_private && (
-                  <span className="ml-2 text-xs text-gray-500">(Perfil Privado)</span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(Perfil Privado)</span>
                 )}
               </h3>
               {profile.title && (
-                <p className="text-sm text-gray-600 flex items-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
                   <Briefcase className="w-4 h-4 mr-1" />
                   {profile.title}
                 </p>
@@ -58,11 +58,11 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
             {/* Score */}
             {profile.profile_score && (
               <div className="flex flex-col items-end">
-                <div className="text-xs text-gray-500 mb-1">Score</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Score</div>
                 <div className={`text-lg font-bold ${
-                  profile.profile_score >= 80 ? 'text-green-600' :
+                  profile.profile_score >= 80 ? 'text-green-600 dark:text-green-400' :
                   profile.profile_score >= 60 ? 'text-yellow-600' :
-                  'text-gray-600'
+                  'text-gray-600 dark:text-gray-400'
                 }`}>
                   {profile.profile_score}
                 </div>
@@ -73,19 +73,19 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
           {/* Company & Location */}
           <div className="space-y-1 mb-3">
             {profile.company && (
-              <p className="text-sm text-gray-600 flex items-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
                 <Building2 className="w-4 h-4 mr-1" />
                 {profile.company}
               </p>
             )}
             {profile.location && (
-              <p className="text-sm text-gray-600 flex items-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
                 <MapPin className="w-4 h-4 mr-1" />
                 {profile.location}
               </p>
             )}
             {profile.connections && (
-              <p className="text-sm text-gray-600 flex items-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
                 <Users className="w-4 h-4 mr-1" />
                 {profile.connections} conexões
               </p>
@@ -94,7 +94,7 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
 
           {/* Summary */}
           {profile.summary && (
-            <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
               {profile.summary}
             </p>
           )}
@@ -102,17 +102,17 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
           {/* Tags */}
           <div className="flex items-center space-x-2 mb-3">
             {profile.industry && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 text-xs rounded-full">
                 {profile.industry}
               </span>
             )}
             {profile.already_lead && (
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+              <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 text-xs rounded-full">
                 ✓ Já é Lead
               </span>
             )}
             {profile.can_get_details && !profile.hasDetailedData && (
-              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+              <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 text-xs rounded-full">
                 Detalhes Disponíveis
               </span>
             )}
@@ -126,7 +126,7 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-600 hover:text-purple-700 font-semibold"
+                className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 font-semibold"
               >
                 <span>Ver Perfil</span>
                 <ExternalLink className="w-4 h-4" />

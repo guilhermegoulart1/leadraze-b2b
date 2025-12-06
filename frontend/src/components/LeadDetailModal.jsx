@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import EmojiPicker from 'emoji-picker-react';
 import {
   X,
   Building,
@@ -37,13 +38,40 @@ import {
   Plus,
   Check,
   Flag,
-  Loader
+  Loader,
+  List,
+  Package
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import MentionTextarea from './MentionTextarea';
 import TaskModal from './TaskModal';
 import LeadChecklists from './LeadChecklists';
+
+// Helper functions for dynamic Tailwind classes
+const getStageClasses = (color) => {
+  const colorMap = {
+    slate: 'bg-slate-100 dark:bg-slate-900/20 text-slate-700 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900/30',
+    blue: 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/30',
+    amber: 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/30',
+    purple: 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/30',
+    emerald: 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/30',
+    red: 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/30'
+  };
+  return colorMap[color] || colorMap.slate;
+};
+
+const getStatusDotClasses = (color) => {
+  const colorMap = {
+    slate: 'w-2 h-2 rounded-full bg-slate-500',
+    blue: 'w-2 h-2 rounded-full bg-blue-500',
+    amber: 'w-2 h-2 rounded-full bg-amber-500',
+    purple: 'w-2 h-2 rounded-full bg-purple-500',
+    emerald: 'w-2 h-2 rounded-full bg-emerald-500',
+    red: 'w-2 h-2 rounded-full bg-red-500'
+  };
+  return colorMap[color] || colorMap.slate;
+};
 
 const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated }) => {
   const { t } = useTranslation('leads');
@@ -56,18 +84,27 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [commentMentions, setCommentMentions] = useState([]);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(lead?.status || 'leads');
+  const [showSourceDropdown, setShowSourceDropdown] = useState(false);
+  const [currentSource, setCurrentSource] = useState(lead?.source || 'linkedin');
   const messagesEndRef = useRef(null);
 
   // Sync currentStatus when lead prop changes
   useEffect(() => {
     setCurrentStatus(lead?.status || 'leads');
   }, [lead?.status]);
+
+  // Sync currentSource when lead prop changes
+  useEffect(() => {
+    setCurrentSource(lead?.source || 'linkedin');
+  }, [lead?.source]);
 
   // Responsible assignment states
   const [showResponsibleDropdown, setShowResponsibleDropdown] = useState(false);
@@ -80,6 +117,32 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   });
   const [assigningUser, setAssigningUser] = useState(false);
 
+  // Editable fields states
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneValue, setPhoneValue] = useState(lead?.phone || '');
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  // Tags states
+  const [showTagsDropdown, setShowTagsDropdown] = useState(false);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [newTagInput, setNewTagInput] = useState('');
+  const [newTagColor, setNewTagColor] = useState('purple');
+  const [leadTags, setLeadTags] = useState(lead?.tags || []);
+  const tagsDropdownRef = useRef(null);
+
+  // Tag color options
+  const TAG_COLORS = [
+    { value: 'purple', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' },
+    { value: 'blue', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400' },
+    { value: 'green', bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400' },
+    { value: 'yellow', bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400' },
+    { value: 'red', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
+    { value: 'pink', bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-400' },
+    { value: 'orange', bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400' },
+    { value: 'gray', bg: 'bg-gray-100 dark:bg-gray-900/30', text: 'text-gray-700 dark:text-gray-400' },
+  ];
+
   // Sync currentResponsible when lead prop changes
   useEffect(() => {
     setCurrentResponsible({
@@ -88,6 +151,41 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       avatar: lead?.responsible_avatar || null
     });
   }, [lead?.responsible_id, lead?.responsible_name, lead?.responsible_avatar]);
+
+  // Sync phone when lead prop changes
+  useEffect(() => {
+    setPhoneValue(lead?.phone || '');
+  }, [lead?.phone]);
+
+  // Sync tags when lead prop changes
+  useEffect(() => {
+    setLeadTags(lead?.tags || []);
+  }, [lead?.tags]);
+
+  // Load available tags when dropdown opens
+  useEffect(() => {
+    if (showTagsDropdown) {
+      loadAvailableTags();
+    }
+  }, [showTagsDropdown]);
+
+  // Close tags dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (tagsDropdownRef.current && !tagsDropdownRef.current.contains(event.target)) {
+        setShowTagsDropdown(false);
+        setNewTagInput('');
+        setNewTagColor('purple');
+      }
+    };
+
+    if (showTagsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showTagsDropdown]);
 
   // Pipeline stages
   const pipelineStages = {
@@ -137,7 +235,24 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       loadTasks();
       loadAssignableUsers();
     }
-  }, [lead]);
+  }, [lead?.id]); // Only reload when lead ID changes, not when lead object reference changes
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target) && !event.target.closest('button[type="button"]')) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEmojiPicker]);
 
   const loadAssignableUsers = async () => {
     try {
@@ -367,7 +482,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'text-green-600 bg-green-50';
-      case 'in_progress': return 'text-blue-600 bg-blue-50';
+      case 'in_progress': return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20';
       case 'cancelled': return 'text-gray-400 bg-gray-50';
       default: return 'text-amber-600 bg-amber-50';
     }
@@ -440,6 +555,151 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
     } catch (error) {
       console.error('Error updating status:', error);
       setCurrentStatus(lead.status);
+    }
+  };
+
+  const handleSourceChange = async (newSource) => {
+    setCurrentSource(newSource);
+    setShowSourceDropdown(false);
+
+    try {
+      await api.updateLead(lead.id, { source: newSource });
+      if (onLeadUpdated) {
+        onLeadUpdated({ ...lead, source: newSource });
+      }
+    } catch (error) {
+      console.error('Error updating source:', error);
+      setCurrentSource(lead.source);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    if (!phoneValue.trim()) {
+      setEditingPhone(false);
+      return;
+    }
+
+    try {
+      setSavingPhone(true);
+      await api.updateLead(lead.id, { phone: phoneValue });
+
+      // Update lead data
+      if (onLeadUpdated) {
+        onLeadUpdated({ ...lead, phone: phoneValue });
+      }
+
+      setEditingPhone(false);
+    } catch (error) {
+      console.error('Error updating phone:', error);
+      setPhoneValue(lead.phone || '');
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
+  const handlePhoneKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSavePhone();
+    } else if (e.key === 'Escape') {
+      setPhoneValue(lead.phone || '');
+      setEditingPhone(false);
+    }
+  };
+
+  const loadAvailableTags = async () => {
+    try {
+      setLoadingTags(true);
+      const response = await api.getTags();
+      if (response.success) {
+        setAvailableTags(response.data.tags || []);
+      }
+    } catch (error) {
+      console.error('Error loading tags:', error);
+      setAvailableTags([]);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+
+  const handleAddTag = async (tag) => {
+    try {
+      // Check if tag already exists on lead
+      const tagExists = leadTags.some(t => (t.name || t) === (tag.name || tag));
+      if (tagExists) return;
+
+      // Optimistic update - add tag immediately to UI
+      const updatedTags = [...leadTags, tag];
+      setLeadTags(updatedTags);
+
+      // Update parent list without reloading modal
+      if (onLeadUpdated) {
+        onLeadUpdated({ ...lead, tags: updatedTags });
+      }
+
+      // Send to backend in background
+      await api.addTagToLead(lead.id, tag.id || tag.name);
+    } catch (error) {
+      console.error('Error adding tag:', error);
+      // Rollback on error
+      setLeadTags(leadTags);
+    }
+  };
+
+  const handleRemoveTag = async (tag) => {
+    try {
+      // Optimistic update - remove tag immediately from UI
+      const updatedTags = leadTags.filter(t => t.id !== tag.id);
+      setLeadTags(updatedTags);
+
+      // Update parent list without reloading modal
+      if (onLeadUpdated) {
+        onLeadUpdated({ ...lead, tags: updatedTags });
+      }
+
+      // Send to backend in background
+      await api.removeTagFromLead(lead.id, tag.id);
+    } catch (error) {
+      console.error('Error removing tag:', error);
+    }
+  };
+
+  const getTagColorClasses = (colorValue) => {
+    const color = TAG_COLORS.find(c => c.value === colorValue) || TAG_COLORS[0];
+    return { bg: color.bg, text: color.text };
+  };
+
+  const handleCreateAndAddTag = async () => {
+    if (!newTagInput.trim()) return;
+
+    try {
+      // Create new tag with color
+      const response = await api.createTag({
+        name: newTagInput.trim(),
+        color: newTagColor
+      });
+
+      if (response.success) {
+        const newTag = response.data.tag;
+
+        // Add to available tags
+        setAvailableTags(prev => [...prev, newTag]);
+
+        // Add to lead
+        await handleAddTag(newTag);
+
+        setNewTagInput('');
+        setNewTagColor('purple');
+      }
+    } catch (error) {
+      console.error('Error creating tag:', error);
+    }
+  };
+
+  const handleNewTagKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCreateAndAddTag();
     }
   };
 
@@ -537,11 +797,11 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl dark:shadow-gray-900/50 w-full max-w-7xl h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header - Purple gradient like the app */}
-        <div className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+        {/* Header - Purple like the app */}
+        <div className="flex-shrink-0 bg-[#7229f7] text-white">
           <div className="px-6 py-4">
             <div className="flex items-start justify-between">
               {/* Lead Info */}
@@ -612,16 +872,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Panel - Details/Profile/Comments */}
-          <div className="w-[55%] border-r border-gray-200 flex flex-col">
+          <div className="w-[60%] border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800">
             {/* Tabs */}
-            <div className="flex-shrink-0 border-b border-gray-200 px-6">
+            <div className="border-b border-gray-200 dark:border-gray-700 px-6">
               <div className="flex gap-6">
                 <button
                   onClick={() => setActiveTab('details')}
                   className={`py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'details'
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                 >
                   Detalhes
@@ -630,8 +890,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   onClick={() => setActiveTab('contact')}
                   className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                     activeTab === 'contact'
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                 >
                   Contato
@@ -640,29 +900,14 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   onClick={() => setActiveTab('comments')}
                   className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                     activeTab === 'comments'
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                 >
                   Comentários
                   {comments.length > 0 && (
-                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                    <span className="text-gray-600 dark:text-gray-300 text-xs rounded-full">
                       {comments.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveTab('tasks')}
-                  className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                    activeTab === 'tasks'
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Tarefas
-                  {tasks.length > 0 && (
-                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
-                      {tasks.filter(t => t.status !== 'completed').length}
                     </span>
                   )}
                 </button>
@@ -673,108 +918,113 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
             <div className="flex-1 overflow-y-auto">
               {activeTab === 'details' && (
                 <div className="p-6">
-                  {/* Status Section */}
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                  {/* Status Section - ClickUp Style */}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 pb-5 border-b border-gray-200 dark:border-gray-700">
                     {/* Status */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <Target className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 mb-1">Status</p>
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-${stage.color}-100 text-${stage.color}-700 hover:bg-${stage.color}-200 transition-colors`}
-                          >
-                            {stage.label}
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
+                    <div className="flex items-center gap-2.5">
+                      <Target className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Status</span>
+                      <div className="flex-1 relative">
+                        <button
+                          onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${getStageClasses(stage.color)}`}
+                        >
+                          {stage.label}
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
 
-                          {showStatusDropdown && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[180px]">
-                              {Object.entries(pipelineStages).map(([key, value]) => (
-                                <button
-                                  key={key}
-                                  onClick={() => handleStatusChange(key)}
-                                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
-                                    currentStatus === key ? 'bg-gray-50' : ''
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full bg-${value.color}-500`} />
-                                  {value.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        {showStatusDropdown && (
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 py-1 z-10 min-w-[180px]">
+                            {Object.entries(pipelineStages).map(([key, value]) => (
+                              <button
+                                key={key}
+                                onClick={() => handleStatusChange(key)}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                  currentStatus === key ? 'bg-gray-50 dark:bg-gray-700' : ''
+                                }`}
+                              >
+                                <span className={getStatusDotClasses(value.color)} />
+                                {value.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Responsável */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <User className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 mb-1">Responsável</p>
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowResponsibleDropdown(!showResponsibleDropdown)}
-                            className="flex items-center gap-2 text-sm hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors"
-                            disabled={assigningUser}
-                          >
-                            {currentResponsible.name ? (
-                              <>
-                                {currentResponsible.avatar ? (
-                                  <img
-                                    src={currentResponsible.avatar}
-                                    alt={currentResponsible.name}
-                                    className="w-5 h-5 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <span className="text-[10px] font-medium text-blue-600">
-                                      {currentResponsible.name?.charAt(0)}
-                                    </span>
-                                  </div>
-                                )}
-                                <span className="text-gray-900">{currentResponsible.name}</span>
-                              </>
-                            ) : (
-                              <span className="text-gray-400">Atribuir</span>
-                            )}
-                            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                          </button>
+                    <div className="flex items-center gap-2.5">
+                      <User className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Responsável</span>
+                      <div className="flex-1 relative">
+                        <button
+                          onClick={() => setShowResponsibleDropdown(!showResponsibleDropdown)}
+                          className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700 px-2.5 py-1.5 rounded-md transition-colors text-xs font-medium"
+                          disabled={assigningUser}
+                        >
+                          {currentResponsible.name ? (
+                            <>
+                              {currentResponsible.avatar ? (
+                                <img
+                                  src={
+                                    currentResponsible.avatar.startsWith('http')
+                                      ? `${currentResponsible.avatar}?v=${Date.now()}`
+                                      : currentResponsible.avatar
+                                  }
+                                  alt={currentResponsible.name}
+                                  className="w-4 h-4 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                  <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400">
+                                    {(() => {
+                                      const names = (currentResponsible.name || '').trim().split(' ').filter(n => n.length > 0);
+                                      if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                                      return (names[0][0] + names[1][0]).toUpperCase();
+                                    })()}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="text-gray-900 dark:text-gray-100">
+                                {(() => {
+                                  const names = (currentResponsible.name || '').trim().split(' ').filter(n => n.length > 0);
+                                  if (names.length === 1) return names[0];
+                                  return `${names[0]} ${names[1][0]}.`;
+                                })()}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500">Atribuir</span>
+                          )}
+                          <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500 ml-auto" />
+                        </button>
 
-                          {showResponsibleDropdown && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[220px] max-h-[300px] overflow-y-auto">
+                        {showResponsibleDropdown && (
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 z-20 w-64 max-h-64 overflow-y-auto">
+                            <div className="p-2 space-y-1">
                               {/* Auto-assign option */}
                               <button
                                 onClick={handleAutoAssign}
                                 disabled={assigningUser}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-purple-50 text-purple-600"
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm text-purple-600 dark:text-purple-400 transition-colors"
                               >
-                                <RefreshCw className={`w-4 h-4 ${assigningUser ? 'animate-spin' : ''}`} />
-                                Atribuir automaticamente
+                                <RefreshCw className={`w-4 h-4 flex-shrink-0 ${assigningUser ? 'animate-spin' : ''}`} />
+                                <span className="flex-1 text-left">Atribuir automaticamente</span>
                               </button>
-
-                              <div className="border-t border-gray-100 my-1" />
 
                               {/* Remove assignment if has one */}
                               {currentResponsible.id && (
-                                <>
-                                  <button
-                                    onClick={handleRemoveResponsible}
-                                    disabled={assigningUser}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 text-red-600"
-                                  >
-                                    <X className="w-4 h-4" />
-                                    Remover atribuição
-                                  </button>
-                                  <div className="border-t border-gray-100 my-1" />
-                                </>
+                                <button
+                                  onClick={handleRemoveResponsible}
+                                  disabled={assigningUser}
+                                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-sm text-red-600 dark:text-red-400 transition-colors"
+                                >
+                                  <X className="w-4 h-4 flex-shrink-0" />
+                                  <span className="flex-1 text-left">Remover atribuição</span>
+                                </button>
                               )}
+
+                              {(currentResponsible.id || !loadingUsers) && <div className="border-t border-gray-200 dark:border-gray-700 my-1" />}
 
                               {/* Users list */}
                               {loadingUsers ? (
@@ -782,290 +1032,484 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600" />
                                 </div>
                               ) : assignableUsers.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                                <div className="text-gray-500 dark:text-gray-400 text-center text-sm py-2">
                                   Nenhum usuário disponível
                                 </div>
                               ) : (
-                                assignableUsers.map((user) => (
-                                  <button
-                                    key={user.id || user.user_id}
-                                    onClick={() => handleAssignResponsible(user.id || user.user_id)}
-                                    disabled={assigningUser}
-                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 ${
-                                      currentResponsible.id === (user.id || user.user_id) ? 'bg-blue-50' : ''
-                                    }`}
-                                  >
-                                    {user.avatar_url ? (
-                                      <img
-                                        src={user.avatar_url}
-                                        alt={user.name}
-                                        className="w-6 h-6 rounded-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                                        <span className="text-xs font-medium text-gray-600">
-                                          {user.name?.charAt(0)}
-                                        </span>
+                                assignableUsers.map((user) => {
+                                  const isSelected = currentResponsible.id === (user.id || user.user_id);
+                                  return (
+                                    <button
+                                      key={user.id || user.user_id}
+                                      onClick={() => handleAssignResponsible(user.id || user.user_id)}
+                                      disabled={assigningUser}
+                                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                        isSelected ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                                      }`}
+                                    >
+                                      <div className="flex-shrink-0">
+                                        {user.avatar_url ? (
+                                          <img
+                                            src={
+                                              user.avatar_url.startsWith('http')
+                                                ? `${user.avatar_url}?v=${user.updated_at || Date.now()}`
+                                                : user.avatar_url
+                                            }
+                                            alt={user.name}
+                                            className="w-6 h-6 rounded-full object-cover"
+                                          />
+                                        ) : (
+                                          <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                              {(() => {
+                                                const names = (user.name || '').trim().split(' ').filter(n => n.length > 0);
+                                                if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                                                return names.length >= 2 ? (names[0][0] + names[1][0]).toUpperCase() : '?';
+                                              })()}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                    <div className="flex-1 text-left">
-                                      <div className="font-medium text-gray-900">{user.name}</div>
-                                      {user.email && (
-                                        <div className="text-xs text-gray-400">{user.email}</div>
+                                      <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 text-left">{user.name}</span>
+                                      {isSelected && (
+                                        <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                                       )}
-                                    </div>
-                                    {currentResponsible.id === (user.id || user.user_id) && (
-                                      <UserCheck className="w-4 h-4 text-blue-600" />
-                                    )}
-                                  </button>
-                                ))
+                                    </button>
+                                  );
+                                })
                               )}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Campanha */}
                     {lead.campaign_name && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <Zap className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500 mb-1">Campanha</p>
-                          <span className="px-2 py-1 bg-purple-50 text-purple-700 text-sm rounded-lg">
-                            {lead.campaign_name}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <Zap className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Campanha</span>
+                        <span className="flex-1 px-2.5 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-xs font-medium rounded-md">
+                          {lead.campaign_name}
+                        </span>
                       </div>
                     )}
 
                     {/* Data de criação */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <Calendar className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 mb-1">Adicionado em</p>
-                        <p className="text-sm text-gray-900">
-                          {new Date(lead.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
+                    <div className="flex items-center gap-2.5">
+                      <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Data</span>
+                      <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                        {new Date(lead.created_at).toLocaleDateString('pt-BR')} às {new Date(lead.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
 
                     {/* Conexões */}
                     {lead.connections_count > 0 && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <Users className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500 mb-1">Conexões</p>
-                          <p className="text-sm text-gray-900">
-                            {lead.connections_count.toLocaleString()}
-                          </p>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <Users className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Conexões</span>
+                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {lead.connections_count.toLocaleString()}
+                        </span>
                       </div>
                     )}
 
                     {/* Seguidores */}
                     {lead.follower_count > 0 && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <UserCheck className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500 mb-1">Seguidores</p>
-                          <p className="text-sm text-gray-900">
-                            {lead.follower_count.toLocaleString()}
-                          </p>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <UserCheck className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Seguidores</span>
+                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {lead.follower_count.toLocaleString()}
+                        </span>
                       </div>
                     )}
 
                     {/* Email */}
                     {lead.email && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <Mail className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500 mb-1">Email</p>
-                          <a href={`mailto:${lead.email}`} className="text-sm text-purple-600 hover:underline">
-                            {lead.email}
-                          </a>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Email</span>
+                        <a href={`mailto:${lead.email}`} className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium truncate">
+                          {lead.email}
+                        </a>
                       </div>
                     )}
 
                     {/* Telefone */}
                     {lead.phone && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <Phone className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500 mb-1">Telefone</p>
-                          <a href={`tel:${lead.phone}`} className="text-sm text-purple-600 hover:underline">
-                            {lead.phone}
-                          </a>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Telefone</span>
+                        <a href={`tel:${lead.phone}`} className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium">
+                          {lead.phone}
+                        </a>
                       </div>
                     )}
 
+                    {/* Source / Fonte */}
+                    <div className="flex items-start gap-2.5">
+                      <Flag className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide mt-0.5">Fonte</span>
+                      <div className="flex-1 relative">
+                        <button
+                          onClick={() => setShowSourceDropdown(!showSourceDropdown)}
+                          className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700 px-2.5 py-1.5 rounded-md transition-colors text-xs font-medium text-gray-900 dark:text-gray-100 w-full"
+                        >
+                          {(() => {
+                            const sourceConfig = {
+                              linkedin: { icon: Linkedin, label: 'LinkedIn' },
+                              google_maps: { icon: MapPin, label: 'Google Maps' },
+                              list: { icon: List, label: 'Lista' },
+                              paid_traffic: { icon: Zap, label: 'Tráfego Pago' },
+                              other: { icon: Package, label: 'Outro' }
+                            };
+                            const config = sourceConfig[currentSource] || sourceConfig.linkedin;
+                            const SourceIcon = config.icon;
+                            return (
+                              <>
+                                <SourceIcon className="w-4 h-4 flex-shrink-0" />
+                                <span className="flex-1 text-left">{config.label}</span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                              </>
+                            );
+                          })()}
+                        </button>
+
+                        {showSourceDropdown && (
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 py-1 z-10 min-w-[200px]">
+                            {[
+                              { value: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
+                              { value: 'google_maps', icon: MapPin, label: 'Google Maps' },
+                              { value: 'list', icon: List, label: 'Lista' },
+                              { value: 'paid_traffic', icon: Zap, label: 'Tráfego Pago' },
+                              { value: 'other', icon: Package, label: 'Outro' }
+                            ].map((source) => {
+                              const SourceIcon = source.icon;
+                              return (
+                                <button
+                                  key={source.value}
+                                  onClick={() => handleSourceChange(source.value)}
+                                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                    currentSource === source.value ? 'bg-gray-50 dark:bg-gray-700' : ''
+                                  }`}
+                                >
+                                  <SourceIcon className="w-4 h-4" />
+                                  <span className="flex-1 text-left">{source.label}</span>
+                                  {currentSource === source.value && (
+                                    <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* LinkedIn */}
                     {lead.public_identifier && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center">
-                          <Linkedin className="w-4 h-4 text-[#0A66C2]" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500 mb-1">LinkedIn</p>
-                          <a
-                            href={`https://linkedin.com/in/${lead.public_identifier}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-[#0A66C2] hover:underline flex items-center gap-1"
-                          >
-                            {lead.public_identifier}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <Linkedin className="w-4 h-4 text-[#0A66C2] flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">LinkedIn</span>
+                        <a
+                          href={`https://linkedin.com/in/${lead.public_identifier}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-xs text-[#0A66C2] hover:underline font-medium flex items-center gap-1 truncate"
+                        >
+                          {lead.public_identifier}
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                        </a>
                       </div>
                     )}
 
                     {/* Etiquetas */}
-                    <div className="flex items-center gap-3 col-span-2">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <Tag className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 mb-1">Etiquetas</p>
-                        {lead.tags && lead.tags.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {lead.tags.map((tag, idx) => (
+                    <div className="flex items-start gap-2.5">
+                      <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide mt-0.5">Etiquetas</span>
+                      <div className="flex-1 relative" ref={tagsDropdownRef}>
+                        <div className="flex flex-wrap gap-1">
+                          {leadTags.map((tag, idx) => {
+                            const colorClasses = getTagColorClasses(tag.color || 'purple');
+                            return (
                               <span
                                 key={idx}
-                                className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full"
+                                className={`px-1.5 py-0.5 ${colorClasses.bg} ${colorClasses.text} text-xs font-medium rounded flex items-center gap-1`}
                               >
                                 {tag.name || tag}
+                                <button
+                                  onClick={() => handleRemoveTag(tag)}
+                                  className="hover:opacity-70"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
                               </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <button className="text-sm text-gray-400 hover:text-gray-600">
+                            );
+                          })}
+                          <button
+                            onClick={() => setShowTagsDropdown(!showTagsDropdown)}
+                            className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 font-medium"
+                          >
                             + Adicionar
                           </button>
+                        </div>
+
+                        {/* Tags Dropdown */}
+                        {showTagsDropdown && (
+                          <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 z-50 max-h-64 overflow-y-auto">
+                            {/* Input para criar nova tag */}
+                            <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                              <input
+                                type="text"
+                                value={newTagInput}
+                                onChange={(e) => setNewTagInput(e.target.value)}
+                                onKeyDown={handleNewTagKeyDown}
+                                placeholder="Pesquise ou adicione tags..."
+                                className="w-full px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              />
+                            </div>
+
+                            {/* Lista de tags disponíveis */}
+                            {loadingTags ? (
+                              <div className="p-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                                Carregando tags...
+                              </div>
+                            ) : (
+                              <div className="py-1">
+                                {availableTags
+                                  .filter(tag => {
+                                    // Filtrar por busca
+                                    const searchMatch = !newTagInput ||
+                                      (tag.name || '').toLowerCase().includes(newTagInput.toLowerCase());
+                                    // Não mostrar tags já adicionadas
+                                    const notAdded = !leadTags.some(t => (t.id || t.name) === (tag.id || tag.name));
+                                    return searchMatch && notAdded;
+                                  })
+                                  .map((tag) => {
+                                    const colorClasses = getTagColorClasses(tag.color || 'purple');
+                                    return (
+                                      <button
+                                        key={tag.id}
+                                        onClick={() => {
+                                          handleAddTag(tag);
+                                          setNewTagInput('');
+                                        }}
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                                      >
+                                        <span className={`px-2 py-0.5 ${colorClasses.bg} ${colorClasses.text} text-[11px] font-medium rounded`}>
+                                          {tag.name}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+
+                                {/* Criar nova tag */}
+                                {newTagInput && !availableTags.some(t => t.name.toLowerCase() === newTagInput.toLowerCase()) && (
+                                  <div className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-2">
+                                    <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                      Criar nova etiqueta "{newTagInput}"
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-1">
+                                      {TAG_COLORS.map((color) => {
+                                        const colorClasses = getTagColorClasses(color.value);
+                                        return (
+                                          <button
+                                            key={color.value}
+                                            type="button"
+                                            onClick={() => setNewTagColor(color.value)}
+                                            className={`p-1.5 rounded text-[10px] font-medium transition-all ${colorClasses.bg} ${colorClasses.text} ${
+                                              newTagColor === color.value
+                                                ? 'ring-2 ring-purple-500 ring-offset-1'
+                                                : 'opacity-70 hover:opacity-100'
+                                            }`}
+                                          >
+                                            {color.value}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <button
+                                      onClick={handleCreateAndAddTag}
+                                      className="w-full px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+                                    >
+                                      Criar e Adicionar
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Divider */}
-                  <div className="my-6 border-t border-gray-200" />
-
-                  {/* About - Preview */}
                   {lead.about && (
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-purple-600" />
-                        Sobre
-                      </h3>
-                      <p className="text-sm text-gray-600 line-clamp-3">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sobre</h3>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed pl-6">
                         {lead.about}
                       </p>
                       <button
                         onClick={() => setActiveTab('contact')}
-                        className="text-sm text-purple-600 hover:underline mt-2"
+                        className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline mt-2 ml-6 inline-flex items-center gap-1 font-medium"
                       >
-                        Ver contato completo →
+                        Ver mais
+                        <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
                   )}
+
+                  {/* Checklists */}
+                  <div className="mt-5 pt-5">
+                    <LeadChecklists leadId={lead?.id} sectorId={lead?.sector_id} />
+                  </div>
                 </div>
               )}
 
               {activeTab === 'contact' && (
-                <div className="p-6 space-y-6">
-                  {/* Contact Info Section */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                      <UserCircle className="w-4 h-4 text-purple-600" />
-                      Informações de Contato
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                      {lead.name && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Nome Completo</p>
-                          <p className="text-sm font-medium text-gray-900">{lead.name}</p>
-                        </div>
-                      )}
-                      {lead.email && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Email</p>
-                          <a href={`mailto:${lead.email}`} className="text-sm text-purple-600 hover:underline">
-                            {lead.email}
-                          </a>
-                        </div>
-                      )}
-                      {lead.phone && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Telefone</p>
-                          <a href={`tel:${lead.phone}`} className="text-sm text-purple-600 hover:underline">
-                            {lead.phone}
-                          </a>
-                        </div>
-                      )}
-                      {lead.title && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Cargo</p>
-                          <p className="text-sm text-gray-900">{lead.title}</p>
-                        </div>
-                      )}
-                      {lead.company && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Empresa</p>
-                          <p className="text-sm text-gray-900">{lead.company}</p>
-                        </div>
-                      )}
-                      {lead.location && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Localização</p>
-                          <p className="text-sm text-gray-900">{lead.location}</p>
-                        </div>
-                      )}
-                      {lead.industry && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Indústria</p>
-                          <p className="text-sm text-gray-900">{lead.industry}</p>
-                        </div>
-                      )}
-                      {lead.public_identifier && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">LinkedIn</p>
-                          <a
-                            href={`https://linkedin.com/in/${lead.public_identifier}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-purple-600 hover:underline flex items-center gap-1"
+                <div className="p-6">
+                  {/* Contact Info Section - Compact Style */}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 pb-5 border-b border-gray-200 dark:border-gray-700">
+                    {lead.name && (
+                      <div className="flex items-center gap-2.5">
+                        <UserCircle className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Nome</span>
+                        <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {lead.name}
+                        </span>
+                      </div>
+                    )}
+
+                    {lead.email && (
+                      <div className="flex items-center gap-2.5">
+                        <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Email</span>
+                        <a href={`mailto:${lead.email}`} className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium truncate">
+                          {lead.email}
+                        </a>
+                      </div>
+                    )}
+
+                    {(lead.phone || editingPhone) && (
+                      <div className="flex items-center gap-2.5">
+                        <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Telefone</span>
+                        {editingPhone ? (
+                          <div className="flex-1 flex items-center gap-2">
+                            <input
+                              type="tel"
+                              value={phoneValue}
+                              onChange={(e) => setPhoneValue(e.target.value)}
+                              onKeyDown={handlePhoneKeyDown}
+                              onBlur={handleSavePhone}
+                              autoFocus
+                              disabled={savingPhone}
+                              className="flex-1 px-2 py-0.5 text-xs bg-white dark:bg-gray-700 border border-purple-300 dark:border-purple-600 rounded text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            />
+                            {savingPhone && <Loader className="w-3 h-3 animate-spin text-purple-600" />}
+                          </div>
+                        ) : (
+                          <span
+                            onClick={() => setEditingPhone(true)}
+                            className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium cursor-pointer"
                           >
-                            {lead.public_identifier}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
+                            {phoneValue || 'Adicionar telefone'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {lead.title && (
+                      <div className="flex items-center gap-2.5">
+                        <Briefcase className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Cargo</span>
+                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                          {lead.title}
+                        </span>
+                      </div>
+                    )}
+
+                    {lead.company && (
+                      <div className="flex items-center gap-2.5">
+                        <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Empresa</span>
+                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                          {lead.company}
+                        </span>
+                      </div>
+                    )}
+
+                    {lead.location && (
+                      <div className="flex items-center gap-2.5">
+                        <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Localização</span>
+                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                          {lead.location}
+                        </span>
+                      </div>
+                    )}
+
+                    {lead.industry && (
+                      <div className="flex items-center gap-2.5">
+                        <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Indústria</span>
+                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
+                          {lead.industry}
+                        </span>
+                      </div>
+                    )}
+
+                    {lead.public_identifier && (
+                      <div className="flex items-center gap-2.5">
+                        <Linkedin className="w-4 h-4 text-[#0A66C2] flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">LinkedIn</span>
+                        <a
+                          href={`https://linkedin.com/in/${lead.public_identifier}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-xs text-[#0A66C2] hover:underline font-medium flex items-center gap-1 truncate"
+                        >
+                          {lead.public_identifier}
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                        </a>
+                      </div>
+                    )}
+
+                    {lead.connections_count > 0 && (
+                      <div className="flex items-center gap-2.5">
+                        <Users className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Conexões</span>
+                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {lead.connections_count.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+
+                    {lead.follower_count > 0 && (
+                      <div className="flex items-center gap-2.5">
+                        <UserCheck className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Seguidores</span>
+                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {lead.follower_count.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* About */}
                   {lead.about && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-purple-600" />
-                        Sobre
-                      </h3>
-                      <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sobre</h3>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line leading-relaxed pl-6">
                         {lead.about}
                       </p>
                     </div>
@@ -1073,28 +1517,28 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Experience */}
                   {lead.experience && Array.isArray(lead.experience) && lead.experience.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <Briefcase className="w-4 h-4 text-purple-600" />
-                        Experiência
-                      </h3>
-                      <div className="space-y-3">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Briefcase className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Experiência</h3>
+                      </div>
+                      <div className="space-y-3 pl-6">
                         {lead.experience.map((exp, idx) => (
-                          <div key={idx} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
-                            <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                              <Building className="w-5 h-5 text-gray-400" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{exp.title || exp.position}</p>
-                              {exp.company && <p className="text-sm text-gray-600">{exp.company}</p>}
-                              {(exp.start_date || exp.end_date) && (
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  {exp.start_date} - {exp.end_date || 'Presente'}
-                                </p>
-                              )}
-                              {exp.description && (
-                                <p className="text-sm text-gray-600 mt-2">{exp.description}</p>
-                              )}
+                          <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                              <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{exp.title || exp.position}</p>
+                                {exp.company && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{exp.company}</p>}
+                                {(exp.start_date || exp.end_date) && (
+                                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                                    {exp.start_date} - {exp.end_date || 'Presente'}
+                                  </p>
+                                )}
+                                {exp.description && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">{exp.description}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1104,26 +1548,26 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Education */}
                   {lead.education && Array.isArray(lead.education) && lead.education.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4 text-purple-600" />
-                        Educação
-                      </h3>
-                      <div className="space-y-3">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <GraduationCap className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Educação</h3>
+                      </div>
+                      <div className="space-y-3 pl-6">
                         {lead.education.map((edu, idx) => (
-                          <div key={idx} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
-                            <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                              <GraduationCap className="w-5 h-5 text-gray-400" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{edu.school || edu.institution}</p>
-                              {edu.degree && <p className="text-sm text-gray-600">{edu.degree}</p>}
-                              {edu.field_of_study && <p className="text-sm text-gray-600">{edu.field_of_study}</p>}
-                              {(edu.start_date || edu.end_date) && (
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  {edu.start_date} - {edu.end_date}
-                                </p>
-                              )}
+                          <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                              <GraduationCap className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{edu.school || edu.institution}</p>
+                                {edu.degree && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{edu.degree}</p>}
+                                {edu.field_of_study && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{edu.field_of_study}</p>}
+                                {(edu.start_date || edu.end_date) && (
+                                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                                    {edu.start_date} - {edu.end_date}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1133,16 +1577,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Skills */}
                   {lead.skills && Array.isArray(lead.skills) && lead.skills.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <Award className="w-4 h-4 text-purple-600" />
-                        Habilidades
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Award className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Habilidades</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pl-6">
                         {lead.skills.map((skill, idx) => (
                           <span
                             key={idx}
-                            className="px-3 py-1 bg-purple-50 text-purple-700 text-sm rounded-full"
+                            className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-[11px] font-medium rounded-md"
                           >
                             {typeof skill === 'string' ? skill : skill.name}
                           </span>
@@ -1153,17 +1597,17 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Certifications */}
                   {lead.certifications && Array.isArray(lead.certifications) && lead.certifications.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <Award className="w-4 h-4 text-purple-600" />
-                        Certificações
-                      </h3>
-                      <div className="space-y-2">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Award className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Certificações</h3>
+                      </div>
+                      <div className="space-y-2 pl-6">
                         {lead.certifications.map((cert, idx) => (
-                          <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm font-medium text-gray-900">{cert.name || cert.title}</p>
-                            {cert.issuer && <p className="text-xs text-gray-600">{cert.issuer}</p>}
-                            {cert.date && <p className="text-xs text-gray-400">{cert.date}</p>}
+                          <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2.5">
+                            <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{cert.name || cert.title}</p>
+                            {cert.issuer && <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">{cert.issuer}</p>}
+                            {cert.date && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{cert.date}</p>}
                           </div>
                         ))}
                       </div>
@@ -1172,16 +1616,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Languages */}
                   {lead.languages && Array.isArray(lead.languages) && lead.languages.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <Languages className="w-4 h-4 text-purple-600" />
-                        Idiomas
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Languages className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Idiomas</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pl-6">
                         {lead.languages.map((lang, idx) => (
                           <span
                             key={idx}
-                            className="px-3 py-1 bg-green-50 text-green-700 text-sm rounded-full"
+                            className="px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[11px] font-medium rounded-md"
                           >
                             {typeof lang === 'string' ? lang : `${lang.name}${lang.proficiency ? ` (${lang.proficiency})` : ''}`}
                           </span>
@@ -1192,21 +1636,21 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Websites */}
                   {lead.websites && Array.isArray(lead.websites) && lead.websites.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-purple-600" />
-                        Sites
-                      </h3>
-                      <div className="space-y-2">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Globe className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sites</h3>
+                      </div>
+                      <div className="space-y-2 pl-6">
                         {lead.websites.map((website, idx) => (
                           <a
                             key={idx}
                             href={website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-purple-600 hover:underline"
+                            className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 hover:underline"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-3 h-3" />
                             {website}
                           </a>
                         ))}
@@ -1216,9 +1660,11 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Empty state */}
                   {!lead.about && !lead.experience?.length && !lead.education?.length && !lead.skills?.length && (
-                    <div className="text-center py-8 text-gray-400">
-                      <UserCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">Nenhuma informação de perfil disponível</p>
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+                        <UserCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p className="text-sm">Nenhuma informação de perfil disponível</p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1233,7 +1679,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
                       </div>
                     ) : comments.length === 0 ? (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-gray-400 dark:text-gray-500">
                         <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p className="text-sm">Nenhum comentário ainda</p>
                         <p className="text-xs mt-1">Seja o primeiro a comentar</p>
@@ -1255,20 +1701,20 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                             )}
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-gray-900">
+                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                   {comment.user.name}
                                 </span>
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
                                   {formatTimestamp(comment.createdAt)}
                                 </span>
                               </div>
-                              <p className="text-sm text-gray-600 mt-1">
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
                                 {comment.content}
                               </p>
                               {comment.mentionedUserNames && comment.mentionedUserNames.length > 0 && (
                                 <div className="flex items-center gap-1 mt-1">
-                                  <AtSign className="w-3 h-3 text-gray-400" />
-                                  <span className="text-xs text-gray-500">
+                                  <AtSign className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
                                     {comment.mentionedUserNames.join(', ')}
                                   </span>
                                 </div>
@@ -1281,33 +1727,91 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   </div>
 
                   {/* Comment Input */}
-                  <div className="flex-shrink-0 border-t border-gray-200 p-4">
+                  <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
                     <div className="flex gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
                         V
                       </div>
                       <div className="flex-1">
-                        <MentionTextarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          onMentionsChange={setCommentMentions}
-                          leadId={lead.id}
-                          placeholder="Escreva um comentário... Use @ para mencionar"
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          rows={2}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleAddComment();
-                            }
-                          }}
-                        />
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-1">
-                            <button className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded">
-                              <Smile className="w-4 h-4" />
-                            </button>
-                          </div>
+                        <div className="relative">
+                          <MentionTextarea
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onMentionsChange={setCommentMentions}
+                            leadId={lead.id}
+                            placeholder="Escreva um comentário... Use @ para mencionar"
+                            className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent p-2.5 pr-9"
+                            rows={2}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAddComment();
+                              }
+                            }}
+                          />
+                          {/* Emoji Button - Inside textarea */}
+                          <button
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="absolute bottom-2 right-2 p-1 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors"
+                            type="button"
+                          >
+                            <Smile className="w-4 h-4" />
+                          </button>
+
+                          {/* Emoji Picker */}
+                          {showEmojiPicker && (
+                            <div
+                              ref={emojiPickerRef}
+                              className="absolute bottom-full right-0 mb-2 z-50"
+                            >
+                              <style>{`
+                                .EmojiPickerReact .epr-search-container {
+                                  padding: 4px 8px !important;
+                                }
+                                .EmojiPickerReact .epr-search {
+                                  height: 28px !important;
+                                  font-size: 12px !important;
+                                  padding: 4px 8px !important;
+                                }
+                                .EmojiPickerReact .epr-category-nav {
+                                  padding: 4px 8px !important;
+                                  gap: 4px !important;
+                                }
+                                .EmojiPickerReact button.epr-cat-btn {
+                                  width: 20px !important;
+                                  height: 20px !important;
+                                  padding: 2px !important;
+                                }
+                                .EmojiPickerReact button.epr-cat-btn svg {
+                                  width: 16px !important;
+                                  height: 16px !important;
+                                }
+                                .EmojiPickerReact .epr-emoji-category-label {
+                                  font-size: 11px !important;
+                                  padding: 4px 8px !important;
+                                  margin-top: 4px !important;
+                                }
+                              `}</style>
+                              <EmojiPicker
+                                onEmojiClick={(emojiData) => {
+                                  setNewComment(prev => prev + emojiData.emoji);
+                                  setShowEmojiPicker(false);
+                                }}
+                                theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                                width={350}
+                                height={280}
+                                emojiStyle="native"
+                                searchPlaceHolder="Buscar..."
+                                searchDisabled={false}
+                                previewConfig={{
+                                  showPreview: false
+                                }}
+                                emojiVersion="11.0"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-end mt-2">
                           <button
                             onClick={handleAddComment}
                             disabled={!newComment.trim()}
@@ -1321,24 +1825,15 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   </div>
                 </div>
               )}
-
-              {activeTab === 'tasks' && (
-                <div className="flex flex-col h-full">
-                  {/* Checklists */}
-                  <div className="flex-1 overflow-y-auto p-6">
-                    <LeadChecklists leadId={lead?.id} sectorId={lead?.sector_id} />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
           {/* Right Panel - Conversations */}
-          <div className="w-[45%] flex flex-col bg-gray-50">
+          <div className="w-[40%] flex flex-col bg-gray-50 dark:bg-gray-900">
             {/* Channel Tabs */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+            <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-700">Conversas</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Conversas</h3>
 
                 {/* Channel Switcher */}
                 <div className="flex items-center gap-1">
@@ -1357,7 +1852,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                             ? `${config.activeBg} ${config.color} border ${config.border}`
                             : hasMessages
                               ? `${config.bg} ${config.color} hover:${config.activeBg}`
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -1383,7 +1878,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
                 </div>
               ) : !activeChannel || !conversations[activeChannel]?.length ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
                   <MessageCircle className="w-12 h-12 mb-3 opacity-50" />
                   <p className="text-sm font-medium">Nenhuma conversa</p>
                   <p className="text-xs mt-1 text-center">
@@ -1403,12 +1898,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                           className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
                             message.type === 'outbound'
                               ? `${config.messageBg} text-white rounded-br-md`
-                              : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
+                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-bl-md'
                           }`}
                         >
                           {message.subject && (
                             <p className={`text-xs font-medium mb-1 ${
-                              message.type === 'outbound' ? 'text-white/70' : 'text-gray-500'
+                              message.type === 'outbound' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
                             }`}>
                               {message.subject}
                             </p>
@@ -1416,12 +1911,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                           <p className={`text-sm whitespace-pre-wrap break-words ${
                             message.type === 'outbound'
                               ? '[&_a]:text-white [&_a]:underline [&_a:hover]:text-blue-100'
-                              : '[&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800'
+                              : '[&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a:hover]:text-blue-800 dark:[&_a:hover]:text-blue-300'
                           }`}>
                             {linkifyText(message.content)}
                           </p>
                           <p className={`text-[10px] mt-1 ${
-                            message.type === 'outbound' ? 'text-white/60' : 'text-gray-400'
+                            message.type === 'outbound' ? 'text-white/60' : 'text-gray-400 dark:text-gray-500'
                           }`}>
                             {formatTimestamp(message.timestamp)}
                           </p>
@@ -1436,14 +1931,14 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
             {/* Message Input */}
             {activeChannel && (
-              <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4">
+              <div className="border-t border-gray-200 dark:border-gray-700 p-4">
                 <div className="flex items-end gap-2">
                   <div className="flex-1">
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder={`Enviar mensagem via ${channelConfig[activeChannel]?.label}...`}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       rows={2}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -1465,7 +1960,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                 {/* Go to full conversation */}
                 <button
                   onClick={() => onNavigateToConversation?.(lead.id, activeChannel)}
-                  className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                 >
                   <span>Ver conversa completa</span>
                   <ArrowRight className="w-4 h-4" />

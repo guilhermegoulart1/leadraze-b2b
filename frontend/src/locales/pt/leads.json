@@ -1,8 +1,8 @@
 {
   "title": "Pipeline",
-  "subtitle": "Gerencie seus leads e oportunidades",
-  "allLeads": "Todos os Leads",
-  "newLead": "Novo Lead",
+  "subtitle": "Gerencie suas oportunidades de negócio",
+  "allLeads": "Todas as Oportunidades",
+  "newLead": "Nova Oportunidade",
   "exportButton": "Exportar",
   "loading": "Carregando pipeline...",
   "searchPlaceholder": "Buscar por nome, empresa, email...",
@@ -16,11 +16,11 @@
     "discarded": "Descartado"
   },
   "filters": {
-    "all": "Todos",
-    "assigned": "Atribuídos a Mim",
-    "unassigned": "Não Atribuídos",
-    "hot": "Leads Quentes",
-    "cold": "Leads Frios"
+    "all": "Todas",
+    "assigned": "Atribuídas a Mim",
+    "unassigned": "Não Atribuídas",
+    "hot": "Oportunidades Quentes",
+    "cold": "Oportunidades Frias"
   },
   "sort": {
     "newest": "Mais Recentes",
@@ -56,21 +56,21 @@
     "tags": "Tags"
   },
   "stats": {
-    "total": "Total de Leads",
-    "new": "Novos",
-    "qualified": "Qualificados",
-    "converted": "Convertidos",
+    "total": "Total de Oportunidades",
+    "new": "Novas",
+    "qualified": "Qualificadas",
+    "converted": "Convertidas",
     "conversionRate": "Taxa de Conversão"
   },
   "messages": {
-    "created": "Lead criado com sucesso",
-    "updated": "Lead atualizado com sucesso",
-    "deleted": "Lead excluído com sucesso",
-    "moved": "Lead movido para {{stage}}",
-    "assigned": "Lead atribuído a {{user}}",
-    "noLeads": "Nenhum lead",
+    "created": "Oportunidade criada com sucesso",
+    "updated": "Oportunidade atualizada com sucesso",
+    "deleted": "Oportunidade excluída com sucesso",
+    "moved": "Oportunidade movida para {{stage}}",
+    "assigned": "Oportunidade atribuída a {{user}}",
+    "noLeads": "Nenhuma oportunidade",
     "dropHere": "Solte aqui",
-    "confirmDelete": "Tem certeza que deseja excluir este lead?"
+    "confirmDelete": "Tem certeza que deseja excluir esta oportunidade?"
   },
   "viewModes": {
     "kanban": "Visualização Kanban",
@@ -99,7 +99,7 @@
     "draftCampaign": "Esta campanha está em modo rascunho"
   },
   "table": {
-    "lead": "Lead",
+    "lead": "Oportunidade",
     "company": "Empresa",
     "contact": "Contato",
     "campaign": "Campanha",

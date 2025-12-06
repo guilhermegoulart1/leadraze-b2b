@@ -153,7 +153,54 @@ const getConversations = async (req, res) => {
 
     const conversations = await db.query(query, queryParams);
 
-    // Processar conversas para unificar lead_name/contact_name
+    // Buscar tags para todas as conversas via contato (contact_tags)
+    const contactIds = [];
+    const leadIds = [];
+    conversations.rows.forEach(conv => {
+      if (conv.contact_id) contactIds.push(conv.contact_id);
+      if (conv.lead_id) leadIds.push(conv.lead_id);
+    });
+
+    // Buscar tags via contact_id direto
+    let tagsByContactId = {};
+    if (contactIds.length > 0) {
+      const tagsQuery = `
+        SELECT ct.contact_id, t.id, t.name, t.color
+        FROM tags t
+        JOIN contact_tags ct ON ct.tag_id = t.id
+        WHERE ct.contact_id = ANY($1)
+        ORDER BY t.name ASC
+      `;
+      const tagsResult = await db.query(tagsQuery, [contactIds]);
+      tagsResult.rows.forEach(tag => {
+        if (!tagsByContactId[tag.contact_id]) {
+          tagsByContactId[tag.contact_id] = [];
+        }
+        tagsByContactId[tag.contact_id].push({ id: tag.id, name: tag.name, color: tag.color });
+      });
+    }
+
+    // Buscar tags via lead_id -> contact_leads -> contact_tags
+    let tagsByLeadId = {};
+    if (leadIds.length > 0) {
+      const tagsQuery = `
+        SELECT cl.lead_id, t.id, t.name, t.color
+        FROM tags t
+        JOIN contact_tags ct ON ct.tag_id = t.id
+        JOIN contact_leads cl ON cl.contact_id = ct.contact_id
+        WHERE cl.lead_id = ANY($1)
+        ORDER BY t.name ASC
+      `;
+      const tagsResult = await db.query(tagsQuery, [leadIds]);
+      tagsResult.rows.forEach(tag => {
+        if (!tagsByLeadId[tag.lead_id]) {
+          tagsByLeadId[tag.lead_id] = [];
+        }
+        tagsByLeadId[tag.lead_id].push({ id: tag.id, name: tag.name, color: tag.color });
+      });
+    }
+
+    // Processar conversas para unificar lead_name/contact_name e adicionar tags
     const processedConversations = conversations.rows.map(conv => ({
       ...conv,
       // Usar nome do lead se existir, senão do contato
@@ -162,7 +209,11 @@ const getConversations = async (req, res) => {
       lead_company: conv.lead_company || conv.contact_company,
       lead_picture: conv.lead_picture || conv.contact_picture,
       lead_phone: conv.contact_phone, // Telefone só existe no contato
-      is_organic: !conv.lead_id && !!conv.contact_id // Flag para conversas orgânicas
+      is_organic: !conv.lead_id && !!conv.contact_id, // Flag para conversas orgânicas
+      // Tags herdadas do contato
+      tags: conv.contact_id
+        ? (tagsByContactId[conv.contact_id] || [])
+        : (tagsByLeadId[conv.lead_id] || [])
     }));
 
     // Contar total
@@ -264,6 +315,33 @@ const getConversation = async (req, res) => {
 
     const conv = convResult.rows[0];
 
+    // Buscar tags do contato vinculado
+    let tags = [];
+    if (conv.contact_id) {
+      // Tags direto do contact_id da conversa
+      const tagsQuery = `
+        SELECT t.id, t.name, t.color
+        FROM tags t
+        JOIN contact_tags ct ON ct.tag_id = t.id
+        WHERE ct.contact_id = $1
+        ORDER BY t.name ASC
+      `;
+      const tagsResult = await db.query(tagsQuery, [conv.contact_id]);
+      tags = tagsResult.rows;
+    } else if (conv.lead_id) {
+      // Tags via lead -> contact_leads -> contact_tags
+      const tagsQuery = `
+        SELECT t.id, t.name, t.color
+        FROM tags t
+        JOIN contact_tags ct ON ct.tag_id = t.id
+        JOIN contact_leads cl ON cl.contact_id = ct.contact_id
+        WHERE cl.lead_id = $1
+        ORDER BY t.name ASC
+      `;
+      const tagsResult = await db.query(tagsQuery, [conv.lead_id]);
+      tags = tagsResult.rows;
+    }
+
     // Processar para unificar dados de lead/contato
     const conversation = {
       ...conv,
@@ -275,10 +353,11 @@ const getConversation = async (req, res) => {
       lead_profile_url: conv.lead_profile_url || conv.contact_profile_url,
       lead_location: conv.lead_location || conv.contact_location,
       lead_phone: conv.lead_phone || conv.contact_phone,
-      is_organic: !conv.lead_id && !!conv.contact_id
+      is_organic: !conv.lead_id && !!conv.contact_id,
+      tags // Tags herdadas do contato
     };
 
-    console.log(`✅ Conversa encontrada`);
+    console.log(`✅ Conversa encontrada com ${tags.length} tags`);
 
     sendSuccess(res, conversation);
 

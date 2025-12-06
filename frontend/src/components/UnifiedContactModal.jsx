@@ -155,22 +155,22 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
   if (!isOpen) return null;
 
   const channelConfig = {
-    whatsapp: { icon: MessageCircle, color: 'text-green-600', bg: 'bg-green-100', label: 'WhatsApp' },
-    instagram: { icon: Instagram, color: 'text-pink-600', bg: 'bg-pink-100', label: 'Instagram' },
-    email: { icon: Mail, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Email' },
-    linkedin: { icon: Linkedin, color: 'text-blue-700', bg: 'bg-blue-100', label: 'LinkedIn' },
-    telegram: { icon: Send, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Telegram' },
-    phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Telefone' }
+    whatsapp: { icon: MessageCircle, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30', label: 'WhatsApp' },
+    instagram: { icon: Instagram, color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-100 dark:bg-pink-900/30', label: 'Instagram' },
+    email: { icon: Mail, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30', label: 'Email' },
+    linkedin: { icon: Linkedin, color: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30', label: 'LinkedIn' },
+    telegram: { icon: Send, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30', label: 'Telegram' },
+    phone: { icon: Phone, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800', label: 'Telefone' }
   };
 
   const tagColors = {
-    purple: 'bg-purple-100 text-purple-700 border-purple-200',
-    yellow: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    green: 'bg-green-100 text-green-700 border-green-200',
-    blue: 'bg-blue-100 text-blue-700 border-blue-200',
-    red: 'bg-red-100 text-red-700 border-red-200',
-    gray: 'bg-gray-100 text-gray-700 border-gray-200',
-    pink: 'bg-pink-100 text-pink-700 border-pink-200'
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700',
+    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700',
+    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700',
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700',
+    gray: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700',
+    pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-700'
   };
 
   const contact = data?.contact;
@@ -203,20 +203,20 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
       <div className="flex items-center justify-center min-h-screen">
         {/* Overlay */}
         <div
-          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          className="fixed inset-0 transition-opacity bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-80"
           onClick={onClose}
         />
 
         {/* Modal */}
-        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center h-96">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 dark:border-purple-400"></div>
             </div>
           ) : contact ? (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-lg">
                 <div className="flex items-center gap-4">
                   <ContactAvatar
                     photoUrl={contact.profile_picture}
@@ -228,7 +228,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       type="text"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="text-xl font-bold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:outline-none px-1 -ml-1"
+                      className="text-xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:outline-none px-1 -ml-1"
                       placeholder="Nome do contato"
                     />
                     {/* Channel Badges */}
@@ -264,7 +264,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                   )}
                   <button
                     onClick={onClose}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -274,15 +274,15 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
               {/* Content - Two columns */}
               <div className="flex flex-1 overflow-hidden">
                 {/* Left column - Contact details */}
-                <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200">
+                <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200 dark:border-gray-700">
                   {/* Tabs */}
-                  <div className="flex gap-4 mb-6 border-b border-gray-200">
+                  <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => setActiveTab('overview')}
                       className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === 'overview'
-                          ? 'border-purple-600 text-purple-600'
-                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                          ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                       }`}
                     >
                       Dados
@@ -291,8 +291,8 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       onClick={() => setActiveTab('conversations')}
                       className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === 'conversations'
-                          ? 'border-purple-600 text-purple-600'
-                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                          ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                       }`}
                     >
                       Conversas ({conversations.length})
@@ -301,8 +301,8 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       onClick={() => setActiveTab('opportunities')}
                       className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === 'opportunities'
-                          ? 'border-purple-600 text-purple-600'
-                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                          ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                       }`}
                     >
                       Oportunidades ({leads.length})
@@ -315,26 +315,26 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       {/* Email & Phone */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                             <Mail className="w-3.5 h-3.5" /> Email
                           </label>
                           <input
                             type="email"
                             value={formData.email}
                             onChange={(e) => handleInputChange('email', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             placeholder="email@exemplo.com"
                           />
                         </div>
                         <div>
-                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                             <Phone className="w-3.5 h-3.5" /> Telefone
                           </label>
                           <input
                             type="tel"
                             value={formData.phone}
                             onChange={(e) => handleInputChange('phone', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             placeholder="+55 11 99999-9999"
                           />
                         </div>
@@ -343,24 +343,24 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       {/* Company & Title */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                             <Building2 className="w-3.5 h-3.5" /> Empresa
                           </label>
                           <input
                             type="text"
                             value={formData.company}
                             onChange={(e) => handleInputChange('company', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             placeholder="Nome da empresa"
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">Cargo</label>
+                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Cargo</label>
                           <input
                             type="text"
                             value={formData.title}
                             onChange={(e) => handleInputChange('title', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             placeholder="Ex: Diretor Comercial"
                           />
                         </div>
@@ -368,35 +368,35 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
 
                       {/* Location */}
                       <div>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                           <MapPin className="w-3.5 h-3.5" /> Localizacao
                         </label>
                         <input
                           type="text"
                           value={formData.location}
                           onChange={(e) => handleInputChange('location', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Cidade, Estado"
                         />
                       </div>
 
                       {/* LinkedIn */}
                       <div>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                           <Linkedin className="w-3.5 h-3.5" /> Perfil LinkedIn
                         </label>
                         <input
                           type="url"
                           value={formData.profile_url}
                           onChange={(e) => handleInputChange('profile_url', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="https://linkedin.com/in/..."
                         />
                       </div>
 
                       {/* Tags */}
                       <div>
-                        <label className="text-xs font-medium text-gray-500 mb-2 block">Etiquetas</label>
+                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Etiquetas</label>
                         <div className="flex flex-wrap gap-2">
                           {availableTags.map(tag => (
                             <button
@@ -406,40 +406,40 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                                 formData.tags.includes(tag.id)
                                   ? tagColors[tag.color] || tagColors.blue
-                                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                               }`}
                             >
                               {tag.name}
                             </button>
                           ))}
                           {availableTags.length === 0 && (
-                            <span className="text-sm text-gray-400">Nenhuma etiqueta disponivel</span>
+                            <span className="text-sm text-gray-400 dark:text-gray-500">Nenhuma etiqueta disponivel</span>
                           )}
                         </div>
                       </div>
 
                       {/* Channels */}
                       {channels.length > 0 && (
-                        <div className="pt-4 border-t border-gray-100">
-                          <label className="text-xs font-medium text-gray-500 mb-2 block">Canais Conectados</label>
+                        <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Canais Conectados</label>
                           <div className="space-y-2">
                             {channels.map((channel, idx) => {
                               const config = channelConfig[channel.type];
                               if (!config) return null;
                               const IconComponent = config.icon;
                               return (
-                                <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                                <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
                                   <div className={`p-1.5 rounded-full ${config.bg}`}>
                                     <IconComponent className={`w-3.5 h-3.5 ${config.color}`} />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-700">{config.label}</p>
-                                    <p className="text-xs text-gray-500 truncate">
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{config.label}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                       {channel.username || channel.channelId || '-'}
                                     </p>
                                   </div>
                                   {channel.isActive && (
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                    <span className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full"></span>
                                   )}
                                 </div>
                               );
@@ -462,14 +462,14 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                               <div
                                 key={conv.id}
                                 onClick={() => handleOpenConversation(conv.id)}
-                                className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50/50 transition-colors cursor-pointer"
+                                className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors cursor-pointer"
                               >
                                 <div className={`p-2 rounded-full ${config.bg}`}>
                                   <IconComponent className={`w-4 h-4 ${config.color}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <h4 className="font-medium text-gray-900 truncate text-sm">
+                                    <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm">
                                       {conv.lead_name || 'Conversa'}
                                     </h4>
                                     {conv.unread_count > 0 && (
@@ -479,21 +479,21 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                                     )}
                                   </div>
                                   {conv.last_message_preview && (
-                                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                                       {conv.last_message_preview}
                                     </p>
                                   )}
-                                  <p className="text-xs text-gray-400 mt-1">
+                                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                                     {formatTimeAgo(conv.last_message_at)}
                                   </p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                                <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                           <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
                           <p className="text-sm">Nenhuma conversa</p>
                         </div>
@@ -507,28 +507,28 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       {leads.length > 0 ? (
                         <div className="space-y-2">
                           {leads.map(lead => (
-                            <div key={lead.id} className="p-3 border border-gray-200 rounded-lg">
+                            <div key={lead.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-gray-900 text-sm">{lead.name}</h4>
+                                <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{lead.name}</h4>
                                 {lead.is_primary_contact && (
-                                  <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                                  <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded-full">
                                     Principal
                                   </span>
                                 )}
                               </div>
                               {lead.campaign_name && (
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                   Campanha: {lead.campaign_name}
                                 </p>
                               )}
-                              <p className="text-xs text-gray-400 mt-1">
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                                 Atualizado {formatTimeAgo(lead.updated_at)}
                               </p>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                           <Building2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
                           <p className="text-sm">Nenhuma oportunidade</p>
                         </div>
@@ -538,36 +538,36 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                 </div>
 
                 {/* Right column - Notes timeline */}
-                <div className="w-80 flex flex-col bg-gray-50">
-                  <div className="px-4 py-3 border-b border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-700">Observacoes</h3>
+                <div className="w-80 flex flex-col bg-gray-50 dark:bg-gray-900">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Observacoes</h3>
                   </div>
 
                   {/* Notes list */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {notes.length > 0 ? (
                       notes.map(note => (
-                        <div key={note.id} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100 group">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <User className="w-3 h-3" />
+                        <div key={note.id} className="bg-white dark:bg-gray-800 rounded-lg p-2.5 shadow-sm border border-gray-100 dark:border-gray-700 group">
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
+                              <User className="w-2.5 h-2.5" />
                               <span className="font-medium">{note.user_name || 'Usuario'}</span>
-                              <span>-</span>
+                              <span className="text-gray-400 dark:text-gray-500">•</span>
                               <span>{formatNoteDate(note.created_at)}</span>
                             </div>
                             <button
                               onClick={() => handleDeleteNote(note.id)}
-                              className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                               title="Excluir"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
-                          <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{note.content}</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{note.content}</p>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-gray-400 dark:text-gray-500">
                         <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
                         <p className="text-xs">Nenhuma observacao</p>
                       </div>
@@ -575,7 +575,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                   </div>
 
                   {/* Add note input */}
-                  <div className="p-4 border-t border-gray-200 bg-white">
+                  <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <div className="flex gap-2">
                       <textarea
                         ref={noteInputRef}
@@ -584,7 +584,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         onKeyPress={handleKeyPress}
                         placeholder="Adicionar observacao..."
                         rows={2}
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                       <button
                         onClick={handleAddNote}
@@ -598,14 +598,14 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">Enter para enviar</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Enter para enviar</p>
                   </div>
                 </div>
               </div>
             </>
           ) : (
             <div className="flex items-center justify-center h-96">
-              <p className="text-gray-500">Contato nao encontrado</p>
+              <p className="text-gray-500 dark:text-gray-400">Contato nao encontrado</p>
             </div>
           )}
         </div>

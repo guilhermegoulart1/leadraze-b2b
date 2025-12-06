@@ -112,13 +112,13 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
   if (!isOpen) return null;
 
   const tagColors = {
-    purple: 'bg-purple-100 text-purple-700 border-purple-200',
-    yellow: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    green: 'bg-green-100 text-green-700 border-green-200',
-    blue: 'bg-blue-100 text-blue-700 border-blue-200',
-    red: 'bg-red-100 text-red-700 border-red-200',
-    gray: 'bg-gray-100 text-gray-700 border-gray-200',
-    pink: 'bg-pink-100 text-pink-700 border-pink-200'
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700',
+    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700',
+    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700',
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700',
+    gray: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700',
+    pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-700'
   };
 
   return (
@@ -126,20 +126,20 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         {/* Overlay */}
         <div
-          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          className="fixed inset-0 transition-opacity bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-80"
           onClick={onClose}
         />
 
         {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-lg font-semibold text-gray-900">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {isEditing ? 'Editar Contato' : 'Novo Contato'}
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -148,7 +148,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
           {/* Form */}
           <form onSubmit={handleSubmit} className="px-6 py-4">
             {errors.submit && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300">
                 {errors.submit}
               </div>
             )}
@@ -156,28 +156,28 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
             <div className="space-y-4">
               {/* Nome */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nome <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    errors.name ? 'border-red-300' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    errors.name ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder="Nome completo"
                 />
                 {errors.name && (
-                  <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>
                 )}
               </div>
 
               {/* Email e Phone */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     <Mail className="w-4 h-4 inline mr-1" />
                     Email
                   </label>
@@ -186,17 +186,17 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
+                    className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                      errors.email ? 'border-red-300 dark:border-red-700' : 'border-gray-300 dark:border-gray-600'
                     }`}
                     placeholder="email@exemplo.com"
                   />
                   {errors.email && (
-                    <p className="mt-1 text-xs text-red-600">{errors.email}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.email}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     <Phone className="w-4 h-4 inline mr-1" />
                     Telefone
                   </label>
@@ -205,7 +205,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="+55 11 99999-9999"
                   />
                 </div>
@@ -214,7 +214,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               {/* Empresa e Cargo */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     <Building2 className="w-4 h-4 inline mr-1" />
                     Empresa
                   </label>
@@ -223,12 +223,12 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     name="company"
                     value={formData.company}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="Nome da empresa"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Cargo
                   </label>
                   <input
@@ -236,7 +236,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="Ex: Diretor Comercial"
                   />
                 </div>
@@ -244,7 +244,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
 
               {/* Localização */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <MapPin className="w-4 h-4 inline mr-1" />
                   Localizacao
                 </label>
@@ -253,14 +253,14 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Cidade, Estado"
                 />
               </div>
 
               {/* LinkedIn */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <Linkedin className="w-4 h-4 inline mr-1" />
                   Perfil LinkedIn
                 </label>
@@ -269,10 +269,10 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                   name="profile_url"
                   value={formData.profile_url}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="https://linkedin.com/in/..."
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Cole o link completo do perfil LinkedIn
                 </p>
               </div>
@@ -280,7 +280,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               {/* Tags */}
               {tags.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Etiquetas
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -292,7 +292,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
                         className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                           formData.tags.includes(tag.id)
                             ? tagColors[tag.color] || tagColors.blue
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                         }`}
                       >
                         {tag.name}
@@ -304,11 +304,11 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancelar
               </button>

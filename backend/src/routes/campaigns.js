@@ -63,4 +63,23 @@ router.post('/:id/start-collection', campaignController.startCollection);
 // Obter status da coleta
 router.get('/:id/collection-status', campaignController.getCollectionStatus);
 
+// ================================
+// CONFIGURAÇÃO DE REVISÃO E FILA DE CONVITES
+// ================================
+
+// Salvar configuração de revisão (round robin, tempo de espera, etc)
+router.post('/:id/review-config', campaignController.saveReviewConfig);
+
+// Obter configuração de revisão
+router.get('/:id/review-config', campaignController.getReviewConfig);
+
+// Obter relatório da campanha (leads, status de convites, etc)
+router.get('/:id/report', campaignController.getCampaignReport);
+
+// Obter status da fila de convites
+router.get('/:id/queue-status', campaignController.getQueueStatus);
+
+// Cancelar campanha (retirar convites pendentes)
+router.post('/:id/cancel', campaignController.cancelCampaign);
+
 module.exports = router;

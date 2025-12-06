@@ -5,6 +5,7 @@ const leadController = require('../controllers/leadController');
 const leadCommentsRouter = require('./leadComments');
 const taskController = require('../controllers/taskController');
 const checklistController = require('../controllers/checklistController');
+const tagController = require('../controllers/tagController');
 const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
 
@@ -78,5 +79,15 @@ router.get('/:leadId/checklists', checklistController.getLeadChecklists);
 
 // Create a new checklist for a lead
 router.post('/:leadId/checklists', checklistController.createChecklist);
+
+// ================================
+// TAGS DO LEAD
+// ================================
+
+// Add tag to lead
+router.post('/:leadId/tags', tagController.addTagToLead);
+
+// Remove tag from lead
+router.delete('/:leadId/tags/:tagId', tagController.removeTagFromLead);
 
 module.exports = router;

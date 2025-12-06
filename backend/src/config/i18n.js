@@ -25,13 +25,12 @@ i18next
 
     // Language detection
     detection: {
-      // Order of detection
-      order: ['querystring', 'cookie', 'header'],
+      // Order of detection (removed 'header' to avoid conflicts)
+      order: ['querystring', 'cookie'],
 
       // Keys to use in query string or cookies
       lookupQuerystring: 'lng',
       lookupCookie: 'i18next',
-      lookupHeader: 'accept-language',
 
       // Cache user language on
       caches: ['cookie'],
@@ -42,8 +41,8 @@ i18next
       escapeValue: false, // Not needed for server-side
     },
 
-    // Debug mode
-    debug: process.env.NODE_ENV === 'development',
+    // Debug mode (disabled to reduce log noise)
+    debug: false,
   });
 
 module.exports = i18next;

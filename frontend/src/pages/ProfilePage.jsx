@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Mail, Building2, Camera, Check, Globe, Loader2 } from 'lucide-react';
+import { User, Mail, Building2, Camera, Check, Globe, Loader2, Sun, Moon, Monitor } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
 
 const languages = [
@@ -13,17 +14,20 @@ const languages = [
 const ProfilePage = () => {
   const { t, i18n } = useTranslation();
   const { user, setUser } = useAuth();
+  const { theme, changeTheme } = useTheme();
   const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
   const [formData, setFormData] = useState({
     name: '',
     company: '',
     profile_picture: null,
+    avatar_url: null,
     preferred_language: 'pt',
   });
 
@@ -41,6 +45,7 @@ const ProfilePage = () => {
           name: userData.name || '',
           company: userData.company || '',
           profile_picture: userData.profile_picture || null,
+          avatar_url: userData.avatar_url || null,
           preferred_language: userData.preferred_language || 'pt',
         });
       }
@@ -73,7 +78,8 @@ const ProfilePage = () => {
     reader.onload = (event) => {
       setFormData(prev => ({
         ...prev,
-        profile_picture: event.target.result
+        profile_picture: event.target.result,
+        avatar_url: null // Clear old URL when new image is selected
       }));
       setError(null);
     };
@@ -100,7 +106,23 @@ const ProfilePage = () => {
     setSaving(true);
 
     try {
-      const response = await api.updateUserProfile(formData);
+      // Prepare payload - only send profile_picture if it's a new base64 image
+      const payload = {
+        name: formData.name,
+        company: formData.company,
+        preferred_language: formData.preferred_language,
+      };
+
+      // Only include profile_picture if it's a new base64 image or explicitly set to null for removal
+      if (formData.profile_picture && formData.profile_picture.startsWith('data:image/')) {
+        payload.profile_picture = formData.profile_picture;
+      } else if (!formData.avatar_url && !formData.profile_picture) {
+        // Only send null if both are empty (user wants to remove photo)
+        payload.profile_picture = null;
+      }
+      // Otherwise, don't send profile_picture at all (keeps existing photo)
+
+      const response = await api.updateUserProfile(payload);
 
       if (response.success) {
         setSuccess(true);
@@ -112,8 +134,20 @@ const ProfilePage = () => {
             name: response.data.user.name,
             company: response.data.user.company,
             profile_picture: response.data.user.profile_picture,
+            avatar_url: response.data.user.avatar_url,
             preferred_language: response.data.user.preferred_language,
+            updated_at: response.data.user.updated_at,
           });
+
+          // Update form data with server response
+          setFormData(prev => ({
+            ...prev,
+            profile_picture: response.data.user.profile_picture,
+            avatar_url: response.data.user.avatar_url,
+          }));
+
+          // Update avatar timestamp to bust cache
+          setAvatarTimestamp(Date.now());
         }
 
         // Hide success message after 3 seconds
@@ -130,12 +164,13 @@ const ProfilePage = () => {
 
   const getUserInitials = () => {
     if (!formData.name) return 'US';
-    return formData.name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
+    const names = formData.name.trim().split(' ').filter(n => n.length > 0);
+    if (names.length === 1) {
+      // Se só tem um nome, pega as 2 primeiras letras
+      return names[0].substring(0, 2).toUpperCase();
+    }
+    // Pega primeira letra do primeiro nome + primeira letra do segundo nome
+    return (names[0][0] + names[1][0]).toUpperCase();
   };
 
   if (loading) {
@@ -147,32 +182,37 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
-          <p className="text-gray-600 mt-1">Gerencie suas informacoes pessoais</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meu Perfil</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Gerencie suas informacoes pessoais</p>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Profile Picture Section */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Foto de Perfil</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Foto de Perfil</h2>
 
             <div className="flex items-center gap-6">
               {/* Avatar */}
               <div className="relative">
-                {formData.profile_picture ? (
+                {(formData.profile_picture || formData.avatar_url) ? (
                   <img
-                    src={formData.profile_picture}
+                    src={
+                      formData.profile_picture ||
+                      (formData.avatar_url && formData.avatar_url.startsWith('http')
+                        ? `${formData.avatar_url}?v=${avatarTimestamp}`
+                        : formData.avatar_url)
+                    }
                     alt="Profile"
-                    className="w-24 h-24 rounded-full object-cover border-4 border-purple-100"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-purple-100 dark:border-purple-900/30"
                   />
                 ) : (
-                  <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-2xl font-bold border-4 border-purple-100">
+                  <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-2xl font-bold border-4 border-purple-100 dark:border-purple-900/30">
                     {getUserInitials()}
                   </div>
                 )}
@@ -181,7 +221,7 @@ const ProfilePage = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-colors shadow-lg"
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-colors shadow-lg dark:shadow-gray-900/50"
                 >
                   <Camera className="w-4 h-4" />
                 </button>
@@ -196,17 +236,17 @@ const ProfilePage = () => {
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   Clique no icone da camera para alterar sua foto
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   JPG, PNG ou GIF. Maximo 5MB.
                 </p>
-                {formData.profile_picture && (
+                {(formData.profile_picture || formData.avatar_url) && (
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, profile_picture: null }))}
-                    className="mt-2 text-sm text-red-600 hover:text-red-700"
+                    onClick={() => setFormData(prev => ({ ...prev, profile_picture: null, avatar_url: null }))}
+                    className="mt-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                   >
                     Remover foto
                   </button>
@@ -216,24 +256,24 @@ const ProfilePage = () => {
           </div>
 
           {/* Personal Information */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Informacoes Pessoais</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Informacoes Pessoais</h2>
 
             <div className="grid md:grid-cols-2 gap-6">
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Nome Completo
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                     <User className="w-5 h-5" />
                   </div>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:bg-white transition-all outline-none"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none placeholder-gray-400 dark:placeholder-gray-500"
                     placeholder="Seu nome"
                     required
                   />
@@ -242,37 +282,37 @@ const ProfilePage = () => {
 
               {/* Email (read-only) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                     <Mail className="w-5 h-5" />
                   </div>
                   <input
                     type="email"
                     value={user?.email || ''}
                     disabled
-                    className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 dark:text-gray-400 cursor-not-allowed"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">O email nao pode ser alterado</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">O email nao pode ser alterado</p>
               </div>
 
               {/* Company */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Empresa
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                     <Building2 className="w-5 h-5" />
                   </div>
                   <input
                     type="text"
                     value={formData.company}
                     onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:bg-white transition-all outline-none"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none placeholder-gray-400 dark:placeholder-gray-500"
                     placeholder="Nome da sua empresa"
                   />
                 </div>
@@ -281,10 +321,10 @@ const ProfilePage = () => {
           </div>
 
           {/* Language Preferences */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Globe className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Idioma</h2>
+              <Globe className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Idioma</h2>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -296,8 +336,8 @@ const ProfilePage = () => {
                   className={`
                     relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all
                     ${formData.preferred_language === lang.code
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }
                   `}
                 >
@@ -307,8 +347,8 @@ const ProfilePage = () => {
                     {lang.flag === 'ES' && '🇪🇸'}
                   </span>
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">{lang.nativeName}</p>
-                    <p className="text-sm text-gray-500">{lang.name}</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{lang.nativeName}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{lang.name}</p>
                   </div>
                   {formData.preferred_language === lang.code && (
                     <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
@@ -320,16 +360,98 @@ const ProfilePage = () => {
             </div>
           </div>
 
+          {/* Theme Preferences */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Monitor className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Tema</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Escolha o tema de sua preferência</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Light Theme */}
+              <button
+                type="button"
+                onClick={() => changeTheme('light')}
+                className={`
+                  relative p-4 rounded-xl border-2 transition-all
+                  ${theme === 'light'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                <Sun className="w-8 h-8 mx-auto mb-2 text-gray-700 dark:text-gray-300" />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Claro</p>
+                </div>
+                {theme === 'light' && (
+                  <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </button>
+
+              {/* Dark Theme */}
+              <button
+                type="button"
+                onClick={() => changeTheme('dark')}
+                className={`
+                  relative p-4 rounded-xl border-2 transition-all
+                  ${theme === 'dark'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                <Moon className="w-8 h-8 mx-auto mb-2 text-gray-700 dark:text-gray-300" />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Escuro</p>
+                </div>
+                {theme === 'dark' && (
+                  <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </button>
+
+              {/* System Theme */}
+              <button
+                type="button"
+                onClick={() => changeTheme('system')}
+                className={`
+                  relative p-4 rounded-xl border-2 transition-all
+                  ${theme === 'system'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                <Monitor className="w-8 h-8 mx-auto mb-2 text-gray-700 dark:text-gray-300" />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Sistema</p>
+                </div>
+                {theme === 'system' && (
+                  <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
               <Check className="w-5 h-5" />
               Perfil atualizado com sucesso!
             </div>

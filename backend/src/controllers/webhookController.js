@@ -1109,8 +1109,16 @@ async function handleMessageReceived(payload) {
 // ================================
 // ⚠️ IMPORTANTE: Este webhook pode demorar até 8 horas (polling do Unipile)
 async function handleNewRelation(payload) {
-  console.log('✅ Processando nova relação (convite aceito)');
-  console.log('⏰ Nota: Este evento pode ter delay de até 8h (polling do LinkedIn)');
+  console.log('\n🔗 ═══════════════════════════════════════════════════════════');
+  console.log('🔗 [NEW-RELATION] CONVITE ACEITO - INICIANDO PROCESSAMENTO');
+  console.log('🔗 ═══════════════════════════════════════════════════════════');
+  console.log('🔗 ⏰ Timestamp:', new Date().toISOString());
+  console.log('🔗 ⏰ Nota: Este evento pode ter delay de até 8h (polling do LinkedIn)');
+  console.log('🔗 📋 Payload:', JSON.stringify(payload, null, 2));
+
+  // Import services needed for invite system
+  const inviteQueueService = require('../services/inviteQueueService');
+  const notificationService = require('../services/notificationService');
 
   // ✅ CAMPOS CORRETOS SEGUNDO DOCUMENTAÇÃO UNIPILE
   const {
@@ -1122,19 +1130,29 @@ async function handleNewRelation(payload) {
     user_picture_url
   } = payload;
 
+  console.log('🔗 [1] Dados recebidos:');
+  console.log(`🔗     account_id: ${account_id}`);
+  console.log(`🔗     user_provider_id: ${user_provider_id}`);
+  console.log(`🔗     user_public_identifier: ${user_public_identifier}`);
+  console.log(`🔗     user_full_name: ${user_full_name}`);
+
   if (!account_id || !user_provider_id) {
+    console.log('🔗 ❌ ERRO: Campos obrigatórios ausentes');
     return { handled: false, reason: 'Missing required fields (account_id or user_provider_id)' };
   }
 
   try {
     // Buscar conta LinkedIn
+    console.log('🔗 [2] Buscando conta LinkedIn no banco...');
     const linkedinAccount = await db.findOne('linkedin_accounts', {
       unipile_account_id: account_id
     });
 
     if (!linkedinAccount) {
+      console.log('🔗 ❌ ERRO: Conta LinkedIn não encontrada');
       return { handled: false, reason: 'LinkedIn account not found' };
     }
+    console.log(`🔗 ✅ Conta encontrada: ${linkedinAccount.id}`);
 
     // ✅ IGNORAR CANAIS DESCONECTADOS
     if (linkedinAccount.status === 'disconnected') {
@@ -1148,17 +1166,22 @@ async function handleNewRelation(payload) {
     }
 
     // Buscar lead pelo provider_id ou linkedin_profile_id ou public_identifier
+    // ✅ AMPLIADO: Busca leads com status 'invite_sent' OU na fila de convites
+    console.log('🔗 [3] Buscando lead no banco...');
     const leadQuery = `
-      SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active
+      SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active, c.name as campaign_name,
+             c.account_id,
+             crc.sector_id, crc.round_robin_users, crc.ai_initiate_delay_min, crc.ai_initiate_delay_max
       FROM leads l
       JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
       WHERE c.linkedin_account_id = $1
       AND (
         l.provider_id = $2
         OR l.linkedin_profile_id = $3
         OR l.profile_url LIKE $4
       )
-      AND l.status = 'invite_sent'
+      AND l.status IN ('invite_sent', 'invite_queued')
       LIMIT 1
     `;
 
@@ -1170,19 +1193,143 @@ async function handleNewRelation(payload) {
     ]);
 
     if (leadResult.rows.length === 0) {
-      console.log('⚠️ Lead não encontrado para este convite');
+      console.log('🔗 ❌ Lead não encontrado para este convite');
+      console.log('🔗    Buscou por:');
+      console.log(`🔗    - provider_id = ${user_provider_id}`);
+      console.log(`🔗    - linkedin_profile_id = ${user_public_identifier}`);
+      console.log(`🔗    - profile_url LIKE %${user_public_identifier}%`);
       return { handled: false, reason: 'Lead not found' };
     }
 
     const lead = leadResult.rows[0];
+    console.log('🔗 ✅ Lead encontrado!');
+    console.log(`🔗     Lead ID: ${lead.id}`);
+    console.log(`🔗     Nome: ${lead.name}`);
+    console.log(`🔗     Campanha: ${lead.campaign_name} (${lead.campaign_id})`);
+    console.log(`🔗     Status atual: ${lead.status}`);
+    console.log(`🔗     Round Robin Config: sector_id=${lead.sector_id}, users=${lead.round_robin_users?.length || 0}`);
 
-    // Atualizar lead para "accepted"
-    await db.update('leads', {
+    // ✅ BUSCAR PERFIL COMPLETO VIA UNIPILE API
+    console.log('🔗 [4] Buscando perfil completo via Unipile API...');
+    const fullProfile = await fetchUserProfileFromUnipile(account_id, user_provider_id);
+    if (fullProfile) {
+      console.log('🔗 ✅ Perfil completo obtido');
+      console.log(`🔗     Nome: ${fullProfile.first_name} ${fullProfile.last_name}`);
+      console.log(`🔗     Headline: ${fullProfile.headline?.substring(0, 50)}...`);
+    } else {
+      console.log('🔗 ⚠️ Não foi possível obter perfil completo');
+    }
+
+    // ✅ ATUALIZAR LEAD COM DADOS COMPLETOS DO PERFIL
+    console.log('🔗 [5] Preparando dados para atualização do lead...');
+    const leadUpdateData = {
       status: LEAD_STATUS.ACCEPTED,
       accepted_at: new Date()
-    }, { id: lead.id });
+    };
 
-    // 🆕 ATUALIZAR LOG DE CONVITE PARA 'ACCEPTED'
+    if (fullProfile) {
+      console.log('✅ Perfil completo obtido, atualizando dados do lead...');
+
+      // Dados básicos
+      if (fullProfile.first_name) leadUpdateData.first_name = fullProfile.first_name;
+      if (fullProfile.last_name) leadUpdateData.last_name = fullProfile.last_name;
+      if (fullProfile.headline) leadUpdateData.headline = fullProfile.headline;
+      if (fullProfile.about || fullProfile.summary) leadUpdateData.about = fullProfile.about || fullProfile.summary;
+      if (fullProfile.location) leadUpdateData.location = fullProfile.location;
+      if (fullProfile.industry) leadUpdateData.industry = fullProfile.industry;
+
+      // Foto de perfil
+      if (fullProfile.picture_url || fullProfile.profile_picture_url) {
+        leadUpdateData.profile_picture = fullProfile.picture_url || fullProfile.profile_picture_url;
+      }
+
+      // Dados ricos (JSON)
+      if (fullProfile.experience && Array.isArray(fullProfile.experience)) {
+        leadUpdateData.experience = JSON.stringify(fullProfile.experience);
+      }
+      if (fullProfile.education && Array.isArray(fullProfile.education)) {
+        leadUpdateData.education = JSON.stringify(fullProfile.education);
+      }
+      if (fullProfile.skills && Array.isArray(fullProfile.skills)) {
+        leadUpdateData.skills = JSON.stringify(fullProfile.skills);
+      }
+      if (fullProfile.websites && Array.isArray(fullProfile.websites)) {
+        leadUpdateData.websites = JSON.stringify(fullProfile.websites);
+      }
+      if (fullProfile.languages && Array.isArray(fullProfile.languages)) {
+        leadUpdateData.languages = JSON.stringify(fullProfile.languages);
+      }
+
+      // Contatos (se disponíveis)
+      if (fullProfile.email) leadUpdateData.email = fullProfile.email;
+      if (fullProfile.phone) leadUpdateData.phone = fullProfile.phone;
+
+      // Conexões
+      if (fullProfile.connections_count) leadUpdateData.connections_count = fullProfile.connections_count;
+      if (fullProfile.follower_count) leadUpdateData.follower_count = fullProfile.follower_count;
+    }
+
+    // ✅ DISTRIBUIÇÃO VIA ROUND ROBIN
+    console.log('🔗 [6] Verificando distribuição Round Robin...');
+    let responsibleUserId = null;
+    if (lead.sector_id && lead.round_robin_users && lead.round_robin_users.length > 0) {
+      console.log('🔗     Round Robin ATIVO');
+      console.log(`🔗     Setor: ${lead.sector_id}`);
+      console.log(`🔗     Usuários na rotação: ${lead.round_robin_users.length}`);
+
+      // Buscar último usuário atribuído no setor
+      const sectorResult = await db.query(
+        `SELECT last_assigned_user_id FROM sectors WHERE id = $1`,
+        [lead.sector_id]
+      );
+
+      const lastAssignedUserId = sectorResult.rows[0]?.last_assigned_user_id;
+      let nextIndex = 0;
+
+      if (lastAssignedUserId) {
+        const lastIndex = lead.round_robin_users.indexOf(lastAssignedUserId);
+        if (lastIndex !== -1) {
+          nextIndex = (lastIndex + 1) % lead.round_robin_users.length;
+        }
+      }
+
+      responsibleUserId = lead.round_robin_users[nextIndex];
+
+      // Atualizar setor com último atribuído
+      await db.query(
+        `UPDATE sectors SET last_assigned_user_id = $1 WHERE id = $2`,
+        [responsibleUserId, lead.sector_id]
+      );
+
+      leadUpdateData.responsible_user_id = responsibleUserId;
+      leadUpdateData.round_robin_distributed_at = new Date();
+
+      // Buscar nome do usuário para log
+      const userResult = await db.query(
+        `SELECT name FROM users WHERE id = $1`,
+        [responsibleUserId]
+      );
+      console.log(`🔗 ✅ Lead distribuído para: ${userResult.rows[0]?.name || responsibleUserId}`);
+    } else {
+      console.log('🔗     Round Robin NÃO configurado para esta campanha');
+    }
+
+    // Atualizar lead
+    console.log('🔗 [7] Atualizando lead no banco...');
+    await db.update('leads', leadUpdateData, { id: lead.id });
+    console.log('🔗 ✅ Lead atualizado com status ACCEPTED');
+
+    // ✅ MARCAR CONVITE COMO ACEITO NA FILA
+    console.log('🔗 [8] Marcando convite como aceito na fila...');
+    try {
+      await inviteQueueService.markInviteAsAccepted(lead.id);
+      console.log('🔗 ✅ Convite marcado como aceito na fila');
+    } catch (queueError) {
+      console.warn('🔗 ⚠️ Erro ao atualizar fila de convites:', queueError.message);
+      console.log('🔗    (Pode não existir na fila - fluxo legado)');
+    }
+
+    // 🆕 ATUALIZAR LOG DE CONVITE PARA 'ACCEPTED' (legado)
     try {
       await db.query(
         `UPDATE linkedin_invite_logs
@@ -1196,28 +1343,50 @@ async function handleNewRelation(payload) {
       console.log('✅ Log de convite atualizado para "accepted"');
     } catch (logError) {
       console.warn('⚠️ Erro ao atualizar log de convite:', logError.message);
-      // Não falhar se der erro no log
     }
 
     // Atualizar contadores da campanha
+    console.log('🔗 [9] Atualizando contadores da campanha...');
     await db.query(
       `UPDATE campaigns
        SET leads_sent = GREATEST(0, leads_sent - 1),
-           leads_accepted = leads_accepted + 1
+           leads_accepted = leads_accepted + 1,
+           pending_invites_count = GREATEST(0, pending_invites_count - 1)
        WHERE id = $1`,
       [lead.campaign_id]
     );
+    console.log('🔗 ✅ Contadores atualizados');
+
+    // ✅ CRIAR NOTIFICAÇÃO NA PLATAFORMA
+    console.log('🔗 [10] Criando notificação na plataforma...');
+    const notifyUserId = responsibleUserId || lead.user_id;
+    try {
+      await notificationService.notifyInviteAccepted({
+        accountId: lead.account_id,
+        userId: notifyUserId,
+        leadName: lead.name || user_full_name || 'Lead',
+        leadId: lead.id,
+        campaignId: lead.campaign_id,
+        campaignName: lead.campaign_name
+      });
+      console.log(`🔗 ✅ Notificação criada para usuário ${notifyUserId}`);
+    } catch (notifError) {
+      console.warn('🔗 ⚠️ Erro ao criar notificação:', notifError.message);
+    }
 
     // ✅ IA ATIVA SOMENTE SE CAMPANHA TEM AUTOMAÇÃO ATIVA
+    console.log('🔗 [11] Verificando configuração de IA...');
     const shouldActivateAI = lead.automation_active === true;
 
-    console.log(`🤖 Automação da campanha: ${lead.automation_active ? 'ATIVA' : 'INATIVA'}`);
-    console.log(`🤖 IA será ${shouldActivateAI ? 'ATIVADA' : 'DESATIVADA'} para esta conversa`);
+    console.log(`🔗     Automação da campanha: ${lead.automation_active ? 'ATIVA' : 'INATIVA'}`);
+    console.log(`🔗     IA será ${shouldActivateAI ? 'ATIVADA' : 'DESATIVADA'} para esta conversa`);
 
     // Criar conversa automaticamente
     // ⚠️ NOTA: new_relation NÃO inclui chat_id, será criado quando primeira mensagem chegar
+    console.log('🔗 [12] Criando conversa...');
     const conversationData = {
       user_id: lead.user_id,
+      account_id: lead.account_id,
       linkedin_account_id: linkedinAccount.id,
       lead_id: lead.id,
       campaign_id: lead.campaign_id,
@@ -1230,35 +1399,59 @@ async function handleNewRelation(payload) {
     };
 
     const conversation = await db.insert('conversations', conversationData);
+    console.log(`🔗 ✅ Conversa criada: ${conversation.id}`);
 
-    console.log('✅ Lead atualizado para "accepted" e conversa criada');
-
-    // Agendar início de conversa automático com delay de 5 minutos
+    // ✅ AGENDAR INÍCIO DE CONVERSA COM DELAY RANDÔMICO DA CONFIG
+    console.log('🔗 [13] Verificando agendamento de IA...');
     let delayedJobScheduled = false;
     try {
       if (shouldActivateAI) {
-        console.log('📅 Agendando início de conversa automático para daqui 5 minutos...');
+        // Usar delay configurado na campanha
+        const delayMin = lead.ai_initiate_delay_min || 5;
+        const delayMax = lead.ai_initiate_delay_max || 60;
+        const randomDelay = Math.floor(Math.random() * (delayMax - delayMin + 1)) + delayMin;
 
-        await scheduleDelayedConversation(lead.id, conversation.id);
+        console.log(`🔗     Agendando início de conversa automático para daqui ${randomDelay} minutos`);
+        console.log(`🔗     (Config: min=${delayMin}min, max=${delayMax}min)`);
+
+        // scheduleDelayedConversation aceita delay opcional em ms
+        await scheduleDelayedConversation(lead.id, conversation.id, randomDelay * 60 * 1000);
         delayedJobScheduled = true;
 
-        console.log('✅ Job de delay agendado com sucesso');
+        console.log('🔗 ✅ Job de delay agendado com sucesso');
+      } else {
+        console.log('🔗     IA desativada - não agendando conversa automática');
       }
     } catch (automationError) {
-      console.error('❌ Erro ao agendar início de conversa:', automationError);
+      console.error('🔗 ❌ Erro ao agendar início de conversa:', automationError);
       // Não falhar o webhook se automação der erro
     }
+
+    console.log('\n🔗 ═══════════════════════════════════════════════════════════');
+    console.log('🔗 ✅ [NEW-RELATION] PROCESSAMENTO CONCLUÍDO COM SUCESSO!');
+    console.log(`🔗     Lead: ${lead.name}`);
+    console.log(`🔗     Status: ACCEPTED`);
+    console.log(`🔗     Conversa: ${conversation.id}`);
+    console.log(`🔗     Responsável: ${responsibleUserId || 'Não atribuído'}`);
+    console.log(`🔗     IA Agendada: ${delayedJobScheduled ? 'SIM' : 'NÃO'}`);
+    console.log(`🔗     Perfil Enriquecido: ${fullProfile ? 'SIM' : 'NÃO'}`);
+    console.log('🔗 ═══════════════════════════════════════════════════════════\n');
 
     return {
       handled: true,
       lead_id: lead.id,
       conversation_id: conversation.id,
       lead_status: LEAD_STATUS.ACCEPTED,
-      delayed_conversation_scheduled: delayedJobScheduled
+      responsible_user_id: responsibleUserId,
+      delayed_conversation_scheduled: delayedJobScheduled,
+      profile_enriched: !!fullProfile
     };
 
   } catch (error) {
-    console.error('❌ Erro ao processar convite aceito:', error);
+    console.error('\n🔗 ═══════════════════════════════════════════════════════════');
+    console.error('🔗 ❌ [NEW-RELATION] ERRO NO PROCESSAMENTO');
+    console.error('🔗     Erro:', error.message);
+    console.error('🔗 ═══════════════════════════════════════════════════════════\n');
     return { handled: false, reason: error.message };
   }
 }

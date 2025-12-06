@@ -29,7 +29,7 @@ const LinkedInPage = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-6">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
         <nav className="flex space-x-6" aria-label="Tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -41,8 +41,8 @@ const LinkedInPage = () => {
                 className={`
                   flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
                   ${isActive
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500'
                   }
                 `}
               >

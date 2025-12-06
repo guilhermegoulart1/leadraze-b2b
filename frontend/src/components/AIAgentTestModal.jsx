@@ -274,47 +274,47 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="px-6 py-4 border-b border-purple-800 bg-[#7229f7]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {agent.avatar_url ? (
                 <img
                   src={agent.avatar_url}
                   alt={agent.name}
-                  className="w-10 h-10 rounded-lg object-cover"
+                  className="w-10 h-10 rounded-lg object-cover border-2 border-white/30"
                 />
               ) : (
-                <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
               )}
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Testar Agente: {agent.name}</h2>
-                <p className="text-sm text-gray-600">Simule uma conversa e veja como o agente responde</p>
+                <h2 className="text-xl font-bold text-white">Testar Agente: {agent.name}</h2>
+                <p className="text-sm text-purple-100">Simule uma conversa e veja como o agente responde</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowLeadData(!showLeadData)}
-                className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
                 title="Ver/editar dados do lead de teste"
               >
                 <Info className="w-5 h-5" />
               </button>
               <button
                 onClick={handleReset}
-                className="p-2 hover:bg-white rounded-lg transition-colors text-gray-600"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
                 title="Reiniciar conversa"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-white" />
               </button>
             </div>
           </div>
@@ -322,34 +322,34 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
         {/* Lead Data Editor */}
         {showLeadData && (
-          <div className="px-6 py-4 bg-blue-50 border-b border-blue-200">
-            <p className="text-sm font-medium text-gray-700 mb-3">Dados do Lead de Teste:</p>
+          <div className="px-6 py-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-700">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Dados do Lead de Teste:</p>
             <div className="grid grid-cols-3 gap-3">
               <input
                 type="text"
                 value={testLeadData.name}
                 onChange={(e) => setTestLeadData({ ...testLeadData, name: e.target.value })}
                 placeholder="Nome"
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
               <input
                 type="text"
                 value={testLeadData.company}
                 onChange={(e) => setTestLeadData({ ...testLeadData, company: e.target.value })}
                 placeholder="Empresa"
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
               <input
                 type="text"
                 value={testLeadData.title}
                 onChange={(e) => setTestLeadData({ ...testLeadData, title: e.target.value })}
                 placeholder="Cargo"
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
             </div>
             <button
               onClick={handleReset}
-              className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
             >
               Aplicar mudanças e reiniciar conversa
             </button>
@@ -358,11 +358,11 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
         {/* Status Panel - Etapas e Escalação */}
         {conversationSteps.length > 0 && (
-          <div className="px-6 py-3 bg-gray-100 border-b border-gray-200">
+          <div className="px-6 py-3 bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               {/* Etapas da Conversa */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600">Etapa:</span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Etapa:</span>
                 <div className="flex items-center gap-1">
                   {conversationSteps.map((step, index) => {
                     const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
@@ -409,12 +409,12 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
               {/* Status de Escalação */}
               {escalationTriggered ? (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-300 rounded-lg">
-                  <UserX className="w-4 h-4 text-orange-600" />
-                  <span className="text-xs font-medium text-orange-700">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-lg">
+                  <UserX className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                  <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
                     Transferência ativada
                     {escalationReason && (
-                      <span className="ml-1 text-orange-600">
+                      <span className="ml-1 text-orange-600 dark:text-orange-400">
                         ({escalationReason.type === 'keyword' && `palavra: "${escalationReason.value}"`}
                         {escalationReason.type === 'sentiment' && `sentimento: ${escalationReason.value}`}
                         {escalationReason.type === 'step' && `etapa de escalação`}
@@ -424,9 +424,9 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
                   <Bot className="w-4 h-4 text-gray-400" />
-                  <span className="text-xs text-gray-500">Agente em operação</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Agente em operação</span>
                 </div>
               )}
             </div>
@@ -435,13 +435,13 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
         {/* Escalation Alert Banner */}
         {escalationTriggered && (
-          <div className="px-6 py-3 bg-orange-50 border-b border-orange-200 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+          <div className="px-6 py-3 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-700 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-orange-500 dark:text-orange-400 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-orange-800">
+              <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
                 Transferência para humano será realizada
               </p>
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-orange-600 dark:text-orange-400">
                 {escalationReason?.type === 'keyword' && `Palavra-chave detectada: "${escalationReason.value}"`}
                 {escalationReason?.type === 'sentiment' && `Sentimento detectado: ${
                   escalationReason.value === 'frustration' ? 'Frustração' :
@@ -459,7 +459,7 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         )}
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50 dark:bg-gray-900">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -487,10 +487,10 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                         ? 'bg-orange-500 text-white'
                         : 'bg-blue-600 text-white'
                       : message.error
-                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-700'
                       : message.shouldEscalate
-                      ? 'bg-orange-50 text-gray-900 border-2 border-orange-300'
-                      : 'bg-white text-gray-900 border border-gray-200'
+                      ? 'bg-orange-50 dark:bg-orange-900/30 text-gray-900 dark:text-gray-100 border-2 border-orange-300 dark:border-orange-600'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -499,14 +499,14 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                 {/* Indicadores de Escalação */}
                 <div className="flex flex-wrap gap-1">
                   {message.keywordTrigger && (
-                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-300">
+                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-700">
                       <AlertTriangle className="w-3 h-3" />
                       Palavra-chave: "{message.keywordTrigger}"
                     </div>
                   )}
 
                   {message.shouldEscalate && (
-                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-300">
+                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-700">
                       <UserX className="w-3 h-3" />
                       Transferir para humano
                     </div>
@@ -515,8 +515,8 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                   {message.sentiment && (
                     <div className={`text-xs px-2 py-1 rounded-full ${
                       escalationSentiments.includes(message.sentiment)
-                        ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                        : 'bg-gray-100 text-gray-600'
+                        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-700'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                     }`}>
                       {message.sentiment === 'frustration' && '😤 Frustração'}
                       {message.sentiment === 'confusion' && '😕 Confusão'}
@@ -539,7 +539,7 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                   )}
                 </div>
 
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
@@ -565,10 +565,10 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                   <Bot className="w-5 h-5 text-white" />
                 </div>
               )}
-              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <Loader className="w-4 h-4 text-purple-600 animate-spin" />
-                  <span className="text-sm text-gray-600">Pensando...</span>
+                  <Loader className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-spin" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Pensando...</span>
                 </div>
               </div>
             </div>
@@ -578,7 +578,7 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         </div>
 
         {/* Input Area */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-white">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="flex gap-3">
             <input
               type="text"
@@ -587,7 +587,7 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
               onKeyPress={handleKeyPress}
               placeholder="Digite sua mensagem como se fosse um lead..."
               disabled={isLoading}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <button
               onClick={handleSendMessage}
@@ -598,7 +598,7 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
               Enviar
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             Pressione Enter para enviar • Shift+Enter para quebra de linha
           </p>
         </div>

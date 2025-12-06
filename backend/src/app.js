@@ -270,6 +270,13 @@ try {
 }
 
 try {
+  app.use('/api/tags', require('./routes/tags'));
+  console.log('✅ Tags routes loaded');
+} catch (error) {
+  console.error('❌ Error loading tags routes:', error.message);
+}
+
+try {
   app.use('/api/conversations', require('./routes/conversations'));
   console.log('✅ Conversation routes loaded');
 } catch (error) {

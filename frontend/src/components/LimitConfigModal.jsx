@@ -152,7 +152,7 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6">
+        <div className="bg-[#7229f7] text-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">Configuração de Limites</h2>
@@ -160,7 +160,7 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             >
               <X className="w-6 h-6" />
             </button>

@@ -140,10 +140,10 @@ const CreditsIndicator = () => {
             className="fixed inset-0 z-10"
             onClick={() => setShowDropdown(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-20 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
             {/* Header */}
             <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-white border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900">Uso de Créditos</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Uso de Créditos</h3>
             </div>
 
             {/* AI Credits */}
@@ -151,23 +151,23 @@ const CreditsIndicator = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    (credits.ai?.percentUsed || 0) >= 90 ? 'bg-red-100' :
-                    (credits.ai?.percentUsed || 0) >= 70 ? 'bg-amber-100' : 'bg-green-100'
+                    (credits.ai?.percentUsed || 0) >= 90 ? 'bg-red-100 dark:bg-red-900/30' :
+                    (credits.ai?.percentUsed || 0) >= 70 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-green-100 dark:bg-green-900/30'
                   }`}>
                     <Zap className={`w-4 h-4 ${
-                      (credits.ai?.percentUsed || 0) >= 90 ? 'text-red-600' :
-                      (credits.ai?.percentUsed || 0) >= 70 ? 'text-amber-600' : 'text-green-600'
+                      (credits.ai?.percentUsed || 0) >= 90 ? 'text-red-600 dark:text-red-400' :
+                      (credits.ai?.percentUsed || 0) >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                     }`} />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">Créditos de IA</div>
-                    <div className="text-xs text-gray-500">Agentes automáticos</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Créditos de IA</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Agentes automáticos</div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className={`text-lg font-bold ${
-                    (credits.ai?.percentUsed || 0) >= 90 ? 'text-red-600' :
-                    (credits.ai?.percentUsed || 0) >= 70 ? 'text-amber-600' : 'text-green-600'
+                    (credits.ai?.percentUsed || 0) >= 90 ? 'text-red-600 dark:text-red-400' :
+                    (credits.ai?.percentUsed || 0) >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                   }`}>
                     {formatNumber(credits.ai?.total || 0)}
                   </div>
@@ -185,7 +185,7 @@ const CreditsIndicator = () => {
                   style={{ width: `${Math.max(0, Math.min(100 - (credits.ai?.percentUsed || 0), 100))}%` }}
                 />
               </div>
-              <div className="text-xs text-gray-500 mt-1 text-right">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
                 {Math.max(0, Math.min(100 - (credits.ai?.percentUsed || 0), 100))}% restante
               </div>
             </div>
@@ -195,23 +195,23 @@ const CreditsIndicator = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    (credits.gmaps?.percentUsed || 0) >= 90 ? 'bg-red-100' :
-                    (credits.gmaps?.percentUsed || 0) >= 70 ? 'bg-amber-100' : 'bg-green-100'
+                    (credits.gmaps?.percentUsed || 0) >= 90 ? 'bg-red-100 dark:bg-red-900/30' :
+                    (credits.gmaps?.percentUsed || 0) >= 70 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-green-100 dark:bg-green-900/30'
                   }`}>
                     <MapPin className={`w-4 h-4 ${
-                      (credits.gmaps?.percentUsed || 0) >= 90 ? 'text-red-600' :
-                      (credits.gmaps?.percentUsed || 0) >= 70 ? 'text-amber-600' : 'text-green-600'
+                      (credits.gmaps?.percentUsed || 0) >= 90 ? 'text-red-600 dark:text-red-400' :
+                      (credits.gmaps?.percentUsed || 0) >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                     }`} />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">Google Maps</div>
-                    <div className="text-xs text-gray-500">Busca de leads</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Google Maps</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Busca de leads</div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className={`text-lg font-bold ${
-                    (credits.gmaps?.percentUsed || 0) >= 90 ? 'text-red-600' :
-                    (credits.gmaps?.percentUsed || 0) >= 70 ? 'text-amber-600' : 'text-green-600'
+                    (credits.gmaps?.percentUsed || 0) >= 90 ? 'text-red-600 dark:text-red-400' :
+                    (credits.gmaps?.percentUsed || 0) >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
                   }`}>
                     {formatNumber(credits.gmaps?.total || 0)}
                   </div>
@@ -229,13 +229,13 @@ const CreditsIndicator = () => {
                   style={{ width: `${Math.max(0, Math.min(100 - (credits.gmaps?.percentUsed || 0), 100))}%` }}
                 />
               </div>
-              <div className="text-xs text-gray-500 mt-1 text-right">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
                 {Math.max(0, Math.min(100 - (credits.gmaps?.percentUsed || 0), 100))}% restante
               </div>
             </div>
 
             {/* Actions */}
-            <div className="p-3 bg-gray-50">
+            <div className="p-3 bg-gray-50 dark:bg-gray-900/50">
               <button
                 onClick={() => {
                   setShowDropdown(false);

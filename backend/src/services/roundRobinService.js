@@ -133,7 +133,7 @@ const autoAssignLead = async (leadId, sectorId, accountId) => {
  */
 const getSectorUsers = async (sectorId) => {
   const result = await db.query(
-    `SELECT su.*, u.name, u.email, u.avatar_url
+    `SELECT u.id, u.name, u.email, u.avatar_url
      FROM sector_users su
      JOIN users u ON u.id = su.user_id
      WHERE su.sector_id = $1 AND su.is_active = true

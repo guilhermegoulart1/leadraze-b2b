@@ -242,15 +242,17 @@ async function saveProfiles(profiles, job) {
         continue;
       }
 
-      // Verificar se já existe
+      // Verificar se já existe em QUALQUER campanha da conta (deduplicação global)
       const existsCheck = await db.query(
-        `SELECT id FROM leads 
-         WHERE linkedin_profile_id = $1 AND campaign_id = $2`,
-        [profileId, job.campaign_id]
+        `SELECT id, campaign_id FROM leads
+         WHERE account_id = $1
+         AND (linkedin_profile_id = $2 OR profile_url = $3)
+         LIMIT 1`,
+        [job.account_id, profileId, profile.profile_url || profile.url]
       );
 
       if (existsCheck.rows.length > 0) {
-        console.log(`⏭️ Perfil ${profileId} já existe, pulando`);
+        console.log(`⏭️ Perfil ${profileId} já existe no CRM (campanha: ${existsCheck.rows[0].campaign_id}), pulando`);
         continue;
       }
 

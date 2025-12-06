@@ -2,10 +2,25 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, CheckCircle, Users, Sparkles, MessageSquare, Play,
-  ArrowLeft, Loader, AlertCircle, Trash2
+  ArrowLeft, Loader, AlertCircle, Trash2, Settings, Clock,
+  Save, Globe, Calendar, Bot
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+
+// Timezones comuns
+const TIMEZONES = [
+  { value: 'America/Sao_Paulo', label: 'São Paulo (GMT-3)' },
+  { value: 'America/New_York', label: 'New York (GMT-5)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (GMT-8)' },
+  { value: 'Europe/London', label: 'London (GMT+0)' },
+  { value: 'Europe/Paris', label: 'Paris (GMT+1)' },
+  { value: 'Europe/Berlin', label: 'Berlin (GMT+1)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (GMT+9)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (GMT+8)' },
+  { value: 'Australia/Sydney', label: 'Sydney (GMT+11)' },
+  { value: 'UTC', label: 'UTC (GMT+0)' },
+];
 
 const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const { t } = useTranslation('modals');
@@ -14,6 +29,26 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isActivating, setIsActivating] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState(new Set());
+
+  // Configuration states
+  const [sectors, setSectors] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [sectorUsers, setSectorUsers] = useState([]);
+  const [config, setConfig] = useState({
+    sector_id: '',
+    round_robin_users: [],
+    invite_expiry_days: 7,
+    max_pending_invites: 100,
+    withdraw_expired_invites: true,
+    send_start_hour: 9,
+    send_end_hour: 18,
+    timezone: 'America/Sao_Paulo',
+    ai_initiate_delay_min: 5,
+    ai_initiate_delay_max: 60,
+  });
+  const [isConfigSaved, setIsConfigSaved] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
 
   useEffect(() => {
     if (isOpen && campaign) {
@@ -36,6 +71,42 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
         setAiAgent(agentResponse.data);
       }
 
+      // Load sectors for configuration
+      try {
+        const sectorsResponse = await api.getSectors();
+        setSectors(sectorsResponse.data || []);
+      } catch (e) {
+        console.warn('Could not load sectors:', e);
+      }
+
+      // Load existing config if any
+      try {
+        const configResponse = await api.getReviewConfig(campaign.id);
+        if (configResponse.data) {
+          const existingConfig = configResponse.data;
+          setConfig({
+            sector_id: existingConfig.sector_id || '',
+            round_robin_users: existingConfig.round_robin_users || [],
+            invite_expiry_days: existingConfig.invite_expiry_days || 7,
+            max_pending_invites: existingConfig.max_pending_invites || 100,
+            withdraw_expired_invites: existingConfig.withdraw_expired_invites !== false,
+            send_start_hour: existingConfig.send_start_hour || 9,
+            send_end_hour: existingConfig.send_end_hour || 18,
+            timezone: existingConfig.timezone || 'America/Sao_Paulo',
+            ai_initiate_delay_min: existingConfig.ai_initiate_delay_min || 5,
+            ai_initiate_delay_max: existingConfig.ai_initiate_delay_max || 60,
+          });
+          setIsConfigSaved(existingConfig.is_reviewed === true);
+
+          // Load sector users if sector is selected
+          if (existingConfig.sector_id) {
+            loadSectorUsers(existingConfig.sector_id);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load review config:', e);
+      }
+
       // Start with no leads selected
       setSelectedLeads(new Set());
 
@@ -43,6 +114,59 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadSectorUsers = async (sectorId) => {
+    if (!sectorId) {
+      setSectorUsers([]);
+      return;
+    }
+    try {
+      const response = await api.getSectorUsers(sectorId);
+      setSectorUsers(response.data || []);
+    } catch (e) {
+      console.warn('Could not load sector users:', e);
+      setSectorUsers([]);
+    }
+  };
+
+  const handleSectorChange = (sectorId) => {
+    setConfig(prev => ({
+      ...prev,
+      sector_id: sectorId,
+      round_robin_users: [], // Reset users when sector changes
+    }));
+    setIsConfigSaved(false);
+    loadSectorUsers(sectorId);
+  };
+
+  const handleUserToggle = (userId) => {
+    setConfig(prev => {
+      const current = prev.round_robin_users || [];
+      const newUsers = current.includes(userId)
+        ? current.filter(id => id !== userId)
+        : [...current, userId];
+      return { ...prev, round_robin_users: newUsers };
+    });
+    setIsConfigSaved(false);
+  };
+
+  const handleConfigChange = (field, value) => {
+    setConfig(prev => ({ ...prev, [field]: value }));
+    setIsConfigSaved(false);
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      setIsSavingConfig(true);
+      await api.saveReviewConfig(campaign.id, config);
+      setIsConfigSaved(true);
+    } catch (error) {
+      console.error('Error saving config:', error);
+      alert(t('campaignReview.saveConfigError', 'Erro ao salvar configuração'));
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -105,24 +229,24 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="px-6 py-4 border-b border-purple-800 bg-[#7229f7]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">{campaign?.name}</h2>
-                <p className="text-sm text-gray-600">{t('campaignReview.subtitle')}</p>
+                <h2 className="text-xl font-bold text-white">{campaign?.name}</h2>
+                <p className="text-sm text-purple-100">{t('campaignReview.subtitle')}</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
@@ -132,8 +256,8 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
-                <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">{t('campaignReview.loadingData')}</p>
+                <Loader className="w-12 h-12 text-blue-600 dark:text-blue-400 animate-spin mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">{t('campaignReview.loadingData')}</p>
               </div>
             </div>
           ) : (
@@ -142,30 +266,30 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Stats Overview - Apenas 3 cards */}
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <Users className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-900">{t('campaignReview.leadsCollected')}</span>
+                      <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-medium text-blue-900 dark:text-blue-300">{t('campaignReview.leadsCollected')}</span>
                     </div>
-                    <p className="text-2xl font-bold text-blue-600">{leads.length}</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{leads.length}</p>
                   </div>
 
-                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-100 dark:border-purple-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-900">{t('campaignReview.initialGoal')}</span>
+                      <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm font-medium text-purple-900 dark:text-purple-300">{t('campaignReview.initialGoal')}</span>
                     </div>
-                    <p className="text-2xl font-bold text-purple-600">{campaign?.target_profiles_count || 0}</p>
+                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{campaign?.target_profiles_count || 0}</p>
                   </div>
 
-                  <div className={`rounded-lg p-4 border ${selectedLeads.size > 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className={`rounded-lg p-4 border ${selectedLeads.size > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-700'}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Trash2 className={`w-5 h-5 ${selectedLeads.size > 0 ? 'text-red-600' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-medium ${selectedLeads.size > 0 ? 'text-red-900' : 'text-gray-500'}`}>
+                      <Trash2 className={`w-5 h-5 ${selectedLeads.size > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-medium ${selectedLeads.size > 0 ? 'text-red-900' : 'text-gray-500 dark:text-gray-400'}`}>
                         {t('campaignReview.toDelete')}
                       </span>
                     </div>
-                    <p className={`text-2xl font-bold ${selectedLeads.size > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                    <p className={`text-2xl font-bold ${selectedLeads.size > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>
                       {selectedLeads.size}
                     </p>
                   </div>
@@ -173,30 +297,30 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
               {/* AI Agent Section */}
               {aiAgent && (
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-6 border border-purple-200">
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Sparkles className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{aiAgent.name}</h3>
-                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{aiAgent.name}</h3>
+                        <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 rounded text-xs font-medium">
                           {t('campaignReview.aiAgent')}
                         </span>
                       </div>
                       {aiAgent.description && (
-                        <p className="text-sm text-gray-600 mb-4">{aiAgent.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{aiAgent.description}</p>
                       )}
 
                       {/* Message Template */}
                       {aiAgent.system_prompt && (
-                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
                           <div className="flex items-center gap-2 mb-2">
-                            <MessageSquare className="w-4 h-4 text-purple-600" />
-                            <span className="text-sm font-medium text-gray-700">{t('campaignReview.messageToSend')}</span>
+                            <MessageSquare className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('campaignReview.messageToSend')}</span>
                           </div>
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          <p className="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
                             {aiAgent.system_prompt}
                           </p>
                         </div>
@@ -205,27 +329,272 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                   </div>
                 </div>
               )}
+
+              {/* Configuration Section */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <button
+                  onClick={() => setShowConfig(!showConfig)}
+                  className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {t('campaignReview.configuration', 'Configuração da Campanha')}
+                    </span>
+                    {isConfigSaved && (
+                      <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 rounded text-xs font-medium">
+                        {t('campaignReview.saved', 'Salvo')}
+                      </span>
+                    )}
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${showConfig ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showConfig && (
+                  <div className="p-4 space-y-6">
+                    {/* Round Robin Section */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        {t('campaignReview.roundRobin', 'Distribuição Round Robin')}
+                      </h4>
+
+                      {/* Sector Select */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {t('campaignReview.sector', 'Setor')}
+                        </label>
+                        <select
+                          value={config.sector_id}
+                          onChange={(e) => handleSectorChange(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="">{t('campaignReview.selectSector', 'Selecione um setor')}</option>
+                          {sectors.map(sector => (
+                            <option key={sector.id} value={sector.id}>{sector.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Users Multi-select */}
+                      {config.sector_id && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {t('campaignReview.usersForRotation', 'Usuários para Rotação')}
+                          </label>
+                          {sectorUsers.length === 0 ? (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                              {t('campaignReview.noUsersInSector', 'Nenhum usuário neste setor')}
+                            </p>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                              {sectorUsers.map(user => (
+                                <label key={user.id} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-white dark:bg-gray-800">
+                                  <input
+                                    type="checkbox"
+                                    checked={config.round_robin_users.includes(user.id)}
+                                    onChange={() => handleUserToggle(user.id)}
+                                    className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                                  />
+                                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{user.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Invite Settings */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        {t('campaignReview.inviteSettings', 'Configurações de Convite')}
+                      </h4>
+
+                      {/* Expiry Days Slider */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {t('campaignReview.expiryDays', 'Dias de espera para expirar')}: <span className="font-bold text-blue-600 dark:text-blue-400">{config.invite_expiry_days}</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="14"
+                          value={config.invite_expiry_days}
+                          onChange={(e) => handleConfigChange('invite_expiry_days', parseInt(e.target.value))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <span>1 dia</span>
+                          <span>14 dias</span>
+                        </div>
+                      </div>
+
+                      {/* Withdraw Expired */}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={config.withdraw_expired_invites}
+                          onChange={(e) => handleConfigChange('withdraw_expired_invites', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {t('campaignReview.withdrawExpired', 'Retirar convites expirados automaticamente')}
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Business Hours */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-orange-600" />
+                        {t('campaignReview.businessHours', 'Horário de Envio')}
+                      </h4>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        {/* Start Hour */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {t('campaignReview.startHour', 'Início')}
+                          </label>
+                          <select
+                            value={config.send_start_hour}
+                            onChange={(e) => handleConfigChange('send_start_hour', parseInt(e.target.value))}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* End Hour */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {t('campaignReview.endHour', 'Fim')}
+                          </label>
+                          <select
+                            value={config.send_end_hour}
+                            onChange={(e) => handleConfigChange('send_end_hour', parseInt(e.target.value))}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Timezone */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <Globe className="w-3 h-3 inline mr-1" />
+                            {t('campaignReview.timezone', 'Fuso')}
+                          </label>
+                          <select
+                            value={config.timezone}
+                            onChange={(e) => handleConfigChange('timezone', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          >
+                            {TIMEZONES.map(tz => (
+                              <option key={tz.value} value={tz.value}>{tz.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AI Delay Settings */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <Bot className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        {t('campaignReview.aiDelay', 'Delay do Agente de IA')}
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {t('campaignReview.minDelay', 'Mínimo (min)')}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={config.ai_initiate_delay_min}
+                            onChange={(e) => handleConfigChange('ai_initiate_delay_min', parseInt(e.target.value) || 5)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {t('campaignReview.maxDelay', 'Máximo (min)')}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={config.ai_initiate_delay_max}
+                            onChange={(e) => handleConfigChange('ai_initiate_delay_max', parseInt(e.target.value) || 60)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {t('campaignReview.aiDelayHelp', 'Tempo aleatório entre aceite do convite e primeira mensagem do agente')}
+                      </p>
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="pt-2">
+                      <button
+                        onClick={handleSaveConfig}
+                        disabled={isSavingConfig}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                      >
+                        {isSavingConfig ? (
+                          <>
+                            <Loader className="w-4 h-4 animate-spin" />
+                            {t('campaignReview.saving', 'Salvando...')}
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            {t('campaignReview.saveConfig', 'Salvar Configuração')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               </div>
 
               {/* Coluna Direita - Lista de Leads */}
-              <div className="w-96 border-l border-gray-200 flex flex-col bg-white min-h-0">
+              <div className="w-96 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800 min-h-0">
                 {/* Header da lista */}
-                <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900">{t('campaignReview.leadsCollectedTitle')}</h3>
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('campaignReview.leadsCollectedTitle')}</h3>
+                      <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 rounded text-xs font-medium">
                         {leads.length}
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mb-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                     {t('campaignReview.selectLeadsToDelete')}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={toggleAll}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
                     >
                       {selectedLeads.size === leads.length ? t('campaignReview.unselectAll') : t('campaignReview.selectAll')} {t('campaignReview.all')}
                     </button>
@@ -234,7 +603,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                         <span className="text-gray-300">•</span>
                         <button
                           onClick={handleDeleteSelected}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                          className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 font-medium flex items-center gap-1"
                         >
                           <Trash2 className="w-3 h-3" />
                           {t('campaignReview.delete')} {selectedLeads.size}
@@ -249,15 +618,15 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                   {leads.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <AlertCircle className="w-12 h-12 text-gray-400 mb-3" />
-                      <p className="text-gray-600">{t('campaignReview.noLeadsCollected')}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t('campaignReview.noLeadsCollected')}</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
                       {leads.map((lead) => (
                         <div
                           key={lead.id}
-                          className={`px-4 py-2 hover:bg-gray-50 transition-colors cursor-pointer ${
-                            selectedLeads.has(lead.id) ? 'bg-blue-50' : ''
+                          className={`px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900/50 transition-colors cursor-pointer ${
+                            selectedLeads.has(lead.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                           }`}
                           onClick={() => toggleLead(lead.id)}
                         >
@@ -266,7 +635,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                               type="checkbox"
                               checked={selectedLeads.has(lead.id)}
                               onChange={() => toggleLead(lead.id)}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                             />
 
                             {lead.profile_picture ? (
@@ -285,14 +654,14 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <h4 className="font-medium text-gray-900 truncate text-sm">{lead.name}</h4>
+                                <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm">{lead.name}</h4>
                                 {lead.profile_url && (
                                   <a
                                     href={lead.profile_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="flex-shrink-0 p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                    className="flex-shrink-0 p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 rounded transition-colors"
                                     title={t('campaignReview.viewLinkedInProfile')}
                                   >
                                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -301,7 +670,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                                   </a>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-600 mt-0.5 truncate">
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
                                 {[lead.title, lead.company].filter(Boolean).join(' • ')}
                               </div>
                             </div>
@@ -317,32 +686,38 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
           <div className="flex items-center justify-between">
             <button
               onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 transition-colors font-medium"
             >
               <ArrowLeft className="w-4 h-4" />
               {t('campaignReview.back')}
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 {selectedLeads.size > 0 ? (
                   <>
-                    <span className="font-medium text-red-600">{selectedLeads.size}</span> {t('campaignReview.leadsSelectedForDeletion')}
+                    <span className="font-medium text-red-600 dark:text-red-400">{selectedLeads.size}</span> {t('campaignReview.leadsSelectedForDeletion')}
                   </>
+                ) : !isConfigSaved ? (
+                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {t('campaignReview.configRequired', 'Configure e salve antes de iniciar')}
+                  </span>
                 ) : (
                   <>
-                    <span className="font-medium text-blue-600">{leads.length}</span> {t('campaignReview.leadsWillBeActivated')}
+                    <span className="font-medium text-blue-600 dark:text-blue-400">{leads.length}</span> {t('campaignReview.leadsWillBeActivated')}
                   </>
                 )}
               </div>
               <button
                 onClick={handleActivate}
-                disabled={isActivating || isLoading || leads.length === 0}
+                disabled={isActivating || isLoading || leads.length === 0 || !isConfigSaved}
                 className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+                title={!isConfigSaved ? t('campaignReview.saveConfigFirst', 'Salve a configuração primeiro') : ''}
               >
                 {isActivating ? (
                   <>

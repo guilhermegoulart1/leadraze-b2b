@@ -4,7 +4,7 @@ import React, { useState } from 'react';
  * ContactAvatar - Shows contact photo with fallback to initials
  * Handles image loading errors gracefully
  */
-const ContactAvatar = ({ photoUrl, name, size = 'md' }) => {
+const ContactAvatar = ({ photoUrl, name, size = 'md', updatedAt }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
@@ -22,10 +22,12 @@ const ContactAvatar = ({ photoUrl, name, size = 'md' }) => {
   const getInitials = (name) => {
     if (!name) return '?';
     const parts = name.split(' ').filter(Boolean);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1) {
+      // Se só tem um nome, pega as 2 primeiras letras
+      return parts[0].substring(0, 2).toUpperCase();
     }
-    return name.charAt(0).toUpperCase();
+    // Pega primeira letra do primeiro nome + primeira letra do segundo nome
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   };
 
   const initials = getInitials(name);
@@ -38,7 +40,11 @@ const ContactAvatar = ({ photoUrl, name, size = 'md' }) => {
       {/* Image */}
       {photoUrl && !imageError && (
         <img
-          src={photoUrl}
+          src={
+            photoUrl.startsWith('http')
+              ? `${photoUrl}?v=${updatedAt || Date.now()}`
+              : photoUrl
+          }
           alt={name || 'Contact'}
           className={`${sizeClass} rounded-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
           onError={() => {
