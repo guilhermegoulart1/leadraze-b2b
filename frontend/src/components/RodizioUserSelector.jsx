@@ -107,9 +107,9 @@ const RodizioUserSelector = ({
   // No sector selected
   if (!sectorId) {
     return (
-      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
         <Users className="w-6 h-6 text-gray-400 mx-auto mb-1.5" />
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
           Selecione um setor primeiro para configurar o rodízio
         </p>
       </div>
@@ -119,9 +119,9 @@ const RodizioUserSelector = ({
   // Loading state
   if (loading) {
     return (
-      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
-        <Loader2 className="w-5 h-5 text-purple-600 animate-spin mx-auto mb-1.5" />
-        <p className="text-xs text-gray-600">Carregando usuários do setor...</p>
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+        <Loader2 className="w-5 h-5 text-purple-600 dark:text-purple-400 animate-spin mx-auto mb-1.5" />
+        <p className="text-xs text-gray-600 dark:text-gray-400">Carregando usuários do setor...</p>
       </div>
     );
   }
@@ -129,9 +129,9 @@ const RodizioUserSelector = ({
   // Error state
   if (loadError) {
     return (
-      <div className="p-4 bg-red-50 rounded-lg border border-red-200 text-center">
-        <AlertCircle className="w-6 h-6 text-red-500 mx-auto mb-1.5" />
-        <p className="text-xs text-red-600">{loadError}</p>
+      <div className="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700 text-center">
+        <AlertCircle className="w-6 h-6 text-red-500 dark:text-red-400 mx-auto mb-1.5" />
+        <p className="text-xs text-red-600 dark:text-red-300">{loadError}</p>
       </div>
     );
   }
@@ -139,12 +139,12 @@ const RodizioUserSelector = ({
   // No users in sector
   if (sectorUsers.length === 0) {
     return (
-      <div className="p-4 bg-amber-50 rounded-lg border border-amber-200 text-center">
-        <Users className="w-6 h-6 text-amber-500 mx-auto mb-1.5" />
-        <p className="text-xs text-amber-700">
+      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700 text-center">
+        <Users className="w-6 h-6 text-amber-500 dark:text-amber-400 mx-auto mb-1.5" />
+        <p className="text-xs text-amber-700 dark:text-amber-300">
           Nenhum usuário encontrado neste setor
         </p>
-        <p className="text-[10px] text-amber-600 mt-0.5">
+        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
           Adicione usuários ao setor para configurar o rodízio
         </p>
       </div>
@@ -155,7 +155,7 @@ const RodizioUserSelector = ({
     <div className="space-y-3">
       {/* Header with actions */}
       <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-600">
+        <div className="text-xs text-gray-600 dark:text-gray-400">
           <span className="font-medium">{selectedUsers.length}</span> de{' '}
           <span className="font-medium">{sectorUsers.length}</span> selecionados
         </div>
@@ -164,7 +164,7 @@ const RodizioUserSelector = ({
             type="button"
             onClick={selectAll}
             disabled={disabled || selectedUsers.length === sectorUsers.length}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 rounded hover:bg-purple-100 dark:hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UserPlus className="w-3 h-3" />
             Todos
@@ -173,7 +173,7 @@ const RodizioUserSelector = ({
             type="button"
             onClick={clearAll}
             disabled={disabled || selectedUsers.length === 0}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UserMinus className="w-3 h-3" />
             Limpar
@@ -184,9 +184,9 @@ const RodizioUserSelector = ({
       {/* Two columns: Available users | Selected users (rotation order) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Available users */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200">
-            <h4 className="text-xs font-medium text-gray-700">Usuários do Setor</h4>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300">Usuários do Setor</h4>
           </div>
           <div className="max-h-48 overflow-y-auto">
             {sectorUsers.map(user => {
@@ -198,11 +198,11 @@ const RodizioUserSelector = ({
                   onClick={() => toggleUser(user.id)}
                   disabled={disabled}
                   className={`
-                    w-full flex items-center gap-2 px-3 py-2 text-left border-b border-gray-100 last:border-0
+                    w-full flex items-center gap-2 px-3 py-2 text-left border-b border-gray-100 dark:border-gray-700 last:border-0
                     transition-colors
                     ${isSelected
-                      ? 'bg-purple-50 text-purple-900'
-                      : 'bg-white hover:bg-gray-50 text-gray-900'
+                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200'
+                      : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'
                     }
                     ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
                   `}
@@ -211,14 +211,14 @@ const RodizioUserSelector = ({
                     w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0
                     ${isSelected
                       ? 'border-purple-600 bg-purple-600'
-                      : 'border-gray-300 bg-white'
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
                     }
                   `}>
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium truncate">{user.name}</div>
-                    <div className="text-[10px] text-gray-500 truncate">{user.email}</div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{user.email}</div>
                   </div>
                 </button>
               );
@@ -227,29 +227,29 @@ const RodizioUserSelector = ({
         </div>
 
         {/* Selected users (rotation order) */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-3 py-1.5 bg-purple-50 border-b border-purple-200">
-            <h4 className="text-xs font-medium text-purple-700">Ordem do Rodízio</h4>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 border-b border-purple-200 dark:border-purple-700">
+            <h4 className="text-xs font-medium text-purple-700 dark:text-purple-300">Ordem do Rodízio</h4>
           </div>
           <div className="max-h-48 overflow-y-auto">
             {selectedUsers.length === 0 ? (
-              <div className="p-3 text-center text-xs text-gray-500">
+              <div className="p-3 text-center text-xs text-gray-500 dark:text-gray-400">
                 Selecione usuários para o rodízio
               </div>
             ) : (
               selectedUsers.map((user, index) => (
                 <div
                   key={user.id}
-                  className="flex items-center gap-1.5 px-2 py-1.5 border-b border-gray-100 last:border-0 bg-white"
+                  className="flex items-center gap-1.5 px-2 py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0 bg-white dark:bg-gray-800"
                 >
                   {/* Order number */}
-                  <div className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                  <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                     {index + 1}
                   </div>
 
                   {/* User info */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-900 truncate">
+                    <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
                       {user.name}
                     </div>
                   </div>
@@ -260,7 +260,7 @@ const RodizioUserSelector = ({
                       type="button"
                       onClick={() => moveUp(index)}
                       disabled={disabled || index === 0}
-                      className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Mover para cima"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
@@ -269,7 +269,7 @@ const RodizioUserSelector = ({
                       type="button"
                       onClick={() => moveDown(index)}
                       disabled={disabled || index === selectedUsers.length - 1}
-                      className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Mover para baixo"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
@@ -278,7 +278,7 @@ const RodizioUserSelector = ({
                       type="button"
                       onClick={() => toggleUser(user.id)}
                       disabled={disabled}
-                      className="p-0.5 text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-0.5 text-red-400 hover:text-red-600 dark:hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Remover"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -292,13 +292,13 @@ const RodizioUserSelector = ({
       </div>
 
       {/* Helper text */}
-      <p className="text-[10px] text-gray-500">
+      <p className="text-[10px] text-gray-500 dark:text-gray-400">
         Leads serão distribuídos na ordem definida. Após o último, volta ao primeiro.
       </p>
 
       {/* Error message */}
       {error && (
-        <p className="text-xs text-red-600 flex items-center gap-1">
+        <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           {error}
         </p>

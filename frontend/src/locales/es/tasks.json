@@ -1,0 +1,100 @@
+{
+  "loading": "Cargando tareas...",
+  "error": "Error al cargar tareas",
+  "confirmDelete": "¿Está seguro que desea eliminar esta tarea?",
+  "confirmBulkDelete": "¿Eliminar {{count}} tarea(s)?",
+  "taskTypes": {
+    "call": "Llamada",
+    "meeting": "Reunión",
+    "email": "Correo",
+    "follow_up": "Seguimiento",
+    "proposal": "Propuesta",
+    "other": "Otro"
+  },
+  "priority": {
+    "low": "Baja",
+    "medium": "Media",
+    "high": "Alta",
+    "urgent": "Urgente"
+  },
+  "columns": {
+    "overdue": "Atrasadas",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "this_week": "Esta Semana",
+    "next_week": "Próxima Semana",
+    "later": "Futuras",
+    "no_date": "Sin Fecha"
+  },
+  "status": {
+    "pending": "Pendientes",
+    "in_progress": "En Progreso",
+    "completed": "Completadas"
+  },
+  "filters": {
+    "all": "Todas",
+    "open": "Abierto",
+    "completed": "Completado",
+    "allUsers": "Todos"
+  },
+  "periods": {
+    "days7": "7 días",
+    "days15": "15 días",
+    "days30": "30 días",
+    "days90": "90 días",
+    "all": "Todas"
+  },
+  "groupBy": {
+    "date": "Fecha",
+    "status": "Estado"
+  },
+  "viewMode": {
+    "list": "Lista",
+    "board": "Kanban"
+  },
+  "buttons": {
+    "newTask": "Nueva Tarea",
+    "complete": "Completar",
+    "delete": "Eliminar",
+    "completeAll": "Completar Todos",
+    "deleteAll": "Eliminar Todos",
+    "cancel": "Cancelar",
+    "refresh": "Actualizar"
+  },
+  "bulk": {
+    "selected": "{{count}} tarea seleccionada",
+    "selectedPlural": "{{count}} tareas seleccionadas"
+  },
+  "dragDrop": {
+    "dropHere": "Suelte aquí",
+    "noTasks": "Sin tareas"
+  },
+  "listHeaders": {
+    "name": "Nombre",
+    "lead": "Lead",
+    "dueDate": "Previsto",
+    "completed": "Conclusión",
+    "priority": "Prioridad",
+    "assignee": "Responsable"
+  },
+  "modal": {
+    "taskNamePlaceholder": "Nombre de la tarea",
+    "saving": "Guardando...",
+    "type": "Tipo",
+    "assignee": "Responsable",
+    "status": "Estado",
+    "priority": "Prioridad",
+    "dueDate": "Plazo",
+    "none": "Ninguno",
+    "descriptionPlaceholder": "Agregue una descripción detallada de la tarea...",
+    "createTask": "Crear Tarea",
+    "noTitle": "Sin título",
+    "titleRequired": "El título es obligatorio",
+    "createError": "Error al crear tarea",
+    "comments": "Comentarios",
+    "noComments": "Sin comentarios aún",
+    "addCommentPlaceholder": "Agregar comentario...",
+    "yesterday": "Ayer",
+    "daysAgo": "hace {{count}} días"
+  }
+}

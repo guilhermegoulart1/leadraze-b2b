@@ -248,7 +248,7 @@ const MyConnectionsPage = () => {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 selectedConnections.length > 0
                   ? 'bg-purple-600 text-white hover:bg-purple-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               }`}
             >
               <PlayCircle className="w-4 h-4" />

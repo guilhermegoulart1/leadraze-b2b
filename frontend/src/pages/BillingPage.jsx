@@ -90,12 +90,12 @@ const BillingPage = () => {
 
   const getStatusBadge = (status) => {
     const badges = {
-      active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Ativo' },
-      trialing: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Teste' },
-      past_due: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pagamento Pendente' },
-      canceled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelado' },
-      unpaid: { bg: 'bg-red-100', text: 'text-red-700', label: 'Não Pago' },
-      trial_expired: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Trial Expirado' }
+      active: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Ativo' },
+      trialing: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', label: 'Teste' },
+      past_due: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', label: 'Pagamento Pendente' },
+      canceled: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Cancelado' },
+      unpaid: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Não Pago' },
+      trial_expired: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-300', label: 'Trial Expirado' }
     };
     const badge = badges[status] || badges.active;
     return (
@@ -107,29 +107,29 @@ const BillingPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">{t('title')}</h1>
-          <p className="text-gray-600 mt-1">{t('subtitle')}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('title')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{t('subtitle')}</p>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         {/* Current Plan */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{t('currentPlan.title')}</h2>
-              <p className="text-gray-500 text-sm">{t('currentPlan.subtitle')}</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('currentPlan.title')}</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{t('currentPlan.subtitle')}</p>
             </div>
             <div className="flex items-center gap-3">
               {subscription && getStatusBadge(subscription.status)}
@@ -146,61 +146,61 @@ const BillingPage = () => {
           {subscription ? (
             <div className="grid md:grid-cols-3 gap-6">
               {/* Plan info */}
-              <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">{t('currentPlan.plan')}</p>
-                <p className="text-xl font-bold text-gray-900">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t('currentPlan.plan')}</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {subscription.status === 'trialing' ? 'Trial' : 'Premium'}
                 </p>
                 {subscription.status === 'trialing' && subscription.daysUntilEnd && (
-                  <p className="text-sm text-blue-600 mt-2">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
                     {t('currentPlan.trialEnds', { days: subscription.daysUntilEnd })}
                   </p>
                 )}
                 {subscription.status === 'canceled' && subscription.daysUntilEnd && (
-                  <p className="text-sm text-red-600 mt-2">
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-2">
                     {t('currentPlan.accessUntil', { date: new Date(subscription.currentPeriodEnd).toLocaleDateString() })}
                   </p>
                 )}
               </div>
 
               {/* Price */}
-              <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">{t('currentPlan.monthlyPrice')}</p>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t('currentPlan.monthlyPrice')}</p>
                 {subscription.status === 'trialing' ? (
-                  <p className="text-xl font-bold text-green-600">
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
                     Grátis
-                    <span className="text-sm font-normal text-gray-500 ml-1">(trial)</span>
+                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">(trial)</span>
                   </p>
                 ) : (
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                     $ {((subscription.monthlyAmount || 4500) / 100).toFixed(0)}
-                    <span className="text-sm font-normal text-gray-500">/{t('currentPlan.month')}</span>
+                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400">/{t('currentPlan.month')}</span>
                   </p>
                 )}
                 {subscription.extraChannels > 0 && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     +{subscription.extraChannels} {subscription.extraChannels === 1 ? 'canal extra' : 'canais extras'}
                   </p>
                 )}
                 {subscription.extraUsers > 0 && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     +{subscription.extraUsers} {subscription.extraUsers === 1 ? 'usuário extra' : 'usuários extras'}
                   </p>
                 )}
               </div>
 
               {/* Next billing */}
-              <div className="bg-gray-50 rounded-xl p-5">
-                <p className="text-sm text-gray-500 mb-1">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
                   {subscription.status === 'trialing' ? 'Fim do Trial' : t('currentPlan.nextBillingDate')}
                 </p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {subscription.currentPeriodEnd
                     ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
                     : '-'}
                 </p>
                 {subscription.status === 'trialing' && (
-                  <p className="text-sm text-blue-600 mt-2">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
                     Após o trial: $45/mês
                   </p>
                 )}
@@ -208,7 +208,7 @@ const BillingPage = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">{t('currentPlan.noSubscription')}</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">{t('currentPlan.noSubscription')}</p>
               <button
                 onClick={() => navigate('/pricing')}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700"
@@ -220,7 +220,7 @@ const BillingPage = () => {
 
           {/* Actions */}
           {subscription && (
-            <div className="flex items-center gap-4 mt-6 pt-6 border-t">
+            <div className="flex items-center gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setShowSubscribeModal(true)}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm"
@@ -248,18 +248,18 @@ const BillingPage = () => {
         </div>
 
         {/* Usage Stats */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('usage.title')}</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">{t('usage.title')}</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {/* Channels */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">{t('usage.linkedinChannels')}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('usage.linkedinChannels')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {usage?.usage?.channels || 0} / {usage?.limits?.maxChannels || 0}
                 </p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
                   className="bg-blue-600 h-2 rounded-full transition-all"
                   style={{
@@ -274,7 +274,7 @@ const BillingPage = () => {
                 <button
                   onClick={() => handleAction(addExtraChannel, 'addChannel')}
                   disabled={actionLoading === 'addChannel'}
-                  className="text-blue-600 text-sm mt-2 hover:underline"
+                  className="text-blue-600 dark:text-blue-400 text-sm mt-2 hover:underline"
                 >
                   {actionLoading === 'addChannel' ? t('usage.adding') : t('usage.addChannel')}
                 </button>
@@ -284,12 +284,12 @@ const BillingPage = () => {
             {/* Users */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">{t('usage.teamMembers')}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('usage.teamMembers')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {usage?.usage?.users || 0} / {usage?.limits?.maxUsers || 0}
                 </p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
                   className="bg-purple-600 h-2 rounded-full transition-all"
                   style={{
@@ -304,7 +304,7 @@ const BillingPage = () => {
                 <button
                   onClick={() => handleAction(addExtraUser, 'addUser')}
                   disabled={actionLoading === 'addUser'}
-                  className="text-purple-600 text-sm mt-2 hover:underline"
+                  className="text-purple-600 dark:text-purple-400 text-sm mt-2 hover:underline"
                 >
                   {actionLoading === 'addUser' ? t('usage.adding') : t('usage.addUser')}
                 </button>
@@ -314,12 +314,12 @@ const BillingPage = () => {
             {/* AI Agents */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">{t('usage.aiAgents')}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('usage.aiAgents')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {usage?.usage?.aiAgents || 0} / {t('usage.unlimited')}
                 </p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
                   className="bg-green-600 h-2 rounded-full transition-all"
                   style={{ width: '30%' }}
@@ -330,11 +330,11 @@ const BillingPage = () => {
         </div>
 
         {/* AI Credits */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{t('aiCredits.title', 'AI Agent Credits')}</h2>
-              <p className="text-gray-500 text-sm">{t('aiCredits.subtitle', 'Credits for automated AI agent messages')}</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('aiCredits.title', 'AI Agent Credits')}</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{t('aiCredits.subtitle', 'Credits for automated AI agent messages')}</p>
             </div>
             <button
               onClick={() => setShowAiCreditsModal(true)}
@@ -346,14 +346,14 @@ const BillingPage = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Available AI Credits */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-purple-700">{t('aiCredits.available', 'Available')}</p>
-                  <p className="text-3xl font-bold text-purple-800">
+                  <p className="text-sm text-purple-700 dark:text-purple-300">{t('aiCredits.available', 'Available')}</p>
+                  <p className="text-3xl font-bold text-purple-800 dark:text-purple-200">
                     {aiCredits?.total?.toLocaleString() || 0}
                   </p>
                 </div>
@@ -363,20 +363,20 @@ const BillingPage = () => {
             {/* AI Credit breakdown */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">{t('aiCredits.monthlyCredits', 'Monthly credits')}</span>
-                <span className="font-medium text-gray-900">
+                <span className="text-gray-600 dark:text-gray-400">{t('aiCredits.monthlyCredits', 'Monthly credits')}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
                   {aiCredits?.monthly?.remaining?.toLocaleString() || 0} {t('purchaseModal.credits', 'credits')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">{t('aiCredits.purchasedCredits', 'Purchased credits')}</span>
-                <span className="font-medium text-purple-600 flex items-center gap-1">
+                <span className="text-gray-600 dark:text-gray-400">{t('aiCredits.purchasedCredits', 'Purchased credits')}</span>
+                <span className="font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1">
                   {aiCredits?.permanent?.toLocaleString() || 0} {t('purchaseModal.credits', 'credits')}
-                  <Infinity className="w-3 h-3 text-purple-500" />
+                  <Infinity className="w-3 h-3 text-purple-500 dark:text-purple-400" />
                 </span>
               </div>
               {aiCredits?.monthly?.expiresAt && (
-                <div className="flex items-center justify-between text-amber-600">
+                <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
                   <span>{t('aiCredits.monthlyExpire', 'Monthly expire')}</span>
                   <span className="font-medium">
                     {new Date(aiCredits.monthly.expiresAt).toLocaleDateString()}
@@ -388,11 +388,11 @@ const BillingPage = () => {
         </div>
 
         {/* Google Maps Credits */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{t('credits.title')}</h2>
-              <p className="text-gray-500 text-sm">{t('credits.subtitle')}</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('credits.title')}</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{t('credits.subtitle')}</p>
             </div>
             <button
               onClick={() => setShowCreditsModal(true)}
@@ -404,7 +404,7 @@ const BillingPage = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Available Credits */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6">
+            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -412,8 +412,8 @@ const BillingPage = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-green-700">{t('credits.available')}</p>
-                  <p className="text-3xl font-bold text-green-800">
+                  <p className="text-sm text-green-700 dark:text-green-300">{t('credits.available')}</p>
+                  <p className="text-3xl font-bold text-green-800 dark:text-green-200">
                     {credits?.total?.toLocaleString() || 0}
                   </p>
                 </div>
@@ -423,20 +423,20 @@ const BillingPage = () => {
             {/* Credit breakdown */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">{t('credits.monthlyCredits')}</span>
-                <span className="font-medium text-gray-900">
+                <span className="text-gray-600 dark:text-gray-400">{t('credits.monthlyCredits')}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
                   {credits?.expiring?.toLocaleString() || credits?.monthly?.toLocaleString() || 0} {t('purchaseModal.credits')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">{t('credits.purchasedCredits')}</span>
-                <span className="font-medium text-green-600">
+                <span className="text-gray-600 dark:text-gray-400">{t('credits.purchasedCredits')}</span>
+                <span className="font-medium text-green-600 dark:text-green-400">
                   {credits?.permanent?.toLocaleString() || credits?.purchased?.toLocaleString() || 0} {t('purchaseModal.credits')}
-                  <span className="text-xs text-green-500 ml-1">{t('credits.neverExpire')}</span>
+                  <span className="text-xs text-green-500 dark:text-green-400 ml-1">{t('credits.neverExpire')}</span>
                 </span>
               </div>
               {credits?.nextExpiry && (
-                <div className="flex items-center justify-between text-amber-600">
+                <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
                   <span>{t('credits.monthlyExpire')}</span>
                   <span className="font-medium">
                     {t('credits.expireOn', { amount: credits.expiringAmount || credits.expiring, date: new Date(credits.nextExpiry).toLocaleDateString() })}
@@ -448,13 +448,13 @@ const BillingPage = () => {
         </div>
 
         {/* Invoices */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('invoices.title')}</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">{t('invoices.title')}</h2>
           {invoices.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-sm text-gray-500 border-b">
+                  <tr className="text-left text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                     <th className="pb-3 font-medium">{t('invoices.date')}</th>
                     <th className="pb-3 font-medium">{t('invoices.description')}</th>
                     <th className="pb-3 font-medium">{t('invoices.amount')}</th>
@@ -462,24 +462,24 @@ const BillingPage = () => {
                     <th className="pb-3 font-medium"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {invoices.map((invoice) => (
                     <tr key={invoice.id} className="text-sm">
-                      <td className="py-4 text-gray-900">
+                      <td className="py-4 text-gray-900 dark:text-gray-100">
                         {invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : '-'}
                       </td>
-                      <td className="py-4 text-gray-600">{invoice.description || t('invoices.subscription')}</td>
-                      <td className="py-4 font-medium text-gray-900">
+                      <td className="py-4 text-gray-600 dark:text-gray-400">{invoice.description || t('invoices.subscription')}</td>
+                      <td className="py-4 font-medium text-gray-900 dark:text-gray-100">
                         {invoice.amountFormatted || `R$ ${invoice.amount}`}
                       </td>
                       <td className="py-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             invoice.status === 'paid'
-                              ? 'bg-green-100 text-green-700'
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                               : invoice.status === 'open'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-gray-100 text-gray-700'
+                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                           }`}
                         >
                           {t(`invoices.${invoice.status}`)}
@@ -491,7 +491,7 @@ const BillingPage = () => {
                             href={invoice.invoiceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
                           >
                             {t('invoices.view')}
                           </a>
@@ -503,7 +503,7 @@ const BillingPage = () => {
               </table>
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">{t('invoices.noInvoices')}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t('invoices.noInvoices')}</p>
           )}
         </div>
       </div>
@@ -511,12 +511,12 @@ const BillingPage = () => {
       {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">{t('cancelModal.title')}</h3>
-            <p className="text-gray-600 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">{t('cancelModal.title')}</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               {t('cancelModal.message')}
             </p>
-            <ul className="text-gray-600 text-sm space-y-2 mb-6">
+            <ul className="text-gray-600 dark:text-gray-400 text-sm space-y-2 mb-6">
               <li className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -536,15 +536,15 @@ const BillingPage = () => {
                 {t('cancelModal.item3')}
               </li>
             </ul>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-amber-800">
+            <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-4 mb-6">
+              <p className="text-sm text-amber-800 dark:text-amber-300">
                 <strong>Note:</strong> {t('cancelModal.note')}
               </p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 {t('cancelModal.keepSubscription')}
               </button>
@@ -566,12 +566,12 @@ const BillingPage = () => {
       {/* Buy Credits Modal */}
       {showCreditsModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">{t('purchaseModal.title')}</h3>
-            <p className="text-gray-600 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">{t('purchaseModal.title')}</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
               {t('purchaseModal.subtitle')}
             </p>
-            <p className="text-green-600 text-sm font-medium mb-6">
+            <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-6">
               {t('purchaseModal.neverExpireNote')}
             </p>
 
@@ -589,20 +589,20 @@ const BillingPage = () => {
                     setShowCreditsModal(false);
                   }}
                   disabled={actionLoading === 'purchase'}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-colors"
+                  className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"
                 >
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">{pkg.amount.toLocaleString()} {t('purchaseModal.credits')}</p>
-                    <p className="text-sm text-gray-500">{t('purchaseModal.perThousand', { price: Math.round(pkg.price / pkg.amount * 1000) })}</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{pkg.amount.toLocaleString()} {t('purchaseModal.credits')}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('purchaseModal.perThousand', { price: Math.round(pkg.price / pkg.amount * 1000) })}</p>
                   </div>
-                  <p className="text-xl font-bold text-gray-900">R$ {pkg.price}</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-gray-100">R$ {pkg.price}</p>
                 </button>
               ))}
             </div>
 
             <button
               onClick={() => setShowCreditsModal(false)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               {t('purchaseModal.cancel')}
             </button>
@@ -613,12 +613,12 @@ const BillingPage = () => {
       {/* Buy AI Credits Modal */}
       {showAiCreditsModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">{t('aiCredits.purchaseModal.title', 'Buy AI Credits')}</h3>
-            <p className="text-gray-600 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">{t('aiCredits.purchaseModal.title', 'Buy AI Credits')}</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
               {t('aiCredits.purchaseModal.subtitle', 'Each AI agent message uses 1 credit')}
             </p>
-            <p className="text-purple-600 text-sm font-medium mb-6 flex items-center gap-1">
+            <p className="text-purple-600 dark:text-purple-400 text-sm font-medium mb-6 flex items-center gap-1">
               <Infinity className="w-4 h-4" />
               {t('aiCredits.purchaseModal.neverExpireNote', 'Purchased credits never expire')}
             </p>
@@ -629,20 +629,20 @@ const BillingPage = () => {
                   key={pkg.key}
                   onClick={() => handlePurchaseAiCredits(pkg.key)}
                   disabled={actionLoading === 'purchaseAi'}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
                 >
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">{pkg.credits.toLocaleString()} {t('purchaseModal.credits', 'credits')}</p>
-                    <p className="text-sm text-gray-500">${(pkg.price / pkg.credits * 1000 / 100).toFixed(2)}/1k credits</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{pkg.credits.toLocaleString()} {t('purchaseModal.credits', 'credits')}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">${(pkg.price / pkg.credits * 1000 / 100).toFixed(2)}/1k credits</p>
                   </div>
-                  <p className="text-xl font-bold text-purple-600">{pkg.priceFormatted}</p>
+                  <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{pkg.priceFormatted}</p>
                 </button>
               ))}
             </div>
 
             <button
               onClick={() => setShowAiCreditsModal(false)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               {t('purchaseModal.cancel', 'Cancel')}
             </button>

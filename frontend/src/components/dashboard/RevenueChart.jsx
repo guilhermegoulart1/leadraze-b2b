@@ -1,13 +1,17 @@
 import React from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { DollarSign } from 'lucide-react';
 
 const RevenueChart = ({ data = [], total = 0 }) => {
+  const { t, i18n } = useTranslation('dashboard');
+
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
+    const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
+    const currency = i18n.language === 'en' ? 'USD' : i18n.language === 'es' ? 'EUR' : 'BRL';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'BRL',
+      currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value);
@@ -16,7 +20,8 @@ const RevenueChart = ({ data = [], total = 0 }) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
+    return date.toLocaleDateString(locale, { day: '2-digit', month: 'short' });
   };
 
   const chartData = data.map(item => ({
@@ -33,8 +38,8 @@ const RevenueChart = ({ data = [], total = 0 }) => {
             {formatCurrency(payload[0].value)}
           </p>
           {payload[0].payload.count > 0 && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
-              {payload[0].payload.count} {payload[0].payload.count === 1 ? 'deal' : 'deals'}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {payload[0].payload.count} {payload[0].payload.count === 1 ? t('revenueChart.deal') : t('revenueChart.deals')}
             </p>
           )}
         </div>
@@ -47,8 +52,8 @@ const RevenueChart = ({ data = [], total = 0 }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Faturamento por Dia</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Deals fechados no período</p>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('revenueChart.title')}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('revenueChart.subtitle')}</p>
         </div>
         <div className="p-2 rounded-lg bg-emerald-50">
           <DollarSign className="w-5 h-5 text-emerald-600" />
@@ -83,14 +88,14 @@ const RevenueChart = ({ data = [], total = 0 }) => {
           </ResponsiveContainer>
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
-            Sem dados no período
+            {t('noData')}
           </div>
         )}
       </div>
 
       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total no período</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{t('revenueChart.totalInPeriod')}</span>
           <span className="text-lg font-bold text-emerald-600">{formatCurrency(total)}</span>
         </div>
       </div>

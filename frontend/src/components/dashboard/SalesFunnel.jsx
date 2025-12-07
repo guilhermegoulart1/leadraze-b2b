@@ -1,24 +1,29 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { TrendingDown } from 'lucide-react';
 
 const SalesFunnel = ({ pipeline = {} }) => {
+  const { t, i18n } = useTranslation('dashboard');
+
   const formatCurrency = (value) => {
     if (!value) return '';
-    return new Intl.NumberFormat('pt-BR', {
+    const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
+    const currency = i18n.language === 'en' ? 'USD' : i18n.language === 'es' ? 'EUR' : 'BRL';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'BRL',
+      currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value);
   };
 
   const stages = [
-    { key: 'leads', label: 'Prospecção', color: '#9ca3af' },
-    { key: 'invite_sent', label: 'Convites Enviados', color: '#a78bfa' },
-    { key: 'accepted', label: 'Aceitos', color: '#8b5cf6' },
-    { key: 'qualifying', label: 'Qualificando', color: '#7c3aed' },
-    { key: 'scheduled', label: 'Agendados', color: '#6d28d9' },
-    { key: 'won', label: 'Ganhos', color: '#10b981' }
+    { key: 'leads', labelKey: 'funnel.prospecting', color: '#9ca3af' },
+    { key: 'invite_sent', labelKey: 'funnel.inviteSent', color: '#a78bfa' },
+    { key: 'accepted', labelKey: 'funnel.accepted', color: '#8b5cf6' },
+    { key: 'qualifying', labelKey: 'funnel.qualifying', color: '#7c3aed' },
+    { key: 'scheduled', labelKey: 'funnel.scheduled', color: '#6d28d9' },
+    { key: 'won', labelKey: 'funnel.won', color: '#10b981' }
   ];
 
   const stageData = stages.map((stage, index) => {
@@ -29,6 +34,7 @@ const SalesFunnel = ({ pipeline = {} }) => {
 
     return {
       ...stage,
+      label: t(stage.labelKey),
       count: data.count,
       value: data.value,
       conversionRate: index > 0 ? conversionRate : null
@@ -55,8 +61,8 @@ const SalesFunnel = ({ pipeline = {} }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Funil de Vendas</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Pipeline completo com conversões</p>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('funnel.title')}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('funnel.subtitle')}</p>
         </div>
         <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/30">
           <TrendingDown className="w-5 h-5 text-violet-600 dark:text-violet-400" />
@@ -91,7 +97,7 @@ const SalesFunnel = ({ pipeline = {} }) => {
                 {/* Count and value */}
                 <div className="w-16 text-right shrink-0">
                   <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                    {stage.count.toLocaleString('pt-BR')}
+                    {stage.count.toLocaleString(i18n.language)}
                   </span>
                   {isWon && stage.value > 0 && (
                     <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block">
@@ -108,8 +114,8 @@ const SalesFunnel = ({ pipeline = {} }) => {
       {/* Lost leads indicator */}
       {pipeline.lost?.count > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-sm">
-          <span className="text-gray-500 dark:text-gray-400">Leads perdidos</span>
-          <span className="text-red-500 dark:text-red-400 font-medium">{pipeline.lost.count.toLocaleString('pt-BR')}</span>
+          <span className="text-gray-500 dark:text-gray-400">{t('funnel.lost')}</span>
+          <span className="text-red-500 dark:text-red-400 font-medium">{pipeline.lost.count.toLocaleString(i18n.language)}</span>
         </div>
       )}
     </div>

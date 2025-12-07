@@ -7,11 +7,14 @@
     "notifications": "Notifications",
     "billing": "Billing",
     "integrations": "Integrations",
-    "privacy": "Privacy"
+    "privacy": "Privacy",
+    "affiliate": "Affiliate Program"
   },
   "profile": {
     "title": "Profile Information",
     "fullName": "Full Name",
+    "name": "Name",
+    "namePlaceholder": "Your name",
     "email": "Email",
     "phone": "Phone",
     "phonePlaceholder": "+1 (555) 999-9999",
@@ -20,9 +23,18 @@
     "company": "Company",
     "companyPlaceholder": "Your company name",
     "changePhoto": "Change Photo",
+    "removePhoto": "Remove",
     "photoRequirements": "JPG, PNG or GIF • Max 2MB",
     "cancel": "Cancel",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "save": "Save",
+    "saving": "Saving...",
+    "savedSuccess": "Saved successfully!",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeAuto": "Auto"
   },
   "security": {
     "title": "Security",
@@ -66,5 +78,52 @@
   },
   "placeholder": {
     "title": "Content in development..."
+  },
+  "affiliate": {
+    "title": "Affiliate Program",
+    "subtitle": "Refer friends and earn 10% recurring commission",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "copied": "Copied!",
+    "copy": "Copy",
+    "clicks": "Clicks",
+    "conversions": "Conversions",
+    "monthlyEarnings": "Monthly Earnings",
+    "totalEarnings": "Total Earnings",
+    "status": {
+      "active": "Active",
+      "pending": "Pending",
+      "canceled": "Canceled"
+    },
+    "tabs": {
+      "referrals": "Referrals",
+      "earnings": "Earnings History"
+    },
+    "table": {
+      "email": "Email",
+      "status": "Status",
+      "date": "Date",
+      "earnings": "Earnings",
+      "referral": "Referral",
+      "amountPaid": "Amount Paid",
+      "commission": "Commission"
+    },
+    "empty": {
+      "referrals": {
+        "title": "No referrals yet",
+        "description": "Share your link and start earning commissions!"
+      },
+      "earnings": {
+        "title": "No earnings yet",
+        "description": "Your earnings will appear here when your referrals pay."
+      }
+    },
+    "howItWorks": {
+      "title": "How does it work?",
+      "step1": "Share your affiliate link with friends and colleagues",
+      "step2": "When someone subscribes using your link, you earn 10% commission",
+      "step3": "The commission is recurring as long as the referral stays active",
+      "step4": "Earnings accumulate and you'll be able to request payment soon"
+    }
   }
 }

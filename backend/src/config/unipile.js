@@ -519,6 +519,70 @@ const unipileClient = {
       return response.data;
     },
 
+    // Get attendee full data (name, phone, profile picture URL, etc.)
+    // https://developer.unipile.com/reference/chatattendeescontroller_getattendeebyid
+    getAttendeeById: async (attendeeId) => {
+      if (!attendeeId) {
+        throw new Error('attendeeId is required');
+      }
+
+      const url = `https://${dsn}/api/v1/chat_attendees/${attendeeId}`;
+
+      try {
+        const response = await axios.get(url, {
+          headers: {
+            'X-API-KEY': unipileToken,
+            'Accept': 'application/json'
+          },
+          timeout: 15000
+        });
+
+        return response.data;
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.warn(`⚠️ Attendee ${attendeeId} não encontrado`);
+          return null;
+        }
+        throw error;
+      }
+    },
+
+    // Get attendee profile picture
+    // https://developer.unipile.com/reference/chatattendeescontroller_getattendeeprofilepicture
+    getAttendeePicture: async (attendeeId) => {
+      if (!attendeeId) {
+        throw new Error('attendeeId is required');
+      }
+
+      const url = `https://${dsn}/api/v1/chat_attendees/${attendeeId}/picture`;
+
+      const response = await axios.get(url, {
+        headers: {
+          'X-API-KEY': unipileToken,
+          'Accept': '*/*'
+        },
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        // Don't throw on 404 - attendee might not have a profile picture
+        validateStatus: (status) => status < 500
+      });
+
+      if (response.status === 404 || response.status === 204) {
+        return null; // No profile picture available
+      }
+
+      if (response.status !== 200) {
+        console.warn(`⚠️ Unipile attendee picture returned status ${response.status}`);
+        return null;
+      }
+
+      return {
+        data: Buffer.from(response.data),
+        contentType: response.headers['content-type'] || 'image/jpeg',
+        contentLength: response.headers['content-length']
+      };
+    },
+
     // Extract own profile from chats (for WhatsApp, Instagram, etc.)
     // The Unipile API doesn't have a direct /users/me for non-LinkedIn accounts
     // So we need to get the "own attendee" from chat data

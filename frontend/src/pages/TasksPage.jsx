@@ -1,46 +1,49 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plus, RefreshCw, Calendar, CheckCircle2, Clock, AlertCircle,
   ChevronDown, ChevronRight, Filter, User, MoreHorizontal, Check, X, Link as LinkIcon,
   Loader, LayoutGrid, List, Phone, Video, Mail, MessageSquare, FileCheck
 } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../services/api';
 import TaskModal from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
 
 const TASK_TYPES = {
-  call: { icon: Phone, label: 'Ligacao' },
-  meeting: { icon: Video, label: 'Reuniao' },
-  email: { icon: Mail, label: 'Email' },
-  follow_up: { icon: MessageSquare, label: 'Follow-up' },
-  proposal: { icon: FileCheck, label: 'Proposta' },
-  other: { icon: MoreHorizontal, label: 'Outro' }
+  call: { icon: Phone, labelKey: 'taskTypes.call' },
+  meeting: { icon: Video, labelKey: 'taskTypes.meeting' },
+  email: { icon: Mail, labelKey: 'taskTypes.email' },
+  follow_up: { icon: MessageSquare, labelKey: 'taskTypes.follow_up' },
+  proposal: { icon: FileCheck, labelKey: 'taskTypes.proposal' },
+  other: { icon: MoreHorizontal, labelKey: 'taskTypes.other' }
 };
 
 const PRIORITY_CONFIG = {
-  low: { label: 'Baixa', color: 'text-gray-500 dark:text-gray-400', dotColor: 'bg-gray-400' },
-  medium: { label: 'Media', color: 'text-yellow-600 dark:text-yellow-500', dotColor: 'bg-yellow-500' },
-  high: { label: 'Alta', color: 'text-orange-600 dark:text-orange-500', dotColor: 'bg-orange-500' },
-  urgent: { label: 'Urgente', color: 'text-red-600 dark:text-red-500', dotColor: 'bg-red-500' }
+  low: { labelKey: 'priority.low', color: 'text-gray-500 dark:text-gray-400', dotColor: 'bg-gray-400' },
+  medium: { labelKey: 'priority.medium', color: 'text-yellow-600 dark:text-yellow-500', dotColor: 'bg-yellow-500' },
+  high: { labelKey: 'priority.high', color: 'text-orange-600 dark:text-orange-500', dotColor: 'bg-orange-500' },
+  urgent: { labelKey: 'priority.urgent', color: 'text-red-600 dark:text-red-500', dotColor: 'bg-red-500' }
 };
 
 const COLUMN_CONFIG = {
-  overdue: { title: 'Atrasadas', color: 'text-red-500', dotColor: 'bg-red-500' },
-  today: { title: 'Hoje', color: 'text-blue-500', dotColor: 'bg-blue-500' },
-  tomorrow: { title: 'Amanha', color: 'text-purple-500', dotColor: 'bg-purple-500' },
-  this_week: { title: 'Esta Semana', color: 'text-indigo-500', dotColor: 'bg-indigo-500' },
-  next_week: { title: 'Proxima Semana', color: 'text-cyan-500', dotColor: 'bg-cyan-500' },
-  later: { title: 'Futuras', color: 'text-gray-500 dark:text-gray-400', dotColor: 'bg-gray-400' },
-  no_date: { title: 'Sem Data', color: 'text-gray-400', dotColor: 'bg-gray-300' }
+  overdue: { titleKey: 'columns.overdue', color: 'text-red-500', dotColor: 'bg-red-500' },
+  today: { titleKey: 'columns.today', color: 'text-blue-500', dotColor: 'bg-blue-500' },
+  tomorrow: { titleKey: 'columns.tomorrow', color: 'text-purple-500', dotColor: 'bg-purple-500' },
+  this_week: { titleKey: 'columns.this_week', color: 'text-indigo-500', dotColor: 'bg-indigo-500' },
+  next_week: { titleKey: 'columns.next_week', color: 'text-cyan-500', dotColor: 'bg-cyan-500' },
+  later: { titleKey: 'columns.later', color: 'text-gray-500 dark:text-gray-400', dotColor: 'bg-gray-400' },
+  no_date: { titleKey: 'columns.no_date', color: 'text-gray-400', dotColor: 'bg-gray-300' }
 };
 
 const STATUS_COLUMN_CONFIG = {
-  pending: { title: 'Pendentes', color: 'text-amber-500', dotColor: 'bg-amber-500' },
-  in_progress: { title: 'Em Andamento', color: 'text-blue-500', dotColor: 'bg-blue-500' },
-  completed: { title: 'Concluidas', color: 'text-green-500', dotColor: 'bg-green-500' }
+  pending: { titleKey: 'status.pending', color: 'text-amber-500', dotColor: 'bg-amber-500' },
+  in_progress: { titleKey: 'status.in_progress', color: 'text-blue-500', dotColor: 'bg-blue-500' },
+  completed: { titleKey: 'status.completed', color: 'text-green-500', dotColor: 'bg-green-500' }
 };
 
 const TasksPage = () => {
+  const { t, i18n } = useTranslation('tasks');
   const { user } = useAuth();
   const [tasks, setTasks] = useState({});
   const [loading, setLoading] = useState(true);
@@ -80,7 +83,7 @@ const TasksPage = () => {
       setError('');
     } catch (err) {
       console.error('Error loading tasks:', err);
-      setError('Erro ao carregar tarefas');
+      setError(t('error'));
     } finally {
       setLoading(false);
     }
@@ -126,7 +129,7 @@ const TasksPage = () => {
 
   const handleDeleteTask = async (taskId, e) => {
     e?.stopPropagation();
-    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+    if (!confirm(t('confirmDelete'))) return;
     try {
       // Optimistic update - remove task from UI immediately
       setTasks(prev => {
@@ -156,16 +159,18 @@ const TasksPage = () => {
     }));
   };
 
+  const getLocale = () => i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return date.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit' });
   };
 
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
   // Selection functions
@@ -192,7 +197,7 @@ const TasksPage = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Excluir ${selectedTaskIds.length} tarefa(s)?`)) return;
+    if (!window.confirm(t('confirmBulkDelete', { count: selectedTaskIds.length }))) return;
 
     try {
       await Promise.all(
@@ -206,8 +211,100 @@ const TasksPage = () => {
     }
   };
 
+  // Drag & Drop handler
+  const handleDragEnd = async (result) => {
+    const { source, destination, draggableId } = result;
+
+    // Dropped outside or no movement
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const taskId = draggableId.replace('task-', '');
+    const sourceColumn = source.droppableId;
+    const destColumn = destination.droppableId;
+
+    // Helper to get local date string
+    const getLocalDate = (daysToAdd = 0) => {
+      const date = new Date();
+      date.setDate(date.getDate() + daysToAdd);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      // Add T12:00 to ensure the date stays correct after timezone conversion
+      return `${year}-${month}-${day}T12:00`;
+    };
+
+    // Date mapping for columns
+    const dueDateMap = {
+      overdue: getLocalDate(-1), // Yesterday (D-1)
+      today: getLocalDate(0),
+      tomorrow: getLocalDate(1),
+      this_week: getLocalDate(3), // 3 days from now
+      next_week: getLocalDate(7), // 1 week from now
+      later: getLocalDate(30), // 30 days from now (future tasks)
+      no_date: null
+    };
+
+    // Find the task
+    let movedTask = null;
+    for (const key of Object.keys(tasks)) {
+      const found = tasks[key]?.find(t => t.id === taskId);
+      if (found) {
+        movedTask = found;
+        break;
+      }
+    }
+    if (!movedTask) return;
+
+    // Calculate new values for optimistic update
+    const newDueDate = groupBy === 'due_date' ? dueDateMap[destColumn] : movedTask.dueDate;
+    const newStatus = groupBy === 'status' ? destColumn : movedTask.status;
+
+    // Create updated task with new values
+    const updatedTask = {
+      ...movedTask,
+      dueDate: newDueDate,
+      status: newStatus
+    };
+
+    // Optimistic update - move task between columns with updated data
+    setTasks(prev => {
+      const updated = {};
+      Object.keys(prev).forEach(key => {
+        updated[key] = prev[key].filter(t => t.id !== taskId);
+      });
+      // Add to destination column with updated task
+      if (!updated[destColumn]) updated[destColumn] = [];
+      const destTasks = [...updated[destColumn]];
+      destTasks.splice(destination.index, 0, updatedTask);
+      updated[destColumn] = destTasks;
+      return updated;
+    });
+
+    // Update on backend (fire-and-forget, optimistic update already applied)
+    const updateBackend = async () => {
+      try {
+        if (groupBy === 'status') {
+          await api.updateTaskStatus(taskId, destColumn);
+        } else {
+          if (newDueDate !== undefined) {
+            await api.updateTask(taskId, { due_date: newDueDate });
+          }
+        }
+        // Success - no need to reload, optimistic update is already correct
+      } catch (error) {
+        console.error('Error moving task:', error);
+        // Only reload on error to restore correct state
+        loadData();
+      }
+    };
+
+    // Fire and forget - don't block UI
+    updateBackend();
+  };
+
   // Board View Card (styled like LeadCard)
-  const TaskCard = ({ task }) => {
+  const TaskCard = ({ task, index, provided, snapshot }) => {
     const isCompleted = task.status === 'completed';
     const taskType = TASK_TYPES[task.taskType] || TASK_TYPES.other;
     const TaskTypeIcon = taskType.icon;
@@ -216,16 +313,39 @@ const TasksPage = () => {
 
     return (
       <div
-        className={`bg-white dark:bg-gray-800 rounded-lg border p-3 cursor-pointer group shadow-sm hover:shadow-md transition-all ${
+        ref={provided.innerRef}
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        className={`bg-white dark:bg-gray-800 rounded-lg border p-3 cursor-grab active:cursor-grabbing group shadow-sm hover:shadow-md transition-all w-full max-w-full overflow-hidden box-border relative ${
           isSelected
             ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/10'
             : isCompleted
               ? 'opacity-50 border-gray-200 dark:border-gray-700'
               : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
-        }`}
+        } ${snapshot.isDragging ? 'shadow-xl ring-2 ring-purple-400' : ''}`}
         onClick={() => handleEditTask(task)}
       >
-        <div className="flex items-start gap-3">
+        {/* Action buttons - absolute positioned on hover */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          {!isCompleted && (
+            <button
+              onClick={(e) => handleCompleteTask(task.id, e)}
+              className="p-1 bg-white dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded shadow-sm flex-shrink-0"
+              title={t('buttons.complete')}
+            >
+              <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+            </button>
+          )}
+          <button
+            onClick={(e) => handleDeleteTask(task.id, e)}
+            className="p-1 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded shadow-sm flex-shrink-0"
+            title={t('buttons.delete')}
+          >
+            <X className="w-4 h-4 text-red-500" />
+          </button>
+        </div>
+
+        <div className="flex items-start gap-2 w-full min-w-0">
           {/* Selection Checkbox */}
           <button
             onClick={(e) => toggleTaskSelection(task.id, e)}
@@ -240,30 +360,28 @@ const TasksPage = () => {
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Title with Type Icon */}
-            <div className="flex items-start gap-2">
-              <TaskTypeIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-              <h4 className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${isCompleted ? 'line-through' : ''}`}>
-                {task.title}
-              </h4>
-            </div>
-
-            {/* Lead */}
+            {/* Lead name - small reference at top */}
             {task.lead && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5 ml-6">
-                <LinkIcon className="w-3 h-3 text-gray-400" />
-                <span className="truncate">{task.lead.name}</span>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mb-0.5 pr-10">
+                {task.lead.name}
               </p>
             )}
 
-            {/* Footer: Priority, Due Date & Assignee */}
-            <div className="flex items-center justify-between mt-2.5 ml-6">
-              <div className="flex items-center gap-3">
+            {/* Title - smaller font, wraps to 2 lines */}
+            <h4 className={`text-xs font-medium text-gray-900 dark:text-gray-100 line-clamp-2 leading-relaxed pr-10 ${isCompleted ? 'line-through' : ''}`}>
+              {task.title}
+            </h4>
+
+            {/* Footer: Type Icon, Priority, Due Date on left - Assignee on right */}
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-2">
+                {/* Task Type Icon */}
+                <TaskTypeIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" title={t(taskType.labelKey)} />
                 {/* Priority with colored dot */}
                 <div className="flex items-center gap-1.5">
                   <div className={`w-2 h-2 rounded-full ${priority.dotColor}`}></div>
                   <span className={`text-xs font-medium ${priority.color}`}>
-                    {priority.label}
+                    {t(priority.labelKey)}
                   </span>
                 </div>
 
@@ -278,53 +396,44 @@ const TasksPage = () => {
                 )}
               </div>
 
-              {/* Assignee Avatar */}
-              {task.assignedTo && (
-                <div className="flex items-center" title={task.assignedTo.name}>
-                  {task.assignedTo.avatarUrl ? (
-                    <img
-                      src={
-                        task.assignedTo.avatarUrl.startsWith('http')
-                          ? `${task.assignedTo.avatarUrl}?v=${task.assignedTo.updatedAt || Date.now()}`
-                          : task.assignedTo.avatarUrl
-                      }
-                      alt=""
-                      className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-700 shadow-sm object-cover"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center">
-                      <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">
-                        {(() => {
-                          const names = (task.assignedTo.name || '').trim().split(' ').filter(n => n.length > 0);
-                          if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-                          return (names[0][0] + names[1][0]).toUpperCase();
-                        })()}
+              {/* Assignees Avatars - stacked, positioned to the far right */}
+              {(task.assignees?.length > 0 || task.assignedTo) && (
+                <div className="flex items-center flex-shrink-0 -space-x-2">
+                  {(task.assignees || (task.assignedTo ? [task.assignedTo] : [])).slice(0, 3).map((assignee, idx) => (
+                    <div key={assignee.id || idx} title={assignee.name} style={{ zIndex: 10 - idx }}>
+                      {assignee.avatarUrl ? (
+                        <img
+                          src={
+                            assignee.avatarUrl.startsWith('http')
+                              ? `${assignee.avatarUrl}?v=${assignee.updatedAt || Date.now()}`
+                              : assignee.avatarUrl
+                          }
+                          alt=""
+                          className="w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 object-cover"
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 border-2 border-white dark:border-gray-800 flex items-center justify-center">
+                          <span className="text-[8px] font-medium text-purple-600 dark:text-purple-400">
+                            {(() => {
+                              const names = (assignee.name || '').trim().split(' ').filter(n => n.length > 0);
+                              if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                              return (names[0][0] + names[1][0]).toUpperCase();
+                            })()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {(task.assignees?.length || 0) > 3 && (
+                    <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 border-2 border-white dark:border-gray-800 flex items-center justify-center" style={{ zIndex: 7 }}>
+                      <span className="text-[8px] font-medium text-gray-600 dark:text-gray-300">
+                        +{task.assignees.length - 3}
                       </span>
                     </div>
                   )}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Action buttons on hover */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {!isCompleted && (
-              <button
-                onClick={(e) => handleCompleteTask(task.id, e)}
-                className="p-1 hover:bg-green-50 dark:bg-green-900/20 rounded flex-shrink-0"
-                title="Concluir"
-              >
-                <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-              </button>
-            )}
-            <button
-              onClick={(e) => handleDeleteTask(task.id, e)}
-              className="p-1 hover:bg-red-50 dark:bg-red-900/20 rounded flex-shrink-0"
-              title="Excluir"
-            >
-              <X className="w-4 h-4 text-red-500" />
-            </button>
           </div>
         </div>
       </div>
@@ -336,12 +445,12 @@ const TasksPage = () => {
     const count = columnTasks?.length || 0;
 
     return (
-      <div className="flex-1 min-w-[280px] max-w-[320px] flex flex-col">
+      <div className="w-[260px] flex-shrink-0 flex flex-col h-full">
         {/* Column Header */}
         <div className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">{config.title}</h3>
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">{t(config.titleKey)}</h3>
             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400`}>
               {count}
             </span>
@@ -354,21 +463,44 @@ const TasksPage = () => {
           </button>
         </div>
 
-        {/* Column Content */}
-        <div
-          className="flex-1 rounded-lg bg-gray-50 dark:bg-gray-900 p-2 overflow-y-auto"
-          style={{ maxHeight: 'calc(100vh - 220px)', minHeight: '400px' }}
-        >
-          {count === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-400 dark:text-gray-500">
-              Nenhuma tarefa
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {columnTasks.map(task => <TaskCard key={task.id} task={task} />)}
+        {/* Column Content - Droppable */}
+        <Droppable droppableId={columnKey}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`flex-1 rounded-lg p-2 transition-colors min-h-[400px] ${
+                snapshot.isDraggingOver ? 'bg-purple-50 dark:bg-purple-900/20' : 'bg-gray-50 dark:bg-gray-900'
+              }`}
+            >
+              {count === 0 ? (
+                <div className={`flex items-center justify-center h-32 text-sm border-2 border-dashed rounded-lg ${
+                  snapshot.isDraggingOver
+                    ? 'border-purple-400 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500'
+                }`}>
+                  {snapshot.isDraggingOver ? t('dragDrop.dropHere') : t('dragDrop.noTasks')}
+                </div>
+              ) : (
+                <div className="space-y-2 w-full overflow-hidden">
+                  {columnTasks.map((task, index) => (
+                    <Draggable key={task.id} draggableId={`task-${task.id}`} index={index}>
+                      {(dragProvided, dragSnapshot) => (
+                        <TaskCard
+                          task={task}
+                          index={index}
+                          provided={dragProvided}
+                          snapshot={dragSnapshot}
+                        />
+                      )}
+                    </Draggable>
+                  ))}
+                </div>
+              )}
+              {provided.placeholder}
             </div>
           )}
-        </div>
+        </Droppable>
       </div>
     );
   };
@@ -433,7 +565,7 @@ const TasksPage = () => {
         {/* Priority */}
         <div className="w-20 flex-shrink-0">
           <span className={`text-xs ${priority.color}`}>
-            {priority.label}
+            {t(priority.labelKey)}
           </span>
         </div>
 
@@ -474,7 +606,7 @@ const TasksPage = () => {
             <button
               onClick={(e) => handleCompleteTask(task.id, e)}
               className="p-1 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 rounded"
-              title="Concluir"
+              title={t('buttons.complete')}
             >
               <Check className="w-4 h-4" />
             </button>
@@ -482,7 +614,7 @@ const TasksPage = () => {
           <button
             onClick={(e) => handleDeleteTask(task.id, e)}
             className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 rounded"
-            title="Excluir"
+            title={t('buttons.delete')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -509,7 +641,7 @@ const TasksPage = () => {
             <ChevronDown className="w-4 h-4 text-gray-400" />
           )}
           <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">{config.title}</span>
+          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">{t(config.titleKey)}</span>
           <span className="text-xs text-gray-400 ml-1">{count}</span>
         </div>
 
@@ -611,7 +743,7 @@ const TasksPage = () => {
                 filters.status === '' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Todas
+              {t('filters.all')}
             </button>
             <button
               onClick={() => setFilters(prev => ({ ...prev, status: 'open' }))}
@@ -619,7 +751,7 @@ const TasksPage = () => {
                 filters.status === 'open' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Aberto
+              {t('filters.open')}
             </button>
             <button
               onClick={() => setFilters(prev => ({ ...prev, status: 'completed' }))}
@@ -627,7 +759,7 @@ const TasksPage = () => {
                 filters.status === 'completed' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Concluído
+              {t('filters.completed')}
             </button>
           </div>
 
@@ -639,11 +771,11 @@ const TasksPage = () => {
               onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
               className="text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
             >
-              <option value="7days">7 dias</option>
-              <option value="15days">15 dias</option>
-              <option value="30days">30 dias</option>
-              <option value="90days">90 dias</option>
-              <option value="all">Todas</option>
+              <option value="7days">{t('periods.days7')}</option>
+              <option value="15days">{t('periods.days15')}</option>
+              <option value="30days">{t('periods.days30')}</option>
+              <option value="90days">{t('periods.days90')}</option>
+              <option value="all">{t('periods.all')}</option>
             </select>
           </div>
 
@@ -655,7 +787,7 @@ const TasksPage = () => {
               onChange={(e) => setFilters(prev => ({ ...prev, assigned_to: e.target.value }))}
               className="text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
             >
-              <option value="">Todos</option>
+              <option value="">{t('filters.allUsers')}</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
@@ -670,7 +802,7 @@ const TasksPage = () => {
                 groupBy === 'due_date' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Data
+              {t('groupBy.date')}
             </button>
             <button
               onClick={() => setGroupBy('status')}
@@ -678,7 +810,7 @@ const TasksPage = () => {
                 groupBy === 'status' ? 'bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
             >
-              Status
+              {t('groupBy.status')}
             </button>
           </div>
 
@@ -690,14 +822,14 @@ const TasksPage = () => {
             <button
               onClick={() => setViewMode('list')}
               className={`p-1 rounded ${viewMode === 'list' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300'}`}
-              title="Lista"
+              title={t('viewMode.list')}
             >
               <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('board')}
               className={`p-1 rounded ${viewMode === 'board' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300'}`}
-              title="Kanban"
+              title={t('viewMode.board')}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
@@ -706,7 +838,7 @@ const TasksPage = () => {
           <button
             onClick={loadData}
             className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            title="Atualizar"
+            title={t('buttons.refresh')}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -716,7 +848,7 @@ const TasksPage = () => {
             className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            Nova Tarefa
+            {t('buttons.newTask')}
           </button>
         </div>
       </div>
@@ -726,7 +858,7 @@ const TasksPage = () => {
         <div className="mx-6 mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-purple-900 dark:text-purple-100">
-              {selectedTaskIds.length} {selectedTaskIds.length === 1 ? 'tarefa selecionada' : 'tarefas selecionadas'}
+              {selectedTaskIds.length === 1 ? t('bulk.selected', { count: selectedTaskIds.length }) : t('bulk.selectedPlural', { count: selectedTaskIds.length })}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -735,20 +867,20 @@ const TasksPage = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
             >
               <CheckCircle2 className="w-4 h-4" />
-              Concluir Todos
+              {t('buttons.completeAll')}
             </button>
             <button
               onClick={handleBulkDelete}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
-              Excluir Todos
+              {t('buttons.deleteAll')}
             </button>
             <button
               onClick={() => setSelectedTaskIds([])}
               className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
-              Cancelar
+              {t('buttons.cancel')}
             </button>
           </div>
         </div>
@@ -765,18 +897,20 @@ const TasksPage = () => {
       <div className="flex-1 overflow-hidden">
         {viewMode === 'board' ? (
           /* Board View */
-          <div className="h-full px-6 py-4 overflow-x-auto">
-            <div className="flex gap-4 h-full min-w-max">
-              {columns.map(col => (
-                <BoardColumn
-                  key={col.key}
-                  columnKey={col.key}
-                  columnTasks={col.tasks}
-                  config={col.config}
-                />
-              ))}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="h-full px-6 py-4 overflow-auto">
+              <div className="flex gap-4 h-full min-w-max">
+                {columns.map(col => (
+                  <BoardColumn
+                    key={col.key}
+                    columnKey={col.key}
+                    columnTasks={col.tasks}
+                    config={col.config}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          </DragDropContext>
         ) : (
           /* List View */
           <div className="h-full overflow-y-auto">
@@ -784,12 +918,12 @@ const TasksPage = () => {
             <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0">
               <div className="w-4" /> {/* Checkbox space */}
               <div className="w-4" /> {/* Icon space */}
-              <div className="flex-1">Nome</div>
-              <div className="w-32">Lead</div>
-              <div className="w-24">Previsto</div>
-              <div className="w-24">Conclusao</div>
-              <div className="w-20">Prioridade</div>
-              <div className="w-24">Responsavel</div>
+              <div className="flex-1">{t('listHeaders.name')}</div>
+              <div className="w-32">{t('listHeaders.lead')}</div>
+              <div className="w-24">{t('listHeaders.dueDate')}</div>
+              <div className="w-24">{t('listHeaders.completed')}</div>
+              <div className="w-20">{t('listHeaders.priority')}</div>
+              <div className="w-24">{t('listHeaders.assignee')}</div>
               <div className="w-16" /> {/* Actions space */}
             </div>
 

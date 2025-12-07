@@ -1,8 +1,10 @@
 import React from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import { Share2 } from 'lucide-react';
 
 const LeadsBySourceChart = ({ data = [] }) => {
+  const { t, i18n } = useTranslation('dashboard');
+
   const sourceColors = {
     'linkedin': '#0077b5',
     'google_maps': '#34a853',
@@ -26,15 +28,15 @@ const LeadsBySourceChart = ({ data = [] }) => {
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Leads por Fonte</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Origem dos leads</p>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('leadsBySource.title')}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('leadsBySource.subtitle')}</p>
           </div>
           <div className="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50">
             <Share2 className="w-5 h-5 text-gray-400 dark:text-gray-500" />
           </div>
         </div>
         <div className="h-48 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
-          Sem dados no período
+          {t('noData')}
         </div>
       </div>
     );
@@ -44,8 +46,8 @@ const LeadsBySourceChart = ({ data = [] }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Leads por Fonte</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Origem dos leads</p>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('leadsBySource.title')}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('leadsBySource.subtitle')}</p>
         </div>
         <div className="p-2 rounded-lg bg-blue-50">
           <Share2 className="w-5 h-5 text-blue-600" />
@@ -90,9 +92,9 @@ const LeadsBySourceChart = ({ data = [] }) => {
 
       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total de leads</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{t('leadsBySource.totalLeads')}</span>
           <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {data.reduce((sum, d) => sum + d.count, 0).toLocaleString('pt-BR')}
+            {data.reduce((sum, d) => sum + d.count, 0).toLocaleString(i18n.language)}
           </span>
         </div>
       </div>

@@ -8,6 +8,8 @@
     "linkedin": "LinkedIn",
     "campaigns": "Campaigns",
     "pipeline": "Pipeline",
+    "tasks": "Tasks",
+    "lists": "Lists",
     "activation": "List Activation",
     "crm": "CRM",
     "conversations": "Conversations",
@@ -20,6 +22,8 @@
     "logout": "Logout"
   },
   "sections": {
+    "work": "WORK",
+    "campaigns": "CAMPAIGNS",
     "aiAgents": "AI AGENTS",
     "googleMaps": "GOOGLE MAPS",
     "linkedin": "LINKEDIN",

@@ -180,13 +180,13 @@ const LocationMapPicker = ({ value, onChange }) => {
               onChange={(e) => setLocationInput(e.target.value)}
               onKeyPress={handleKeyPress}
               onFocus={() => setShowSuggestions(searchResults.length > 0)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             />
           </div>
           <button
             onClick={handleSearch}
             disabled={searching || locationInput.trim().length < 3}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {searching ? (
               <>
@@ -206,20 +206,20 @@ const LocationMapPicker = ({ value, onChange }) => {
               className="fixed inset-0 z-10"
               onClick={() => setShowSuggestions(false)}
             />
-            <ul className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-[350px] overflow-y-auto py-1">
+            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-[350px] overflow-y-auto py-1">
               {searchResults.map((result, index) => (
                 <li key={index}>
                   <button
                     onClick={() => handleSelectSuggestion(result)}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-start space-x-2"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start space-x-2"
                   >
-                    <MapPin className="w-4 h-4 text-purple-600 mt-1 flex-shrink-0" />
+                    <MapPin className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-1 flex-shrink-0" />
                     <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-sm font-medium text-gray-900 whitespace-normal leading-snug">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-normal leading-snug">
                         {result.display_name}
                       </p>
                       {result.importance && (
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {result.type}
                         </p>
                       )}
@@ -235,15 +235,15 @@ const LocationMapPicker = ({ value, onChange }) => {
       {/* Radius Slider */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Raio de busca
           </label>
-          <span className="text-sm font-semibold text-purple-600">
+          <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
             {radius} km
           </span>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="text-xs text-gray-500">1km</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">1km</span>
           <input
             type="range"
             min="1"
@@ -251,22 +251,22 @@ const LocationMapPicker = ({ value, onChange }) => {
             step="1"
             value={radius}
             onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
-            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-purple"
+            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-purple"
           />
-          <span className="text-xs text-gray-500">50km</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">50km</span>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>Área: ~{(Math.PI * radius * radius).toFixed(1)} km²</span>
         </div>
       </div>
 
       {/* Map Container */}
-      <div className="relative rounded-lg overflow-hidden border-2 border-gray-200" style={{ height: '400px' }}>
+      <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700" style={{ height: '400px' }}>
         {loading && (
-          <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-90 dark:bg-opacity-90 flex items-center justify-center z-50">
             <div className="flex flex-col items-center space-y-2">
-              <Loader className="w-8 h-8 text-purple-600 animate-spin" />
-              <p className="text-sm text-gray-600">Carregando mapa...</p>
+              <Loader className="w-8 h-8 text-purple-600 dark:text-purple-400 animate-spin" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">Carregando mapa...</p>
             </div>
           </div>
         )}
@@ -321,13 +321,13 @@ const LocationMapPicker = ({ value, onChange }) => {
 
       {/* Selected Location Display */}
       {locationName && (
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+        <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-3">
           <div className="flex items-start space-x-2">
-            <MapPin className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+            <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-purple-900">{locationName}</p>
+              <p className="text-sm font-medium text-purple-900 dark:text-purple-200">{locationName}</p>
               {markerPosition && (
-                <p className="text-xs text-purple-600 mt-0.5">
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
                   {markerPosition[0].toFixed(6)}, {markerPosition[1].toFixed(6)}
                 </p>
               )}

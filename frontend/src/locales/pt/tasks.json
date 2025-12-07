@@ -1,0 +1,100 @@
+{
+  "loading": "Carregando tarefas...",
+  "error": "Erro ao carregar tarefas",
+  "confirmDelete": "Tem certeza que deseja excluir esta tarefa?",
+  "confirmBulkDelete": "Excluir {{count}} tarefa(s)?",
+  "taskTypes": {
+    "call": "Ligação",
+    "meeting": "Reunião",
+    "email": "Email",
+    "follow_up": "Follow-up",
+    "proposal": "Proposta",
+    "other": "Outro"
+  },
+  "priority": {
+    "low": "Baixa",
+    "medium": "Média",
+    "high": "Alta",
+    "urgent": "Urgente"
+  },
+  "columns": {
+    "overdue": "Atrasadas",
+    "today": "Hoje",
+    "tomorrow": "Amanhã",
+    "this_week": "Esta Semana",
+    "next_week": "Próxima Semana",
+    "later": "Futuras",
+    "no_date": "Sem Data"
+  },
+  "status": {
+    "pending": "Pendentes",
+    "in_progress": "Em Andamento",
+    "completed": "Concluídas"
+  },
+  "filters": {
+    "all": "Todas",
+    "open": "Aberto",
+    "completed": "Concluído",
+    "allUsers": "Todos"
+  },
+  "periods": {
+    "days7": "7 dias",
+    "days15": "15 dias",
+    "days30": "30 dias",
+    "days90": "90 dias",
+    "all": "Todas"
+  },
+  "groupBy": {
+    "date": "Data",
+    "status": "Status"
+  },
+  "viewMode": {
+    "list": "Lista",
+    "board": "Kanban"
+  },
+  "buttons": {
+    "newTask": "Nova Tarefa",
+    "complete": "Concluir",
+    "delete": "Excluir",
+    "completeAll": "Concluir Todos",
+    "deleteAll": "Excluir Todos",
+    "cancel": "Cancelar",
+    "refresh": "Atualizar"
+  },
+  "bulk": {
+    "selected": "{{count}} tarefa selecionada",
+    "selectedPlural": "{{count}} tarefas selecionadas"
+  },
+  "dragDrop": {
+    "dropHere": "Solte aqui",
+    "noTasks": "Nenhuma tarefa"
+  },
+  "listHeaders": {
+    "name": "Nome",
+    "lead": "Lead",
+    "dueDate": "Previsto",
+    "completed": "Conclusão",
+    "priority": "Prioridade",
+    "assignee": "Responsável"
+  },
+  "modal": {
+    "taskNamePlaceholder": "Nome da tarefa",
+    "saving": "Salvando...",
+    "type": "Tipo",
+    "assignee": "Responsável",
+    "status": "Status",
+    "priority": "Prioridade",
+    "dueDate": "Prazo",
+    "none": "Nenhum",
+    "descriptionPlaceholder": "Adicione uma descrição detalhada da tarefa...",
+    "createTask": "Criar Tarefa",
+    "noTitle": "Sem título",
+    "titleRequired": "Título é obrigatório",
+    "createError": "Erro ao criar tarefa",
+    "comments": "Comentários",
+    "noComments": "Nenhum comentário ainda",
+    "addCommentPlaceholder": "Adicionar comentário...",
+    "yesterday": "Ontem",
+    "daysAgo": "{{count}} dias atrás"
+  }
+}

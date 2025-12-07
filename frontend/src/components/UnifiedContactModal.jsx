@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Mail, Phone, Building2, MapPin, Linkedin,
   MessageCircle, Instagram, Send, Clock, MessageSquare,
-  ChevronRight, Trash2, Plus, Save, User
+  ChevronRight, Trash2, Plus, Save, User, RefreshCw
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -17,6 +17,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
   const [availableTags, setAvailableTags] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const noteInputRef = useRef(null);
 
   // Form state for inline editing
@@ -152,6 +153,28 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     }
   };
 
+  const handleRefreshData = async () => {
+    try {
+      setRefreshing(true);
+      const response = await api.post(`/contacts/${contactId}/refresh-data`, {
+        updateName: true,
+        updatePicture: true
+      });
+      if (response.data?.success) {
+        // Reload contact data to show updated info
+        await loadContactFull();
+        // Show success feedback (optional - could add toast here)
+        console.log('✅ Dados atualizados:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar dados:', error);
+      // Show error feedback (optional - could add toast here)
+      alert(error.response?.data?.message || 'Erro ao atualizar dados do contato');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const channelConfig = {
@@ -252,6 +275,16 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Botão Atualizar Dados */}
+                  <button
+                    onClick={handleRefreshData}
+                    disabled={refreshing}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                    title="Atualizar dados e foto do contato via WhatsApp/Instagram"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    {refreshing ? 'Atualizando...' : 'Atualizar'}
+                  </button>
                   {hasChanges && (
                     <button
                       onClick={handleSave}

@@ -2,8 +2,21 @@
   "title": "Dashboard",
   "welcome": "Bienvenido, {{name}}!",
   "overview": "Resumen",
+  "loading": "Cargando dashboard...",
+  "noData": "Sin datos en el período",
   "errors": {
     "loadFailed": "Error al cargar dashboard:"
+  },
+  "filters": {
+    "days7": "7 días",
+    "days30": "30 días",
+    "days90": "90 días",
+    "custom": "Personalizado",
+    "allCampaigns": "Todas las campañas",
+    "refresh": "Actualizar",
+    "startDate": "Fecha Inicial",
+    "endDate": "Fecha Final",
+    "apply": "Aplicar"
   },
   "periods": {
     "last30Days": "Últimos 30 días",
@@ -117,12 +130,52 @@
     "responded": "Respondió {{count}}x"
   },
   "funnel": {
+    "title": "Embudo de Ventas",
+    "subtitle": "Pipeline completo con conversiones",
     "prospecting": "Prospección",
+    "inviteSent": "Invitaciones Enviadas",
+    "accepted": "Aceptados",
     "invite": "Invitación",
-    "qualifying": "Calificación",
+    "qualifying": "Calificando",
+    "scheduled": "Agendados",
     "inProgress": "En Progreso",
-    "won": "Ganado",
+    "won": "Ganados",
     "discarded": "Descartado",
+    "lost": "Leads perdidos",
     "conversionFromPrevious": "{{rate}}% conversión de la etapa anterior"
+  },
+  "leadsChart": {
+    "title": "Nuevos Leads por Día",
+    "subtitle": "Leads agregados en el período",
+    "lead": "lead",
+    "leads": "leads",
+    "totalInPeriod": "Total en el período"
+  },
+  "revenueChart": {
+    "title": "Facturación por Día",
+    "subtitle": "Deals cerrados en el período",
+    "deal": "deal",
+    "deals": "deals",
+    "totalInPeriod": "Total en el período"
+  },
+  "leadsBySource": {
+    "title": "Leads por Fuente",
+    "subtitle": "Origen de los leads",
+    "totalLeads": "Total de leads"
+  },
+  "tasks": {
+    "title": "Tus Tareas",
+    "pending": "pendientes",
+    "overdue": "Atrasadas",
+    "today": "Para Hoy",
+    "tomorrow": "Para Mañana",
+    "viewAll": "Ver todas las tareas"
+  },
+  "aiAgents": {
+    "title": "Agentes de IA",
+    "subtitle": "Interacciones por agente",
+    "noAgents": "Ningún agente configurado",
+    "conversations": "conversaciones",
+    "totalMessages": "Total de mensajes"
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, Calendar } from 'lucide-react';
 
 const DashboardFilters = ({
@@ -10,15 +11,16 @@ const DashboardFilters = ({
   onRefresh,
   loading = false
 }) => {
+  const { t } = useTranslation('dashboard');
   const [showCustomDates, setShowCustomDates] = useState(false);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
   const periods = [
-    { value: 7, label: '7 dias' },
-    { value: 30, label: '30 dias' },
-    { value: 90, label: '90 dias' },
-    { value: 'custom', label: 'Personalizado' }
+    { value: 7, labelKey: 'filters.days7' },
+    { value: 30, labelKey: 'filters.days30' },
+    { value: 90, labelKey: 'filters.days90' },
+    { value: 'custom', labelKey: 'filters.custom' }
   ];
 
   const handlePeriodClick = (value) => {
@@ -61,7 +63,7 @@ const DashboardFilters = ({
                 }`}
               >
                 {p.value === 'custom' && <Calendar className="w-3.5 h-3.5 inline mr-1.5" />}
-                {p.label}
+                {t(p.labelKey)}
               </button>
             ))}
           </div>
@@ -73,7 +75,7 @@ const DashboardFilters = ({
               onChange={(e) => onCampaignChange(e.target.value || null)}
               className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
-              <option value="">Todas as campanhas</option>
+              <option value="">{t('filters.allCampaigns')}</option>
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -90,7 +92,7 @@ const DashboardFilters = ({
           className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
+          {t('filters.refresh')}
         </button>
       </div>
 
@@ -100,7 +102,7 @@ const DashboardFilters = ({
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Data Inicial
+                {t('filters.startDate')}
               </label>
               <input
                 type="date"
@@ -111,7 +113,7 @@ const DashboardFilters = ({
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Data Final
+                {t('filters.endDate')}
               </label>
               <input
                 type="date"
@@ -125,7 +127,7 @@ const DashboardFilters = ({
               disabled={!customStartDate || !customEndDate}
               className="mt-5 px-4 py-1.5 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Aplicar
+              {t('filters.apply')}
             </button>
           </div>
         </div>

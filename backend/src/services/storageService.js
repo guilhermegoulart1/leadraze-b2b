@@ -249,6 +249,39 @@ class StorageService {
   }
 
   /**
+   * Upload contact profile picture (from WhatsApp, Instagram, etc via Unipile)
+   * @param {string} accountId - Account ID
+   * @param {string} contactId - Contact ID
+   * @param {Buffer} fileData - Image data
+   * @param {string} mimeType - Image MIME type
+   * @param {string} originalFilename - Original filename (optional)
+   */
+  async uploadContactPicture(accountId, contactId, fileData, mimeType, originalFilename = 'profile.jpg') {
+    // Validate type
+    if (!this.validateFileType(mimeType, this.config.allowedTypes.images)) {
+      throw new Error('Invalid file type. Only images are allowed.');
+    }
+
+    // Validate size (5MB max for contact pictures)
+    if (!this.validateFileSize(fileData.length, this.config.limits.profilePicture)) {
+      throw new Error(`File too large. Maximum size is ${this.config.limits.profilePicture / 1024 / 1024}MB`);
+    }
+
+    const ext = path.extname(originalFilename).toLowerCase() || '.jpg';
+    const key = `${this.config.folders.contacts}/${accountId}/${contactId}${ext}`;
+
+    return this.uploadFile(fileData, key, {
+      contentType: mimeType,
+      metadata: {
+        accountId,
+        contactId,
+        type: 'contact-picture',
+        uploadedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  /**
    * Upload template image
    * @param {string} accountId - Account ID
    * @param {string} templateId - Template ID

@@ -21,7 +21,20 @@
       "Bash(taskkill:*)",
       "Bash(timeout 5 bash:*)",
       "Bash(npm install:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; npm install react-colorful\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\backend''; node scripts/run-migration-065.js\")",
+      "Bash(npx eslint:*)",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; npx eslint src/pages/ChecklistTemplatesPage.jsx --no-error-on-unmatched-pattern 2>&1 | Select-Object -First 30\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/pages/ChecklistTemplatesPage.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/pages/TasksPage.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(dir /s /b c:leadraze-b2bwww*.svg)",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/i18n.js'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/TaskModal.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/ChatArea.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/DetailsPanel.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/ConversationSidebar.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\backend''; npm run dev\")"
     ],
     "deny": [],
     "ask": []

@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Mail, Building2, Camera, Check, Globe, Loader2, Sun, Moon, Monitor } from 'lucide-react';
+import { User, Mail, Building2, Camera, Check, Loader2, Sun, Moon, Monitor } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
 
 const languages = [
-  { code: 'pt', name: 'Portugues', nativeName: 'Portugues', flag: 'BR' },
-  { code: 'en', name: 'English', nativeName: 'English', flag: 'US' },
-  { code: 'es', name: 'Spanish', nativeName: 'Espanol', flag: 'ES' },
+  { code: 'pt', name: 'Português', flagUrl: 'https://flagcdn.com/w40/br.png' },
+  { code: 'en', name: 'English', flagUrl: 'https://flagcdn.com/w40/us.png' },
+  { code: 'es', name: 'Español', flagUrl: 'https://flagcdn.com/w40/es.png' },
 ];
 
 const ProfilePage = () => {
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('settings');
   const { user, setUser } = useAuth();
   const { theme, changeTheme } = useTheme();
   const fileInputRef = useRef(null);
@@ -22,6 +22,7 @@ const ProfilePage = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
+  const [currentLang, setCurrentLang] = useState(i18n.language);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -97,6 +98,9 @@ const ProfilePage = () => {
 
     // Change i18n language immediately
     await i18n.changeLanguage(langCode);
+
+    // Force re-render by updating state
+    setCurrentLang(langCode);
   };
 
   const handleSubmit = async (e) => {
@@ -175,302 +179,223 @@ const ProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meu Perfil</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Gerencie suas informacoes pessoais</p>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Profile Picture Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Foto de Perfil</h2>
-
-            <div className="flex items-center gap-6">
+    <div className="h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
+      <div className="max-w-3xl mx-auto px-4 py-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile Card - Avatar + Info Combined */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex gap-5">
               {/* Avatar */}
-              <div className="relative">
-                {(formData.profile_picture || formData.avatar_url) ? (
-                  <img
-                    src={
-                      formData.profile_picture ||
-                      (formData.avatar_url && formData.avatar_url.startsWith('http')
-                        ? `${formData.avatar_url}?v=${avatarTimestamp}`
-                        : formData.avatar_url)
-                    }
-                    alt="Profile"
-                    className="w-24 h-24 rounded-full object-cover border-4 border-purple-100 dark:border-purple-900/30"
+              <div className="flex-shrink-0">
+                <div className="relative">
+                  {(formData.profile_picture || formData.avatar_url) ? (
+                    <img
+                      src={
+                        formData.profile_picture ||
+                        (formData.avatar_url && formData.avatar_url.startsWith('http')
+                          ? `${formData.avatar_url}?v=${avatarTimestamp}`
+                          : formData.avatar_url)
+                      }
+                      alt="Profile"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-purple-100 dark:border-purple-900/30"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-lg font-bold border-2 border-purple-100 dark:border-purple-900/30">
+                      {getUserInitials()}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-colors shadow-md"
+                  >
+                    <Camera className="w-3 h-3" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
                   />
-                ) : (
-                  <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center text-white text-2xl font-bold border-4 border-purple-100 dark:border-purple-900/30">
-                    {getUserInitials()}
-                  </div>
-                )}
-
-                {/* Camera overlay button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-colors shadow-lg dark:shadow-gray-900/50"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  Clique no icone da camera para alterar sua foto
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  JPG, PNG ou GIF. Maximo 5MB.
-                </p>
+                </div>
                 {(formData.profile_picture || formData.avatar_url) && (
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, profile_picture: null, avatar_url: null }))}
-                    className="mt-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                    className="mt-1 text-xs text-red-500 hover:text-red-600 w-full text-center"
                   >
-                    Remover foto
+                    {t('profile.removePhoto')}
                   </button>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Personal Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Informacoes Pessoais</h2>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Nome Completo
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
-                    <User className="w-5 h-5" />
+              {/* Form Fields */}
+              <div className="flex-1 grid grid-cols-2 gap-3">
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    {t('profile.name')}
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                      placeholder={t('profile.namePlaceholder')}
+                      required
+                    />
                   </div>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none placeholder-gray-400 dark:placeholder-gray-500"
-                    placeholder="Seu nome"
-                    required
-                  />
                 </div>
-              </div>
 
-              {/* Email (read-only) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
-                    <Mail className="w-5 h-5" />
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    {t('profile.email')}
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="email"
+                      value={user?.email || ''}
+                      disabled
+                      className="w-full pl-8 pr-3 py-2 text-sm bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    />
                   </div>
-                  <input
-                    type="email"
-                    value={user?.email || ''}
-                    disabled
-                    className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                  />
                 </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">O email nao pode ser alterado</p>
-              </div>
 
-              {/* Company */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Empresa
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
-                    <Building2 className="w-5 h-5" />
+                {/* Company */}
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    {t('profile.company')}
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.company}
+                      onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                      className="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                      placeholder={t('profile.companyPlaceholder')}
+                    />
                   </div>
-                  <input
-                    type="text"
-                    value={formData.company}
-                    onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none placeholder-gray-400 dark:placeholder-gray-500"
-                    placeholder="Nome da sua empresa"
-                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Language Preferences */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Globe className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Idioma</h2>
+          {/* Preferences Row - Language + Theme side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Language */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{t('profile.language')}</h3>
+              <div className="flex gap-2">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={`
+                      flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all text-sm
+                      ${formData.preferred_language === lang.code
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                      }
+                    `}
+                  >
+                    <img src={lang.flagUrl} alt={lang.name} className="w-5 h-4 object-cover rounded-sm" />
+                    <span className="hidden sm:inline">{lang.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              {languages.map((lang) => (
+            {/* Theme */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{t('profile.theme')}</h3>
+              <div className="flex gap-2">
                 <button
-                  key={lang.code}
                   type="button"
-                  onClick={() => handleLanguageChange(lang.code)}
+                  onClick={() => changeTheme('light')}
                   className={`
-                    relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all
-                    ${formData.preferred_language === lang.code
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border transition-all text-sm
+                    ${theme === 'light'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                     }
                   `}
                 >
-                  <span className="text-2xl">
-                    {lang.flag === 'BR' && '🇧🇷'}
-                    {lang.flag === 'US' && '🇺🇸'}
-                    {lang.flag === 'ES' && '🇪🇸'}
-                  </span>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{lang.nativeName}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{lang.name}</p>
-                  </div>
-                  {formData.preferred_language === lang.code && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                  )}
+                  <Sun className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t('profile.themeLight')}</span>
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Theme Preferences */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Monitor className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Tema</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Escolha o tema de sua preferência</p>
+                <button
+                  type="button"
+                  onClick={() => changeTheme('dark')}
+                  className={`
+                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border transition-all text-sm
+                    ${theme === 'dark'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                    }
+                  `}
+                >
+                  <Moon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t('profile.themeDark')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeTheme('system')}
+                  className={`
+                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border transition-all text-sm
+                    ${theme === 'system'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+                    }
+                  `}
+                >
+                  <Monitor className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t('profile.themeAuto')}</span>
+                </button>
               </div>
             </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              {/* Light Theme */}
-              <button
-                type="button"
-                onClick={() => changeTheme('light')}
-                className={`
-                  relative p-4 rounded-xl border-2 transition-all
-                  ${theme === 'light'
-                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                <Sun className="w-8 h-8 mx-auto mb-2 text-gray-700 dark:text-gray-300" />
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Claro</p>
-                </div>
-                {theme === 'light' && (
-                  <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </button>
-
-              {/* Dark Theme */}
-              <button
-                type="button"
-                onClick={() => changeTheme('dark')}
-                className={`
-                  relative p-4 rounded-xl border-2 transition-all
-                  ${theme === 'dark'
-                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                <Moon className="w-8 h-8 mx-auto mb-2 text-gray-700 dark:text-gray-300" />
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Escuro</p>
-                </div>
-                {theme === 'dark' && (
-                  <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </button>
-
-              {/* System Theme */}
-              <button
-                type="button"
-                onClick={() => changeTheme('system')}
-                className={`
-                  relative p-4 rounded-xl border-2 transition-all
-                  ${theme === 'system'
-                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                <Monitor className="w-8 h-8 mx-auto mb-2 text-gray-700 dark:text-gray-300" />
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Sistema</p>
-                </div>
-                {theme === 'system' && (
-                  <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </button>
-            </div>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
-              {error}
+          {/* Messages + Submit */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              {error && (
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <Check className="w-4 h-4" />
+                  {t('profile.savedSuccess')}
+                </div>
+              )}
             </div>
-          )}
-
-          {/* Success Message */}
-          {success && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-              <Check className="w-5 h-5" />
-              Perfil atualizado com sucesso!
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <div className="flex justify-end">
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {saving ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Salvando...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {t('profile.saving')}
                 </>
               ) : (
-                'Salvar Alteracoes'
+                t('profile.save')
               )}
             </button>
           </div>

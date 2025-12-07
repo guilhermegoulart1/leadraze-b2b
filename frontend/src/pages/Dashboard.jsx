@@ -43,7 +43,7 @@ const Dashboard = () => {
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-600 mx-auto mb-3"></div>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Carregando dashboard...</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{t('loading')}</p>
         </div>
       </div>
     );

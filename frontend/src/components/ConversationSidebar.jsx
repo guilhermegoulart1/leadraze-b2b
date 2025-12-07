@@ -205,7 +205,7 @@ const ConversationSidebar = ({
                         {/* Badge de grupo */}
                         {conversation.is_group && (
                           <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full flex-shrink-0">
-                            Grupo
+                            {t('sidebar.group')}
                           </span>
                         )}
                         {conversation.unread_count > 0 && (
@@ -278,7 +278,7 @@ const ConversationSidebar = ({
                               ? 'bg-purple-50 dark:bg-purple-900/30 text-[#7229f7] dark:text-purple-400'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                           }`}
-                          title={conversation.status === 'ai_active' ? 'IA Ativa' : 'Manual'}
+                          title={conversation.status === 'ai_active' ? t('statusLabels.ai_active') : t('statusLabels.manual')}
                         >
                           {conversation.status === 'ai_active' ? (
                             <Bot className="w-3 h-3" />
@@ -294,11 +294,11 @@ const ConversationSidebar = ({
                               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                           }`}
-                          title={conversation.assigned_user_name || 'Não atribuída'}
+                          title={conversation.assigned_user_name || t('sidebar.notAssigned')}
                         >
                           <UserCircle className="w-2.5 h-2.5" />
                           <span className="truncate max-w-[60px]">
-                            {conversation.assigned_user_name || 'Não atribuída'}
+                            {conversation.assigned_user_name || t('sidebar.notAssigned')}
                           </span>
                         </div>
 
@@ -309,11 +309,11 @@ const ConversationSidebar = ({
                               ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                           }`}
-                          title={conversation.sector_name || 'Sem setor'}
+                          title={conversation.sector_name || t('conversation.noSector')}
                         >
                           <Building2 className="w-2.5 h-2.5" />
                           <span className="truncate max-w-[60px]">
-                            {conversation.sector_name || 'Sem setor'}
+                            {conversation.sector_name || t('conversation.noSector')}
                           </span>
                         </div>
                       </div>
@@ -327,7 +327,7 @@ const ConversationSidebar = ({
                               onCloseConversation(conversation.id);
                             }}
                             className="p-1 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
-                            title="Fechar conversa"
+                            title={t('sidebar.closeConversation')}
                           >
                             <CheckCircle className="w-3.5 h-3.5" />
                           </button>
@@ -338,7 +338,7 @@ const ConversationSidebar = ({
                             onDeleteConversation(conversation.id);
                           }}
                           className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
-                          title="Excluir conversa"
+                          title={t('sidebar.deleteConversation')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

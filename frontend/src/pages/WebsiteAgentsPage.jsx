@@ -230,10 +230,10 @@ const WebsiteAgentsPage = () => {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {t('title', 'Website Agents')}
         </h2>
-        <p className="text-gray-500 mt-1">
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
           {t('subtitle', 'Manage AI chatbots for your institutional website')}
         </p>
       </div>
@@ -241,7 +241,7 @@ const WebsiteAgentsPage = () => {
       <div className="flex gap-6">
         {/* Sidebar */}
         <div className="w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 p-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -251,8 +251,8 @@ const WebsiteAgentsPage = () => {
                   className={`
                     w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors
                     ${activeTab === tab.id
-                      ? 'bg-purple-50 text-purple-600'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }
                   `}
                 >
@@ -270,7 +270,7 @@ const WebsiteAgentsPage = () => {
           {activeTab === 'agents' && (
             <div className="space-y-6">
               {/* Agent Selector */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                 <div className="flex gap-4">
                   {agents.map((agent) => (
                     <button
@@ -279,8 +279,8 @@ const WebsiteAgentsPage = () => {
                       className={`
                         flex-1 p-4 rounded-lg border-2 transition-all
                         ${selectedAgent?.agent_key === agent.agent_key
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                         }
                       `}
                     >
@@ -288,15 +288,15 @@ const WebsiteAgentsPage = () => {
                         <div className={`
                           w-12 h-12 rounded-full flex items-center justify-center
                           ${agent.agent_key === 'sales'
-                            ? 'bg-green-100 text-green-600'
-                            : 'bg-blue-100 text-blue-600'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                           }
                         `}>
                           {agent.agent_key === 'sales' ? <Sparkles className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
                         </div>
                         <div className="text-left">
-                          <h4 className="font-semibold text-gray-900">{agent.name}</h4>
-                          <p className="text-sm text-gray-500 capitalize">{agent.agent_key}</p>
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{agent.name}</h4>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{agent.agent_key}</p>
                         </div>
                       </div>
                     </button>
@@ -306,8 +306,8 @@ const WebsiteAgentsPage = () => {
 
               {/* Agent Config */}
               {selectedAgent && (
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {t('agents.configure', 'Configure Agent')}: {selectedAgent.name}
                   </h3>
 
@@ -315,26 +315,26 @@ const WebsiteAgentsPage = () => {
                     {/* Basic Info */}
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           {t('agents.name', 'Name')}
                         </label>
                         <input
                           type="text"
                           value={selectedAgent.name || ''}
                           onChange={(e) => setSelectedAgent({ ...selectedAgent, name: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           {t('agents.avatarUrl', 'Avatar URL')}
                         </label>
                         <input
                           type="text"
                           value={selectedAgent.avatar_url || ''}
                           onChange={(e) => setSelectedAgent({ ...selectedAgent, avatar_url: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="https://..."
                         />
                       </div>
@@ -342,53 +342,53 @@ const WebsiteAgentsPage = () => {
 
                     {/* Welcome Message */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {t('agents.welcomeMessage', 'Welcome Message')}
                       </label>
                       <textarea
                         value={selectedAgent.welcome_message || ''}
                         onChange={(e) => setSelectedAgent({ ...selectedAgent, welcome_message: e.target.value })}
                         rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* System Prompt */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {t('agents.systemPrompt', 'System Prompt')}
                       </label>
                       <textarea
                         value={selectedAgent.system_prompt || ''}
                         onChange={(e) => setSelectedAgent({ ...selectedAgent, system_prompt: e.target.value })}
                         rows={6}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
                       />
                     </div>
 
                     {/* Personality */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         {t('agents.personality', 'Personality')}
                       </label>
                       <textarea
                         value={selectedAgent.personality || ''}
                         onChange={(e) => setSelectedAgent({ ...selectedAgent, personality: e.target.value })}
                         rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* Settings Row */}
                     <div className="grid grid-cols-3 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           {t('agents.tone', 'Tone')}
                         </label>
                         <select
                           value={selectedAgent.tone || 'professional'}
                           onChange={(e) => setSelectedAgent({ ...selectedAgent, tone: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                           <option value="professional">Professional</option>
                           <option value="friendly">Friendly</option>
@@ -398,13 +398,13 @@ const WebsiteAgentsPage = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           {t('agents.responseLength', 'Response Length')}
                         </label>
                         <select
                           value={selectedAgent.response_length || 'medium'}
                           onChange={(e) => setSelectedAgent({ ...selectedAgent, response_length: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                           <option value="short">Short</option>
                           <option value="medium">Medium</option>
@@ -413,13 +413,13 @@ const WebsiteAgentsPage = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           {t('agents.language', 'Language')}
                         </label>
                         <select
                           value={selectedAgent.language || 'en'}
                           onChange={(e) => setSelectedAgent({ ...selectedAgent, language: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                           <option value="en">English</option>
                           <option value="pt-br">Portuguese (BR)</option>
@@ -429,12 +429,12 @@ const WebsiteAgentsPage = () => {
                     </div>
 
                     {/* Active Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <div>
-                        <h4 className="font-medium text-gray-900">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">
                           {t('agents.active', 'Active')}
                         </h4>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {t('agents.activeDescription', 'Enable this agent on the website')}
                         </p>
                       </div>
@@ -477,9 +477,9 @@ const WebsiteAgentsPage = () => {
 
           {/* Knowledge Base Tab */}
           {activeTab === 'knowledge' && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {t('knowledge.title', 'Knowledge Base')}
                 </h3>
                 <button
@@ -499,7 +499,7 @@ const WebsiteAgentsPage = () => {
                 <select
                   value={knowledgeFilter.type}
                   onChange={(e) => setKnowledgeFilter({ ...knowledgeFilter, type: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="">{t('knowledge.allTypes', 'All Types')}</option>
                   <option value="faq">FAQ</option>
@@ -512,7 +512,7 @@ const WebsiteAgentsPage = () => {
                 <select
                   value={knowledgeFilter.agent_key}
                   onChange={(e) => setKnowledgeFilter({ ...knowledgeFilter, agent_key: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="">{t('knowledge.allAgents', 'All Agents')}</option>
                   <option value="sales">Sales</option>
@@ -523,7 +523,7 @@ const WebsiteAgentsPage = () => {
               {/* Knowledge List */}
               <div className="space-y-3">
                 {knowledge.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                     <Book className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>{t('knowledge.empty', 'No knowledge items yet')}</p>
                   </div>
@@ -531,7 +531,7 @@ const WebsiteAgentsPage = () => {
                   knowledge.map((item) => (
                     <div
                       key={item.id}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -559,11 +559,11 @@ const WebsiteAgentsPage = () => {
                           </div>
                           {item.type === 'faq' ? (
                             <>
-                              <h4 className="font-medium text-gray-900">{item.question}</h4>
-                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.answer}</p>
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.question}</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{item.answer}</p>
                             </>
                           ) : (
-                            <p className="text-gray-700 line-clamp-2">{item.content}</p>
+                            <p className="text-gray-700 dark:text-gray-300 line-clamp-2">{item.content}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 ml-4">
@@ -572,13 +572,13 @@ const WebsiteAgentsPage = () => {
                               setEditingKnowledge(item);
                               setShowKnowledgeModal(true);
                             }}
-                            className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => deleteKnowledge(item.id)}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -593,8 +593,8 @@ const WebsiteAgentsPage = () => {
 
           {/* Conversations Tab */}
           {activeTab === 'conversations' && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6">
                 {t('conversations.title', 'Chat Conversations')}
               </h3>
 
@@ -603,7 +603,7 @@ const WebsiteAgentsPage = () => {
                 <select
                   value={conversationFilter.agent_key}
                   onChange={(e) => setConversationFilter({ ...conversationFilter, agent_key: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="">{t('conversations.allAgents', 'All Agents')}</option>
                   <option value="sales">Sales</option>
@@ -613,7 +613,7 @@ const WebsiteAgentsPage = () => {
                 <select
                   value={conversationFilter.escalated}
                   onChange={(e) => setConversationFilter({ ...conversationFilter, escalated: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="">{t('conversations.allStatus', 'All Status')}</option>
                   <option value="true">{t('conversations.escalated', 'Escalated')}</option>
@@ -622,7 +622,7 @@ const WebsiteAgentsPage = () => {
 
                 <button
                   onClick={fetchConversations}
-                  className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                 >
                   <RefreshCw className="w-5 h-5" />
                 </button>
@@ -631,7 +631,7 @@ const WebsiteAgentsPage = () => {
               {/* Conversations List */}
               <div className="space-y-3">
                 {conversations.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                     <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>{t('conversations.empty', 'No conversations yet')}</p>
                   </div>
@@ -639,7 +639,7 @@ const WebsiteAgentsPage = () => {
                   conversations.map((conv) => (
                     <div
                       key={conv.id}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors cursor-pointer"
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
                       onClick={() => viewConversation(conv.id)}
                     >
                       <div className="flex items-center justify-between">
@@ -663,14 +663,14 @@ const WebsiteAgentsPage = () => {
                               {conv.message_count} messages
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
                             Session: {conv.session_id?.slice(0, 20)}...
                           </p>
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                             {new Date(conv.started_at).toLocaleString()}
                           </p>
                         </div>
-                        <Eye className="w-5 h-5 text-gray-400" />
+                        <Eye className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                       </div>
                     </div>
                   ))
@@ -684,50 +684,50 @@ const WebsiteAgentsPage = () => {
             <div className="space-y-6">
               {/* Lead Stats Cards */}
               <div className="grid grid-cols-4 gap-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Mail className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('leads.captured', 'Captured')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{leadStats?.total || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('leads.captured', 'Captured')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{leadStats?.total || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-yellow-100 rounded-lg">
-                      <PlayCircle className="w-5 h-5 text-yellow-600" />
+                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <PlayCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('leads.trialStarted', 'Trial Started')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{leadStats?.trial_started || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('leads.trialStarted', 'Trial Started')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{leadStats?.trial_started || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('leads.subscribed', 'Subscribed')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{leadStats?.subscribed || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('leads.subscribed', 'Subscribed')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{leadStats?.subscribed || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-purple-600" />
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('leads.conversionRate', 'Conversion Rate')}</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('leads.conversionRate', 'Conversion Rate')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {leadStats?.total > 0
                           ? ((leadStats?.subscribed / leadStats?.total) * 100).toFixed(1)
                           : 0}%
@@ -738,14 +738,14 @@ const WebsiteAgentsPage = () => {
               </div>
 
               {/* Leads List */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-gray-900">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     {t('leads.title', 'Website Leads')}
                   </h3>
                   <button
                     onClick={exportLeads}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold text-sm"
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold text-sm"
                   >
                     <Download className="w-4 h-4" />
                     {t('leads.export', 'Export CSV')}
@@ -757,7 +757,7 @@ const WebsiteAgentsPage = () => {
                   <select
                     value={leadsFilter.status}
                     onChange={(e) => setLeadsFilter({ ...leadsFilter, status: e.target.value })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
                     <option value="">{t('leads.allStatus', 'All Status')}</option>
                     <option value="captured">{t('leads.statusCaptured', 'Captured')}</option>
@@ -769,7 +769,7 @@ const WebsiteAgentsPage = () => {
                   <select
                     value={leadsFilter.source}
                     onChange={(e) => setLeadsFilter({ ...leadsFilter, source: e.target.value })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
                     <option value="">{t('leads.allSources', 'All Sources')}</option>
                     <option value="hero">Hero</option>
@@ -779,7 +779,7 @@ const WebsiteAgentsPage = () => {
 
                   <button
                     onClick={fetchLeads}
-                    className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                   >
                     <RefreshCw className="w-5 h-5" />
                   </button>
@@ -789,27 +789,27 @@ const WebsiteAgentsPage = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.email', 'Email')}</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.status', 'Status')}</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.source', 'Source')}</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.date', 'Date')}</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{t('leads.utmSource', 'UTM Source')}</th>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('leads.email', 'Email')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('leads.status', 'Status')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('leads.source', 'Source')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('leads.date', 'Date')}</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">{t('leads.utmSource', 'UTM Source')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {leads.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="text-center py-12 text-gray-500">
+                          <td colSpan={5} className="text-center py-12 text-gray-500 dark:text-gray-400">
                             <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
                             <p>{t('leads.empty', 'No leads captured yet')}</p>
                           </td>
                         </tr>
                       ) : (
                         leads.map((lead) => (
-                          <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <tr key={lead.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                             <td className="py-3 px-4">
-                              <span className="font-medium text-gray-900">{lead.email}</span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">{lead.email}</span>
                             </td>
                             <td className="py-3 px-4">
                               <span className={`
@@ -827,15 +827,15 @@ const WebsiteAgentsPage = () => {
                               </span>
                             </td>
                             <td className="py-3 px-4">
-                              <span className="text-sm text-gray-600 capitalize">{lead.source || '-'}</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">{lead.source || '-'}</span>
                             </td>
                             <td className="py-3 px-4">
-                              <span className="text-sm text-gray-600">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
                                 {new Date(lead.created_at).toLocaleDateString()}
                               </span>
                             </td>
                             <td className="py-3 px-4">
-                              <span className="text-sm text-gray-600">{lead.utm_source || '-'}</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">{lead.utm_source || '-'}</span>
                             </td>
                           </tr>
                         ))
@@ -852,96 +852,96 @@ const WebsiteAgentsPage = () => {
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-4 gap-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <MessageSquare className="w-5 h-5 text-purple-600" />
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                      <MessageSquare className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('stats.totalConversations', 'Total Conversations')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats?.total_conversations || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.totalConversations', 'Total Conversations')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats?.total_conversations || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <MessageCircle className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <MessageCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('stats.totalMessages', 'Total Messages')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats?.total_messages || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.totalMessages', 'Total Messages')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats?.total_messages || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Users className="w-5 h-5 text-orange-600" />
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                      <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('stats.escalated', 'Escalated')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats?.escalated || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.escalated', 'Escalated')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats?.escalated || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-green-600" />
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">{t('stats.avgMessages', 'Avg Messages')}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats?.avg_messages_per_conversation?.toFixed(1) || 0}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.avgMessages', 'Avg Messages')}</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats?.avg_messages_per_conversation?.toFixed(1) || 0}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Per Agent Stats */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
                   {t('stats.byAgent', 'Statistics by Agent')}
                 </h3>
                 <div className="grid grid-cols-2 gap-6">
                   {stats?.by_agent?.map((agentStats) => (
-                    <div key={agentStats.agent_key} className="p-4 bg-gray-50 rounded-lg">
+                    <div key={agentStats.agent_key} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`
                           w-8 h-8 rounded-full flex items-center justify-center
                           ${agentStats.agent_key === 'sales'
-                            ? 'bg-green-100 text-green-600'
-                            : 'bg-blue-100 text-blue-600'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                           }
                         `}>
                           {agentStats.agent_key === 'sales' ? <Sparkles className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
                         </div>
-                        <h4 className="font-semibold text-gray-900 capitalize">{agentStats.agent_key}</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">{agentStats.agent_key}</h4>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500">Conversations</p>
-                          <p className="font-semibold text-gray-900">{agentStats.conversations || 0}</p>
+                          <p className="text-gray-500 dark:text-gray-400">Conversations</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{agentStats.conversations || 0}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Messages</p>
-                          <p className="font-semibold text-gray-900">{agentStats.messages || 0}</p>
+                          <p className="text-gray-500 dark:text-gray-400">Messages</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{agentStats.messages || 0}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Escalated</p>
-                          <p className="font-semibold text-gray-900">{agentStats.escalated || 0}</p>
+                          <p className="text-gray-500 dark:text-gray-400">Escalated</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{agentStats.escalated || 0}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Avg Length</p>
-                          <p className="font-semibold text-gray-900">{agentStats.avg_length?.toFixed(1) || 0}</p>
+                          <p className="text-gray-500 dark:text-gray-400">Avg Length</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{agentStats.avg_length?.toFixed(1) || 0}</p>
                         </div>
                       </div>
                     </div>
                   )) || (
-                    <div className="col-span-2 text-center py-8 text-gray-500">
+                    <div className="col-span-2 text-center py-8 text-gray-500 dark:text-gray-400">
                       <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
                       <p>{t('stats.noData', 'No statistics available yet')}</p>
                     </div>
@@ -1000,14 +1000,14 @@ const KnowledgeModal = ({ knowledge, onSave, onClose, t }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-900">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {knowledge ? t('knowledge.edit', 'Edit Knowledge') : t('knowledge.add', 'Add Knowledge')}
             </h3>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-              <X className="w-5 h-5" />
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
         </div>
@@ -1015,13 +1015,13 @@ const KnowledgeModal = ({ knowledge, onSave, onClose, t }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('knowledge.type', 'Type')}
               </label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="faq">FAQ</option>
                 <option value="product">Product</option>
@@ -1032,13 +1032,13 @@ const KnowledgeModal = ({ knowledge, onSave, onClose, t }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('knowledge.agentKey', 'Agent (optional)')}
               </label>
               <select
                 value={form.agent_key}
                 onChange={(e) => setForm({ ...form, agent_key: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">{t('knowledge.shared', 'Shared (Both Agents)')}</option>
                 <option value="sales">Sales Only</option>
@@ -1048,14 +1048,14 @@ const KnowledgeModal = ({ knowledge, onSave, onClose, t }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {t('knowledge.category', 'Category')}
             </label>
             <input
               type="text"
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder={t('knowledge.categoryPlaceholder', 'e.g., Getting Started, Pricing, Features')}
             />
           </div>
@@ -1063,41 +1063,41 @@ const KnowledgeModal = ({ knowledge, onSave, onClose, t }) => {
           {form.type === 'faq' ? (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('knowledge.question', 'Question')}
                 </label>
                 <input
                   type="text"
                   value={form.question}
                   onChange={(e) => setForm({ ...form, question: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('knowledge.answer', 'Answer')}
                 </label>
                 <textarea
                   value={form.answer}
                   onChange={(e) => setForm({ ...form, answer: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   required
                 />
               </div>
             </>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('knowledge.content', 'Content')}
               </label>
               <textarea
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
                 rows={6}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 required
               />
             </div>
@@ -1107,7 +1107,7 @@ const KnowledgeModal = ({ knowledge, onSave, onClose, t }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold"
             >
               {t('common.cancel', 'Cancel')}
             </button>
@@ -1132,19 +1132,19 @@ const ConversationModal = ({ conversation, onClose, t }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {t('conversations.view', 'Conversation Details')}
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {conversation.agent_key} - {new Date(conversation.started_at).toLocaleString()}
               </p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-              <X className="w-5 h-5" />
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
         </div>
@@ -1160,13 +1160,13 @@ const ConversationModal = ({ conversation, onClose, t }) => {
                   max-w-[80%] p-3 rounded-lg
                   ${msg.role === 'user'
                     ? 'bg-purple-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                   }
                 `}
               >
                 <p className="text-sm">{msg.content}</p>
                 {msg.timestamp && (
-                  <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-purple-200' : 'text-gray-400'}`}>
+                  <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-purple-200' : 'text-gray-400 dark:text-gray-500'}`}>
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </p>
                 )}
@@ -1176,11 +1176,11 @@ const ConversationModal = ({ conversation, onClose, t }) => {
         </div>
 
         {conversation.contact_form_data && (
-          <div className="p-6 border-t border-gray-200 bg-orange-50">
-            <h4 className="font-semibold text-orange-800 mb-2">
+          <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-orange-50 dark:bg-orange-900/30">
+            <h4 className="font-semibold text-orange-800 dark:text-orange-300 mb-2">
               {t('conversations.contactForm', 'Contact Form Submitted')}
             </h4>
-            <div className="text-sm text-orange-700 space-y-1">
+            <div className="text-sm text-orange-700 dark:text-orange-400 space-y-1">
               {(() => {
                 const data = typeof conversation.contact_form_data === 'string'
                   ? JSON.parse(conversation.contact_form_data)

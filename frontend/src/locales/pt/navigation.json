@@ -7,7 +7,9 @@
     "profileSearch": "Busca de Perfis",
     "linkedin": "LinkedIn",
     "campaigns": "Campanhas",
-    "pipeline": "Oportunidades",
+    "pipeline": "Pipeline",
+    "tasks": "Tarefas",
+    "lists": "Listas",
     "activation": "Ativação de Listas",
     "crm": "CRM",
     "conversations": "Conversas",
@@ -20,6 +22,8 @@
     "logout": "Sair"
   },
   "sections": {
+    "work": "TRABALHO",
+    "campaigns": "CAMPANHAS",
     "aiAgents": "AGENTES DE IA",
     "googleMaps": "GOOGLE MAPS",
     "linkedin": "LINKEDIN",

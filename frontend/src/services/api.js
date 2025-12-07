@@ -371,17 +371,24 @@ class ApiService {
     return data;
   }
 
-  // Gerar URL para exibição inline de imagem
+  // Gerar URL para exibição inline de imagem/áudio
   getAttachmentInlineUrl(conversationId, messageId, attachmentId) {
     const token = this.getToken();
-    return `${this.baseURL}/conversations/${conversationId}/messages/${messageId}/attachments/${attachmentId}/inline?token=${token}`;
+    // Encode IDs para suportar caracteres especiais (ex: IDs do WhatsApp)
+    const encConv = encodeURIComponent(conversationId);
+    const encMsg = encodeURIComponent(messageId);
+    const encAtt = encodeURIComponent(attachmentId);
+    return `${this.baseURL}/conversations/${encConv}/messages/${encMsg}/attachments/${encAtt}/inline?token=${token}`;
   }
 
   // Download de attachment
   async downloadAttachment(conversationId, messageId, attachmentId, filename) {
-    // Passar o filename como query param para o backend usar como fallback
+    // Encode IDs para suportar caracteres especiais (ex: IDs do WhatsApp)
+    const encConv = encodeURIComponent(conversationId);
+    const encMsg = encodeURIComponent(messageId);
+    const encAtt = encodeURIComponent(attachmentId);
     const encodedFilename = encodeURIComponent(filename || 'download');
-    const url = `${this.baseURL}/conversations/${conversationId}/messages/${messageId}/attachments/${attachmentId}?filename=${encodedFilename}`;
+    const url = `${this.baseURL}/conversations/${encConv}/messages/${encMsg}/attachments/${encAtt}?filename=${encodedFilename}`;
     const token = this.getToken();
 
     const response = await fetch(url, {

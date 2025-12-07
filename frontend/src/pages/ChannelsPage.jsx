@@ -14,73 +14,73 @@ const CHANNEL_CONFIG = {
     icon: Linkedin,
     name: 'LinkedIn',
     gradient: 'from-blue-600 to-blue-700',
-    bgLight: 'bg-blue-50',
-    textColor: 'text-blue-600',
-    borderColor: 'border-blue-200'
+    bgLight: 'bg-blue-50 dark:bg-blue-900/30',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    borderColor: 'border-blue-200 dark:border-blue-700'
   },
   WHATSAPP: {
     icon: MessageCircle,
     name: 'WhatsApp',
     gradient: 'from-green-500 to-green-600',
-    bgLight: 'bg-green-50',
-    textColor: 'text-green-600',
-    borderColor: 'border-green-200'
+    bgLight: 'bg-green-50 dark:bg-green-900/30',
+    textColor: 'text-green-600 dark:text-green-400',
+    borderColor: 'border-green-200 dark:border-green-700'
   },
   INSTAGRAM: {
     icon: Instagram,
     name: 'Instagram',
     gradient: 'from-pink-500 to-purple-600',
-    bgLight: 'bg-pink-50',
-    textColor: 'text-pink-600',
-    borderColor: 'border-pink-200'
+    bgLight: 'bg-pink-50 dark:bg-pink-900/30',
+    textColor: 'text-pink-600 dark:text-pink-400',
+    borderColor: 'border-pink-200 dark:border-pink-700'
   },
   MESSENGER: {
     icon: Facebook,
     name: 'Messenger',
     gradient: 'from-blue-500 to-blue-600',
-    bgLight: 'bg-blue-50',
-    textColor: 'text-blue-600',
-    borderColor: 'border-blue-200'
+    bgLight: 'bg-blue-50 dark:bg-blue-900/30',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    borderColor: 'border-blue-200 dark:border-blue-700'
   },
   TELEGRAM: {
     icon: Send,
     name: 'Telegram',
     gradient: 'from-sky-500 to-sky-600',
-    bgLight: 'bg-sky-50',
-    textColor: 'text-sky-600',
-    borderColor: 'border-sky-200'
+    bgLight: 'bg-sky-50 dark:bg-sky-900/30',
+    textColor: 'text-sky-600 dark:text-sky-400',
+    borderColor: 'border-sky-200 dark:border-sky-700'
   },
   TWITTER: {
     icon: Twitter,
     name: 'X (Twitter)',
     gradient: 'from-gray-800 to-gray-900',
-    bgLight: 'bg-gray-100',
-    textColor: 'text-gray-700',
-    borderColor: 'border-gray-300'
+    bgLight: 'bg-gray-100 dark:bg-gray-700',
+    textColor: 'text-gray-700 dark:text-gray-300',
+    borderColor: 'border-gray-300 dark:border-gray-600'
   },
   GOOGLE: {
     icon: Mail,
     name: 'Google Chat',
     gradient: 'from-red-500 to-red-600',
-    bgLight: 'bg-red-50',
-    textColor: 'text-red-600',
-    borderColor: 'border-red-200'
+    bgLight: 'bg-red-50 dark:bg-red-900/30',
+    textColor: 'text-red-600 dark:text-red-400',
+    borderColor: 'border-red-200 dark:border-red-700'
   },
   OUTLOOK: {
     icon: Mail,
     name: 'Outlook',
     gradient: 'from-blue-600 to-blue-700',
-    bgLight: 'bg-blue-50',
-    textColor: 'text-blue-600',
-    borderColor: 'border-blue-200'
+    bgLight: 'bg-blue-50 dark:bg-blue-900/30',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    borderColor: 'border-blue-200 dark:border-blue-700'
   },
   MAIL: {
     icon: Mail,
     name: 'Email',
     gradient: 'from-gray-600 to-gray-700',
-    bgLight: 'bg-gray-50',
-    textColor: 'text-gray-600',
-    borderColor: 'border-gray-200'
+    bgLight: 'bg-gray-50 dark:bg-gray-700',
+    textColor: 'text-gray-600 dark:text-gray-400',
+    borderColor: 'border-gray-200 dark:border-gray-600'
   }
 };
 
@@ -154,10 +154,10 @@ const ChannelsPage = () => {
 
   const getAccountTypeStyle = (type) => {
     const styles = {
-      'Sales Navigator': { bg: 'bg-blue-100', text: 'text-blue-700', icon: Briefcase },
-      'Recruiter': { bg: 'bg-purple-100', text: 'text-purple-700', icon: Users },
-      'Premium': { bg: 'bg-amber-100', text: 'text-amber-700', icon: Crown },
-      'Free': { bg: 'bg-gray-100', text: 'text-gray-600', icon: CheckCircle }
+      'Sales Navigator': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', icon: Briefcase },
+      'Recruiter': { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400', icon: Users },
+      'Premium': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', icon: Crown },
+      'Free': { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-600 dark:text-gray-400', icon: CheckCircle }
     };
     return styles[type] || styles['Free'];
   };
@@ -407,20 +407,20 @@ const ChannelsPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div>
-          <p className="text-gray-500 text-sm">{t('loading')}</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{t('loading')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{t('title')}</h1>
-            <p className="text-sm text-gray-500">{t('subtitle')}</p>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('title')}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('subtitle')}</p>
           </div>
           <button
             onClick={handleConnectChannel}
@@ -440,21 +440,21 @@ const ChannelsPage = () => {
       <div className="p-6">
         {/* Channels Table */}
         {accounts.length > 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Canal</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Conta</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Health</th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Uso Diario</th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Conectado em</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Acoes</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Canal</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conta</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Health</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Uso Diario</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conectado em</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acoes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {activeAccounts.map((account) => {
                   const channelConfig = getChannelConfig(account.provider_type);
                   const ChannelIcon = channelConfig.icon;
@@ -467,7 +467,7 @@ const ChannelsPage = () => {
                     : 0;
 
                   return (
-                    <tr key={account.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={account.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       {/* Canal */}
                       <td className="px-4 py-3">
                         <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-md ${channelConfig.bgLight}`}>
@@ -491,8 +491,8 @@ const ChannelsPage = () => {
                             </div>
                           )}
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{account.profile_name}</p>
-                            <p className="text-xs text-gray-500">@{account.public_identifier || account.linkedin_username}</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{account.profile_name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">@{account.public_identifier || account.linkedin_username}</p>
                           </div>
                         </div>
                       </td>
@@ -507,7 +507,7 @@ const ChannelsPage = () => {
 
                       {/* Status */}
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                           <CheckCircle className="w-3 h-3" />
                           Ativo
                         </span>
@@ -517,24 +517,24 @@ const ChannelsPage = () => {
                       <td className="px-4 py-3 text-center">
                         {healthScore ? (
                           <span className={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-semibold ${
-                            healthScore.health_score >= 70 ? 'bg-green-100 text-green-700' :
-                            healthScore.health_score >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
+                            healthScore.health_score >= 70 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                            healthScore.health_score >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                            'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                           }`}>
                             {healthScore.health_score}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">-</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                         )}
                       </td>
 
                       {/* Uso Diário */}
                       <td className="px-4 py-3">
                         <div className="flex flex-col items-center gap-1">
-                          <span className="text-xs text-gray-600">
+                          <span className="text-xs text-gray-600 dark:text-gray-400">
                             {account.today_sent}/{account.daily_limit}
                           </span>
-                          <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                          <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
                             <div
                               className={`h-1.5 rounded-full ${
                                 usagePercent >= 90 ? 'bg-red-500' :
@@ -549,7 +549,7 @@ const ChannelsPage = () => {
 
                       {/* Conectado em */}
                       <td className="px-4 py-3 text-center">
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {new Date(account.connected_at).toLocaleDateString('pt-BR')}
                         </span>
                       </td>
@@ -560,7 +560,7 @@ const ChannelsPage = () => {
                           <button
                             onClick={(e) => handleRefreshAccount(account.id, e)}
                             disabled={refreshingAccounts[account.id]}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                            className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                             title="Atualizar"
                           >
                             <RefreshCw className={`w-4 h-4 ${refreshingAccounts[account.id] ? 'animate-spin' : ''}`} />
@@ -571,37 +571,37 @@ const ChannelsPage = () => {
                                 e.stopPropagation();
                                 setActiveDropdown(activeDropdown === account.id ? null : account.id);
                               }}
-                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </button>
                             {activeDropdown === account.id && (
-                              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
                                 <button
                                   onClick={() => handleOpenChannelSettings(account)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 >
                                   <Cog className="w-4 h-4" />
                                   Configuracoes
                                 </button>
                                 <button
                                   onClick={() => handleOpenLimitConfig(account)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 >
                                   <Settings className="w-4 h-4" />
                                   Limites
                                 </button>
-                                <hr className="my-1 border-gray-100" />
+                                <hr className="my-1 border-gray-100 dark:border-gray-700" />
                                 <button
                                   onClick={() => handleOpenDisconnectModal(account)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                                 >
                                   <PowerOff className="w-4 h-4" />
                                   Desconectar
                                 </button>
                                 <button
                                   onClick={() => handleOpenDeleteModal(account)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                   Excluir
@@ -621,12 +621,12 @@ const ChannelsPage = () => {
                   const ChannelIcon = channelConfig.icon;
 
                   return (
-                    <tr key={account.id} className="bg-gray-50/50 opacity-75">
+                    <tr key={account.id} className="bg-gray-50/50 dark:bg-gray-800/50 opacity-75">
                       {/* Canal */}
                       <td className="px-4 py-3">
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100">
-                          <ChannelIcon className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium text-gray-500">{channelConfig.name}</span>
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-gray-700">
+                          <ChannelIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{channelConfig.name}</span>
                         </div>
                       </td>
 
@@ -640,25 +640,25 @@ const ChannelsPage = () => {
                               className="w-8 h-8 rounded-full grayscale"
                             />
                           ) : (
-                            <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                               {account.profile_name?.substring(0, 2).toUpperCase()}
                             </div>
                           )}
                           <div>
-                            <p className="text-sm font-medium text-gray-600">{account.profile_name}</p>
-                            <p className="text-xs text-gray-400">@{account.public_identifier || account.linkedin_username}</p>
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{account.profile_name}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">@{account.public_identifier || account.linkedin_username}</p>
                           </div>
                         </div>
                       </td>
 
                       {/* Tipo */}
                       <td className="px-4 py-3">
-                        <span className="text-xs text-gray-400">-</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">-</span>
                       </td>
 
                       {/* Status */}
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                           <PowerOff className="w-3 h-3" />
                           Desativado
                         </span>
@@ -666,17 +666,17 @@ const ChannelsPage = () => {
 
                       {/* Health */}
                       <td className="px-4 py-3 text-center">
-                        <span className="text-gray-400 text-xs">-</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                       </td>
 
                       {/* Uso Diário */}
                       <td className="px-4 py-3 text-center">
-                        <span className="text-gray-400 text-xs">-</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                       </td>
 
                       {/* Conectado em */}
                       <td className="px-4 py-3 text-center">
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           {account.disconnected_at
                             ? `Desc. ${new Date(account.disconnected_at).toLocaleDateString('pt-BR')}`
                             : '-'}
@@ -689,13 +689,13 @@ const ChannelsPage = () => {
                           <button
                             onClick={() => handleReactivateChannel(account)}
                             disabled={connectLoading}
-                            className="px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                            className="px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
                           >
                             {connectLoading ? 'Conectando...' : 'Reativar'}
                           </button>
                           <button
                             onClick={() => handleOpenDeleteModal(account)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                             title="Excluir"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -709,8 +709,8 @@ const ChannelsPage = () => {
             </table>
 
             {disconnectedAccounts.length > 0 && (
-              <div className="bg-amber-50 border-t border-amber-200 px-4 py-2">
-                <p className="text-xs text-amber-700">
+              <div className="bg-amber-50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-700 px-4 py-2">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   <AlertTriangle className="w-3 h-3 inline mr-1" />
                   Contas desativadas ainda contam como slot ativo. Exclua para liberar.
                 </p>
@@ -718,13 +718,13 @@ const ChannelsPage = () => {
             )}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
             <div className="max-w-sm mx-auto">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Linkedin className="w-6 h-6 text-gray-400" />
+              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Linkedin className="w-6 h-6 text-gray-400 dark:text-gray-500" />
               </div>
-              <h3 className="text-base font-medium text-gray-900 mb-1">{t('messages.noChannels')}</h3>
-              <p className="text-sm text-gray-500 mb-4">{t('messages.noChannelsDescription')}</p>
+              <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{t('messages.noChannels')}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('messages.noChannelsDescription')}</p>
               <button
                 onClick={handleConnectChannel}
                 disabled={connectLoading}
@@ -748,26 +748,26 @@ const ChannelsPage = () => {
 
       {showDisconnectModal && accountToManage && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <PowerOff className="w-5 h-5 text-orange-600" />
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                  <PowerOff className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">Desconectar Canal</h3>
-                  <p className="text-sm text-gray-500">{accountToManage.profile_name}</p>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Desconectar Canal</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{accountToManage.profile_name}</p>
                 </div>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-amber-800">
+              <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-4">
+                <p className="text-sm text-amber-800 dark:text-amber-300">
                   Voce podera reativar depois. O slot continuara ativo ate excluir.
                 </p>
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowDisconnectModal(false); setAccountToManage(null); }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium"
                   disabled={actionLoading}
                 >
                   Cancelar
@@ -787,26 +787,26 @@ const ChannelsPage = () => {
 
       {showDeleteModal && accountToManage && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <Trash2 className="w-5 h-5 text-red-600" />
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">Excluir Permanentemente</h3>
-                  <p className="text-sm text-gray-500">{accountToManage.profile_name}</p>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Excluir Permanentemente</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{accountToManage.profile_name}</p>
                 </div>
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-red-800">
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-800 dark:text-red-300">
                   <strong>Irreversivel!</strong> O historico sera perdido permanentemente.
                 </p>
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowDeleteModal(false); setAccountToManage(null); }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium"
                   disabled={actionLoading}
                 >
                   Cancelar

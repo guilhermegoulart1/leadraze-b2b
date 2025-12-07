@@ -7,6 +7,8 @@ const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { NotFoundError, BadRequestError } = require('../utils/errors');
 const { getAccessibleUserIds, getAccessibleSectorIds } = require('../middleware/permissions');
+const unipileClient = require('../config/unipile');
+const storageService = require('../services/storageService');
 
 // ================================
 // HELPER: Build sector filter for contact queries
@@ -1282,6 +1284,178 @@ exports.deleteContactNote = async (req, res) => {
     sendError(res, error);
   }
 };
+
+/**
+ * POST /contacts/:id/refresh-data
+ * Refresh/fetch contact data and profile picture from Unipile
+ * Body options:
+ *   - updateName: boolean (default: true) - Whether to update the contact name
+ *   - updatePicture: boolean (default: true) - Whether to fetch and update profile picture
+ */
+exports.refreshContactData = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { id: contactId } = req.params;
+    const { updateName = true, updatePicture = true } = req.body || {};
+
+    // Get contact
+    const contactQuery = await db.query(
+      `SELECT c.*, cc.channel_id, cc.channel_type
+       FROM contacts c
+       LEFT JOIN contact_channels cc ON cc.contact_id = c.id
+       WHERE c.id = $1 AND c.account_id = $2
+       ORDER BY cc.last_interaction_at DESC NULLS LAST
+       LIMIT 1`,
+      [contactId, accountId]
+    );
+
+    if (contactQuery.rows.length === 0) {
+      return sendError(res, new NotFoundError('Contato não encontrado'));
+    }
+
+    const contact = contactQuery.rows[0];
+
+    // Get attendee_id from contact_channels metadata
+    let attendeeId = null;
+    const channelQuery = await db.query(
+      `SELECT metadata FROM contact_channels
+       WHERE contact_id = $1
+       AND metadata->>'attendee_id' IS NOT NULL
+       ORDER BY last_interaction_at DESC NULLS LAST
+       LIMIT 1`,
+      [contactId]
+    );
+
+    if (channelQuery.rows.length > 0) {
+      attendeeId = channelQuery.rows[0].metadata?.attendee_id;
+    }
+
+    if (!attendeeId) {
+      console.log('⚠️ AttendeeId não encontrado nos canais do contato');
+      return sendError(res, new BadRequestError(
+        'Não foi possível encontrar o attendee_id para atualizar os dados. ' +
+        'Os dados serão buscados automaticamente na próxima mensagem recebida.'
+      ));
+    }
+
+    console.log(`🔄 Atualizando dados do contato ${contactId}, attendee ${attendeeId}`);
+
+    const result = { updated: false, fields: [], contact: null };
+
+    // 1. Fetch attendee data from Unipile API
+    const attendeeData = await unipileClient.messaging.getAttendeeById(attendeeId);
+
+    if (attendeeData) {
+      console.log('📋 Dados do attendee recebidos:', JSON.stringify(attendeeData, null, 2));
+
+      const updates = {};
+
+      // Extract name
+      const attendeeName = attendeeData.name
+        || attendeeData.display_name
+        || attendeeData.full_name
+        || attendeeData.pushname;
+
+      // Update name if requested and valid (not just a phone number)
+      if (updateName && attendeeName && !attendeeName.match(/^\+?\d+$/)) {
+        updates.name = attendeeName;
+        result.fields.push('name');
+      }
+
+      // Extract headline/bio/about
+      if (attendeeData.headline || attendeeData.bio || attendeeData.about) {
+        updates.headline = attendeeData.headline || attendeeData.bio || attendeeData.about;
+        result.fields.push('headline');
+      }
+
+      // Apply updates to contact
+      if (Object.keys(updates).length > 0) {
+        const setClause = Object.keys(updates)
+          .map((key, i) => `${key} = $${i + 2}`)
+          .join(', ');
+        const values = [contactId, ...Object.values(updates)];
+
+        await db.query(
+          `UPDATE contacts SET ${setClause}, updated_at = NOW() WHERE id = $1`,
+          values
+        );
+        result.updated = true;
+        console.log(`✅ Dados do contato atualizados: ${result.fields.join(', ')}`);
+      }
+    }
+
+    // 2. Fetch and save profile picture
+    if (updatePicture) {
+      console.log(`📸 Buscando foto de perfil do attendee: ${attendeeId}`);
+
+      const pictureResult = await unipileClient.messaging.getAttendeePicture(attendeeId);
+
+      if (pictureResult && pictureResult.data) {
+        console.log(`✅ Foto encontrada: ${pictureResult.contentType}, ${pictureResult.data.length} bytes`);
+
+        const mimeToExt = {
+          'image/jpeg': '.jpg',
+          'image/jpg': '.jpg',
+          'image/png': '.png',
+          'image/gif': '.gif',
+          'image/webp': '.webp'
+        };
+        const ext = mimeToExt[pictureResult.contentType] || '.jpg';
+
+        const uploadResult = await storageService.uploadContactPicture(
+          accountId,
+          contactId,
+          pictureResult.data,
+          pictureResult.contentType,
+          `profile${ext}`
+        );
+
+        console.log(`✅ Foto salva no R2: ${uploadResult.url}`);
+
+        await db.query(
+          `UPDATE contacts SET profile_picture = $1, updated_at = NOW() WHERE id = $2`,
+          [uploadResult.url, contactId]
+        );
+
+        result.updated = true;
+        result.fields.push('profile_picture');
+        result.pictureUrl = uploadResult.url;
+      } else {
+        console.log('⚠️ Nenhuma foto de perfil disponível no Unipile');
+      }
+    }
+
+    // Fetch updated contact data to return
+    const updatedContact = await db.query(
+      `SELECT id, name, email, phone, company, title, location, headline,
+              profile_picture, profile_url, source, notes, updated_at
+       FROM contacts WHERE id = $1`,
+      [contactId]
+    );
+    result.contact = updatedContact.rows[0];
+
+    if (result.updated) {
+      sendSuccess(res, {
+        message: `Dados atualizados com sucesso: ${result.fields.join(', ')}`,
+        fields_updated: result.fields,
+        contact: result.contact
+      });
+    } else {
+      sendSuccess(res, {
+        message: 'Nenhum dado novo encontrado para atualizar',
+        fields_updated: [],
+        contact: result.contact
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao atualizar dados do contato:', error);
+    sendError(res, error);
+  }
+};
+
+// Alias para compatibilidade (mantém endpoint antigo funcionando)
+exports.refreshContactPicture = exports.refreshContactData;
 
 // Helper functions for CSV
 function escapeCsvField(field) {

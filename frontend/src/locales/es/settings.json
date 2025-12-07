@@ -7,11 +7,14 @@
     "notifications": "Notificaciones",
     "billing": "Facturación",
     "integrations": "Integraciones",
-    "privacy": "Privacidad"
+    "privacy": "Privacidad",
+    "affiliate": "Programa de Afiliados"
   },
   "profile": {
     "title": "Información del Perfil",
     "fullName": "Nombre Completo",
+    "name": "Nombre",
+    "namePlaceholder": "Tu nombre",
     "email": "Email",
     "phone": "Teléfono",
     "phonePlaceholder": "+34 (91) 999-9999",
@@ -20,9 +23,18 @@
     "company": "Empresa",
     "companyPlaceholder": "Nombre de su empresa",
     "changePhoto": "Cambiar Foto",
+    "removePhoto": "Eliminar",
     "photoRequirements": "JPG, PNG o GIF • Máx 2MB",
     "cancel": "Cancelar",
-    "saveChanges": "Guardar Cambios"
+    "saveChanges": "Guardar Cambios",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "savedSuccess": "¡Guardado con éxito!",
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "themeAuto": "Auto"
   },
   "security": {
     "title": "Seguridad",
@@ -66,5 +78,52 @@
   },
   "placeholder": {
     "title": "Contenido en desarrollo..."
+  },
+  "affiliate": {
+    "title": "Programa de Afiliados",
+    "subtitle": "Invita amigos y gana 10% de comisión recurrente",
+    "refresh": "Actualizar",
+    "loading": "Cargando...",
+    "copied": "¡Copiado!",
+    "copy": "Copiar",
+    "clicks": "Clics",
+    "conversions": "Conversiones",
+    "monthlyEarnings": "Ganancias del Mes",
+    "totalEarnings": "Total Acumulado",
+    "status": {
+      "active": "Activo",
+      "pending": "Pendiente",
+      "canceled": "Cancelado"
+    },
+    "tabs": {
+      "referrals": "Referidos",
+      "earnings": "Historial de Ganancias"
+    },
+    "table": {
+      "email": "Email",
+      "status": "Estado",
+      "date": "Fecha",
+      "earnings": "Ganancias",
+      "referral": "Referido",
+      "amountPaid": "Monto Pagado",
+      "commission": "Comisión"
+    },
+    "empty": {
+      "referrals": {
+        "title": "Ningún referido aún",
+        "description": "¡Comparte tu enlace y empieza a ganar comisiones!"
+      },
+      "earnings": {
+        "title": "Ninguna ganancia aún",
+        "description": "Tus ganancias aparecerán aquí cuando tus referidos paguen."
+      }
+    },
+    "howItWorks": {
+      "title": "¿Cómo funciona?",
+      "step1": "Comparte tu enlace de afiliado con amigos y colegas",
+      "step2": "Cuando alguien se suscriba usando tu enlace, ganas 10% de comisión",
+      "step3": "La comisión es recurrente mientras el referido permanezca activo",
+      "step4": "Las ganancias se acumulan y pronto podrás solicitar el pago"
+    }
   }
 }

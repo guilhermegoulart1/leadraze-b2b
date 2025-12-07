@@ -76,6 +76,18 @@ router.delete('/:id/notes/:noteId',
   contactController.deleteContactNote
 );
 
+// Refresh contact data from Unipile (picture, name, etc.)
+router.post('/:id/refresh-data',
+  checkPermission('contacts:edit:own'),
+  contactController.refreshContactData
+);
+
+// Alias for backwards compatibility
+router.post('/:id/refresh-picture',
+  checkPermission('contacts:edit:own'),
+  contactController.refreshContactPicture
+);
+
 // Export/Import
 router.post('/export',
   checkPermission('contacts:export'),

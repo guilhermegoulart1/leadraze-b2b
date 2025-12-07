@@ -1,5 +1,6 @@
 // frontend/src/components/DetailsPanel.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   User, Building2, Briefcase, MapPin, Linkedin,
   Mail, Phone, Calendar, Tag, FileText, Bot,
@@ -8,12 +9,12 @@ import {
 import api from '../services/api';
 
 const LEAD_STATUS_OPTIONS = [
-  { value: 'leads', label: 'Prospecção', color: 'gray' },
-  { value: 'invite_sent', label: 'Convite', color: 'blue' },
-  { value: 'qualifying', label: 'Qualificação', color: 'yellow' },
-  { value: 'accepted', label: 'Em Andamento', color: 'purple' },
-  { value: 'qualified', label: 'Ganho', color: 'green' },
-  { value: 'discarded', label: 'Descartado', color: 'red' }
+  { value: 'leads', labelKey: 'details.leadStatus.leads', color: 'gray' },
+  { value: 'invite_sent', labelKey: 'details.leadStatus.invite_sent', color: 'blue' },
+  { value: 'qualifying', labelKey: 'details.leadStatus.qualifying', color: 'yellow' },
+  { value: 'accepted', labelKey: 'details.leadStatus.accepted', color: 'purple' },
+  { value: 'qualified', labelKey: 'details.leadStatus.qualified', color: 'green' },
+  { value: 'discarded', labelKey: 'details.leadStatus.discarded', color: 'red' }
 ];
 
 const getStatusColorClasses = (color, isActive = false) => {
@@ -32,8 +33,12 @@ const getStatusColorClasses = (color, isActive = false) => {
 };
 
 const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversationUpdated, onOpenContactModal }) => {
+  const { t, i18n } = useTranslation('conversations');
   const [conversation, setConversation] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Helper to get locale for date formatting
+  const getLocale = () => i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
   const [expandedSections, setExpandedSections] = useState({
     timeline: false,
     notes: false
@@ -359,7 +364,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
       <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex items-center justify-center p-6">
         <div className="text-center">
           <User className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <p className="text-sm text-gray-600 dark:text-gray-400">Selecione uma conversa</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{t('details.selectConversation')}</p>
         </div>
       </div>
     );
@@ -378,7 +383,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
           {/* Header - Informações */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Informações</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t('details.information')}</h3>
             </div>
 
             {/* Profile Picture & Name */}
@@ -409,7 +414,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                 </h3>
               )}
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Cliente desde {conversation?.created_at ? new Date(conversation.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : 'N/A'}
+                {t('details.clientSince')} {conversation?.created_at ? new Date(conversation.created_at).toLocaleDateString(getLocale(), { month: 'short', year: 'numeric' }) : 'N/A'}
               </p>
             </div>
 
@@ -417,18 +422,18 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
             <div className="space-y-3 mb-4">
               {/* Campanha */}
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Campanha</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.campaign')}</p>
                 <div className="flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                   <span className="text-sm text-gray-900 dark:text-gray-100">
-                    {conversation?.campaign_name || 'Não atribuído'}
+                    {conversation?.campaign_name || t('details.notAssigned')}
                   </span>
                 </div>
               </div>
 
               {/* Atribuição */}
               <div className="relative">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Atribuído a</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.assignedTo')}</p>
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                   <button
@@ -436,7 +441,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                     className="text-sm text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400 transition-colors flex items-center gap-1"
                     disabled={assigning}
                   >
-                    {assigning ? 'Atualizando...' : (conversation?.assigned_user_name || 'Não atribuída')}
+                    {assigning ? t('details.updating') : (conversation?.assigned_user_name || t('sidebar.notAssigned'))}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </div>
@@ -450,7 +455,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                           onClick={handleUnassign}
                           className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
-                          ✕ Desatribuir
+                          ✕ {t('details.unassign')}
                         </button>
                         <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
                       </>
@@ -474,7 +479,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
 
               {/* Setor */}
               <div className="relative">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Setor</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.sector')}</p>
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                   <button
@@ -482,7 +487,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                     className="text-sm text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400 transition-colors flex items-center gap-1"
                     disabled={assigningSector}
                   >
-                    {assigningSector ? 'Atualizando...' : (conversation?.sector_name || 'Não atribuído')}
+                    {assigningSector ? t('details.updating') : (conversation?.sector_name || t('details.notAssigned'))}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </div>
@@ -496,7 +501,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                           onClick={handleUnassignSector}
                           className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
-                          ✕ Desatribuir
+                          ✕ {t('details.unassign')}
                         </button>
                         <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
                       </>
@@ -529,7 +534,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               {/* Email */}
               {conversation?.lead_email && (
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Email</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.email')}</p>
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span className="text-sm text-gray-900 dark:text-gray-100">{conversation.lead_email}</span>
@@ -540,7 +545,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               {/* Telefone */}
               {conversation?.lead_phone && (
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Telefone</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.phone')}</p>
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span className="text-sm text-gray-900 dark:text-gray-100">{conversation.lead_phone}</span>
@@ -551,7 +556,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               {/* Empresa */}
               {conversation?.lead_company && (
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Empresa</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.company')}</p>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span className="text-sm text-gray-900 dark:text-gray-100">{conversation.lead_company}</span>
@@ -562,7 +567,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               {/* Localização */}
               {conversation?.lead_location && (
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Localização</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.location')}</p>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span className="text-sm text-gray-900 dark:text-gray-100">{conversation.lead_location}</span>
@@ -574,7 +579,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
             {/* LinkedIn */}
             {conversation?.lead_profile_url && (
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Perfil LinkedIn</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('details.linkedInProfile')}</p>
                 <a
                   href={conversation.lead_profile_url}
                   target="_blank"
@@ -582,7 +587,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
                 >
                   <Linkedin className="w-4 h-4" />
-                  <span>Ver perfil</span>
+                  <span>{t('details.viewProfile')}</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
@@ -591,17 +596,17 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
 
           {/* Modo de Atendimento */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Modo de Atendimento</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('details.serviceMode')}</p>
             <div className="flex items-center gap-2">
               {conversation?.status === 'ai_active' ? (
                 <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
                   <Bot className="w-4 h-4" />
-                  <span className="text-sm font-medium">IA Ativa</span>
+                  <span className="text-sm font-medium">{t('details.aiActive')}</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                   <User className="w-4 h-4" />
-                  <span className="text-sm font-medium">Manual</span>
+                  <span className="text-sm font-medium">{t('details.manual')}</span>
                 </div>
               )}
             </div>
@@ -610,7 +615,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
           {/* Etapa do CRM */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Etapa do Pipeline</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('details.pipelineStage')}</p>
               {!editingStatus && (
                 <button
                   onClick={() => setEditingStatus(true)}
@@ -631,14 +636,14 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                       getStatusColorClasses(option.color, selectedStatus === option.value)
                     }`}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </button>
                 ))}
                 <button
                   onClick={() => setEditingStatus(false)}
                   className="w-full px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 >
-                  Cancelar
+                  {t('details.cancel')}
                 </button>
               </div>
             ) : (
@@ -647,14 +652,14 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   ? getStatusColorClasses(currentStatus.color, true)
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600'
               }`}>
-                {currentStatus?.label || 'Selecione'}
+                {currentStatus ? t(currentStatus.labelKey) : t('details.select')}
               </div>
             )}
           </div>
 
           {/* Tags Personalizadas */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Etiquetas</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('details.tags')}</p>
 
             <div className="flex flex-wrap gap-2 mb-3">
               {tags.map(tag => (
@@ -681,7 +686,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   type="text"
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="Nome da etiqueta..."
+                  placeholder={t('details.tagNamePlaceholder')}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleAddTag();
@@ -705,7 +710,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                     onClick={handleAddTag}
                     className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
                   >
-                    Adicionar
+                    {t('details.add')}
                   </button>
                   <button
                     onClick={() => {
@@ -715,7 +720,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                     }}
                     className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm"
                   >
-                    Cancelar
+                    {t('details.cancel')}
                   </button>
                 </div>
               </div>
@@ -725,7 +730,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                 className="flex items-center gap-2 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 text-sm font-medium"
               >
                 <Plus className="w-4 h-4" />
-                Nova etiqueta
+                {t('details.newTag')}
               </button>
             )}
           </div>
@@ -739,7 +744,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                  Linha do Tempo
+                  {t('details.timeline')}
                 </span>
               </div>
               {expandedSections.timeline ? (
@@ -755,9 +760,9 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5" />
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Conversa iniciada</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('details.conversationStarted')}</p>
                       <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(conversation.created_at).toLocaleString('pt-BR')}
+                        {new Date(conversation.created_at).toLocaleString(getLocale())}
                       </p>
                     </div>
                   </div>
@@ -767,9 +772,9 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5" />
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Última mensagem</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('details.lastMessage')}</p>
                       <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(conversation.last_message_at).toLocaleString('pt-BR')}
+                        {new Date(conversation.last_message_at).toLocaleString(getLocale())}
                       </p>
                     </div>
                   </div>
@@ -786,7 +791,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">Notas Internas</span>
+                <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{t('details.internalNotes')}</span>
               </div>
               {expandedSections.notes ? (
                 <ChevronUp className="w-4 h-4 text-gray-400 dark:text-gray-500" />
@@ -800,7 +805,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Adicione notas privadas sobre este lead..."
+                  placeholder={t('details.notesPlaceholder')}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none mb-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                   rows="6"
                 />
@@ -809,7 +814,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                   disabled={savingNotes}
                   className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:opacity-50"
                 >
-                  {savingNotes ? 'Salvando...' : 'Salvar Notas'}
+                  {savingNotes ? t('details.saving') : t('details.saveNotes')}
                 </button>
               </div>
             )}

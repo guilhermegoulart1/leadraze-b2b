@@ -254,8 +254,8 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
             step === currentStep
               ? 'bg-purple-600'
               : step < currentStep
-              ? 'bg-purple-300'
-              : 'bg-gray-200'
+              ? 'bg-purple-300 dark:bg-purple-500'
+              : 'bg-gray-200 dark:bg-gray-700'
           }`}
         />
       ))}
@@ -264,27 +264,27 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Bot className="w-6 h-6 text-purple-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <Bot className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 Criar Campanha Google Maps
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Passo {currentStep} de {totalSteps}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -297,8 +297,8 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         <div className="flex-1 overflow-y-auto p-6">
           {/* Error message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
+              <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
             </div>
           )}
 
@@ -306,17 +306,17 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
           {currentStep === 1 && (
             <div className="space-y-6">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Dê um nome à sua coleta de leads
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Escolha um nome descritivo para identificar esta configuração
                 </p>
               </div>
 
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Nome da Configuração <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -324,7 +324,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                   value={formData.name}
                   onChange={(e) => updateField('name', e.target.value)}
                   placeholder="Ex: Academias em São Paulo"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                   autoFocus
                 />
               </div>
@@ -335,10 +335,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
           {currentStep === 2 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Onde você quer buscar leads?
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Pesquise uma cidade, cole um link do Google Maps, ou clique no mapa
                 </p>
               </div>
@@ -354,23 +354,23 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Qual nicho você quer prospectar?
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Preencha pelo menos uma das opções abaixo
                 </p>
               </div>
 
               {/* Category (optional) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Categoria principal
                 </label>
                 <select
                   value={formData.businessCategory}
                   onChange={(e) => updateField('businessCategory', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="">Nenhuma categoria</option>
                   {translatedCategories.map(cat => (
@@ -383,7 +383,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
               {/* Specification (optional but one required) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Especificação
                 </label>
                 <div className="relative">
@@ -393,10 +393,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                     value={formData.businessSpecification}
                     onChange={(e) => updateField('businessSpecification', e.target.value)}
                     placeholder="Ex: Nutricionista, Pizzaria, Academia CrossFit..."
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full pl-11 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                   💡 Exemplos: "Dentist" + "Dentist", "Health" + "Nutritionist", ou apenas "Pizzeria"
                 </p>
               </div>
@@ -407,23 +407,23 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Filtros de qualificação
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Defina critérios para filtrar os melhores leads
                 </p>
               </div>
 
               {/* Rating */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Avaliação mínima
                 </label>
                 <select
                   value={formData.minRating || ''}
                   onChange={(e) => updateField('minRating', e.target.value ? parseFloat(e.target.value) : null)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="">Qualquer avaliação</option>
                   <option value="4.5">⭐ 4.5+</option>
@@ -435,13 +435,13 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
               {/* Reviews */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Mínimo de avaliações
                 </label>
                 <select
                   value={formData.minReviews || ''}
                   onChange={(e) => updateField('minReviews', e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="">Qualquer quantidade</option>
                   <option value="100">100+ avaliações</option>
@@ -453,30 +453,30 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
               {/* Contact requirements */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Informações de contato obrigatórias
                 </label>
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.requirePhone}
                       onChange={(e) => updateField('requirePhone', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-5 h-5 text-purple-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400 dark:ring-offset-gray-800"
                     />
-                    <Phone className="w-5 h-5 text-gray-500" />
-                    <span className="text-sm text-gray-700">Exigir telefone</span>
+                    <Phone className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Exigir telefone</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.requireEmail}
                       onChange={(e) => updateField('requireEmail', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-5 h-5 text-purple-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400 dark:ring-offset-gray-800"
                     />
-                    <Mail className="w-5 h-5 text-gray-500" />
-                    <span className="text-sm text-gray-700">Exigir email</span>
+                    <Mail className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Exigir email</span>
                   </label>
                 </div>
               </div>
@@ -487,64 +487,64 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
           {currentStep === 5 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Ativação de Leads
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Configure como os leads encontrados serão ativados
                 </p>
               </div>
 
               {/* Base action - Always CRM */}
-              <div className="p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+              <div className="p-4 bg-purple-50 dark:bg-purple-900/30 border-2 border-purple-200 dark:border-purple-700 rounded-lg">
                 <div className="flex items-center space-x-2 mb-2">
-                  <Database className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium text-gray-900">Inserir no CRM</span>
-                  <Check className="w-4 h-4 text-green-600 ml-auto" />
+                  <Database className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <span className="font-medium text-gray-900 dark:text-gray-100">Inserir no CRM</span>
+                  <Check className="w-4 h-4 text-green-600 dark:text-green-400 ml-auto" />
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Todos os leads serão automaticamente adicionados ao seu CRM
                 </p>
               </div>
 
               {/* Activation channels */}
               <div className="space-y-4">
-                <h4 className="text-sm font-medium text-gray-700">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Canais de Ativação (opcional)
                 </h4>
 
                 {/* Email Activation */}
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.activateEmail}
                       onChange={(e) => updateField('activateEmail', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-5 h-5 text-purple-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400 dark:ring-offset-gray-800"
                     />
-                    <Send className="w-5 h-5 text-blue-600" />
+                    <Send className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Ativar por Email</span>
-                      <p className="text-xs text-gray-500">Enviar mensagem de apresentação por email</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por Email</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagem de apresentação por email</p>
                     </div>
                   </label>
 
                   {formData.activateEmail && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Agente de Email *
                       </label>
                       {loadingAgents ? (
-                        <div className="text-sm text-gray-500">Carregando agentes...</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Carregando agentes...</div>
                       ) : emailAgents.length === 0 ? (
-                        <div className="text-sm text-amber-600">
+                        <div className="text-sm text-amber-600 dark:text-amber-400">
                           Nenhum agente de Email ativo. Crie um agente na página de Agentes.
                         </div>
                       ) : (
                         <select
                           value={formData.emailAgentId || ''}
                           onChange={(e) => updateField('emailAgentId', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         >
                           <option value="">Selecione um agente de Email</option>
                           {emailAgents.map(agent => (
@@ -560,36 +560,36 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
                 {/* WhatsApp Activation */}
                 <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={formData.activateWhatsapp}
                       onChange={(e) => updateField('activateWhatsapp', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-5 h-5 text-purple-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400 dark:ring-offset-gray-800"
                     />
-                    <MessageCircle className="w-5 h-5 text-green-600" />
+                    <MessageCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Ativar por WhatsApp</span>
-                      <p className="text-xs text-gray-500">Enviar mensagem de apresentação pelo WhatsApp</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por WhatsApp</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagem de apresentação pelo WhatsApp</p>
                     </div>
                   </label>
 
                   {formData.activateWhatsapp && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Agente de WhatsApp *
                       </label>
                       {loadingAgents ? (
-                        <div className="text-sm text-gray-500">Carregando agentes...</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Carregando agentes...</div>
                       ) : whatsappAgents.length === 0 ? (
-                        <div className="text-sm text-amber-600">
+                        <div className="text-sm text-amber-600 dark:text-amber-400">
                           Nenhum agente de WhatsApp ativo. Crie um agente na página de Agentes.
                         </div>
                       ) : (
                         <select
                           value={formData.whatsappAgentId || ''}
                           onChange={(e) => updateField('whatsappAgentId', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         >
                           <option value="">Selecione um agente de WhatsApp</option>
                           {whatsappAgents.map(agent => (
@@ -610,28 +610,28 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
           {currentStep === 6 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Setor e Rodízio de Atendentes
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Defina para qual setor os leads serão direcionados e quem irá atendê-los
                 </p>
               </div>
 
               {/* Sector Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Building2 className="w-4 h-4 inline mr-1" />
                   Setor <span className="text-red-500">*</span>
                 </label>
                 {loadingSectors ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Carregando setores...
                   </div>
                 ) : sectors.length === 0 ? (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-700">
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
                       Nenhum setor encontrado. Crie setores na página de Configurações.
                     </p>
                   </div>
@@ -643,7 +643,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                       // Clear assignees when sector changes
                       updateField('assignees', []);
                     }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     <option value="">Selecione um setor</option>
                     {sectors.map(sector => (
@@ -657,7 +657,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
               {/* Rotation Users */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Users className="w-4 h-4 inline mr-1" />
                   Rodízio de Atendentes <span className="text-red-500">*</span>
                 </label>
@@ -669,8 +669,8 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
               </div>
 
               {/* Info box */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-700">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
                   <strong>Como funciona o rodízio:</strong> Os leads encontrados serão distribuídos automaticamente
                   entre os atendentes selecionados, seguindo a ordem definida. Após o último atendente, volta ao primeiro.
                 </p>
@@ -680,12 +680,12 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <button
             type="button"
             onClick={prevStep}
             disabled={currentStep === 1 || loading}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-5 h-5" />
             <span>Voltar</span>
@@ -705,7 +705,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex items-center space-x-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 dark:disabled:bg-purple-900/50 text-white rounded-lg transition-colors"
             >
               {loading ? (
                 <>

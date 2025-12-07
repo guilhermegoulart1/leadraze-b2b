@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, Calendar, User, Flag, FileText, Link as LinkIcon, Loader,
   Phone, Video, Mail, MessageSquare, FileCheck, MoreHorizontal,
@@ -8,28 +9,29 @@ import api from '../services/api';
 import MentionTextarea from './MentionTextarea';
 
 const TASK_TYPES = [
-  { value: 'call', label: 'Ligacao', icon: Phone },
-  { value: 'meeting', label: 'Reuniao', icon: Video },
-  { value: 'email', label: 'Email', icon: Mail },
-  { value: 'follow_up', label: 'Follow-up', icon: MessageSquare },
-  { value: 'proposal', label: 'Proposta', icon: FileCheck },
-  { value: 'other', label: 'Outro', icon: MoreHorizontal }
+  { value: 'call', labelKey: 'taskTypes.call', icon: Phone },
+  { value: 'meeting', labelKey: 'taskTypes.meeting', icon: Video },
+  { value: 'email', labelKey: 'taskTypes.email', icon: Mail },
+  { value: 'follow_up', labelKey: 'taskTypes.follow_up', icon: MessageSquare },
+  { value: 'proposal', labelKey: 'taskTypes.proposal', icon: FileCheck },
+  { value: 'other', labelKey: 'taskTypes.other', icon: MoreHorizontal }
 ];
 
 const PRIORITIES = [
-  { value: 'urgent', label: 'Urgente', color: 'text-red-600', bg: 'bg-red-50', icon: '🔴' },
-  { value: 'high', label: 'Alta', color: 'text-orange-600', bg: 'bg-orange-50', icon: '🟠' },
-  { value: 'medium', label: 'Normal', color: 'text-blue-600', bg: 'bg-blue-50', icon: '🔵' },
-  { value: 'low', label: 'Baixa', color: 'text-gray-600', bg: 'bg-gray-50', icon: '⚪' }
+  { value: 'urgent', labelKey: 'priority.urgent', color: 'text-red-600', bg: 'bg-red-50', icon: '🔴' },
+  { value: 'high', labelKey: 'priority.high', color: 'text-orange-600', bg: 'bg-orange-50', icon: '🟠' },
+  { value: 'medium', labelKey: 'priority.medium', color: 'text-blue-600', bg: 'bg-blue-50', icon: '🔵' },
+  { value: 'low', labelKey: 'priority.low', color: 'text-gray-600', bg: 'bg-gray-50', icon: '⚪' }
 ];
 
 const STATUSES = [
-  { value: 'pending', label: 'Pendente', color: 'text-gray-600', bg: 'bg-gray-100' },
-  { value: 'in_progress', label: 'Em Andamento', color: 'text-blue-600', bg: 'bg-blue-100' },
-  { value: 'completed', label: 'Concluida', color: 'text-green-600', bg: 'bg-green-100' }
+  { value: 'pending', labelKey: 'status.pending', color: 'text-gray-600', bg: 'bg-gray-100' },
+  { value: 'in_progress', labelKey: 'status.in_progress', color: 'text-blue-600', bg: 'bg-blue-100' },
+  { value: 'completed', labelKey: 'status.completed', color: 'text-green-600', bg: 'bg-green-100' }
 ];
 
 const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNested = false }) => {
+  const { t, i18n } = useTranslation('tasks');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -155,7 +157,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     setAutoSaving(true);
     try {
       const payload = {
-        title: updatedData.title.trim() || 'Sem titulo',
+        title: updatedData.title.trim() || t('modal.noTitle'),
         description: updatedData.description.trim() || null,
         task_type: updatedData.task_type,
         status: updatedData.status,
@@ -194,7 +196,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
 
   const handleCreateTask = async () => {
     if (!formData.title.trim()) {
-      alert('Título é obrigatório');
+      alert(t('modal.titleRequired'));
       return;
     }
 
@@ -216,7 +218,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
       onClose();
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('Erro ao criar tarefa');
+      alert(t('modal.createError'));
     } finally {
       setLoading(false);
     }
@@ -263,7 +265,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
   const renderAssigneesAvatars = (assignees = [], maxShow = 3) => {
     if (!assignees || assignees.length === 0) {
       return (
-        <span className="text-sm text-gray-500 dark:text-gray-400">Nenhum</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{t('modal.none')}</span>
       );
     }
 
@@ -318,6 +320,8 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     }
   };
 
+  const getLocale = () => i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
+
   const formatTimestamp = (date) => {
     if (!date) return '';
     const timestamp = new Date(date);
@@ -328,13 +332,13 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     const days = Math.floor(diff / 86400000);
 
     if (days === 0) {
-      return timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return timestamp.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
     } else if (days === 1) {
-      return 'Ontem';
+      return t('modal.yesterday');
     } else if (days < 7) {
-      return `${days} dias atras`;
+      return t('modal.daysAgo', { count: days });
     }
-    return timestamp.toLocaleDateString('pt-BR');
+    return timestamp.toLocaleDateString(getLocale());
   };
 
   if (!isOpen) return null;
@@ -361,13 +365,13 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               type="text"
               value={formData.title}
               onChange={(e) => handleFieldChange('title', e.target.value)}
-              placeholder="Nome da tarefa"
+              placeholder={t('modal.taskNamePlaceholder')}
               className="flex-1 text-lg font-semibold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
             />
             {autoSaving && (
               <span className="text-xs text-gray-400 flex items-center gap-1">
                 <Loader className="w-3 h-3 animate-spin" />
-                Salvando...
+                {t('modal.saving')}
               </span>
             )}
           </div>
@@ -388,14 +392,14 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               {/* Column 1 - Task Type */}
               <div className="flex items-center gap-2">
                 <TypeIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Tipo</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">{t('modal.type')}</span>
                 <select
                   value={formData.task_type}
                   onChange={(e) => handleFieldChange('task_type', e.target.value)}
                   className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
                 >
                   {TASK_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
+                    <option key={type.value} value={type.value}>{t(type.labelKey)}</option>
                   ))}
                 </select>
               </div>
@@ -403,7 +407,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               {/* Column 2 - Assignee */}
               <div className="relative flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Responsavel</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">{t('modal.assignee')}</span>
                 <div
                   onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
                   className="flex-1 flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
@@ -447,14 +451,14 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               {/* Column 1 - Status */}
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Status</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">{t('modal.status')}</span>
                 <select
                   value={formData.status}
                   onChange={(e) => handleFieldChange('status', e.target.value)}
                   className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
                 >
                   {STATUSES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                    <option key={s.value} value={s.value}>{t(s.labelKey)}</option>
                   ))}
                 </select>
               </div>
@@ -462,14 +466,14 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               {/* Column 2 - Priority */}
               <div className="flex items-center gap-2">
                 <Flag className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Prioridade</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">{t('modal.priority')}</span>
                 <select
                   value={formData.priority}
                   onChange={(e) => handleFieldChange('priority', e.target.value)}
                   className="flex-1 px-2 py-1 text-sm bg-transparent border-none rounded text-gray-900 dark:text-gray-100 font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
                 >
                   {PRIORITIES.map(p => (
-                    <option key={p.value} value={p.value}>{p.icon} {p.label}</option>
+                    <option key={p.value} value={p.value}>{p.icon} {t(p.labelKey)}</option>
                   ))}
                 </select>
               </div>
@@ -477,7 +481,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               {/* Column 1 - Due Date */}
               <div className="flex items-center gap-2 col-span-2">
                 <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">Prazo</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400 w-20">{t('modal.dueDate')}</span>
                 <input
                   type="datetime-local"
                   value={formData.due_date}
@@ -492,7 +496,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
               <textarea
                 value={formData.description}
                 onChange={(e) => handleFieldChange('description', e.target.value)}
-                placeholder="Adicione uma descricao detalhada da tarefa..."
+                placeholder={t('modal.descriptionPlaceholder')}
                 className="w-full h-full px-0 py-0 text-sm bg-transparent border-none outline-none text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 resize-none overflow-auto"
               />
             </div>
@@ -505,7 +509,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
                 className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading && <Loader className="w-4 h-4 animate-spin" />}
-                Criar Tarefa
+                {t('modal.createTask')}
               </button>
             )}
           </div>
@@ -515,7 +519,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
             <div className="w-80 border-l border-gray-200 dark:border-gray-700 flex flex-col">
               {/* Comments Header */}
               <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comentarios</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('modal.comments')}</h3>
               </div>
 
               {/* Comments List */}
@@ -525,7 +529,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
                     <Loader className="w-5 h-5 animate-spin text-gray-400" />
                   </div>
                 ) : comments.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-8">Nenhum comentario ainda</p>
+                  <p className="text-sm text-gray-400 text-center py-8">{t('modal.noComments')}</p>
                 ) : (
                   comments.map((comment) => (
                     <div key={comment.id} className="group">
@@ -581,7 +585,7 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
                         handleAddComment();
                       }
                     }}
-                    placeholder="Adicionar comentario..."
+                    placeholder={t('modal.addCommentPlaceholder')}
                     rows={2}
                     className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-gray-400"
                   />

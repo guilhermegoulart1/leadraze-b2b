@@ -8,6 +8,8 @@
     "linkedin": "LinkedIn",
     "campaigns": "Campañas",
     "pipeline": "Pipeline",
+    "tasks": "Tareas",
+    "lists": "Listas",
     "activation": "Activación de Listas",
     "crm": "CRM",
     "conversations": "Conversaciones",
@@ -20,6 +22,8 @@
     "logout": "Salir"
   },
   "sections": {
+    "work": "TRABAJO",
+    "campaigns": "CAMPAÑAS",
     "aiAgents": "AGENTES DE IA",
     "googleMaps": "GOOGLE MAPS",
     "linkedin": "LINKEDIN",

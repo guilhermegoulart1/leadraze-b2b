@@ -61,6 +61,7 @@ const r2Config = {
     signatures: 'signatures',
     attachments: 'attachments',
     templates: 'templates',
+    contacts: 'contacts', // Fotos de perfil de contatos (WhatsApp, Instagram, etc)
   },
 
   // Signed URL expiration (in seconds)

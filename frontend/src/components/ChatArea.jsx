@@ -1,9 +1,11 @@
 // frontend/src/components/ChatArea.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
   ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw,
-  Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check
+  Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check,
+  Play, Pause
 } from 'lucide-react';
 import api from '../services/api';
 import { joinConversation, leaveConversation, onNewMessage } from '../services/socket';
@@ -11,6 +13,7 @@ import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
+  const { t, i18n } = useTranslation('conversations');
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -27,12 +30,18 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
+  // Estado para players de áudio customizados
+  const [audioStates, setAudioStates] = useState({}); // { [audioId]: { playing: bool, currentTime: num, duration: num } }
+  const audioRefs = useRef({}); // Refs para os elementos audio
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const optionsMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const currentConversationIdRef = useRef(null);
   const nameInputRef = useRef(null);
+
+  // Helper to get locale for date formatting
+  const getLocale = () => i18n.language === 'en' ? 'en-US' : i18n.language === 'es' ? 'es-ES' : 'pt-BR';
 
   useEffect(() => {
     if (conversationId) {
@@ -186,7 +195,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       console.error('Erro ao carregar mensagens:', error);
       // ✅ Só mostrar erro se ainda for a conversa selecionada
       if (currentConversationIdRef.current === id) {
-        setError('Falha ao carregar mensagens');
+        setError(t('chatArea.failedLoadMessages'));
       }
     } finally {
       // ✅ Só desativar loading se ainda for a conversa selecionada
@@ -230,7 +239,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (error) {
       console.error('Erro ao fechar conversa:', error);
-      setError('Falha ao fechar conversa');
+      setError(t('chatArea.failedCloseConversation'));
     }
   };
 
@@ -250,7 +259,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (error) {
       console.error('Erro ao reabrir conversa:', error);
-      setError('Falha ao reabrir conversa');
+      setError(t('chatArea.failedReopenConversation'));
     }
   };
 
@@ -296,7 +305,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      setError('Falha ao enviar mensagem');
+      setError(t('chatArea.failedSendMessage'));
     } finally {
       setIsSending(false);
     }
@@ -320,7 +329,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (error) {
       console.error('Erro ao alternar modo IA:', error);
-      setError('Falha ao alternar modo IA');
+      setError(t('chatArea.failedToggleAI'));
     }
   };
 
@@ -357,7 +366,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (error) {
       console.error('Erro ao salvar nome:', error);
-      setError('Falha ao salvar nome');
+      setError(t('chatArea.failedSaveName'));
     } finally {
       setIsSavingName(false);
     }
@@ -392,10 +401,11 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
+    const locale = getLocale();
 
     // Se for hoje, mostrar só horário
     if (isToday) {
-      return date.toLocaleTimeString('pt-BR', {
+      return date.toLocaleTimeString(locale, {
         hour: '2-digit',
         minute: '2-digit'
       });
@@ -405,16 +415,16 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
-      return `Ontem às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      return `${t('chatArea.yesterdayAt')} ${date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}`;
     }
 
     // Se foi este ano, mostrar data sem ano
     if (date.getFullYear() === now.getFullYear()) {
-      return `${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      return `${date.toLocaleDateString(locale, { day: '2-digit', month: 'short' })} ${t('chatArea.at')} ${date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}`;
     }
 
     // Se foi ano passado, mostrar com ano
-    return `${date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    return `${date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })} ${t('chatArea.at')} ${date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   const linkifyText = (text) => {
@@ -528,7 +538,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
     // Verificar limite de 5 arquivos
     if (selectedFiles.length + files.length > 5) {
-      setError('Máximo de 5 arquivos por mensagem');
+      setError(t('chatArea.maxFilesPerMessage'));
       return;
     }
 
@@ -536,7 +546,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     const maxSize = 15 * 1024 * 1024;
     const oversizedFiles = files.filter(f => f.size > maxSize);
     if (oversizedFiles.length > 0) {
-      setError(`Arquivo(s) muito grande(s). Máximo: 15MB`);
+      setError(t('chatArea.fileTooLarge'));
       return;
     }
 
@@ -560,7 +570,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     if (!attachment.message_id || !attachment.id ||
         String(attachment.id).startsWith('local-') ||
         attachment.message_id === 'undefined') {
-      setError('Arquivo ainda sendo processado. Tente novamente em alguns segundos.');
+      setError(t('chatArea.fileStillProcessing'));
       return;
     }
 
@@ -576,7 +586,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       );
     } catch (err) {
       console.error('Erro ao baixar arquivo:', err);
-      setError('Falha ao baixar arquivo');
+      setError(t('chatArea.failedDownload'));
     } finally {
       setIsDownloading(prev => ({ ...prev, [key]: false }));
     }
@@ -592,11 +602,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     if (String(attachment.id).startsWith('local-')) {
       return false;
     }
-    // IDs que contêm caracteres problemáticos para URL (como : ou /) não funcionam
-    const hasInvalidChars = /[/:?#]/.test(String(attachment.id));
-    if (hasInvalidChars) {
-      return false;
-    }
+    // Permitir todos os outros IDs (caracteres especiais serão encoded na URL)
     return true;
   };
 
@@ -606,8 +612,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   };
 
   // Verificar se é um áudio que pode ser reproduzido
-  const isPlayableAudio = (type) => {
-    return type && (
+  const isPlayableAudio = (type, filename) => {
+    // Verificar pelo MIME type
+    if (type && (
       type.startsWith('audio/') ||
       type === 'audio/ogg' ||
       type === 'audio/opus' ||
@@ -617,7 +624,63 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       type === 'audio/webm' ||
       type === 'audio/aac' ||
       type === 'audio/m4a'
-    );
+    )) {
+      return true;
+    }
+    // Verificar pela extensão do arquivo (fallback quando type não está definido)
+    if (filename) {
+      const ext = filename.toLowerCase().split('.').pop();
+      return ['mp3', 'wav', 'ogg', 'opus', 'm4a', 'aac', 'webm', 'wma', 'flac', 'aiff'].includes(ext);
+    }
+    return false;
+  };
+
+  // Funções para player de áudio customizado
+  const formatAudioTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const toggleAudioPlay = (audioId) => {
+    const audio = audioRefs.current[audioId];
+    if (!audio) return;
+
+    // Pausar outros áudios
+    Object.keys(audioRefs.current).forEach(id => {
+      if (id !== audioId && audioRefs.current[id]) {
+        audioRefs.current[id].pause();
+        setAudioStates(prev => ({ ...prev, [id]: { ...prev[id], playing: false } }));
+      }
+    });
+
+    if (audio.paused) {
+      audio.play();
+      setAudioStates(prev => ({ ...prev, [audioId]: { ...prev[audioId], playing: true } }));
+    } else {
+      audio.pause();
+      setAudioStates(prev => ({ ...prev, [audioId]: { ...prev[audioId], playing: false } }));
+    }
+  };
+
+  const handleAudioTimeUpdate = (audioId, audio) => {
+    setAudioStates(prev => ({
+      ...prev,
+      [audioId]: {
+        ...prev[audioId],
+        currentTime: audio.currentTime,
+        duration: audio.duration || 0
+      }
+    }));
+  };
+
+  const handleAudioSeek = (audioId, e) => {
+    const audio = audioRefs.current[audioId];
+    if (!audio) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = percent * audio.duration;
   };
 
   // Empty State
@@ -626,9 +689,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       <div className="flex-1 bg-white dark:bg-gray-800 flex items-center justify-center">
         <div className="text-center">
           <Bot className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Selecione uma conversa</p>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">{t('chatArea.selectConversation')}</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Escolha uma conversa da lista para começar
+            {t('chatArea.selectConversationHint')}
           </p>
         </div>
       </div>
@@ -682,7 +745,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         onClick={handleSaveName}
                         disabled={isSavingName || !editedName.trim()}
                         className="p-1 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full transition-colors disabled:opacity-50"
-                        title="Salvar"
+                        title={t('chatArea.save')}
                       >
                         {isSavingName ? (
                           <Loader className="w-4 h-4 animate-spin" />
@@ -694,7 +757,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         onClick={handleCancelEditName}
                         disabled={isSavingName}
                         className="p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                        title="Cancelar"
+                        title={t('chatArea.cancel')}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -705,14 +768,14 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         {/* Mostrar group_name para grupos, senão lead_name */}
                         {conversation?.is_group && conversation?.group_name
                           ? conversation.group_name
-                          : (conversation?.lead_name || 'Carregando...')}
+                          : (conversation?.lead_name || t('chatArea.loading'))}
                       </h2>
                       {/* Botão de editar (visível em hover ou sempre para contatos orgânicos) */}
                       {!conversation?.is_group && (
                         <button
                           onClick={handleStartEditName}
                           className="p-1 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                          title="Editar nome"
+                          title={t('chatArea.editName')}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -722,14 +785,14 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   {/* Badge de grupo */}
                   {conversation?.is_group && (
                     <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex-shrink-0">
-                      Grupo
+                      {t('sidebar.group')}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
                   {conversation?.is_group ? (
                     <span className="truncate">
-                      {conversation?.attendee_count || 2} participantes
+                      {conversation?.attendee_count || 2} {t('chatArea.participants')}
                     </span>
                   ) : (
                     <>
@@ -762,7 +825,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 ? 'text-gray-400 dark:text-gray-500'
                 : 'text-orange-600 dark:text-orange-400'
             }`}>
-              Manual
+              {t('chatArea.manual')}
             </span>
             <button
               onClick={handleToggleAI}
@@ -771,7 +834,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   ? 'bg-purple-600 focus:ring-purple-500'
                   : 'bg-orange-500 focus:ring-orange-500'
               }`}
-              title={conversation?.status === 'ai_active' ? 'Desativar IA' : 'Ativar IA'}
+              title={conversation?.status === 'ai_active' ? t('chatArea.disableAI') : t('chatArea.enableAI')}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -785,7 +848,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 : 'text-gray-400 dark:text-gray-500'
             }`}>
               <Bot className="w-3.5 h-3.5" />
-              IA
+              {t('chatArea.ai')}
             </span>
           </div>
 
@@ -793,7 +856,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           {conversation?.channel === 'email' || conversation?.source === 'email' ? (
             <div
               className="p-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg"
-              title="Conversa por Email"
+              title={t('chatArea.emailConversation')}
             >
               <Mail className="w-5 h-5" />
             </div>
@@ -803,7 +866,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               target="_blank"
               rel="noopener noreferrer"
               className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-              title="Ver perfil no LinkedIn"
+              title={t('chatArea.viewLinkedInProfile')}
             >
               <Linkedin className="w-5 h-5" />
             </a>
@@ -814,7 +877,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             <button
               onClick={() => setShowOptionsMenu(!showOptionsMenu)}
               className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Mais opções"
+              title={t('chatArea.moreOptions')}
             >
               <MoreVertical className="w-5 h-5" />
             </button>
@@ -827,7 +890,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     className="w-full px-4 py-2 text-left text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Reabrir conversa
+                    {t('chatArea.reopenConversation')}
                   </button>
                 ) : (
                   <button
@@ -835,7 +898,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     className="w-full px-4 py-2 text-left text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" />
-                    Fechar conversa
+                    {t('chatArea.closeConversation')}
                   </button>
                 )}
               </div>
@@ -846,7 +909,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           <button
             onClick={onToggleDetails}
             className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            title={showDetailsPanel ? 'Esconder detalhes' : 'Mostrar detalhes'}
+            title={showDetailsPanel ? t('chatArea.hideDetails') : t('chatArea.showDetails')}
           >
             {showDetailsPanel ? (
               <SidebarOpen className="w-5 h-5" />
@@ -863,7 +926,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Loader className="w-12 h-12 text-blue-600 dark:text-blue-400 animate-spin mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Carregando mensagens...</p>
+              <p className="text-gray-600 dark:text-gray-400">{t('chatArea.loadingMessages')}</p>
             </div>
           </div>
         ) : error ? (
@@ -875,7 +938,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 onClick={loadMessages}
                 className="mt-4 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600"
               >
-                Tentar novamente
+                {t('chatArea.tryAgain')}
               </button>
             </div>
           </div>
@@ -883,9 +946,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Bot className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400 font-medium">Nenhuma mensagem ainda</p>
+              <p className="text-gray-600 dark:text-gray-400 font-medium">{t('chatArea.noMessages')}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Envie a primeira mensagem para iniciar a conversa
+                {t('chatArea.sendFirstMessage')}
               </p>
             </div>
           </div>
@@ -907,7 +970,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     key={message.id || index}
                     message={message}
                     isOutgoing={isUser}
-                    senderName={isUser ? 'Você' : (isAI ? 'IA' : conversation?.lead_name)}
+                    senderName={isUser ? t('chatArea.you') : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
                     senderType={isUser ? 'user' : (isAI ? 'ai' : 'lead')}
                     timestamp={message.sent_at || message.date}
                   />
@@ -956,15 +1019,40 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         }`}
                       >
                         {/* Texto da mensagem */}
-                        {(message.content || message.text) && (
-                          <p className={`text-sm whitespace-pre-wrap ${isUser ? '[&_a]:text-white [&_a]:underline [&_a:hover]:text-blue-100' : '[&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800'}`}>
-                            {linkifyText(message.content || message.text)}
-                          </p>
-                        )}
+                        {/* Esconder mensagem da Unipile quando há attachments de mídia */}
+                        {(() => {
+                          const messageText = message.content || message.text;
+                          const isUnipileUnsupportedMessage = messageText &&
+                            messageText.includes('Unipile cannot display this type of message');
+                          const hasMediaAttachments = message.attachments &&
+                            message.attachments.some(att =>
+                              att.type && (att.type.startsWith('image/') || att.type.startsWith('video/'))
+                            );
+
+                          // Não mostrar texto se é mensagem da Unipile e há mídia
+                          if (isUnipileUnsupportedMessage && hasMediaAttachments) {
+                            return null;
+                          }
+
+                          if (messageText) {
+                            return (
+                              <p className={`text-sm whitespace-pre-wrap ${isUser ? '[&_a]:text-white [&_a]:underline [&_a:hover]:text-blue-100' : '[&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800'}`}>
+                                {linkifyText(messageText)}
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
 
                         {/* Attachments */}
                         {message.attachments && message.attachments.length > 0 && (
-                          <div className={`${(message.content || message.text) ? 'mt-2 pt-2 border-t' : ''} ${isUser ? 'border-purple-500' : 'border-gray-200'} space-y-2`}>
+                          <div className={`${(() => {
+                            const messageText = message.content || message.text;
+                            const isUnipileMsg = messageText && messageText.includes('Unipile cannot display this type of message');
+                            const hasMedia = message.attachments.some(att => att.type && (att.type.startsWith('image/') || att.type.startsWith('video/')));
+                            // Só adiciona borda se há texto visível (não é mensagem Unipile escondida)
+                            return messageText && !(isUnipileMsg && hasMedia) ? 'mt-2 pt-2 border-t' : '';
+                          })()} ${isUser ? 'border-purple-500' : 'border-gray-200'} space-y-2`}>
                             {message.attachments.map((att, attIdx) => {
                               const FileIcon = getFileIcon(att.type);
                               const downloadKey = `${att.message_id}-${att.id}`;
@@ -1007,7 +1095,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                           onClick={() => handleDownloadAttachment(att)}
                                           disabled={isDownloadingFile}
                                           className={`absolute bottom-2 right-2 p-2 rounded-full ${isUser ? 'bg-purple-700 hover:bg-purple-800' : 'bg-gray-700 hover:bg-gray-800'} text-white transition-colors`}
-                                          title="Baixar imagem"
+                                          title={t('chatArea.downloadImage')}
                                         >
                                           {isDownloadingFile ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                                         </button>
@@ -1018,7 +1106,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                               }
 
                               // Verificar se é áudio que pode ser reproduzido
-                              if (isPlayableAudio(att.type)) {
+                              if (isPlayableAudio(att.type, att.name)) {
                                 let audioUrl = null;
                                 if (att.url && att.url.startsWith('http')) {
                                   audioUrl = att.url;
@@ -1031,41 +1119,102 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                   );
                                 }
 
-                                if (audioUrl) {
+                                // Sempre mostrar player de áudio, mesmo sem URL válida
+                                if (true) {
                                   return (
-                                    <div key={att.id || attIdx} className={`p-3 rounded-lg ${isUser ? 'bg-purple-700' : 'bg-gray-100'}`}>
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Music className={`w-4 h-4 ${isUser ? 'text-purple-200' : 'text-gray-500'}`} />
-                                        <span className={`text-xs truncate flex-1 ${isUser ? 'text-purple-200' : 'text-gray-600'}`}>
-                                          {att.name}
-                                        </span>
-                                        {canDownload && (
-                                          <button
-                                            onClick={() => handleDownloadAttachment(att)}
-                                            disabled={isDownloadingFile}
-                                            className={`p-1 rounded-full ${isUser ? 'hover:bg-purple-600' : 'hover:bg-gray-200'} transition-colors`}
-                                            title="Baixar áudio"
-                                          >
-                                            {isDownloadingFile ? (
-                                              <Loader className={`w-4 h-4 animate-spin ${isUser ? 'text-white' : 'text-gray-600'}`} />
-                                            ) : (
-                                              <Download className={`w-4 h-4 ${isUser ? 'text-white' : 'text-gray-600'}`} />
+                                    <div key={att.id || attIdx} className={`p-3 rounded-2xl ${isUser ? 'bg-purple-700' : 'bg-gray-100 dark:bg-gray-700'}`} style={{ minWidth: '240px', maxWidth: '300px' }}>
+                                      {audioUrl ? (
+                                        <>
+                                          {/* Player de áudio customizado */}
+                                          <div className="flex items-center gap-3">
+                                            {/* Botão Play/Pause */}
+                                            <button
+                                              onClick={() => toggleAudioPlay(att.id)}
+                                              className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                                                isUser
+                                                  ? 'bg-white/20 hover:bg-white/30 text-white'
+                                                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                              }`}
+                                            >
+                                              {audioStates[att.id]?.playing ? (
+                                                <Pause className="w-5 h-5" />
+                                              ) : (
+                                                <Play className="w-5 h-5 ml-0.5" />
+                                              )}
+                                            </button>
+
+                                            {/* Barra de progresso e tempo */}
+                                            <div className="flex-1 min-w-0">
+                                              {/* Barra de progresso clicável */}
+                                              <div
+                                                className={`h-1.5 rounded-full cursor-pointer ${isUser ? 'bg-white/30' : 'bg-gray-300 dark:bg-gray-500'}`}
+                                                onClick={(e) => handleAudioSeek(att.id, e)}
+                                              >
+                                                <div
+                                                  className={`h-full rounded-full transition-all ${isUser ? 'bg-white' : 'bg-blue-500'}`}
+                                                  style={{
+                                                    width: `${audioStates[att.id]?.duration ? (audioStates[att.id]?.currentTime / audioStates[att.id]?.duration) * 100 : 0}%`
+                                                  }}
+                                                />
+                                              </div>
+                                              {/* Tempo */}
+                                              <div className={`flex justify-between mt-1 text-xs ${isUser ? 'text-purple-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                <span>{formatAudioTime(audioStates[att.id]?.currentTime || 0)}</span>
+                                                <span>{formatAudioTime(audioStates[att.id]?.duration || 0)}</span>
+                                              </div>
+                                            </div>
+
+                                            {/* Botão Download */}
+                                            {canDownload && (
+                                              <button
+                                                onClick={() => handleDownloadAttachment(att)}
+                                                disabled={isDownloadingFile}
+                                                className={`p-2 rounded-full flex-shrink-0 transition-colors ${
+                                                  isUser ? 'hover:bg-white/20 text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
+                                                }`}
+                                                title={t('chatArea.downloadAudio')}
+                                              >
+                                                {isDownloadingFile ? (
+                                                  <Loader className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                  <Download className="w-4 h-4" />
+                                                )}
+                                              </button>
                                             )}
-                                          </button>
-                                        )}
-                                      </div>
-                                      <audio
-                                        controls
-                                        className="w-full h-10"
-                                        style={{
-                                          filter: isUser ? 'invert(1) hue-rotate(180deg)' : 'none',
-                                          maxWidth: '280px'
-                                        }}
-                                        preload="metadata"
-                                      >
-                                        <source src={audioUrl} type={att.type} />
-                                        Seu navegador não suporta áudio.
-                                      </audio>
+                                          </div>
+
+                                          {/* Elemento audio oculto */}
+                                          <audio
+                                            ref={el => { if (el) audioRefs.current[att.id] = el; }}
+                                            src={audioUrl}
+                                            preload="metadata"
+                                            onTimeUpdate={(e) => handleAudioTimeUpdate(att.id, e.target)}
+                                            onLoadedMetadata={(e) => handleAudioTimeUpdate(att.id, e.target)}
+                                            onEnded={() => setAudioStates(prev => ({ ...prev, [att.id]: { ...prev[att.id], playing: false, currentTime: 0 } }))}
+                                            className="hidden"
+                                          />
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-white/20' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                                            <Music className={`w-5 h-5 ${isUser ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`} />
+                                          </div>
+                                          <span className={`text-xs flex-1 ${isUser ? 'text-purple-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                            {t('chatArea.audioNotAvailable', 'Áudio não disponível')}
+                                          </span>
+                                          {canDownload && (
+                                            <button
+                                              onClick={() => handleDownloadAttachment(att)}
+                                              disabled={isDownloadingFile}
+                                              className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                                                isUser ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-white'
+                                              }`}
+                                            >
+                                              {isDownloadingFile ? t('chatArea.downloading', 'Baixando...') : t('chatArea.download', 'Baixar')}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 }
@@ -1093,7 +1242,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                       onClick={() => handleDownloadAttachment(att)}
                                       disabled={isDownloadingFile}
                                       className={`p-2 rounded-full ${isUser ? 'hover:bg-purple-600' : 'hover:bg-gray-200'} transition-colors`}
-                                      title="Baixar arquivo"
+                                      title={t('chatArea.downloadFile')}
                                     >
                                       {isDownloadingFile ? (
                                         <Loader className={`w-4 h-4 animate-spin ${isUser ? 'text-white' : 'text-gray-600'}`} />
@@ -1103,7 +1252,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                     </button>
                                   ) : (
                                     <span className={`text-xs ${isUser ? 'text-purple-300' : 'text-gray-400'}`}>
-                                      Enviado ✓
+                                      {t('chatArea.sent')}
                                     </span>
                                   )}
                                 </div>
@@ -1163,13 +1312,13 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   }
                 } catch (err) {
                   console.error('Erro ao enviar email:', err);
-                  setError('Falha ao enviar email');
+                  setError(t('chatArea.failedSendEmail'));
                 } finally {
                   setIsSending(false);
                 }
               }}
               disabled={isSending}
-              placeholder="Escreva sua resposta..."
+              placeholder={t('chatArea.writeReply')}
             />
           );
         }
@@ -1230,7 +1379,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSending || selectedFiles.length >= 5}
                 className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Anexar arquivo (máx. 5)"
+                title={t('chatArea.attachFile')}
               >
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -1241,7 +1390,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   value={newMessage}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
-                  placeholder={selectedFiles.length > 0 ? "Adicione uma mensagem (opcional)..." : "Digite sua mensagem... (Shift + Enter para enviar)"}
+                  placeholder={selectedFiles.length > 0 ? t('chatArea.addMessageOptional') : t('chatArea.typeMessage')}
                   className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 leading-normal"
                   rows="1"
                   style={{ maxHeight: '120px' }}
@@ -1257,12 +1406,12 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 {isSending ? (
                   <>
                     <Loader className="w-5 h-5 animate-spin" />
-                    <span>Enviando...</span>
+                    <span>{t('chatArea.sending')}</span>
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    <span>Enviar</span>
+                    <span>{t('chatArea.send')}</span>
                   </>
                 )}
               </button>

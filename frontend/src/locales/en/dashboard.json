@@ -2,8 +2,21 @@
   "title": "Dashboard",
   "welcome": "Welcome, {{name}}!",
   "overview": "Overview",
+  "loading": "Loading dashboard...",
+  "noData": "No data in period",
   "errors": {
     "loadFailed": "Error loading dashboard:"
+  },
+  "filters": {
+    "days7": "7 days",
+    "days30": "30 days",
+    "days90": "90 days",
+    "custom": "Custom",
+    "allCampaigns": "All campaigns",
+    "refresh": "Refresh",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "apply": "Apply"
   },
   "periods": {
     "last30Days": "Last 30 days",
@@ -117,12 +130,52 @@
     "responded": "Responded {{count}}x"
   },
   "funnel": {
+    "title": "Sales Funnel",
+    "subtitle": "Complete pipeline with conversions",
     "prospecting": "Prospecting",
+    "inviteSent": "Invites Sent",
+    "accepted": "Accepted",
     "invite": "Invite",
-    "qualifying": "Qualification",
+    "qualifying": "Qualifying",
+    "scheduled": "Scheduled",
     "inProgress": "In Progress",
     "won": "Won",
     "discarded": "Discarded",
+    "lost": "Lost leads",
     "conversionFromPrevious": "{{rate}}% conversion from previous stage"
+  },
+  "leadsChart": {
+    "title": "New Leads per Day",
+    "subtitle": "Leads added in period",
+    "lead": "lead",
+    "leads": "leads",
+    "totalInPeriod": "Total in period"
+  },
+  "revenueChart": {
+    "title": "Revenue per Day",
+    "subtitle": "Deals closed in period",
+    "deal": "deal",
+    "deals": "deals",
+    "totalInPeriod": "Total in period"
+  },
+  "leadsBySource": {
+    "title": "Leads by Source",
+    "subtitle": "Lead origin",
+    "totalLeads": "Total leads"
+  },
+  "tasks": {
+    "title": "Your Tasks",
+    "pending": "pending",
+    "overdue": "Overdue",
+    "today": "For Today",
+    "tomorrow": "For Tomorrow",
+    "viewAll": "View all tasks"
+  },
+  "aiAgents": {
+    "title": "AI Agents",
+    "subtitle": "Interactions by agent",
+    "noAgents": "No agents configured",
+    "conversations": "conversations",
+    "totalMessages": "Total messages"
   }
 }

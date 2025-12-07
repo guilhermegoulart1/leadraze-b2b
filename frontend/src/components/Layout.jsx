@@ -55,21 +55,21 @@ const Layout = () => {
   };
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home, section: null },
+    { path: '/', labelKey: 'menu.dashboard', icon: Home, section: null },
 
     // TRABALHO
-    { section: 'TRABALHO' },
-    { path: '/leads', label: 'Pipeline', icon: BarChart3 },
-    { path: '/tasks', label: 'Tarefas', icon: CheckSquare },
-    { path: '/conversations', label: 'Conversas', icon: MessageCircle, badge: unreadMessages },
-    { path: '/contacts', label: 'Contatos', icon: Users },
+    { sectionKey: 'sections.work' },
+    { path: '/leads', labelKey: 'menu.pipeline', icon: BarChart3 },
+    { path: '/tasks', labelKey: 'menu.tasks', icon: CheckSquare },
+    { path: '/conversations', labelKey: 'menu.conversations', icon: MessageCircle, badge: unreadMessages },
+    { path: '/contacts', labelKey: 'menu.contacts', icon: Users },
 
     // CAMPANHAS
-    { section: 'CAMPANHAS' },
-    { path: '/agents', label: 'Agentes de IA', icon: Bot },
-    { path: '/campaigns', label: 'LinkedIn', icon: Linkedin },
-    { path: '/google-maps-agents', label: 'Google Maps', icon: MapPin },
-    { path: '/activation-campaigns', label: 'Listas', icon: Award },
+    { sectionKey: 'sections.campaigns' },
+    { path: '/agents', labelKey: 'menu.aiAgents', icon: Bot },
+    { path: '/campaigns', labelKey: 'menu.linkedin', icon: Linkedin },
+    { path: '/google-maps-agents', labelKey: 'menu.googleMaps', icon: MapPin },
+    { path: '/activation-campaigns', labelKey: 'menu.lists', icon: Award },
   ];
 
   const handleLogout = () => {
@@ -136,7 +136,7 @@ const Layout = () => {
         <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
           {navItems.map((item, index) => {
             // Section Header
-            if (item.section) {
+            if (item.sectionKey) {
               if (isCollapsed) {
                 return (
                   <div key={index} className="my-2 border-t border-gray-200 dark:border-gray-700" />
@@ -145,21 +145,21 @@ const Layout = () => {
               return (
                 <div key={index} className="pt-4 pb-1.5 px-2">
                   <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    {item.section}
+                    {t(item.sectionKey)}
                   </p>
                 </div>
               );
             }
 
             // Subsection Header (visual divider within a section)
-            if (item.subsection) {
+            if (item.subsectionKey) {
               if (isCollapsed) {
                 return <div key={index} className="my-1" />;
               }
               return (
                 <div key={index} className="pt-2 pb-1 px-3">
                   <p className="text-[9px] font-medium text-gray-400 dark:text-gray-500">
-                    {item.subsection}
+                    {t(item.subsectionKey)}
                   </p>
                 </div>
               );
@@ -168,6 +168,7 @@ const Layout = () => {
             // Nav Item
             const Icon = item.icon;
             const active = isActive(item.path);
+            const label = t(item.labelKey);
 
             // Links que abrem em nova aba
             if (item.newTab) {
@@ -181,11 +182,11 @@ const Layout = () => {
                     flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative
                     text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400
                   `}
-                  title={isCollapsed ? item.label : ''}
+                  title={isCollapsed ? label : ''}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   {!isCollapsed && (
-                    <span className="text-sm flex-1">{item.label}</span>
+                    <span className="text-sm flex-1">{label}</span>
                   )}
                 </a>
               );
@@ -202,12 +203,12 @@ const Layout = () => {
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400'
                   }
                 `}
-                title={isCollapsed ? item.label : ''}
+                title={isCollapsed ? label : ''}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {!isCollapsed && (
                   <>
-                    <span className="text-sm flex-1">{item.label}</span>
+                    <span className="text-sm flex-1">{label}</span>
                     {item.badge > 0 && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white min-w-[18px] text-center shadow-sm">
                         {item.badge > 99 ? '99+' : item.badge}
@@ -363,7 +364,7 @@ const Layout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-14 bg-[#7229f7] border-b border-purple-800 flex items-center justify-end px-6">
+        <header className="h-14 bg-[#7229f7] dark:bg-[#5b21b6] border-b border-purple-800 flex items-center justify-end px-6">
           {/* Trial Indicator + Credits Indicator + Notification Icons */}
           <div className="flex items-center space-x-3">
             {/* Trial Indicator - shows days remaining for trial users */}

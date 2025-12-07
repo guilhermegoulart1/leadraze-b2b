@@ -1,14 +1,16 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckSquare, AlertCircle, Clock, Calendar, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const UserTasks = ({ tasks = {} }) => {
+  const { t } = useTranslation('dashboard');
   const { overdue = 0, today = 0, tomorrow = 0, total_pending = 0 } = tasks;
 
   const taskGroups = [
     {
       key: 'overdue',
-      label: 'Atrasadas',
+      labelKey: 'tasks.overdue',
       count: overdue,
       color: 'red',
       icon: AlertCircle,
@@ -18,7 +20,7 @@ const UserTasks = ({ tasks = {} }) => {
     },
     {
       key: 'today',
-      label: 'Para Hoje',
+      labelKey: 'tasks.today',
       count: today,
       color: 'amber',
       icon: Clock,
@@ -28,7 +30,7 @@ const UserTasks = ({ tasks = {} }) => {
     },
     {
       key: 'tomorrow',
-      label: 'Para Amanhã',
+      labelKey: 'tasks.tomorrow',
       count: tomorrow,
       color: 'blue',
       icon: Calendar,
@@ -42,8 +44,8 @@ const UserTasks = ({ tasks = {} }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Suas Tarefas</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{total_pending} pendentes</p>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('tasks.title')}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{total_pending} {t('tasks.pending')}</p>
         </div>
         <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/30">
           <CheckSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" />
@@ -62,7 +64,7 @@ const UserTasks = ({ tasks = {} }) => {
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${group.dotColor}`} />
                 <Icon className={`w-4 h-4 ${group.textColor}`} />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{group.label}</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t(group.labelKey)}</span>
               </div>
               <span className={`text-lg font-bold ${group.textColor}`}>
                 {group.count}
@@ -76,7 +78,7 @@ const UserTasks = ({ tasks = {} }) => {
         to="/tasks"
         className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-center gap-2 text-sm font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
       >
-        Ver todas as tarefas
+        {t('tasks.viewAll')}
         <ArrowRight className="w-4 h-4" />
       </Link>
     </div>

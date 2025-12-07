@@ -117,10 +117,10 @@ const EmailSettingsTab = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
         <div className="flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-          <span className="ml-3 text-gray-600">{t('loading', 'Carregando...')}</span>
+          <span className="ml-3 text-gray-600 dark:text-gray-400">{t('loading', 'Carregando...')}</span>
         </div>
       </div>
     );
@@ -128,8 +128,8 @@ const EmailSettingsTab = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8">
-        <div className="flex items-center justify-center text-red-500">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
+        <div className="flex items-center justify-center text-red-500 dark:text-red-400">
           <AlertCircle className="w-6 h-6 mr-2" />
           <span>{error}</span>
           <button
@@ -146,7 +146,7 @@ const EmailSettingsTab = () => {
   return (
     <div className="space-y-6">
       {/* Section Navigation */}
-      <div className="bg-white rounded-xl border border-gray-200 p-2">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-2">
         <div className="flex space-x-2">
           {sections.map((section) => {
             const Icon = section.icon;
@@ -157,8 +157,8 @@ const EmailSettingsTab = () => {
                 className={`
                   flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors
                   ${activeSection === section.id
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }
                 `}
               >
@@ -172,15 +172,15 @@ const EmailSettingsTab = () => {
 
       {/* Branding Section */}
       {activeSection === 'branding' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6">
             {t('branding.title', 'Branding de Email')}
           </h3>
 
           <div className="space-y-6">
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('branding.companyLogo', 'Logo da Empresa')}
               </label>
               <LogoUploader
@@ -188,36 +188,36 @@ const EmailSettingsTab = () => {
                 onUpload={handleLogoUpload}
                 onDelete={handleLogoDelete}
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 {t('branding.logoHint', 'Recomendado: PNG ou SVG, max 5MB')}
               </p>
             </div>
 
             {/* Format Preference */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('branding.formatPreference', 'Formato de Email Padrão')}
               </label>
               <select
                 value={branding?.format_preference || 'html'}
                 onChange={(e) => handleBrandingUpdate({ format_preference: e.target.value })}
-                className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full max-w-xs px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="html">HTML</option>
                 <option value="plain">Texto Simples</option>
               </select>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 {t('branding.formatHint', 'HTML permite formatação rica, texto simples é mais compatível')}
               </p>
             </div>
 
             {/* Include Logo in Emails */}
-            <div className="flex items-center justify-between py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between py-4 border-t border-gray-200 dark:border-gray-700">
               <div>
-                <h4 className="font-medium text-gray-900">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100">
                   {t('branding.includeLogoInEmails', 'Incluir Logo em Emails')}
                 </h4>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {t('branding.includeLogoHint', 'Adiciona o logo da empresa no cabeçalho dos emails')}
                 </p>
               </div>
@@ -230,7 +230,7 @@ const EmailSettingsTab = () => {
                     branding: { ...branding?.branding, include_logo: e.target.checked }
                   })}
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
               </label>
             </div>
           </div>
@@ -257,21 +257,21 @@ const EmailSettingsTab = () => {
 
       {/* Preferences Section */}
       {activeSection === 'preferences' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-6">
             {t('preferences.title', 'Preferências de Email')}
           </h3>
 
           <div className="space-y-6">
             {/* Default Signature */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('preferences.defaultSignature', 'Assinatura Padrão')}
               </label>
               <select
                 value={preferences?.signature_id || ''}
                 onChange={(e) => handlePreferencesUpdate({ signature_id: e.target.value || null })}
-                className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full max-w-md px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">{t('preferences.noSignature', 'Nenhuma assinatura')}</option>
                 {signatures.map((sig) => (
@@ -282,13 +282,13 @@ const EmailSettingsTab = () => {
 
             {/* User Format Preference */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('preferences.emailFormat', 'Formato de Email Preferido')}
               </label>
               <select
                 value={preferences?.email_format_preference || 'account_default'}
                 onChange={(e) => handlePreferencesUpdate({ email_format_preference: e.target.value })}
-                className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full max-w-xs px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="account_default">{t('preferences.useAccountDefault', 'Usar padrão da conta')}</option>
                 <option value="html">HTML</option>
@@ -297,12 +297,12 @@ const EmailSettingsTab = () => {
             </div>
 
             {/* Use Account Signature */}
-            <div className="flex items-center justify-between py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between py-4 border-t border-gray-200 dark:border-gray-700">
               <div>
-                <h4 className="font-medium text-gray-900">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100">
                   {t('preferences.useAccountSignature', 'Usar Assinatura da Conta')}
                 </h4>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {t('preferences.useAccountSignatureHint', 'Se desativado, usa sua assinatura pessoal')}
                 </p>
               </div>
@@ -313,7 +313,7 @@ const EmailSettingsTab = () => {
                   checked={preferences?.use_account_signature !== false}
                   onChange={(e) => handlePreferencesUpdate({ use_account_signature: e.target.checked })}
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
               </label>
             </div>
           </div>

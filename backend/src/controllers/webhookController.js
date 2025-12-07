@@ -428,29 +428,37 @@ async function getChannelSettings(channelId) {
 // ================================
 // HELPER: REGISTRAR CANAL DO CONTATO
 // ================================
-async function registerContactChannel(contactId, channelType, channelId, channelUsername) {
+async function registerContactChannel(contactId, channelType, channelId, channelUsername, attendeeId = null) {
   try {
     // Verificar se já existe esse canal para o contato
     const existingChannel = await db.query(
-      `SELECT id FROM contact_channels
+      `SELECT id, metadata FROM contact_channels
        WHERE contact_id = $1 AND channel_type = $2
        LIMIT 1`,
       [contactId, channelType.toLowerCase()]
     );
 
     if (existingChannel.rows.length > 0) {
-      // Atualizar last_interaction e message_count
+      // Atualizar last_interaction, message_count e attendee_id no metadata
+      const existingMetadata = existingChannel.rows[0].metadata || {};
+      const newMetadata = attendeeId
+        ? { ...existingMetadata, attendee_id: attendeeId }
+        : existingMetadata;
+
       await db.query(
         `UPDATE contact_channels
          SET last_interaction_at = NOW(),
              message_count = message_count + 1,
-             is_active = true
+             is_active = true,
+             metadata = $2
          WHERE id = $1`,
-        [existingChannel.rows[0].id]
+        [existingChannel.rows[0].id, JSON.stringify(newMetadata)]
       );
       console.log(`📱 Canal ${channelType} atualizado para contato`);
     } else {
-      // Criar novo registro de canal
+      // Criar novo registro de canal com attendee_id no metadata
+      const metadata = attendeeId ? { attendee_id: attendeeId } : {};
+
       await db.insert('contact_channels', {
         contact_id: contactId,
         channel_type: channelType.toLowerCase(),
@@ -459,7 +467,8 @@ async function registerContactChannel(contactId, channelType, channelId, channel
         is_primary: true,
         is_active: true,
         last_interaction_at: new Date(),
-        message_count: 1
+        message_count: 1,
+        metadata: JSON.stringify(metadata)
       });
       console.log(`📱 Canal ${channelType} registrado para contato`);
     }
@@ -470,10 +479,126 @@ async function registerContactChannel(contactId, channelType, channelId, channel
 }
 
 // ================================
+// HELPER: BUSCAR E ATUALIZAR DADOS DO CONTATO VIA UNIPILE
+// ================================
+async function fetchAndUpdateContactFromAttendee(accountId, contactId, attendeeId, options = {}) {
+  if (!attendeeId) {
+    console.log('⚠️ Sem attendeeId para buscar dados do contato');
+    return null;
+  }
+
+  const { fetchPicture = true, updateName = false } = options;
+  const result = { updated: false, fields: [] };
+
+  try {
+    console.log(`🔄 Buscando dados do attendee: ${attendeeId}`);
+
+    // 1. Buscar dados completos do attendee via API
+    const attendeeData = await unipileClient.messaging.getAttendeeById(attendeeId);
+
+    if (attendeeData) {
+      console.log('📋 Dados do attendee recebidos:', JSON.stringify(attendeeData, null, 2));
+
+      // Extrair campos úteis do attendee
+      const updates = {};
+
+      // Nome (só atualiza se solicitado ou se contato não tem nome válido)
+      const attendeeName = attendeeData.name
+        || attendeeData.display_name
+        || attendeeData.full_name
+        || attendeeData.pushname;
+
+      if (updateName && attendeeName && !attendeeName.match(/^\+?\d+$/)) {
+        updates.name = attendeeName;
+        result.fields.push('name');
+      }
+
+      // Telefone (extrair de attendee_specifics se disponível)
+      const phoneNumber = attendeeData.phone_number
+        || attendeeData.attendee_specifics?.phone_number
+        || attendeeData.identifier;
+
+      // Headline/Bio (se disponível)
+      if (attendeeData.headline || attendeeData.bio || attendeeData.about) {
+        updates.headline = attendeeData.headline || attendeeData.bio || attendeeData.about;
+        result.fields.push('headline');
+      }
+
+      // Atualizar contato com dados básicos
+      if (Object.keys(updates).length > 0) {
+        const setClause = Object.keys(updates)
+          .map((key, i) => `${key} = $${i + 2}`)
+          .join(', ');
+        const values = [contactId, ...Object.values(updates)];
+
+        await db.query(
+          `UPDATE contacts SET ${setClause}, updated_at = NOW() WHERE id = $1`,
+          values
+        );
+        result.updated = true;
+        console.log(`✅ Dados do contato atualizados: ${result.fields.join(', ')}`);
+      }
+    }
+
+    // 2. Buscar e salvar foto de perfil
+    if (fetchPicture) {
+      console.log(`📸 Buscando foto de perfil do attendee: ${attendeeId}`);
+
+      const pictureResult = await unipileClient.messaging.getAttendeePicture(attendeeId);
+
+      if (pictureResult && pictureResult.data) {
+        console.log(`✅ Foto encontrada: ${pictureResult.contentType}, ${pictureResult.data.length} bytes`);
+
+        // Determinar extensão do arquivo
+        const mimeToExt = {
+          'image/jpeg': '.jpg',
+          'image/jpg': '.jpg',
+          'image/png': '.png',
+          'image/gif': '.gif',
+          'image/webp': '.webp'
+        };
+        const ext = mimeToExt[pictureResult.contentType] || '.jpg';
+
+        // Upload para R2
+        const uploadResult = await storageService.uploadContactPicture(
+          accountId,
+          contactId,
+          pictureResult.data,
+          pictureResult.contentType,
+          `profile${ext}`
+        );
+
+        console.log(`✅ Foto salva no R2: ${uploadResult.url}`);
+
+        // Atualizar contato com a URL da foto
+        await db.query(
+          `UPDATE contacts SET profile_picture = $1, updated_at = NOW() WHERE id = $2`,
+          [uploadResult.url, contactId]
+        );
+
+        result.updated = true;
+        result.fields.push('profile_picture');
+        result.pictureUrl = uploadResult.url;
+        console.log(`✅ Contato atualizado com foto de perfil`);
+      } else {
+        console.log('⚠️ Nenhuma foto de perfil disponível no Unipile');
+      }
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('⚠️ Erro ao buscar/atualizar dados do contato:', error.message);
+    // Não falhar o processo por erro
+    return result;
+  }
+}
+
+// ================================
 // HELPER: CRIAR OU BUSCAR CONTATO
 // ================================
 async function findOrCreateContact(userId, accountId, contactData) {
-  const { phone, providerId, name, profileUrl, profilePicture, headline, location, source } = contactData;
+  const { phone, providerId, name, profileUrl, profilePicture, headline, location, source, attendeeId } = contactData;
 
   // Formatar telefone para busca
   const phoneClean = phone?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
@@ -482,9 +607,11 @@ async function findOrCreateContact(userId, accountId, contactData) {
   console.log(`🔍 Buscando contato existente...`);
   console.log(`   Phone: ${phoneFormatted}`);
   console.log(`   Provider ID: ${providerId}`);
+  console.log(`   Attendee ID: ${attendeeId}`);
 
   // Buscar contato existente pelo telefone ou provider_id
   let contact = null;
+  let isNewContact = false;
 
   // Tentar buscar pelo telefone
   if (phoneFormatted) {
@@ -534,7 +661,26 @@ async function findOrCreateContact(userId, accountId, contactData) {
     });
 
     contact = newContact;
+    isNewContact = true;
     console.log(`✅ Contato criado: ${contact.name} (ID: ${contact.id})`);
+  }
+
+  // Buscar dados e foto do attendee se:
+  // 1. É novo contato OU contato existente sem foto
+  // 2. Temos attendeeId disponível
+  const shouldFetchData = attendeeId && (!contact.profile_picture || isNewContact);
+  if (shouldFetchData) {
+    // Executar em background para não bloquear o webhook
+    fetchAndUpdateContactFromAttendee(accountId, contact.id, attendeeId, {
+      fetchPicture: true,
+      updateName: isNewContact // Só atualiza nome se for contato novo
+    })
+      .then(result => {
+        if (result?.pictureUrl) {
+          contact.profile_picture = result.pictureUrl;
+        }
+      })
+      .catch(err => console.error('⚠️ Erro ao buscar dados em background:', err.message));
   }
 
   return contact;
@@ -866,7 +1012,8 @@ async function handleMessageReceived(payload) {
           profilePicture,
           headline,
           location,
-          source: providerType.toLowerCase() // 'whatsapp', 'instagram', etc.
+          source: providerType.toLowerCase(), // 'whatsapp', 'instagram', etc.
+          attendeeId: attendeeData?.id || null // ID do attendee para buscar foto
         }
       );
 
@@ -877,7 +1024,8 @@ async function handleMessageReceived(payload) {
         contactData.id,
         providerType, // 'WHATSAPP', 'INSTAGRAM', etc.
         leadProviderId, // Número de telefone ou handle
-        contactName // Nome de exibição
+        contactName, // Nome de exibição
+        attendeeData?.id || null // Attendee ID para buscar foto
       );
 
       // ✅ PASSO 2: Verificar se existe LEAD (oportunidade) para este contato

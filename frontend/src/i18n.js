@@ -27,6 +27,7 @@ import enBilling from './locales/en/billing.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enEmailSettings from './locales/en/emailSettings.json';
 import enWebsiteAgents from './locales/en/websiteAgents.json';
+import enTasks from './locales/en/tasks.json';
 
 // Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
@@ -53,6 +54,7 @@ import ptBilling from './locales/pt/billing.json';
 import ptOnboarding from './locales/pt/onboarding.json';
 import ptEmailSettings from './locales/pt/emailSettings.json';
 import ptWebsiteAgents from './locales/pt/websiteAgents.json';
+import ptTasks from './locales/pt/tasks.json';
 
 // Import translations - Spanish
 import esCommon from './locales/es/common.json';
@@ -79,6 +81,7 @@ import esBilling from './locales/es/billing.json';
 import esOnboarding from './locales/es/onboarding.json';
 import esEmailSettings from './locales/es/emailSettings.json';
 import esWebsiteAgents from './locales/es/websiteAgents.json';
+import esTasks from './locales/es/tasks.json';
 
 // Translation resources
 const resources = {
@@ -107,6 +110,7 @@ const resources = {
     onboarding: enOnboarding,
     emailSettings: enEmailSettings,
     websiteAgents: enWebsiteAgents,
+    tasks: enTasks,
   },
   pt: {
     common: ptCommon,
@@ -133,6 +137,7 @@ const resources = {
     onboarding: ptOnboarding,
     emailSettings: ptEmailSettings,
     websiteAgents: ptWebsiteAgents,
+    tasks: ptTasks,
   },
   es: {
     common: esCommon,
@@ -159,6 +164,7 @@ const resources = {
     onboarding: esOnboarding,
     emailSettings: esEmailSettings,
     websiteAgents: esWebsiteAgents,
+    tasks: esTasks,
   },
 };
 
@@ -175,7 +181,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks'
     ],
 
     // Language detection configuration
