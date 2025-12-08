@@ -347,10 +347,10 @@ class PartnerService {
    * Convert referral when payment is confirmed
    */
   async convertReferral(referredAccountId, subscriptionId) {
-    // Get account email
+    // Get account email from owner user
     const accountResult = await db.query(
-      'SELECT email FROM accounts WHERE id = $1',
-      [referredAccountId]
+      'SELECT email FROM users WHERE account_id = $1 AND role = $2 LIMIT 1',
+      [referredAccountId, 'owner']
     );
 
     if (!accountResult.rows[0]) {

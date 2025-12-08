@@ -146,7 +146,7 @@ class AffiliateService {
            converted_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP
        WHERE referred_account_id = $1 OR
-             (referred_email = (SELECT email FROM accounts WHERE id = $1) AND status = 'pending')
+             (referred_email = (SELECT email FROM users WHERE account_id = $1 AND role = 'owner' LIMIT 1) AND status = 'pending')
        RETURNING *`,
       [referredAccountId, subscriptionId]
     );

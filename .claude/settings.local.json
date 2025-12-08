@@ -34,7 +34,8 @@
       "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/ChatArea.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
       "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/DetailsPanel.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
       "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/ConversationSidebar.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
-      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\backend''; npm run dev\")"
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\backend''; npm run dev\")",
+      "Bash(xargs cat:*)"
     ],
     "deny": [],
     "ask": []
