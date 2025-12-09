@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
 import ChannelSettingsModal from '../components/ChannelSettingsModal';
+import PremiumFeatureModal from '../components/PremiumFeatureModal';
 import { useOnboarding } from '../contexts/OnboardingContext';
+import { useBilling } from '../contexts/BillingContext';
 
 // ================================
 // MULTI-CHANNEL: Configuração de ícones e cores por provider
@@ -91,6 +93,7 @@ const getChannelConfig = (providerType) => {
 const ChannelsPage = () => {
   const { t } = useTranslation(['linkedinaccounts', 'common']);
   const { completeStep } = useOnboarding();
+  const { isTrialFeatureBlocked } = useBilling();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshingAccounts, setRefreshingAccounts] = useState({});
@@ -111,6 +114,9 @@ const ChannelsPage = () => {
   // Estado para modal de configurações do canal
   const [showChannelSettingsModal, setShowChannelSettingsModal] = useState(false);
   const [channelToConfig, setChannelToConfig] = useState(null);
+
+  // Estado para modal premium (trial bloqueado)
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   useEffect(() => {
     loadAccounts();
@@ -269,6 +275,13 @@ const ChannelsPage = () => {
 
   const handleReactivateChannel = async (account) => {
     setActiveDropdown(null);
+
+    // Verificar se usuário trial tem acesso bloqueado a canais
+    if (isTrialFeatureBlocked('channels')) {
+      setShowPremiumModal(true);
+      return;
+    }
+
     try {
       setConnectLoading(true);
 
@@ -317,7 +330,12 @@ const ChannelsPage = () => {
       }
     } catch (error) {
       console.error('Erro na reativação:', error);
-      alert('Erro ao reativar. Tente novamente.');
+      // Verificar se é erro de trial bloqueado (fallback)
+      if (error.response?.status === 402 && error.response?.data?.code === 'TRIAL_FEATURE_BLOCKED') {
+        setShowPremiumModal(true);
+      } else {
+        alert('Erro ao reativar. Tente novamente.');
+      }
       setConnectLoading(false);
     }
   };
@@ -361,6 +379,12 @@ const ChannelsPage = () => {
   };
 
   const handleConnectChannel = async () => {
+    // Verificar se usuário trial tem acesso bloqueado a canais
+    if (isTrialFeatureBlocked('channels')) {
+      setShowPremiumModal(true);
+      return;
+    }
+
     try {
       setConnectLoading(true);
       const response = await api.getHostedAuthLink();
@@ -394,7 +418,12 @@ const ChannelsPage = () => {
         throw new Error('URL de autenticação não recebida');
       }
     } catch (error) {
-      alert('Erro ao iniciar conexão. Tente novamente.');
+      // Verificar se é erro de trial bloqueado (fallback caso a verificação inicial falhe)
+      if (error.response?.status === 402 && error.response?.data?.code === 'TRIAL_FEATURE_BLOCKED') {
+        setShowPremiumModal(true);
+      } else {
+        alert('Erro ao iniciar conexão. Tente novamente.');
+      }
       setConnectLoading(false);
     }
   };
@@ -832,6 +861,13 @@ const ChannelsPage = () => {
           onUpdate={handleChannelSettingsUpdate}
         />
       )}
+
+      {/* Modal Premium para usuários trial */}
+      <PremiumFeatureModal
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        feature="channels"
+      />
     </div>
   );
 };
