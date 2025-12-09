@@ -637,7 +637,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                     <button
                       key={template.id}
                       onClick={() => handleSelectTemplate(template)}
-                      className="group relative p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-400 hover:shadow-lg transition-all text-left overflow-hidden"
+                      className="group relative p-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-lg transition-all text-left overflow-hidden"
                     >
                       <div className="flex items-start gap-4">
                         {/* Icon with gradient background */}
@@ -653,7 +653,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-bold text-gray-900">{template.name}</h3>
+                            <h3 className="font-bold text-gray-900 dark:text-gray-100">{template.name}</h3>
                             {template.badge && (
                               <span
                                 className="px-2 py-0.5 text-xs font-medium rounded-full text-white"
@@ -663,22 +663,22 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 mb-1">por {template.author}</p>
-                          <p className="text-sm text-gray-600 line-clamp-2">{template.shortDescription}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">por {template.author}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{template.shortDescription}</p>
 
                           {/* Ideal For */}
                           <div className="flex flex-wrap gap-1 mt-2">
                             {template.ideal_for?.industry?.slice(0, 3).map((item, idx) => (
                               <span
                                 key={idx}
-                                className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
+                                className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full"
                               >
                                 {item}
                               </span>
                             ))}
                           </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0 mt-2" />
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors flex-shrink-0 mt-2" />
                       </div>
                     </button>
                   ))}
@@ -691,7 +691,7 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
           {mode === CREATION_MODES.TEMPLATES && templateConfigStep && !reviewMode && selectedTemplate && (
             <div className="max-w-2xl mx-auto space-y-6">
               {/* Selected Template Info */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
                 <div className="flex items-center gap-4">
                   <div
                     className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl shadow-md flex-shrink-0"
@@ -703,15 +703,15 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                     {selectedTemplate.icon}
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">{selectedTemplate.name}</h3>
-                    <p className="text-sm text-gray-600">{selectedTemplate.shortDescription}</p>
+                    <h3 className="font-bold text-gray-900 dark:text-gray-100">{selectedTemplate.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{selectedTemplate.shortDescription}</p>
                   </div>
                 </div>
               </div>
 
               {/* Product/Service Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   O que você vende? <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -719,16 +719,16 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                   value={productService}
                   onChange={(e) => setProductService(e.target.value)}
                   placeholder="Ex: Software de gestão financeira, Consultoria de marketing, Plataforma de e-commerce..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Descreva brevemente seu produto ou serviço
                 </p>
               </div>
 
               {/* Objective Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Qual o objetivo do agente? <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -739,14 +739,14 @@ ${description ? `Detalhes adicionais: ${description}` : ''}
                       onClick={() => setObjective(obj.id)}
                       className={`p-3 rounded-lg border-2 text-left transition-all ${
                         objective === obj.id
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}
                     >
-                      <span className={`font-medium text-sm ${objective === obj.id ? 'text-purple-700' : 'text-gray-700'}`}>
+                      <span className={`font-medium text-sm ${objective === obj.id ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300'}`}>
                         {obj.label}
                       </span>
-                      <p className="text-xs text-gray-500 mt-0.5">{obj.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{obj.description}</p>
                     </button>
                   ))}
                 </div>

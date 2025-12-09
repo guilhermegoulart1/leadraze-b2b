@@ -78,7 +78,7 @@ const AgentWizardSidebar = ({
 
   return (
     <div className="w-full">
-      <div className="bg-white rounded-lg border border-gray-200 p-1.5">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1.5">
         <div className="space-y-0.5">
           {sections.map((section) => {
             const Icon = section.icon;
@@ -94,8 +94,8 @@ const AgentWizardSidebar = ({
                 className={`
                   w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-all
                   ${isActive
-                    ? 'bg-purple-50 text-purple-600 border border-purple-200'
-                    : 'text-gray-700 hover:bg-gray-50 border border-transparent'
+                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-transparent'
                   }
                   ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                 `}
@@ -103,20 +103,20 @@ const AgentWizardSidebar = ({
                 {/* Status indicator */}
                 <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
                   {status === 'complete' ? (
-                    <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center">
-                      <Check className="w-2.5 h-2.5 text-green-600" />
+                    <div className="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+                      <Check className="w-2.5 h-2.5 text-green-600 dark:text-green-400" />
                     </div>
                   ) : status === 'error' ? (
-                    <div className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center">
-                      <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
+                    <div className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                      <AlertCircle className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
                     </div>
                   ) : (
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-purple-600' : 'text-gray-400'}`} />
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400'}`} />
                   )}
                 </div>
 
                 {/* Label */}
-                <span className={`text-xs font-medium ${isActive ? 'text-purple-600' : ''}`}>
+                <span className={`text-xs font-medium ${isActive ? 'text-purple-600 dark:text-purple-400' : ''}`}>
                   {section.label}
                 </span>
               </button>
