@@ -36,6 +36,7 @@ import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import SetPasswordPage from './pages/SetPasswordPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import BillingPage from './pages/BillingPage';
 import AffiliatePage from './pages/AffiliatePage';
 import ProfilePage from './pages/ProfilePage';
@@ -104,6 +105,9 @@ function AppRoutes() {
 
       {/* Set Password - para novos usuários criados via Stripe */}
       <Route path="/set-password" element={<SetPasswordPage />} />
+
+      {/* Forgot Password - recuperação de senha */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Checkout - protegido mas sem bloqueio de subscription */}
       <Route
