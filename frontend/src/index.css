@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark Mode - Override Tailwind dark: variant colors for darker theme (neutral tones) */
+/* Background overrides */
+.dark .dark\:bg-gray-900 { background-color: #0a0a0a !important; }
+.dark .dark\:bg-gray-800 { background-color: #1a1a1a !important; }
+.dark .dark\:bg-gray-700 { background-color: #252525 !important; }
+.dark .dark\:bg-gray-600 { background-color: #2f2f2f !important; }
+.dark .dark\:bg-gray-500 { background-color: #3a3a3a !important; }
+.dark .dark\:bg-gray-200 { background-color: #333333 !important; }
+.dark .dark\:bg-gray-100 { background-color: #252525 !important; }
+.dark .dark\:bg-gray-50 { background-color: #1a1a1a !important; }
+
+/* Border overrides */
+.dark .dark\:border-gray-800 { border-color: #1a1a1a !important; }
+.dark .dark\:border-gray-700 { border-color: #252525 !important; }
+.dark .dark\:border-gray-600 { border-color: #2f2f2f !important; }
+.dark .dark\:border-gray-500 { border-color: #3a3a3a !important; }
+.dark .dark\:border-gray-200 { border-color: #252525 !important; }
+.dark .dark\:border-gray-100 { border-color: #1a1a1a !important; }
+
+/* Divide overrides */
+.dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #252525 !important; }
+.dark .dark\:divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #252525 !important; }
+.dark .dark\:divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1a1a1a !important; }
+
+/* Hover overrides */
+.dark .dark\:hover\:bg-gray-900:hover { background-color: #0f0f0f !important; }
+.dark .dark\:hover\:bg-gray-800:hover { background-color: #1f1f1f !important; }
+.dark .dark\:hover\:bg-gray-700:hover { background-color: #2a2a2a !important; }
+.dark .dark\:hover\:bg-gray-600:hover { background-color: #333333 !important; }
+.dark .dark\:hover\:bg-gray-100:hover { background-color: #2a2a2a !important; }
+.dark .dark\:hover\:bg-gray-50:hover { background-color: #252525 !important; }
+
 * {
   margin: 0;
   padding: 0;
@@ -44,20 +76,20 @@ body {
 /* Dark Mode Scrollbar Styles */
 .dark * {
   scrollbar-width: thin;
-  scrollbar-color: #4b5563 #1f2937;
+  scrollbar-color: #333333 #0a0a0a;
 }
 
 .dark *::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: #0a0a0a;
 }
 
 .dark *::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border: 2px solid #1f2937;
+  background: #333333;
+  border: 2px solid #0a0a0a;
 }
 
 .dark *::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #444444;
 }
 
 /* Custom Scrollbar Styles - Thin version para áreas específicas */
@@ -88,22 +120,22 @@ body {
 
 /* Dark Mode - Scrollbar Thin */
 .dark .scrollbar-thin::-webkit-scrollbar-track {
-  background: #111827;
+  background: #0a0a0a;
   border-radius: 10px;
 }
 
 .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #333333;
   border-radius: 10px;
 }
 
 .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #444444;
 }
 
 .dark .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: #4b5563 #111827;
+  scrollbar-color: #333333 #0a0a0a;
 }
 
 /* Dark Mode - Date Time Picker Styles */

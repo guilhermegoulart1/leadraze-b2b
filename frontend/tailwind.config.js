@@ -6,7 +6,16 @@ export default {
   ],
   darkMode: 'class', // Enable dark mode with class strategy
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        gray: {
+          // Extend gray scale with darker neutral values for dark mode
+          925: '#0a0a0a',  // Main background (darker than 900)
+          850: '#1a1a1a',  // Cards/panels (darker than 800)
+          775: '#252525',  // Borders/dividers (darker than 700)
+        }
+      }
+    },
   },
   plugins: [],
 }
