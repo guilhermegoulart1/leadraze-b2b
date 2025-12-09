@@ -206,10 +206,11 @@ const getHostedAuthLink = async (req, res) => {
 const getLinkedInAccounts = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
-    console.log(`📋 Listando contas LinkedIn do usuário ${userId}`);
+    console.log(`📋 Listando contas LinkedIn do usuário ${userId} (account: ${accountId})`);
 
-    const accounts = await db.findMany('linkedin_accounts', { user_id: userId }, {
+    const accounts = await db.findMany('linkedin_accounts', { user_id: userId, account_id: accountId }, {
       orderBy: 'connected_at DESC'
     });
 
@@ -229,10 +230,11 @@ const getLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔍 Buscando conta ${id}`);
 
-    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!account) {
       throw new NotFoundError('LinkedIn account not found');
@@ -252,11 +254,12 @@ const updateLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { daily_limit, status } = req.body;
 
     console.log(`📝 Atualizando conta ${id}`);
 
-    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!account) {
       throw new NotFoundError('LinkedIn account not found');
@@ -288,10 +291,11 @@ const deleteLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🗑️ Excluindo conta permanentemente ${id}`);
 
-    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!account) {
       throw new NotFoundError('LinkedIn account not found');
@@ -353,10 +357,11 @@ const disconnectLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔌 Desconectando conta ${id} (soft - apenas local)`);
 
-    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!account) {
       throw new NotFoundError('LinkedIn account not found');
@@ -391,10 +396,11 @@ const reactivateLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log(`🔄 Reativando conta ${id}`);
 
-    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!account) {
       throw new NotFoundError('LinkedIn account not found');
@@ -448,9 +454,10 @@ const refreshLinkedInAccount = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     // Buscar conta no banco
-    const account = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const account = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!account) {
       throw new NotFoundError('Account not found');
@@ -911,6 +918,7 @@ const getProfileDetails = async (req, res) => {
     const { profileId } = req.params;
     const { linkedin_account_id } = req.query;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
 
     console.log('🔍 === BUSCAR DETALHES DO PERFIL ===');
     console.log('👤 Profile ID:', profileId);
@@ -922,8 +930,8 @@ const getProfileDetails = async (req, res) => {
 
     // Verificar se a conta LinkedIn pertence ao usuário
     const accountQuery = await db.query(
-      'SELECT * FROM linkedin_accounts WHERE id = $1 AND user_id = $2',
-      [linkedin_account_id, userId]
+      'SELECT * FROM linkedin_accounts WHERE id = $1 AND user_id = $2 AND account_id = $3',
+      [linkedin_account_id, userId, accountId]
     );
 
     if (accountQuery.rows.length === 0) {
@@ -1664,6 +1672,7 @@ const updateChannelSettings = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const { settings } = req.body;
 
     console.log(`⚙️ Atualizando configurações do canal ${id}`);
@@ -1673,7 +1682,7 @@ const updateChannelSettings = async (req, res) => {
     }
 
     // Verificar se canal pertence ao usuário
-    const channel = await db.findOne('linkedin_accounts', { id, user_id: userId });
+    const channel = await db.findOne('linkedin_accounts', { id, user_id: userId, account_id: accountId });
 
     if (!channel) {
       throw new NotFoundError('Channel not found');
