@@ -1500,17 +1500,32 @@ const handleAuthNotify = async (req, res) => {
     console.log(`   Account ID (tenant): ${accountId}`);
     console.log(`   Unipile Account ID: ${unipileAccountId}`);
 
-    // Verificar se a conta já existe
+    // Verificar se a conta já existe PARA ESTE USUÁRIO/TENANT
     const existingAccount = await db.findOne('linkedin_accounts', {
-      unipile_account_id: unipileAccountId
+      unipile_account_id: unipileAccountId,
+      user_id: userId,
+      account_id: accountId
     });
 
     if (existingAccount) {
-      console.log('✅ Conta já existe, atualizando status');
+      console.log('✅ Conta já existe para este usuário, atualizando status');
       await db.update('linkedin_accounts', {
         status: 'active'
       }, { id: existingAccount.id });
       return res.status(200).json({ success: true, message: 'Account already exists', id: existingAccount.id });
+    }
+
+    // Verificar se o canal Unipile já está em uso por OUTRO usuário
+    const channelInUseByOther = await db.findOne('linkedin_accounts', {
+      unipile_account_id: unipileAccountId
+    });
+
+    if (channelInUseByOther) {
+      console.log(`⚠️ Canal Unipile ${unipileAccountId} já está em uso por outro usuário (user_id: ${channelInUseByOther.user_id})`);
+      return res.status(409).json({
+        success: false,
+        message: 'Este canal já está conectado a outra conta'
+      });
     }
 
     // Buscar informações da conta via Unipile API
