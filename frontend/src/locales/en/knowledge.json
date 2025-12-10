@@ -1,0 +1,99 @@
+{
+  "title": "Knowledge Base",
+  "subtitle": "Manage FAQs, objections, success stories and more",
+  "tabs": {
+    "knowledge": "Knowledge",
+    "search": "Test Search",
+    "settings": "Settings"
+  },
+  "addButton": "Add",
+  "total": "Total: {{count}} items",
+  "types": {
+    "faq": "FAQs",
+    "objection": "Objections",
+    "product_info": "Product Info",
+    "case_study": "Success Stories",
+    "document": "Documents"
+  },
+  "form": {
+    "title": "Add New Knowledge",
+    "editTitle": "Edit Knowledge",
+    "type": "Type",
+    "question": "Question",
+    "objection": "Objection",
+    "answer": "Answer",
+    "howToRespond": "How to Respond",
+    "content": "Content",
+    "category": "Category (optional)",
+    "tags": "Tags (optional)",
+    "tagsPlaceholder": "Separate by comma: price, delivery, support",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "add": "Add",
+    "saveChanges": "Save Changes",
+    "placeholders": {
+      "question": "Ex: What is the delivery time?",
+      "objection": "Ex: It's too expensive",
+      "answerFaq": "Type the complete answer...",
+      "answerObjection": "How the agent should respond to this objection...",
+      "content": "Type the complete content...",
+      "category": "Ex: Pricing, Features, Support"
+    }
+  },
+  "list": {
+    "all": "All",
+    "empty": "No knowledge added yet",
+    "emptyFiltered": "No items of type {{type}}",
+    "confirmDelete": "Are you sure you want to delete this knowledge?"
+  },
+  "search": {
+    "title": "Test Semantic Search",
+    "description": "Simulate how the agent will search for information in the knowledge base when receiving a question.",
+    "placeholder": "Ex: How much does it cost? How does delivery work?",
+    "button": "Search",
+    "searching": "Searching...",
+    "results": "{{count}} results found",
+    "noResults": "No results found",
+    "similarity": "Similarity",
+    "tip": "Tip: The search uses artificial intelligence to find semantically similar knowledge, even if the words are different."
+  },
+  "messages": {
+    "addSuccess": "Knowledge added successfully!",
+    "updateSuccess": "Knowledge updated successfully!",
+    "deleteSuccess": "Knowledge removed successfully!",
+    "loadError": "Error loading knowledge base",
+    "saveError": "Error saving knowledge",
+    "deleteError": "Error deleting knowledge",
+    "searchError": "Error testing semantic search",
+    "requiredFields": "Question and answer are required",
+    "requiredContent": "Content is required",
+    "emptyQuery": "Enter a query to test the search"
+  },
+  "settings": {
+    "title": "Search Settings",
+    "description": "Adjust the vector search sensitivity to control result precision.",
+    "sensitivityLabel": "Search Sensitivity",
+    "sensitivityDescription": "Sets the minimum similarity level to return results",
+    "moreResults": "More results",
+    "morePrecise": "More precise",
+    "level": "Level",
+    "levels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "veryHigh": "Very High"
+    },
+    "explanations": {
+      "low": "Returns more results, even with low similarity. Useful when you have few items in the knowledge base.",
+      "medium": "Balance between quantity and precision. Recommended for most cases.",
+      "high": "Returns only results with good similarity. Ideal for well-structured knowledge bases.",
+      "veryHigh": "Returns only very precise matches. May miss relevant information."
+    },
+    "save": "Save Settings",
+    "saving": "Saving...",
+    "thresholdSaved": "Settings saved successfully!",
+    "thresholdError": "Error saving settings"
+  },
+  "close": "Close"
+}

@@ -403,7 +403,8 @@ const updateAgent = async (req, res) => {
       config,
       is_active,
       daily_limit,
-      execution_time
+      execution_time,
+      priority_rules
     } = req.body;
 
     // Validate config if provided
@@ -464,6 +465,12 @@ const updateAgent = async (req, res) => {
     if (execution_time !== undefined) {
       updates.push(`execution_time = $${paramIndex}`);
       params.push(execution_time);
+      paramIndex++;
+    }
+
+    if (priority_rules !== undefined) {
+      updates.push(`priority_rules = $${paramIndex}`);
+      params.push(JSON.stringify(priority_rules));
       paramIndex++;
     }
 

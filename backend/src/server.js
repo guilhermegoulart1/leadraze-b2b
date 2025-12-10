@@ -21,6 +21,9 @@ const { registerGoogleMapsAgentProcessor } = require('./queues/processors/google
 // ✅ Import Invite Expiration Worker
 const inviteExpirationWorker = require('./workers/inviteExpirationWorker');
 
+// ✅ Import Invite Send Worker (processes scheduled invites)
+const inviteSendWorker = require('./workers/inviteSendWorker');
+
 const PORT = process.env.PORT || 3001;
 
 // Create HTTP server for Socket.io
@@ -60,6 +63,10 @@ async function startServer() {
     inviteExpirationWorker.startProcessor();
     console.log('✅ Invite expiration worker started (cron job)');
 
+    // ✅ Start Invite Send Worker
+    inviteSendWorker.startProcessor();
+    console.log('✅ Invite send worker started (processes scheduled invites every 2 min)');
+
     // ✅ Initialize Socket.io with HTTP server
     initializeSocket(server);
 
@@ -77,6 +84,7 @@ async function startServer() {
       console.log('\n📊 Queue Status:');
       console.log('   - webhooks: ✅ Active (real-time processing)');
       console.log('   - google-maps-agents: ✅ Active (automated lead collection)');
+      console.log('   - invite-send: ✅ Active (every 2 min)');
       console.log('   - invite-expiration: ✅ Active (hourly cron job)');
       console.log('   - campaigns: Ready (Phase 2)');
       console.log('   - bulk-collection: Ready (Phase 3)');

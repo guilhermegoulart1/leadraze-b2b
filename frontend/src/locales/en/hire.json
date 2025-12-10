@@ -1,0 +1,320 @@
+{
+  "wizard": {
+    "title": "Hire New Sales Rep",
+    "step": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Continue",
+    "skip": "Skip this step",
+    "finish": "Hire",
+    "hiring": "Hiring...",
+    "getting_to_know": "Getting to know {{name}}"
+  },
+  "candidates": {
+    "title": "Hire New Sales Rep",
+    "subtitle": "We have some pre-selected candidates for you. Choose a profile or create your own from scratch.",
+    "hire": "Hire",
+    "idealFor": "Ideal for:",
+    "createFromScratch": "CREATE FROM SCRATCH",
+    "createDescription": "Customize every detail of your sales rep",
+    "start": "Start",
+    "templates": {
+      "lucas": {
+        "name": "LUCAS",
+        "role": "The Consultant",
+        "quote": "First I understand, then I suggest",
+        "idealFor": "Complex sales, consulting, services"
+      },
+      "marina": {
+        "name": "MARINA",
+        "role": "The Direct One",
+        "quote": "I get straight to the point, no beating around the bush",
+        "idealFor": "Busy decision-makers who value objectivity"
+      },
+      "pedro": {
+        "name": "PEDRO",
+        "role": "The Educator",
+        "quote": "I share knowledge before selling",
+        "idealFor": "Markets that need education"
+      },
+      "carla": {
+        "name": "CARLA",
+        "role": "The Connector",
+        "quote": "I build genuine relationships",
+        "idealFor": "Networking, partnerships"
+      },
+      "rafael": {
+        "name": "RAFAEL",
+        "role": "The Closer",
+        "quote": "Total focus on closing deals",
+        "idealFor": "Already qualified leads"
+      }
+    }
+  },
+  "channel": {
+    "question": "Where do you want me to work?",
+    "info": "You can connect your account to this channel after hiring the sales rep.",
+    "select": "Select",
+    "comingSoon": "Coming soon",
+    "channels": {
+      "linkedin": {
+        "name": "LinkedIn",
+        "description": "B2B prospecting and connections"
+      },
+      "whatsapp": {
+        "name": "WhatsApp",
+        "description": "Customer service and follow-up"
+      },
+      "email": {
+        "name": "Email",
+        "description": "Campaigns and nurturing"
+      }
+    }
+  },
+  "product": {
+    "greeting": "Hi! I'm {{name}}, your new sales rep. I'll ask you a few quick questions to understand how I can help you better.",
+    "question": "First, tell me: What do you sell?",
+    "whatYouOffer": "What do you offer?",
+    "segment": "In which segment? (optional)",
+    "describeMore": "Describe in more detail (optional):",
+    "categories": {
+      "software": "Software / SaaS",
+      "consulting": "Consulting",
+      "services": "Services",
+      "products": "Physical Products",
+      "education": "Courses / Education",
+      "health": "Healthcare",
+      "finance": "Finance",
+      "marketing": "Marketing / Agency",
+      "technology": "Technology",
+      "industrial": "Industrial",
+      "retail": "Retail",
+      "realestate": "Real Estate"
+    },
+    "placeholder": "E.g.: Clinic management system that automates scheduling and medical records..."
+  },
+  "target": {
+    "understanding": "Got it! {{product}}. Great market!",
+    "question": "Now tell me: Who should I talk to? Who makes the purchase decision?",
+    "selectRoles": "Select roles (you can choose multiple):",
+    "companySize": "What's the ideal company size?",
+    "small": "Small",
+    "large": "Large",
+    "roles": {
+      "owner": "Owner/Partner",
+      "director": "Director",
+      "manager": "Manager",
+      "coordinator": "Coordinator",
+      "analyst": "Analyst",
+      "other": "Other..."
+    },
+    "companySizes": {
+      "1-10": "1-10",
+      "11-50": "11-50",
+      "51-200": "51-200",
+      "201-500": "201-500",
+      "500+": "500+"
+    }
+  },
+  "connection": {
+    "question": "Now I need to know: how do you want me to make the first contact?",
+    "messageQuestion": "What do you want me to say in the connection request?",
+    "variables": "Available variables:",
+    "charLimit": "Limit: 300 characters (LinkedIn)",
+    "strategies": {
+      "silent": {
+        "name": "SILENT CONNECTION",
+        "description": "I send a request WITHOUT a message. When they accept, I start the conversation.",
+        "pros": ["More natural, seems like a genuine connection", "Higher acceptance rate"]
+      },
+      "with-intro": {
+        "name": "REQUEST WITH INTRODUCTION",
+        "description": "I send a request WITH an elaborate message. When they accept, I wait 1 hour. If they don't speak, I start.",
+        "pros": ["Creates context from the start", "Person already knows what it's about"]
+      },
+      "ice-breaker": {
+        "name": "SIMPLE ICE-BREAKER",
+        "description": "I send a request with a simple rapport message. I only continue IF the person responds.",
+        "example": "Hi {{first_name}}, how are you?",
+        "pros": ["Only talks to those who showed interest", "Avoids looking like spam"]
+      }
+    },
+    "defaultMessage": "Hi {{first_name}}, how are you?\n\nI saw that you work as {{title}} at {{company}}.\nI've been helping companies like yours to [benefit].\n\nWant to connect?"
+  },
+  "style": {
+    "question": "What conversation style do you want me to use?",
+    "styles": {
+      "direct": {
+        "name": "STRAIGHT TO THE POINT",
+        "example": "I saw you own Clinic X. We help clinics reduce 40% of management time. Can we talk?"
+      },
+      "consultive": {
+        "name": "CONSULTATIVE",
+        "example": "Hi! I've been studying the challenges of medical clinics. What's your biggest management problem today?"
+      },
+      "educational": {
+        "name": "EDUCATIONAL",
+        "example": "I prepared some material on how clinics are automating appointments. Want me to send it?"
+      },
+      "friendly": {
+        "name": "FRIENDLY",
+        "example": "Hey! I saw you work with clinic management. How's the year going for you?"
+      }
+    }
+  },
+  "methodology": {
+    "question": "Do you want me to follow a specific sales technique?",
+    "skip": "Skip this step - let the sales rep be free",
+    "use": "Use",
+    "methods": {
+      "spin": {
+        "name": "SPIN Selling",
+        "description": "Strategic questions"
+      },
+      "challenger": {
+        "name": "Challenger Sale",
+        "description": "Challenge the status quo"
+      },
+      "sandler": {
+        "name": "Sandler System",
+        "description": "Qualify fearlessly"
+      },
+      "meddpicc": {
+        "name": "MEDDPICC",
+        "description": "Complex enterprise"
+      },
+      "gap": {
+        "name": "Gap Selling",
+        "description": "Identify the gap"
+      },
+      "bant": {
+        "name": "BANT",
+        "description": "Quick qualification"
+      },
+      "inbound": {
+        "name": "Inbound Sales",
+        "description": "Help before selling"
+      },
+      "consultivo-br": {
+        "name": "Brazilian Consultative",
+        "description": "Relationship first"
+      }
+    }
+  },
+  "objective": {
+    "question": {
+      "linkedin": "How far do you want me to go in the conversation before passing it to you?",
+      "whatsapp": "How do you want me to handle conversations?"
+    },
+    "transferWhen": "Transfers when:",
+    "keywords": "Asks about price, demo, meeting",
+    "orAfter": "Or after:",
+    "messageExchanges": "message exchanges",
+    "schedulingLink": "Scheduling link:",
+    "conversionLink": "Conversion link:",
+    "objectives": {
+      "connect_only": {
+        "name": {
+          "linkedin": "CONNECT ONLY",
+          "whatsapp": "TRANSFER IMMEDIATELY"
+        },
+        "description": {
+          "linkedin": "When the person accepts the request, I notify you immediately. You take over the conversation.",
+          "whatsapp": "I receive the message and transfer to you right away. Just log the contact."
+        },
+        "idealFor": "Those who want full control"
+      },
+      "qualify_transfer": {
+        "name": {
+          "linkedin": "QUALIFY AND TRANSFER",
+          "whatsapp": "QUALIFY FIRST"
+        },
+        "description": {
+          "linkedin": "I chat until I identify interest. When the person shows they want to know more, I transfer to you.",
+          "whatsapp": "I ask initial questions, identify if there's real interest, then transfer to you."
+        },
+        "transferWhen": "Keywords (price, demo) or X exchanges"
+      },
+      "schedule_meeting": {
+        "name": "SCHEDULE MEETING",
+        "description": "I chat until I manage to schedule a meeting. I use your scheduling link.",
+        "linkPlaceholder": "https://calendly.com/yourcompany"
+      },
+      "sell_direct": {
+        "name": "SELL DIRECTLY",
+        "description": "I chat and send the purchase/signup link when the person is ready.",
+        "linkPlaceholder": "https://yoursite.com/signup"
+      }
+    }
+  },
+  "summary": {
+    "title": "Confirm Hiring",
+    "salesRep": "Sales Rep",
+    "product": "Product",
+    "audience": "Audience",
+    "style": "Style",
+    "methodology": "Technique",
+    "objective": "Objective",
+    "channel": "Channel",
+    "edit": "Edit",
+    "hire": "Hire {{name}}",
+    "readyMessage": "I'm ready to start! As soon as you introduce me to the contacts, I'll get to work.",
+    "noMethodology": "Free",
+    "employees": "employees"
+  },
+  "rules": {
+    "title": "Rules and Instructions",
+    "subtitle": "Define priority instructions for {{name}}",
+    "addNew": "Add a new rule",
+    "add": "Add",
+    "save": "Save Rules",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "activeRules": "{{count}} active rule(s)",
+    "table": {
+      "type": "Type",
+      "instruction": "Instruction"
+    },
+    "prefixes": {
+      "never": "NEVER",
+      "avoid": "AVOID",
+      "always": "ALWAYS",
+      "prefer": "PREFER",
+      "prioritize": "PRIORITIZE",
+      "when": "WHEN",
+      "remember": "REMEMBER",
+      "protect": "PROTECT"
+    },
+    "placeholders": {
+      "never": "E.g.: talk about competitors",
+      "avoid": "E.g.: very long messages",
+      "always": "E.g.: be polite and cordial",
+      "prefer": "E.g.: informal and friendly language",
+      "prioritize": "E.g.: leads who showed interest",
+      "when": "E.g.: they ask about price, talk about value first",
+      "remember": "E.g.: our differentiator is 24/7 support",
+      "protect": "E.g.: confidential customer information"
+    },
+    "empty": {
+      "title": "No rules defined",
+      "description": "Add rules to customize how your sales rep should behave in specific situations."
+    },
+    "examples": {
+      "title": "Examples of effective rules:",
+      "never": "NEVER promise deadlines without confirming with the team",
+      "always": "ALWAYS ask about the problem before presenting the solution",
+      "avoid": "AVOID overly technical language with non-technical people",
+      "prefer": "PREFER practical examples when explaining benefits"
+    }
+  },
+  "postHire": {
+    "title": "Sales Rep Hired!",
+    "subtitle": "{{name}} is ready to work",
+    "rulesQuestion": "Want to add some rules?",
+    "rulesDescription": "Define specific instructions to improve your sales rep's behavior.",
+    "examples": "Examples:",
+    "exampleNever": "talk about competitors",
+    "exampleAlways": "be polite and cordial",
+    "addRules": "Add Rules",
+    "skip": "Do this later"
+  }
+}

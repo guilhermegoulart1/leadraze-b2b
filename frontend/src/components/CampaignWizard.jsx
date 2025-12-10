@@ -1,5 +1,5 @@
 // frontend/src/components/CampaignWizard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Hand, Bot, Users, MapPin, Briefcase } from 'lucide-react';
 import AsyncSelect from 'react-select/async';
 import api from '../services/api';
@@ -7,9 +7,30 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import TagsInput from './TagsInput';
 
+// Hook para detectar dark mode
+const useDarkMode = () => {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+};
+
 const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const { t } = useTranslation('campaigns');
   const navigate = useNavigate();
+  const isDarkMode = useDarkMode();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -386,15 +407,59 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   loadingMessage={() => t('wizard.step1_5.location.loading')}
                   className="text-sm"
                   styles={{
-                    control: (base) => ({
+                    control: (base, state) => ({
                       ...base,
-                      borderColor: '#d1d5db',
-                      '&:hover': { borderColor: '#9ca3af' },
+                      backgroundColor: isDarkMode ? '#374151' : '#fff',
+                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                      '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
                       boxShadow: 'none',
                       '&:focus-within': {
                         borderColor: '#a855f7',
                         boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)'
                       }
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#374151' : '#fff',
+                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isFocused
+                        ? (isDarkMode ? '#4b5563' : '#f3f4f6')
+                        : (isDarkMode ? '#374151' : '#fff'),
+                      color: isDarkMode ? '#f3f4f6' : '#111827',
+                      '&:active': {
+                        backgroundColor: isDarkMode ? '#6b7280' : '#e5e7eb'
+                      }
+                    }),
+                    singleValue: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#f3f4f6' : '#111827'
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#f3f4f6' : '#111827'
+                    }),
+                    placeholder: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    indicatorSeparator: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db'
+                    }),
+                    dropdownIndicator: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    loadingIndicator: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    noOptionsMessage: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
                     })
                   }}
                 />

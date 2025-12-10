@@ -118,12 +118,17 @@ async function generateResponse(params) {
     // 🔍 BUSCAR CONHECIMENTO RELEVANTE usando RAG
     let knowledgeContext = '';
     try {
+      // Use agent's configured threshold or default to 0.7
+      const similarityThreshold = ai_agent.knowledge_similarity_threshold
+        ? parseFloat(ai_agent.knowledge_similarity_threshold)
+        : 0.7;
+
       const relevantKnowledge = await ragService.searchRelevantKnowledge(
         ai_agent.id,
         lead_message,
         {
           limit: 5,
-          minSimilarity: 0.7
+          minSimilarity: similarityThreshold
         }
       );
 
@@ -313,6 +318,23 @@ GATILHOS DE ESCALAÇÃO (transferir para humano quando detectar):`;
 Quando detectar estes gatilhos, informe que vai conectar com um especialista humano.`;
   }
 
+  // Build priority rules section (user-defined behavioral rules)
+  let priorityRulesSection = '';
+  if (ai_agent.priority_rules && Array.isArray(ai_agent.priority_rules) && ai_agent.priority_rules.length > 0) {
+    const rules = ai_agent.priority_rules.map(rule => {
+      const prefix = rule.prefix || 'SEMPRE';
+      const instruction = rule.instruction || '';
+      return `- ${prefix}: ${instruction}`;
+    }).join('\n');
+
+    priorityRulesSection = `
+
+REGRAS PRIORITÁRIAS (SIGA RIGOROSAMENTE):
+${rules}
+
+IMPORTANTE: Estas regras têm prioridade máxima e devem ser seguidas em todas as interações.`;
+  }
+
   // Build company info section
   let companySection = '';
   if (ai_agent.company_description || ai_agent.value_proposition || ai_agent.key_differentiators) {
@@ -333,7 +355,11 @@ INSTRUÇÕES ESPECÍFICAS:
 ${ai_agent.objective_instructions}`;
   }
 
-  let basePrompt = `Você é ${ai_agent.name}, um agente de vendas B2B especializado em prospecção no LinkedIn.
+  // Get channel-specific context
+  const agentType = ai_agent.agent_type || 'linkedin';
+  const channelContext = getChannelContext(agentType);
+
+  let basePrompt = `Você é ${ai_agent.name}, ${channelContext.agentDescription}
 
 PERFIL COMPORTAMENTAL: ${behavioralProfile.style}
 Tom de comunicação: ${behavioralProfile.tone}
@@ -348,6 +374,7 @@ OBJETIVO PRINCIPAL:
 ${objectiveText}
 ${stepsSection}
 ${escalationSection}
+${priorityRulesSection}
 ${leadInfo}
 ${additionalInstructions}
 
@@ -355,8 +382,8 @@ INSTRUÇÕES DE ESTILO:
 ${ai_agent.response_style_instructions || '- Seja profissional mas acessível\n- Use linguagem clara e direta\n- Mostre interesse genuíno no lead'}
 
 REGRAS IMPORTANTES:
-1. Suas respostas devem ser CURTAS e DIRETAS (máximo 3-4 frases)
-2. LinkedIn é uma plataforma profissional - mantenha formalidade apropriada
+1. Suas respostas devem ser CURTAS e DIRETAS (${channelContext.maxSentences})
+2. ${channelContext.platformRule}
 3. Não seja muito vendedor logo de cara - construa relacionamento primeiro
 4. Faça UMA pergunta por vez para manter a conversa fluindo
 5. Se o lead demonstrar interesse, seja mais específico sobre a solução
@@ -371,9 +398,39 @@ QUANDO O LEAD DEMONSTRAR INTERESSE CLARO:
 - Sugira próximos passos claros
 ${ai_agent.auto_schedule && ai_agent.scheduling_link ? `- Ofereça agendar uma conversa usando: ${ai_agent.scheduling_link}` : ''}
 
-Responda de forma natural, como se fosse uma conversa real no LinkedIn. Evite soar como um bot.`;
+Responda de forma natural, ${channelContext.naturalConversation}. Evite soar como um bot.`;
 
   return basePrompt;
+}
+
+/**
+ * Get channel-specific context for prompts
+ * @param {string} agentType - The agent type (linkedin, whatsapp, email)
+ * @returns {Object} Channel-specific context
+ */
+function getChannelContext(agentType) {
+  const contexts = {
+    linkedin: {
+      agentDescription: 'um agente de vendas B2B especializado em prospecção no LinkedIn.',
+      maxSentences: 'máximo 3-4 frases',
+      platformRule: 'LinkedIn é uma plataforma profissional - mantenha formalidade apropriada',
+      naturalConversation: 'como se fosse uma conversa real no LinkedIn'
+    },
+    whatsapp: {
+      agentDescription: 'um assistente de vendas via WhatsApp.',
+      maxSentences: 'máximo 2-3 frases curtas - WhatsApp exige mensagens concisas',
+      platformRule: 'WhatsApp é um canal mais informal - seja direto mas amigável, pode usar emojis moderadamente',
+      naturalConversation: 'como se fosse uma conversa real no WhatsApp'
+    },
+    email: {
+      agentDescription: 'um agente de vendas especializado em comunicação por email.',
+      maxSentences: 'máximo 4-5 frases por email',
+      platformRule: 'Email permite respostas mais detalhadas - seja profissional e estruturado',
+      naturalConversation: 'como se fosse um email profissional real'
+    }
+  };
+
+  return contexts[agentType] || contexts.linkedin;
 }
 
 /**
@@ -564,7 +621,7 @@ async function generateInitialMessage(params) {
   const { ai_agent, lead_data, campaign } = params;
 
   try {
-    console.log(`💬 Gerando mensagem inicial para ${lead_data.name}`);
+    console.log(`💬 Gerando mensagem inicial para ${lead_data.name} (canal: ${ai_agent.agent_type})`);
 
     // Se há template inicial configurado, usar ele
     if (ai_agent.initial_approach) {
@@ -577,32 +634,15 @@ async function generateInitialMessage(params) {
 
     // Caso contrário, gerar com IA
     const behavioralProfile = BEHAVIORAL_PROFILES[ai_agent.behavioral_profile] || BEHAVIORAL_PROFILES.consultivo;
+    const agentType = ai_agent.agent_type || 'linkedin';
 
-    const prompt = `Você é ${ai_agent.name}, e acabou de ter seu convite de conexão aceito por ${lead_data.name || 'um lead'} no LinkedIn.
-
-INFORMAÇÕES DO LEAD:
-- Nome: ${lead_data.name || 'Não disponível'}
-- Cargo: ${lead_data.title || 'Não disponível'}
-- Empresa: ${lead_data.company || 'Não disponível'}
-- Setor: ${lead_data.industry || 'Não disponível'}
-
-SEU NEGÓCIO:
-${ai_agent.products_services || 'Não especificado'}
-
-ESTILO DE COMUNICAÇÃO: ${behavioralProfile.style}
-Tom: ${behavioralProfile.tone}
-
-Escreva uma mensagem de PRIMEIRO CONTATO curta (2-3 frases) para agradecer a conexão e iniciar um diálogo profissional.
-
-REGRAS:
-1. Seja genuíno e profissional
-2. Personalize com base no cargo/empresa do lead
-3. NÃO seja vendedor demais - ainda é o primeiro contato
-4. Demonstre interesse real no perfil do lead
-5. Termine com uma pergunta leve ou comentário que convide resposta
-6. Máximo de 3 frases
-
-Escreva APENAS a mensagem, sem aspas ou explicações:`;
+    // Build channel-specific prompt
+    const prompt = buildChannelSpecificInitialPrompt({
+      agentType,
+      ai_agent,
+      lead_data,
+      behavioralProfile
+    });
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -613,16 +653,99 @@ Escreva APENAS a mensagem, sem aspas ou explicações:`;
 
     const message = completion.choices[0].message.content.trim();
 
-    console.log(`✅ Mensagem inicial gerada com IA (${message.length} caracteres)`);
+    console.log(`✅ Mensagem inicial gerada com IA para ${agentType} (${message.length} caracteres)`);
 
     return message;
 
   } catch (error) {
     console.error('❌ Erro ao gerar mensagem inicial:', error);
 
-    // Fallback para mensagem padrão
-    return `Olá ${lead_data.name || ''}! Obrigado por aceitar minha conexão. Gostei do seu perfil e seria ótimo trocar ideias sobre ${ai_agent.products_services || 'o mercado'}. Como estão as coisas na ${lead_data.company || 'sua empresa'}?`;
+    // Fallback para mensagem padrão baseada no canal
+    const agentType = ai_agent.agent_type || 'linkedin';
+    if (agentType === 'whatsapp') {
+      return `Olá ${lead_data.name || ''}! 👋 Tudo bem? Sou ${ai_agent.name}. ${ai_agent.products_services ? `Trabalho com ${ai_agent.products_services}.` : ''} Como posso te ajudar?`;
+    } else {
+      return `Olá ${lead_data.name || ''}! Obrigado por aceitar minha conexão. Gostei do seu perfil e seria ótimo trocar ideias sobre ${ai_agent.products_services || 'o mercado'}. Como estão as coisas na ${lead_data.company || 'sua empresa'}?`;
+    }
   }
+}
+
+/**
+ * Build channel-specific prompt for initial message generation
+ * @param {Object} params - Parameters for building the prompt
+ * @returns {string} Channel-specific prompt
+ */
+function buildChannelSpecificInitialPrompt({ agentType, ai_agent, lead_data, behavioralProfile }) {
+  const leadInfo = `
+INFORMAÇÕES DO LEAD:
+- Nome: ${lead_data.name || 'Não disponível'}
+- Cargo: ${lead_data.title || 'Não disponível'}
+- Empresa: ${lead_data.company || 'Não disponível'}
+- Setor: ${lead_data.industry || 'Não disponível'}`;
+
+  const businessInfo = `
+SEU NEGÓCIO:
+${ai_agent.products_services || 'Não especificado'}
+
+ESTILO DE COMUNICAÇÃO: ${behavioralProfile.style}
+Tom: ${behavioralProfile.tone}`;
+
+  // WhatsApp-specific prompt
+  if (agentType === 'whatsapp') {
+    return `Você é ${ai_agent.name}, um assistente de vendas via WhatsApp. Um novo lead entrou em contato ou foi adicionado ao seu fluxo de atendimento.
+${leadInfo}
+${businessInfo}
+
+Escreva uma mensagem de PRIMEIRO CONTATO via WhatsApp curta e amigável (2-3 frases).
+
+REGRAS PARA WHATSAPP:
+1. Seja informal mas profissional - WhatsApp é mais descontraído
+2. Use uma saudação calorosa (pode usar emoji se apropriado para o tom)
+3. Se apresente brevemente
+4. Seja direto mas não invasivo
+5. Faça uma pergunta aberta para entender a necessidade do lead
+6. Máximo de 3 frases curtas (WhatsApp exige mensagens concisas)
+7. NÃO mencione LinkedIn ou "conexão aceita"
+
+Escreva APENAS a mensagem, sem aspas ou explicações:`;
+  }
+
+  // Email-specific prompt
+  if (agentType === 'email') {
+    return `Você é ${ai_agent.name}, enviando um email de primeiro contato para um lead.
+${leadInfo}
+${businessInfo}
+
+Escreva um EMAIL de PRIMEIRO CONTATO profissional e conciso.
+
+REGRAS PARA EMAIL:
+1. Comece com uma saudação apropriada
+2. Se apresente brevemente e mencione o contexto
+3. Seja profissional mas não robótico
+4. Demonstre valor logo no início
+5. Termine com um call-to-action claro
+6. Máximo de 4-5 frases no corpo do email
+7. NÃO inclua assunto, apenas o corpo da mensagem
+
+Escreva APENAS a mensagem, sem aspas ou explicações:`;
+  }
+
+  // LinkedIn-specific prompt (default)
+  return `Você é ${ai_agent.name}, e acabou de ter seu convite de conexão aceito por ${lead_data.name || 'um lead'} no LinkedIn.
+${leadInfo}
+${businessInfo}
+
+Escreva uma mensagem de PRIMEIRO CONTATO curta (2-3 frases) para agradecer a conexão e iniciar um diálogo profissional.
+
+REGRAS PARA LINKEDIN:
+1. Seja genuíno e profissional
+2. Personalize com base no cargo/empresa do lead
+3. NÃO seja vendedor demais - ainda é o primeiro contato
+4. Demonstre interesse real no perfil do lead
+5. Termine com uma pergunta leve ou comentário que convide resposta
+6. Máximo de 3 frases
+
+Escreva APENAS a mensagem, sem aspas ou explicações:`;
 }
 
 /**
@@ -764,10 +887,15 @@ async function generateEmailResponse(params) {
     // Search for relevant knowledge using RAG
     let knowledgeContext = '';
     try {
+      // Use agent's configured threshold or default to 0.7
+      const similarityThreshold = ai_agent.knowledge_similarity_threshold
+        ? parseFloat(ai_agent.knowledge_similarity_threshold)
+        : 0.7;
+
       const relevantKnowledge = await ragService.searchRelevantKnowledge(
         ai_agent.id,
         lead_message,
-        { limit: 5, minSimilarity: 0.7 }
+        { limit: 5, minSimilarity: similarityThreshold }
       );
 
       if (relevantKnowledge && relevantKnowledge.length > 0) {

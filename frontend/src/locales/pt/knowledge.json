@@ -1,0 +1,99 @@
+{
+  "title": "Base de Conhecimento",
+  "subtitle": "Gerencie FAQs, objeções, casos de sucesso e mais",
+  "tabs": {
+    "knowledge": "Conhecimentos",
+    "search": "Testar Busca",
+    "settings": "Configurações"
+  },
+  "addButton": "Adicionar",
+  "total": "Total: {{count}} itens",
+  "types": {
+    "faq": "FAQs",
+    "objection": "Objeções",
+    "product_info": "Info Produtos",
+    "case_study": "Casos de Sucesso",
+    "document": "Documentos"
+  },
+  "form": {
+    "title": "Adicionar Novo Conhecimento",
+    "editTitle": "Editar Conhecimento",
+    "type": "Tipo",
+    "question": "Pergunta",
+    "objection": "Objeção",
+    "answer": "Resposta",
+    "howToRespond": "Como Responder",
+    "content": "Conteúdo",
+    "category": "Categoria (opcional)",
+    "tags": "Tags (opcional)",
+    "tagsPlaceholder": "Separe por vírgula: preço, entrega, suporte",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "cancel": "Cancelar",
+    "add": "Adicionar",
+    "saveChanges": "Salvar Alterações",
+    "placeholders": {
+      "question": "Ex: Qual o prazo de entrega?",
+      "objection": "Ex: Está muito caro",
+      "answerFaq": "Digite a resposta completa...",
+      "answerObjection": "Como o agente deve responder a essa objeção...",
+      "content": "Digite o conteúdo completo...",
+      "category": "Ex: Preços, Funcionalidades, Suporte"
+    }
+  },
+  "list": {
+    "all": "Todos",
+    "empty": "Nenhum conhecimento adicionado ainda",
+    "emptyFiltered": "Nenhum item do tipo {{type}}",
+    "confirmDelete": "Tem certeza que deseja deletar este conhecimento?"
+  },
+  "search": {
+    "title": "Testar Busca Semântica",
+    "description": "Simule como o agente vai buscar informações na base de conhecimento quando receber uma pergunta.",
+    "placeholder": "Ex: Quanto custa? Como funciona a entrega?",
+    "button": "Buscar",
+    "searching": "Buscando...",
+    "results": "{{count}} resultados encontrados",
+    "noResults": "Nenhum resultado encontrado",
+    "similarity": "Similaridade",
+    "tip": "Dica: A busca usa inteligência artificial para encontrar conhecimentos semanticamente similares, mesmo que as palavras sejam diferentes."
+  },
+  "messages": {
+    "addSuccess": "Conhecimento adicionado com sucesso!",
+    "updateSuccess": "Conhecimento atualizado com sucesso!",
+    "deleteSuccess": "Conhecimento removido com sucesso!",
+    "loadError": "Erro ao carregar base de conhecimento",
+    "saveError": "Erro ao salvar conhecimento",
+    "deleteError": "Erro ao deletar conhecimento",
+    "searchError": "Erro ao testar busca semântica",
+    "requiredFields": "Pergunta e resposta são obrigatórias",
+    "requiredContent": "Conteúdo é obrigatório",
+    "emptyQuery": "Digite uma query para testar a busca"
+  },
+  "settings": {
+    "title": "Configurações de Busca",
+    "description": "Ajuste a sensibilidade da busca vetorial para controlar a precisão dos resultados.",
+    "sensitivityLabel": "Sensibilidade da Busca",
+    "sensitivityDescription": "Define o nível mínimo de similaridade para retornar resultados",
+    "moreResults": "Mais resultados",
+    "morePrecise": "Mais preciso",
+    "level": "Nível",
+    "levels": {
+      "low": "Baixa",
+      "medium": "Média",
+      "high": "Alta",
+      "veryHigh": "Muito Alta"
+    },
+    "explanations": {
+      "low": "Retorna mais resultados, mesmo com baixa similaridade. Útil quando você tem poucos itens na base de conhecimento.",
+      "medium": "Balanço entre quantidade e precisão. Recomendado para a maioria dos casos.",
+      "high": "Retorna apenas resultados com boa similaridade. Ideal para bases de conhecimento bem estruturadas.",
+      "veryHigh": "Retorna apenas matches muito precisos. Pode deixar de encontrar informações relevantes."
+    },
+    "save": "Salvar Configuração",
+    "saving": "Salvando...",
+    "thresholdSaved": "Configuração salva com sucesso!",
+    "thresholdError": "Erro ao salvar configuração"
+  },
+  "close": "Fechar"
+}

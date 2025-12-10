@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, Filter, BookOpen, Zap, Users, Loader } from 'lucide-react';
+import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, Filter, BookOpen, Zap, Users, Loader, Shield } from 'lucide-react';
 import api from '../services/api';
 import SimpleAgentWizard from '../components/SimpleAgentWizard';
+import { HireSalesRepWizard, RulesEditor } from '../components/hire';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
 import AgentAssignmentsModal from '../components/AgentAssignmentsModal';
@@ -19,6 +20,8 @@ const AgentsPage = () => {
   const [knowledgeBaseAgent, setKnowledgeBaseAgent] = useState(null);
   const [testingAgent, setTestingAgent] = useState(null);
   const [assignmentsAgent, setAssignmentsAgent] = useState(null);
+  const [rulesAgent, setRulesAgent] = useState(null);
+  const [isSavingRules, setIsSavingRules] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -94,6 +97,24 @@ const AgentsPage = () => {
     setTestingAgent(agent);
   };
 
+  const handleSaveRules = async (rules) => {
+    if (!rulesAgent) return;
+
+    setIsSavingRules(true);
+    try {
+      await api.updateAgent(rulesAgent.id, {
+        priority_rules: rules
+      });
+      setRulesAgent(null);
+      loadAgents();
+    } catch (error) {
+      console.error('Error saving rules:', error);
+      alert(error.message || t('errors.savingRulesFailed'));
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
+
   const getTypeIcon = (type) => {
     switch (type) {
       case 'linkedin': return Linkedin;
@@ -156,7 +177,7 @@ const AgentsPage = () => {
       {/* Filters + New Agent Button */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por:</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('filterBy')}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setFilterType('all')}
@@ -315,6 +336,13 @@ const AgentsPage = () => {
                             <BookOpen className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => setRulesAgent(agent)}
+                            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                            title={t('actions.rules')}
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleTestAgent(agent)}
                             className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                             title={t('actions.testAgent')}
@@ -377,9 +405,22 @@ const AgentsPage = () => {
         )}
       </div>
 
-      {/* Wizard */}
+      {/* Hire Wizard (for new agents) */}
+      <HireSalesRepWizard
+        isOpen={showWizard && !selectedAgent}
+        onClose={() => {
+          setShowWizard(false);
+          setSelectedAgent(null);
+        }}
+        onAgentCreated={() => {
+          loadAgents();
+          setShowWizard(false);
+        }}
+      />
+
+      {/* Edit Wizard (for existing agents) */}
       <SimpleAgentWizard
-        isOpen={showWizard}
+        isOpen={showWizard && !!selectedAgent}
         onClose={() => {
           setShowWizard(false);
           setSelectedAgent(null);
@@ -407,6 +448,16 @@ const AgentsPage = () => {
         isOpen={!!assignmentsAgent}
         onClose={() => setAssignmentsAgent(null)}
         agent={assignmentsAgent}
+      />
+
+      {/* Rules Editor Modal */}
+      <RulesEditor
+        isOpen={!!rulesAgent}
+        onClose={() => setRulesAgent(null)}
+        rules={rulesAgent?.priority_rules || []}
+        onSave={handleSaveRules}
+        agentName={rulesAgent?.name || 'Vendedor'}
+        isLoading={isSavingRules}
       />
     </div>
   );

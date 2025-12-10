@@ -229,9 +229,9 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-purple-800 bg-[#7229f7]">
+        <div className="px-6 py-4 border-b border-purple-800 bg-[#7229f7] flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -252,7 +252,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
         </div>
 
         {/* Content - Layout de 2 colunas */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
@@ -261,9 +261,9 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
               </div>
             </div>
           ) : (
-            <div className="flex h-full">
+            <div className="flex h-full" style={{ minHeight: 0 }}>
               {/* Coluna Esquerda - Informações da Campanha */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 p-6 space-y-6 overflow-y-auto" style={{ minHeight: 0 }}>
                 {/* Stats Overview - Apenas 3 cards */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
@@ -577,7 +577,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
               </div>
 
               {/* Coluna Direita - Lista de Leads */}
-              <div className="w-96 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800 min-h-0">
+              <div className="w-96 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800" style={{ minHeight: 0 }}>
                 {/* Header da lista */}
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                   <div className="flex items-center justify-between mb-2">
@@ -614,7 +614,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                 </div>
 
                 {/* Lista scrollável */}
-                <div className="h-[500px] overflow-y-scroll">
+                <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
                   {leads.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <AlertCircle className="w-12 h-12 text-gray-400 mb-3" />
@@ -686,7 +686,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
           <div className="flex items-center justify-between">
             <button
               onClick={onClose}

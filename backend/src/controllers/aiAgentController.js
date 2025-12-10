@@ -56,6 +56,13 @@ const getBehavioralProfiles = async (req, res) => {
   }
 };
 
+// Connection strategy defaults
+const CONNECTION_STRATEGY_DEFAULTS = {
+  'silent': { wait_time: 5, require_reply: false },      // No message, wait 5min
+  'with-intro': { wait_time: 60, require_reply: false }, // With message, wait 1h
+  'icebreaker': { wait_time: 0, require_reply: true }    // Simple message, only if reply
+};
+
 const createAIAgent = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -66,7 +73,13 @@ const createAIAgent = async (req, res) => {
       behavioral_profile,
       initial_approach,
       auto_schedule,
-      scheduling_link
+      scheduling_link,
+      target_audience,
+      // Connection strategy fields
+      connection_strategy,
+      invite_message,
+      wait_time_after_accept,
+      require_lead_reply
     } = req.body;
 
     if (!name || !products_services || !behavioral_profile) {
@@ -81,18 +94,50 @@ const createAIAgent = async (req, res) => {
       throw new ValidationError('Link de agendamento obrigatório quando auto-agendamento está ativo');
     }
 
+    // Validate connection strategy
+    const validStrategies = ['silent', 'with-intro', 'icebreaker'];
+    const finalStrategy = validStrategies.includes(connection_strategy) ? connection_strategy : 'with-intro';
+    const strategyDefaults = CONNECTION_STRATEGY_DEFAULTS[finalStrategy];
+
     const profile = BEHAVIORAL_PROFILES[behavioral_profile];
     const usedVariables = LINKEDIN_VARIABLES
       .filter(v => initial_approach && initial_approach.includes(v.variable))
       .map(v => v.variable);
+
+    // Handle products_services as object or string
+    let productsDescription = products_services;
+    if (typeof products_services === 'object' && products_services !== null) {
+      // Extract description from object
+      productsDescription = products_services.description ||
+        (products_services.categories?.length > 0 ? products_services.categories.join(', ') : '');
+    }
+
+    // Handle target_audience as object or string
+    let targetDescription = '';
+    if (typeof target_audience === 'object' && target_audience !== null) {
+      const roles = target_audience.roles?.length > 0 ? target_audience.roles.join(', ') : '';
+      targetDescription = roles;
+    } else if (typeof target_audience === 'string') {
+      targetDescription = target_audience;
+    }
+
+    // Build agent description
+    let agentDescription = `Agente ${profile.name}`;
+    if (productsDescription) {
+      agentDescription += ` para ${productsDescription}`;
+    }
+    if (targetDescription) {
+      agentDescription += ` - ${targetDescription}`;
+    }
 
     // MULTI-TENANCY: Include account_id when creating AI agent
     const agent = await db.insert('ai_agents', {
       user_id: userId,
       account_id: accountId,
       name,
-      description: `Agente ${profile.name} para ${products_services}`,
-      products_services,
+      description: agentDescription,
+      products_services: typeof products_services === 'object' ? JSON.stringify(products_services) : products_services,
+      target_audience: typeof target_audience === 'object' ? JSON.stringify(target_audience) : target_audience,
       behavioral_profile,
       initial_approach: initial_approach || profile.suggestedApproach,
       linkedin_variables: JSON.stringify({
@@ -103,7 +148,12 @@ const createAIAgent = async (req, res) => {
       scheduling_link: scheduling_link || null,
       intent_detection_enabled: true,
       response_style_instructions: profile.systemPrompt,
-      is_active: true
+      is_active: true,
+      // Connection strategy fields
+      connection_strategy: finalStrategy,
+      invite_message: invite_message || null,
+      wait_time_after_accept: wait_time_after_accept ?? strategyDefaults.wait_time,
+      require_lead_reply: require_lead_reply ?? strategyDefaults.require_reply
     });
 
     sendSuccess(res, agent, 'Agente criado com sucesso', 201);

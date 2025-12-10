@@ -1,21 +1,24 @@
 // frontend/src/pages/AIAgentsPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Bot, Edit, Trash2, Sparkles, Target, Zap, BookOpen, Smile, Calendar, MessageSquare, Database } from 'lucide-react';
+import { Plus, Bot, Edit, Trash2, Sparkles, Target, Zap, BookOpen, Smile, Calendar, MessageSquare, Database, UserPlus, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import AIAgentModal from '../components/AIAgentModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 import AiCreditsCard from '../components/AiCreditsCard';
+import { HireSalesRepWizard, RulesEditor } from '../components/hire';
 
 const AIAgentsPage = () => {
-  const { t } = useTranslation(['aiagents', 'common']);
+  const { t } = useTranslation(['aiagents', 'common', 'hire']);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [isSavingRules, setIsSavingRules] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState(null);
 
   useEffect(() => {
@@ -82,6 +85,35 @@ const AIAgentsPage = () => {
     setSelectedAgent(null);
   };
 
+  const handleManageRules = (agent) => {
+    setSelectedAgent(agent);
+    setShowRulesModal(true);
+  };
+
+  const handleCloseRulesModal = () => {
+    setShowRulesModal(false);
+    setSelectedAgent(null);
+  };
+
+  const handleSaveRules = async (rules) => {
+    if (!selectedAgent) return;
+
+    setIsSavingRules(true);
+    try {
+      await api.updateAIAgent(selectedAgent.id, {
+        priority_rules: rules
+      });
+      setShowRulesModal(false);
+      setSelectedAgent(null);
+      loadAgents();
+    } catch (error) {
+      console.error('Error saving rules:', error);
+      alert(error.message || t('messages.errorSavingRules', { ns: 'aiagents' }));
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
+
   const profileIcons = {
     consultivo: { Icon: Target, color: 'text-blue-600', bg: 'bg-blue-100', emoji: '🎯' },
     direto: { Icon: Zap, color: 'text-orange-600', bg: 'bg-orange-100', emoji: '⚡' },
@@ -113,9 +145,9 @@ const AIAgentsPage = () => {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg shadow-blue-500/25"
           >
-            <Plus className="w-5 h-5" />
+            <UserPlus className="w-5 h-5" />
             {t('newAgent')}
           </button>
         </div>
@@ -138,9 +170,9 @@ const AIAgentsPage = () => {
               </p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
               >
-                <Plus className="w-5 h-5" />
+                <UserPlus className="w-5 h-5" />
                 {t('messages.createFirst')}
               </button>
             </div>
@@ -246,13 +278,22 @@ const AIAgentsPage = () => {
                         <MessageSquare className="w-4 h-4" />
                         {t('actions.testAgent')}
                       </button>
-                      <button
-                        onClick={() => handleManageKnowledge(agent)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200"
-                      >
-                        <Database className="w-4 h-4" />
-                        {t('actions.knowledgeBase')}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleManageKnowledge(agent)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200"
+                        >
+                          <Database className="w-4 h-4" />
+                          {t('actions.knowledgeBase')}
+                        </button>
+                        <button
+                          onClick={() => handleManageRules(agent)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200"
+                        >
+                          <Shield className="w-4 h-4" />
+                          {t('actions.rules')}
+                        </button>
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditAgent(agent)}
@@ -278,8 +319,8 @@ const AIAgentsPage = () => {
         )}
       </div>
 
-      {/* Create Agent Modal */}
-      <AIAgentModal
+      {/* Hire Sales Rep Wizard (New humanized flow) */}
+      <HireSalesRepWizard
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onAgentCreated={handleAgentCreated}
@@ -312,6 +353,16 @@ const AIAgentsPage = () => {
           agent={selectedAgent}
         />
       )}
+
+      {/* Rules Editor Modal */}
+      <RulesEditor
+        isOpen={showRulesModal}
+        onClose={handleCloseRulesModal}
+        rules={selectedAgent?.priority_rules || []}
+        onSave={handleSaveRules}
+        agentName={selectedAgent?.name || 'Vendedor'}
+        isLoading={isSavingRules}
+      />
     </div>
   );
 };

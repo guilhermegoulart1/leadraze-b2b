@@ -1,0 +1,99 @@
+{
+  "title": "Base de Conocimiento",
+  "subtitle": "Gestiona FAQs, objeciones, casos de éxito y más",
+  "tabs": {
+    "knowledge": "Conocimientos",
+    "search": "Probar Búsqueda",
+    "settings": "Configuraciones"
+  },
+  "addButton": "Agregar",
+  "total": "Total: {{count}} ítems",
+  "types": {
+    "faq": "FAQs",
+    "objection": "Objeciones",
+    "product_info": "Info Productos",
+    "case_study": "Casos de Éxito",
+    "document": "Documentos"
+  },
+  "form": {
+    "title": "Agregar Nuevo Conocimiento",
+    "editTitle": "Editar Conocimiento",
+    "type": "Tipo",
+    "question": "Pregunta",
+    "objection": "Objeción",
+    "answer": "Respuesta",
+    "howToRespond": "Cómo Responder",
+    "content": "Contenido",
+    "category": "Categoría (opcional)",
+    "tags": "Tags (opcional)",
+    "tagsPlaceholder": "Separe por coma: precio, entrega, soporte",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "cancel": "Cancelar",
+    "add": "Agregar",
+    "saveChanges": "Guardar Cambios",
+    "placeholders": {
+      "question": "Ej: ¿Cuál es el plazo de entrega?",
+      "objection": "Ej: Está muy caro",
+      "answerFaq": "Escribe la respuesta completa...",
+      "answerObjection": "Cómo el agente debe responder a esta objeción...",
+      "content": "Escribe el contenido completo...",
+      "category": "Ej: Precios, Funcionalidades, Soporte"
+    }
+  },
+  "list": {
+    "all": "Todos",
+    "empty": "Ningún conocimiento agregado aún",
+    "emptyFiltered": "Ningún ítem del tipo {{type}}",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este conocimiento?"
+  },
+  "search": {
+    "title": "Probar Búsqueda Semántica",
+    "description": "Simula cómo el agente buscará información en la base de conocimiento cuando reciba una pregunta.",
+    "placeholder": "Ej: ¿Cuánto cuesta? ¿Cómo funciona la entrega?",
+    "button": "Buscar",
+    "searching": "Buscando...",
+    "results": "{{count}} resultados encontrados",
+    "noResults": "Ningún resultado encontrado",
+    "similarity": "Similitud",
+    "tip": "Consejo: La búsqueda usa inteligencia artificial para encontrar conocimientos semánticamente similares, aunque las palabras sean diferentes."
+  },
+  "messages": {
+    "addSuccess": "¡Conocimiento agregado con éxito!",
+    "updateSuccess": "¡Conocimiento actualizado con éxito!",
+    "deleteSuccess": "¡Conocimiento eliminado con éxito!",
+    "loadError": "Error al cargar base de conocimiento",
+    "saveError": "Error al guardar conocimiento",
+    "deleteError": "Error al eliminar conocimiento",
+    "searchError": "Error al probar búsqueda semántica",
+    "requiredFields": "Pregunta y respuesta son obligatorias",
+    "requiredContent": "Contenido es obligatorio",
+    "emptyQuery": "Escribe una consulta para probar la búsqueda"
+  },
+  "settings": {
+    "title": "Configuraciones de Búsqueda",
+    "description": "Ajusta la sensibilidad de la búsqueda vectorial para controlar la precisión de los resultados.",
+    "sensitivityLabel": "Sensibilidad de Búsqueda",
+    "sensitivityDescription": "Define el nivel mínimo de similitud para devolver resultados",
+    "moreResults": "Más resultados",
+    "morePrecise": "Más preciso",
+    "level": "Nivel",
+    "levels": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "veryHigh": "Muy Alta"
+    },
+    "explanations": {
+      "low": "Devuelve más resultados, incluso con baja similitud. Útil cuando tienes pocos ítems en la base de conocimiento.",
+      "medium": "Balance entre cantidad y precisión. Recomendado para la mayoría de los casos.",
+      "high": "Devuelve solo resultados con buena similitud. Ideal para bases de conocimiento bien estructuradas.",
+      "veryHigh": "Devuelve solo coincidencias muy precisas. Puede dejar de encontrar información relevante."
+    },
+    "save": "Guardar Configuración",
+    "saving": "Guardando...",
+    "thresholdSaved": "¡Configuración guardada con éxito!",
+    "thresholdError": "Error al guardar configuración"
+  },
+  "close": "Cerrar"
+}

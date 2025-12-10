@@ -1,0 +1,320 @@
+{
+  "wizard": {
+    "title": "Contratar Nuevo Vendedor",
+    "step": "Paso {{current}} de {{total}}",
+    "back": "Volver",
+    "next": "Continuar",
+    "skip": "Saltar este paso",
+    "finish": "Contratar",
+    "hiring": "Contratando...",
+    "getting_to_know": "Conociendo a {{name}}"
+  },
+  "candidates": {
+    "title": "Contratar Nuevo Vendedor",
+    "subtitle": "Tenemos algunos candidatos preseleccionados para ti. Elige un perfil o crea el tuyo desde cero.",
+    "hire": "Contratar",
+    "idealFor": "Ideal para:",
+    "createFromScratch": "CREAR DESDE CERO",
+    "createDescription": "Personaliza cada detalle de tu vendedor",
+    "start": "Comenzar",
+    "templates": {
+      "lucas": {
+        "name": "LUCAS",
+        "role": "El Consultor",
+        "quote": "Primero entiendo, después sugiero",
+        "idealFor": "Ventas complejas, consultoría, servicios"
+      },
+      "marina": {
+        "name": "MARINA",
+        "role": "La Directa",
+        "quote": "Voy directo al punto, sin rodeos",
+        "idealFor": "Decisores ocupados que valoran la objetividad"
+      },
+      "pedro": {
+        "name": "PEDRO",
+        "role": "El Educador",
+        "quote": "Comparto conocimiento antes de vender",
+        "idealFor": "Mercados que necesitan educación"
+      },
+      "carla": {
+        "name": "CARLA",
+        "role": "La Conectora",
+        "quote": "Construyo relaciones genuinas",
+        "idealFor": "Networking, alianzas"
+      },
+      "rafael": {
+        "name": "RAFAEL",
+        "role": "El Closer",
+        "quote": "Enfoque total en cerrar negocios",
+        "idealFor": "Leads ya calificados"
+      }
+    }
+  },
+  "channel": {
+    "question": "¿Dónde quieres que trabaje?",
+    "info": "Podrás conectar tu cuenta en este canal después de contratar al vendedor.",
+    "select": "Elegir",
+    "comingSoon": "Próximamente",
+    "channels": {
+      "linkedin": {
+        "name": "LinkedIn",
+        "description": "Prospección y conexiones B2B"
+      },
+      "whatsapp": {
+        "name": "WhatsApp",
+        "description": "Atención y seguimiento"
+      },
+      "email": {
+        "name": "Email",
+        "description": "Campañas y nutrición"
+      }
+    }
+  },
+  "product": {
+    "greeting": "¡Hola! Soy {{name}}, tu nuevo vendedor. Te haré algunas preguntas rápidas para entender cómo puedo ayudarte mejor.",
+    "question": "Primero, cuéntame: ¿Qué vendes?",
+    "whatYouOffer": "¿Qué ofreces?",
+    "segment": "¿En qué segmento? (opcional)",
+    "describeMore": "Describe con más detalle (opcional):",
+    "categories": {
+      "software": "Software / SaaS",
+      "consulting": "Consultoría",
+      "services": "Servicios",
+      "products": "Productos Físicos",
+      "education": "Cursos / Educación",
+      "health": "Salud",
+      "finance": "Financiero",
+      "marketing": "Marketing / Agencia",
+      "technology": "Tecnología",
+      "industrial": "Industrial",
+      "retail": "Retail",
+      "realestate": "Inmobiliario"
+    },
+    "placeholder": "Ej: Sistema de gestión para clínicas que automatiza citas y expedientes..."
+  },
+  "target": {
+    "understanding": "¡Entendido! {{product}}. ¡Gran mercado!",
+    "question": "Ahora dime: ¿Con quién debo hablar? ¿Quién decide la compra?",
+    "selectRoles": "Selecciona los cargos (puedes marcar varios):",
+    "companySize": "¿Cuál es el tamaño ideal de la empresa?",
+    "small": "Pequeña",
+    "large": "Grande",
+    "roles": {
+      "owner": "Dueño/Socio",
+      "director": "Director",
+      "manager": "Gerente",
+      "coordinator": "Coordinador",
+      "analyst": "Analista",
+      "other": "Otro..."
+    },
+    "companySizes": {
+      "1-10": "1-10",
+      "11-50": "11-50",
+      "51-200": "51-200",
+      "201-500": "201-500",
+      "500+": "500+"
+    }
+  },
+  "connection": {
+    "question": "Ahora necesito saber: ¿cómo quieres que haga el primer contacto?",
+    "messageQuestion": "¿Qué quieres que diga en la solicitud de conexión?",
+    "variables": "Variables disponibles:",
+    "charLimit": "Límite: 300 caracteres (LinkedIn)",
+    "strategies": {
+      "silent": {
+        "name": "CONEXIÓN SILENCIOSA",
+        "description": "Envío solicitud SIN mensaje. Cuando acepten, inicio la conversación.",
+        "pros": ["Más natural, parece conexión genuina", "Mayor tasa de aceptación"]
+      },
+      "with-intro": {
+        "name": "SOLICITUD CON PRESENTACIÓN",
+        "description": "Envío solicitud CON un mensaje elaborado. Cuando acepten, espero 1 hora. Si no hablan, yo inicio.",
+        "pros": ["Ya crea contexto desde el inicio", "La persona ya sabe de qué se trata"]
+      },
+      "ice-breaker": {
+        "name": "ROMPE-HIELO SIMPLE",
+        "description": "Envío solicitud con mensaje simple de rapport. Solo continúo SI la persona responde.",
+        "example": "Hola {{first_name}}, ¿cómo estás?",
+        "pros": ["Solo habla con quien mostró interés", "Evita parecer spam"]
+      }
+    },
+    "defaultMessage": "Hola {{first_name}}, ¿cómo estás?\n\nVi que trabajas como {{title}} en {{company}}.\nHe estado ayudando a empresas como la tuya a [beneficio].\n\n¿Quieres conectar?"
+  },
+  "style": {
+    "question": "¿Qué estilo de conversación quieres que use?",
+    "styles": {
+      "direct": {
+        "name": "DIRECTO AL PUNTO",
+        "example": "Vi que eres dueño de la Clínica X. Ayudamos a clínicas a reducir 40% del tiempo en gestión. ¿Podemos hablar?"
+      },
+      "consultive": {
+        "name": "CONSULTIVO",
+        "example": "¡Hola! He estado estudiando los desafíos de las clínicas médicas. ¿Cuál es tu mayor problema de gestión hoy?"
+      },
+      "educational": {
+        "name": "EDUCATIVO",
+        "example": "Preparé un material sobre cómo las clínicas están automatizando citas. ¿Quieres que te lo envíe?"
+      },
+      "friendly": {
+        "name": "AMIGABLE",
+        "example": "¡Hey! Vi que trabajas con gestión de clínicas. ¿Cómo va el año para ustedes?"
+      }
+    }
+  },
+  "methodology": {
+    "question": "¿Quieres que siga alguna técnica de ventas específica?",
+    "skip": "Saltar este paso - dejar al vendedor libre",
+    "use": "Usar",
+    "methods": {
+      "spin": {
+        "name": "SPIN Selling",
+        "description": "Preguntas estratégicas"
+      },
+      "challenger": {
+        "name": "Challenger Sale",
+        "description": "Desafía el status quo"
+      },
+      "sandler": {
+        "name": "Sandler System",
+        "description": "Califica sin miedo"
+      },
+      "meddpicc": {
+        "name": "MEDDPICC",
+        "description": "Enterprise complejo"
+      },
+      "gap": {
+        "name": "Gap Selling",
+        "description": "Identifica el gap"
+      },
+      "bant": {
+        "name": "BANT",
+        "description": "Calificación rápida"
+      },
+      "inbound": {
+        "name": "Inbound Sales",
+        "description": "Ayuda antes de vender"
+      },
+      "consultivo-br": {
+        "name": "Consultivo Brasileño",
+        "description": "Relación primero"
+      }
+    }
+  },
+  "objective": {
+    "question": {
+      "linkedin": "¿Hasta dónde quieres que llegue en la conversación antes de pasártela?",
+      "whatsapp": "¿Cómo quieres que actúe en las conversaciones?"
+    },
+    "transferWhen": "Transfiere cuando:",
+    "keywords": "Pregunte por precio, demo, reunión",
+    "orAfter": "O después de:",
+    "messageExchanges": "intercambios de mensajes",
+    "schedulingLink": "Link de agendamiento:",
+    "conversionLink": "Link de conversión:",
+    "objectives": {
+      "connect_only": {
+        "name": {
+          "linkedin": "SOLO CONECTAR",
+          "whatsapp": "TRANSFERIR INMEDIATO"
+        },
+        "description": {
+          "linkedin": "Cuando la persona acepte la solicitud, te aviso inmediatamente. Tú asumes la conversación.",
+          "whatsapp": "Recibo el mensaje y te lo transfiero de inmediato. Solo registro el contacto."
+        },
+        "idealFor": "Quien quiere control total"
+      },
+      "qualify_transfer": {
+        "name": {
+          "linkedin": "CALIFICAR Y TRANSFERIR",
+          "whatsapp": "CALIFICAR PRIMERO"
+        },
+        "description": {
+          "linkedin": "Converso hasta identificar interés. Cuando la persona demuestre que quiere saber más, te la transfiero.",
+          "whatsapp": "Hago preguntas iniciales, identifico si hay interés real, luego te transfiero."
+        },
+        "transferWhen": "Keywords (precio, demo) o X intercambios"
+      },
+      "schedule_meeting": {
+        "name": "AGENDAR REUNIÓN",
+        "description": "Converso hasta lograr agendar una reunión. Uso tu link de agendamiento.",
+        "linkPlaceholder": "https://calendly.com/tuempresa"
+      },
+      "sell_direct": {
+        "name": "VENDER DIRECTO",
+        "description": "Converso y envío link de compra/registro cuando la persona esté lista.",
+        "linkPlaceholder": "https://tusitio.com/registro"
+      }
+    }
+  },
+  "summary": {
+    "title": "Confirmar Contratación",
+    "salesRep": "Vendedor",
+    "product": "Producto",
+    "audience": "Público",
+    "style": "Estilo",
+    "methodology": "Técnica",
+    "objective": "Objetivo",
+    "channel": "Canal",
+    "edit": "Editar",
+    "hire": "Contratar a {{name}}",
+    "readyMessage": "¡Estoy listo para empezar! En cuanto me presentes los contactos, me pongo a trabajar.",
+    "noMethodology": "Libre",
+    "employees": "empleados"
+  },
+  "rules": {
+    "title": "Reglas e Instrucciones",
+    "subtitle": "Define instrucciones prioritarias para {{name}}",
+    "addNew": "Agrega una nueva regla",
+    "add": "Agregar",
+    "save": "Guardar Reglas",
+    "saving": "Guardando...",
+    "cancel": "Cancelar",
+    "activeRules": "{{count}} regla(s) activa(s)",
+    "table": {
+      "type": "Tipo",
+      "instruction": "Instrucción"
+    },
+    "prefixes": {
+      "never": "NUNCA",
+      "avoid": "EVITA",
+      "always": "SIEMPRE",
+      "prefer": "PREFIERE",
+      "prioritize": "PRIORIZA",
+      "when": "CUANDO",
+      "remember": "RECUERDA",
+      "protect": "PROTEGE"
+    },
+    "placeholders": {
+      "never": "Ej: hablar sobre competidores",
+      "avoid": "Ej: mensajes muy largos",
+      "always": "Ej: ser educado y cordial",
+      "prefer": "Ej: lenguaje informal y amigable",
+      "prioritize": "Ej: leads que mostraron interés",
+      "when": "Ej: pregunten sobre precio, habla sobre valor primero",
+      "remember": "Ej: nuestro diferencial es el soporte 24h",
+      "protect": "Ej: información confidencial de clientes"
+    },
+    "empty": {
+      "title": "Sin reglas definidas",
+      "description": "Agrega reglas para personalizar cómo tu vendedor debe comportarse en situaciones específicas."
+    },
+    "examples": {
+      "title": "Ejemplos de reglas efectivas:",
+      "never": "NUNCA prometas plazos sin confirmar con el equipo",
+      "always": "SIEMPRE pregunta sobre el problema antes de presentar la solución",
+      "avoid": "EVITA lenguaje muy técnico con no técnicos",
+      "prefer": "PREFIERE ejemplos prácticos al explicar beneficios"
+    }
+  },
+  "postHire": {
+    "title": "¡Vendedor Contratado!",
+    "subtitle": "{{name}} está listo para trabajar",
+    "rulesQuestion": "¿Quieres agregar algunas reglas?",
+    "rulesDescription": "Define instrucciones específicas para mejorar el comportamiento de tu vendedor.",
+    "examples": "Ejemplos:",
+    "exampleNever": "hablar sobre competidores",
+    "exampleAlways": "ser educado y cordial",
+    "addRules": "Agregar Reglas",
+    "skip": "Hacer esto después"
+  }
+}

@@ -41,7 +41,20 @@
       "Bash(timeout /t 8 /nobreak)",
       "Bash(powershell -Command \"Start-Sleep -Seconds 8; curl -X POST http://localhost:3001/api/auth/forgot-password -H ''Content-Type: application/json'' -d ''{\"\"email\"\": \"\"contatorenamaciel@gmail.com\"\"}''\")",
       "Bash(powershell -Command \"Start-Sleep -Seconds 5; Invoke-RestMethod -Uri ''http://localhost:3001/api/auth/forgot-password'' -Method POST -ContentType ''application/json'' -Body ''{\"\"email\"\": \"\"contatorenamaciel@gmail.com\"\"}''\")",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(dir /b \"c:\\leadraze-b2b\\frontend\\src\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/hire/RulesEditor.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/hire/PostHireDialog.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/hire/HireSalesRepWizard.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/hire/ContractSummary.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/pt/hire.json'', ''utf8'')); console.log(''PT OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/en/hire.json'', ''utf8'')); console.log(''EN OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/es/hire.json'', ''utf8'')); console.log(''ES OK'')\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/pages/AIAgentsPage.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/pt/aiagents.json'', ''utf8'')); console.log(''PT OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/en/aiagents.json'', ''utf8'')); console.log(''EN OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/es/aiagents.json'', ''utf8'')); console.log(''ES OK'')\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/pages/AgentsPage.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
+      "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/pt/agents.json'', ''utf8'')); console.log(''PT OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/en/agents.json'', ''utf8'')); console.log(''EN OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/es/agents.json'', ''utf8'')); console.log(''ES OK'')\"\" 2>&1\")",
+      "Bash(dir /b \"c:\\leadraze-b2b\\backend\\src\\migrations\")",
+      "Bash(dir /b \"c:\\leadraze-b2b\\backend\\migrations\")",
+      "Bash(dir /b \"c:\\leadraze-b2b\\backend\\database\\migrations\")"
     ],
     "deny": [],
     "ask": []

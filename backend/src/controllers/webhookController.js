@@ -1031,10 +1031,12 @@ async function handleNewRelation(payload) {
     const leadQuery = `
       SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active, c.name as campaign_name,
              c.account_id,
-             crc.sector_id, crc.round_robin_users, crc.ai_initiate_delay_min, crc.ai_initiate_delay_max
+             crc.sector_id, crc.round_robin_users, crc.ai_initiate_delay_min, crc.ai_initiate_delay_max,
+             aa.connection_strategy, aa.wait_time_after_accept, aa.require_lead_reply
       FROM leads l
       JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
+      LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
       WHERE c.linkedin_account_id = $1
       AND (
         l.provider_id = $2
@@ -1203,17 +1205,47 @@ async function handleNewRelation(payload) {
 
     const conversation = await db.insert('conversations', conversationData);
 
-    // Agendar início de conversa com delay randômico
+    // Agendar início de conversa baseado na estratégia de conexão
     let delayedJobScheduled = false;
+    let connectionStrategy = lead.connection_strategy || 'with-intro';
+
     try {
       if (shouldActivateAI) {
-        const delayMin = lead.ai_initiate_delay_min || 5;
-        const delayMax = lead.ai_initiate_delay_max || 60;
-        const randomDelay = Math.floor(Math.random() * (delayMax - delayMin + 1)) + delayMin;
-        await scheduleDelayedConversation(lead.id, conversation.id, randomDelay * 60 * 1000);
-        delayedJobScheduled = true;
+        // Se estratégia é 'icebreaker', não agenda - só responde se lead falar primeiro
+        if (lead.require_lead_reply === true) {
+          console.log('🔗 [CONNECTION STRATEGY] Icebreaker: aguardando lead iniciar conversa');
+          // Não agenda job, apenas espera lead enviar mensagem
+          delayedJobScheduled = false;
+        } else {
+          // Calcular delay baseado na estratégia
+          let delayMinutes;
+
+          if (lead.wait_time_after_accept != null) {
+            // Usar configuração do agente
+            delayMinutes = lead.wait_time_after_accept;
+          } else {
+            // Usar defaults da estratégia
+            const strategyDefaults = {
+              'silent': 5,        // 5 minutos
+              'with-intro': 60,   // 1 hora
+              'icebreaker': 0     // Não aplica
+            };
+            delayMinutes = strategyDefaults[connectionStrategy] || 5;
+          }
+
+          // Adicionar variação randômica de ±20% para parecer mais natural
+          const variance = Math.floor(delayMinutes * 0.2);
+          const randomVariance = Math.floor(Math.random() * (variance * 2 + 1)) - variance;
+          const finalDelay = Math.max(1, delayMinutes + randomVariance);
+
+          console.log(`🔗 [CONNECTION STRATEGY] ${connectionStrategy}: agendando início em ${finalDelay} minutos`);
+
+          await scheduleDelayedConversation(lead.id, conversation.id, finalDelay * 60 * 1000);
+          delayedJobScheduled = true;
+        }
       }
     } catch (automationError) {
+      console.error('🔗 [CONNECTION STRATEGY] Erro ao agendar conversa:', automationError.message);
       // Silent fail - não falhar o webhook se automação der erro
     }
 
@@ -1224,6 +1256,8 @@ async function handleNewRelation(payload) {
       lead_status: LEAD_STATUS.ACCEPTED,
       responsible_user_id: responsibleUserId,
       delayed_conversation_scheduled: delayedJobScheduled,
+      connection_strategy: connectionStrategy,
+      require_lead_reply: lead.require_lead_reply || false,
       profile_enriched: !!fullProfile
     };
 

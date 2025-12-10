@@ -1,44 +1,47 @@
 {
-  "title": "Agentes de IA",
-  "subtitle": "Gestione todos sus agentes inteligentes en un solo lugar",
-  "newAgent": "Nuevo Agente",
-  "createAgent": "Crear Agente",
+  "title": "Mis Vendedores IA",
+  "subtitle": "Tu equipo de vendedores digitales trabajando para ti",
+  "newAgent": "Contratar Vendedor",
+  "createAgent": "Contratar Vendedor",
+  "filterBy": "Filtrar por:",
   "filters": {
     "all": "Todos",
     "linkedin": "LinkedIn",
-    "email": "Correo",
+    "email": "Email",
     "whatsapp": "WhatsApp"
   },
   "table": {
-    "agent": "Agente",
-    "type": "Tipo",
+    "agent": "Vendedor",
+    "type": "Canal",
     "status": "Estado",
-    "interactions": "Interacciones",
+    "interactions": "Conversaciones",
     "actions": "Acciones"
   },
   "status": {
-    "active": "Activo",
-    "inactive": "Inactivo"
+    "active": "Trabajando",
+    "inactive": "Pausado"
   },
   "actions": {
-    "knowledgeBase": "Base de Conocimiento",
-    "testAgent": "Probar Agente",
-    "editAgent": "Editar Agente",
-    "deleteAgent": "Eliminar Agente"
+    "knowledgeBase": "Entrenamiento",
+    "rules": "Reglas",
+    "testAgent": "Conversar",
+    "editAgent": "Editar",
+    "deleteAgent": "Despedir"
   },
   "empty": {
-    "title": "Ningún agente creado",
-    "titleFiltered": "Ningún agente {{type}}",
-    "subtitle": "Cree su primer agente de IA para comenzar a automatizar sus procesos",
-    "subtitleFiltered": "Cree un agente {{type}} para comenzar",
-    "button": "Crear Agente"
+    "title": "Ningún vendedor contratado",
+    "titleFiltered": "Ningún vendedor {{type}}",
+    "subtitle": "Contrata tu primer vendedor IA para comenzar a prospectar automáticamente",
+    "subtitleFiltered": "Contrata un vendedor {{type}} para comenzar",
+    "button": "Contratar Vendedor"
   },
-  "loading": "Cargando agentes...",
-  "confirmDelete": "¿Está seguro de que desea eliminar este agente?",
+  "loading": "Cargando tu equipo...",
+  "confirmDelete": "¿Estás seguro de que deseas despedir a este vendedor?",
   "errors": {
-    "loadFailed": "Error al cargar agentes",
-    "createFailed": "Error al crear agente",
-    "updateFailed": "Error al actualizar agente",
-    "deleteFailed": "Error al eliminar agente"
+    "loadFailed": "Error al cargar equipo",
+    "createFailed": "Error al contratar vendedor",
+    "updateFailed": "Error al actualizar vendedor",
+    "deleteFailed": "Error al despedir vendedor",
+    "savingRulesFailed": "Error al guardar reglas"
   }
 }

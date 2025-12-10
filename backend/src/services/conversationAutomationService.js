@@ -445,7 +445,8 @@ async function getConversationDetails(conversationId) {
       aa.auto_schedule,
       aa.scheduling_link,
       aa.intent_detection_enabled,
-      aa.response_style_instructions
+      aa.response_style_instructions,
+      aa.priority_rules
     FROM conversations conv
     JOIN leads l ON conv.lead_id = l.id
     JOIN campaigns c ON conv.campaign_id = c.id
@@ -473,7 +474,8 @@ async function getConversationDetails(conversationId) {
       auto_schedule: row.auto_schedule,
       scheduling_link: row.scheduling_link,
       intent_detection_enabled: row.intent_detection_enabled,
-      response_style_instructions: row.response_style_instructions
+      response_style_instructions: row.response_style_instructions,
+      priority_rules: row.priority_rules || []
     } : null,
     lead_data: {
       name: row.lead_name,

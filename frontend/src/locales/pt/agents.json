@@ -1,8 +1,9 @@
 {
-  "title": "Agentes de IA",
-  "subtitle": "Gerencie todos os seus agentes inteligentes em um único lugar",
-  "newAgent": "Novo Agente",
-  "createAgent": "Criar Agente",
+  "title": "Meus Vendedores IA",
+  "subtitle": "Sua equipe de vendedores digitais trabalhando por você",
+  "newAgent": "Contratar Vendedor",
+  "createAgent": "Contratar Vendedor",
+  "filterBy": "Filtrar por:",
   "filters": {
     "all": "Todos",
     "linkedin": "LinkedIn",
@@ -10,35 +11,37 @@
     "whatsapp": "WhatsApp"
   },
   "table": {
-    "agent": "Agente",
-    "type": "Tipo",
+    "agent": "Vendedor",
+    "type": "Canal",
     "status": "Status",
-    "interactions": "Interações",
+    "interactions": "Conversas",
     "actions": "Ações"
   },
   "status": {
-    "active": "Ativo",
-    "inactive": "Inativo"
+    "active": "Trabalhando",
+    "inactive": "Pausado"
   },
   "actions": {
-    "knowledgeBase": "Base de Conhecimento",
-    "testAgent": "Testar Agente",
-    "editAgent": "Editar Agente",
-    "deleteAgent": "Excluir Agente"
+    "knowledgeBase": "Treinamento",
+    "rules": "Regras",
+    "testAgent": "Conversar",
+    "editAgent": "Editar",
+    "deleteAgent": "Demitir"
   },
   "empty": {
-    "title": "Nenhum agente criado",
-    "titleFiltered": "Nenhum agente {{type}}",
-    "subtitle": "Crie seu primeiro agente de IA para começar a automatizar seus processos",
-    "subtitleFiltered": "Crie um agente {{type}} para começar",
-    "button": "Criar Agente"
+    "title": "Nenhum vendedor contratado",
+    "titleFiltered": "Nenhum vendedor {{type}}",
+    "subtitle": "Contrate seu primeiro vendedor IA para começar a prospectar automaticamente",
+    "subtitleFiltered": "Contrate um vendedor {{type}} para começar",
+    "button": "Contratar Vendedor"
   },
-  "loading": "Carregando agentes...",
-  "confirmDelete": "Tem certeza que deseja excluir este agente?",
+  "loading": "Carregando sua equipe...",
+  "confirmDelete": "Tem certeza que deseja demitir este vendedor?",
   "errors": {
-    "loadFailed": "Erro ao carregar agentes",
-    "createFailed": "Erro ao criar agente",
-    "updateFailed": "Erro ao atualizar agente",
-    "deleteFailed": "Erro ao deletar agente"
+    "loadFailed": "Erro ao carregar equipe",
+    "createFailed": "Erro ao contratar vendedor",
+    "updateFailed": "Erro ao atualizar vendedor",
+    "deleteFailed": "Erro ao demitir vendedor",
+    "savingRulesFailed": "Erro ao salvar regras"
   }
 }
