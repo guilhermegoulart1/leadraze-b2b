@@ -36,7 +36,12 @@
       "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"require(''@babel/parser'').parse(require(''fs'').readFileSync(''src/components/ConversationSidebar.jsx'', ''utf8''), {sourceType: ''module'', plugins: [''jsx'']})\"\" 2>&1\")",
       "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\backend''; npm run dev\")",
       "Bash(xargs cat:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(curl:*)",
+      "Bash(timeout /t 8 /nobreak)",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 8; curl -X POST http://localhost:3001/api/auth/forgot-password -H ''Content-Type: application/json'' -d ''{\"\"email\"\": \"\"contatorenamaciel@gmail.com\"\"}''\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 5; Invoke-RestMethod -Uri ''http://localhost:3001/api/auth/forgot-password'' -Method POST -ContentType ''application/json'' -Body ''{\"\"email\"\": \"\"contatorenamaciel@gmail.com\"\"}''\")",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []
