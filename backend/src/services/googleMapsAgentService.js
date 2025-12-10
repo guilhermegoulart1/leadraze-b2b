@@ -220,32 +220,14 @@ class GoogleMapsAgentService {
    * @returns {Promise<Object>} - Execution results
    */
   async executeAgent(agentId) {
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`🤖 EXECUTING GOOGLE MAPS AGENT: ${agentId}`);
-    console.log(`${'='.repeat(60)}`);
+    console.log(`🤖 Executing GMaps agent ${agentId}`);
 
     // Get agent data
     const agent = await this._getAgentById(agentId);
 
-    console.log(`\n📋 === AGENT CONFIGURATION ===`);
-    console.log(`   Name: ${agent.name}`);
-    console.log(`   Search Query: ${agent.search_query}`);
-    console.log(`   Location: ${agent.search_location}`);
-    console.log(`   Country: ${agent.search_country || 'N/A'}`);
-    console.log(`   Radius: ${agent.radius || agent.search_radius}${agent.radius ? 'km' : 'm'}`);
-    console.log(`   Coordinates: ${agent.latitude}, ${agent.longitude}`);
-    console.log(`   Min Rating: ${agent.min_rating || 'None'}`);
-    console.log(`   Min Reviews: ${agent.min_reviews || 'None'}`);
-    console.log(`   Require Phone: ${agent.require_phone}`);
-    console.log(`   Require Email: ${agent.require_email} ${agent.require_email ? '(⚠️ WARNING: Google Maps rarely provides emails!)' : ''}`);
-    console.log(`   Daily Limit: ${agent.daily_limit}`);
-    console.log(`   Current Page: ${agent.current_page || 0}`);
-    console.log(`==============================\n`);
-
     // Check if account has AI credits before executing
     const hasAiCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
     if (!hasAiCredits) {
-      console.log(`⚠️  Insufficient AI credits for account ${agent.account_id}. Skipping execution.`);
       return {
         success: false,
         leads_inserted: 0,
@@ -259,7 +241,6 @@ class GoogleMapsAgentService {
     // Check if account has GMaps credits for the search
     const hasGmapsCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
     if (!hasGmapsCredits) {
-      console.log(`⚠️  Insufficient GMaps credits for account ${agent.account_id}. Skipping execution.`);
       return {
         success: false,
         leads_inserted: 0,
@@ -272,7 +253,6 @@ class GoogleMapsAgentService {
 
     // If agent is completed or paused, reactivate it
     if (agent.status === 'completed' || agent.status === 'paused') {
-      console.log(`🔄 Reactivating agent from status: ${agent.status}`);
       await this._updateAgentStatus(agentId, 'active');
       agent.status = 'active';
     }
@@ -285,36 +265,20 @@ class GoogleMapsAgentService {
     const currentPage = agent.current_page || 0;
     const start = currentPage * 20;
 
-    console.log(`📄 Fetching page ${currentPage} (start: ${start})`);
-
     // Build search query
     const searchQuery = this._buildSearchQuery(agent);
 
     // Build location parameter (prefer lat/lng if available)
     let location;
     if (agent.latitude && agent.longitude) {
-      // Calculate zoom level based on radius
-      // Note: search_radius is in METERS (legacy), radius is in KM (new)
       const radiusKm = agent.radius || (agent.search_radius ? agent.search_radius / 1000 : 14);
       const zoom = this._calculateZoomFromRadius(radiusKm);
-
-      // Use coordinates format: "@lat,lng,zoom"
       location = `@${agent.latitude},${agent.longitude},${zoom}z`;
-      console.log(`📍 Using radius: ${radiusKm}km → zoom: ${zoom}`);
     } else {
-      // Fallback to location string
       location = agent.search_country
         ? `${agent.search_location}, ${agent.search_country}`
         : agent.search_location;
     }
-
-    console.log(`📍 Using location: ${location}`);
-
-    // Fetch from SerpApi
-    console.log(`\n🔍 === SERPAPI REQUEST ===`);
-    console.log(`   Query: "${searchQuery}"`);
-    console.log(`   Location: "${location}"`);
-    console.log(`   Start: ${start}`);
 
     const searchResults = await serpApiClient.searchGoogleMaps({
       query: searchQuery,
@@ -323,7 +287,7 @@ class GoogleMapsAgentService {
     });
 
     // Consume 1 GMaps credit for the search (charged per API call)
-    const gmapsConsumed = await billingService.consumeCredits(
+    await billingService.consumeCredits(
       agent.account_id,
       'gmaps',
       1,
@@ -335,39 +299,8 @@ class GoogleMapsAgentService {
       }
     );
 
-    if (gmapsConsumed) {
-      console.log(`💳 Consumed 1 GMaps credit for search (page ${currentPage})`);
-    } else {
-      console.log(`⚠️  Failed to consume GMaps credit - continuing anyway`);
-    }
-
-    console.log(`\n📊 === SERPAPI RESPONSE ===`);
-    console.log(`   Success: ${searchResults.success}`);
-    console.log(`   Total results: ${searchResults.total_results}`);
-    console.log(`   Has next page: ${searchResults.pagination?.has_next_page}`);
-
-    // Log raw place data to see what fields are available
-    if (searchResults.places && searchResults.places.length > 0) {
-      console.log(`\n📋 === RAW PLACE DATA (first result) ===`);
-      const firstPlace = searchResults.places[0];
-      console.log(`   title: ${firstPlace.title}`);
-      console.log(`   address: ${firstPlace.address}`);
-      console.log(`   phone: ${firstPlace.phone || 'N/A'}`);
-      console.log(`   email: ${firstPlace.email || 'N/A'}`);
-      console.log(`   website: ${firstPlace.website || 'N/A'}`);
-      console.log(`   rating: ${firstPlace.rating}`);
-      console.log(`   reviews: ${firstPlace.reviews}`);
-      console.log(`   place_id: ${firstPlace.place_id}`);
-      console.log(`   type: ${firstPlace.type}`);
-      console.log(`   All available fields: ${Object.keys(firstPlace).join(', ')}`);
-      console.log(`===================================\n`);
-    }
-
     if (!searchResults.success || searchResults.total_results === 0) {
-      console.log(`⚠️  No results found for page ${currentPage}. Marking agent as completed.`);
-
       await this._updateAgentStatus(agentId, 'completed');
-
       return {
         success: true,
         leads_inserted: 0,
@@ -379,8 +312,6 @@ class GoogleMapsAgentService {
 
     // Filter results based on agent criteria
     const filteredPlaces = this._filterPlaces(searchResults.places, agent);
-
-    console.log(`🔍 Found ${searchResults.total_results} places, ${filteredPlaces.length} after filtering`);
 
     // Insert into CRM
     const insertionResults = await this._insertPlacesIntoCRM(
@@ -399,17 +330,7 @@ class GoogleMapsAgentService {
       hasMoreResults: searchResults.pagination.has_next_page
     });
 
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`✅ AGENT EXECUTION COMPLETED: ${agentId}`);
-    console.log(`${'='.repeat(60)}`);
-    console.log(`   📊 API Results: ${searchResults.total_results} places from SerpApi`);
-    console.log(`   🔍 After Filters: ${filteredPlaces.length} places passed filters`);
-    console.log(`   ✅ Inserted to CRM: ${insertionResults.inserted}`);
-    console.log(`   ⏭️  Skipped: ${insertionResults.skipped}`);
-    console.log(`   💰 Credits Consumed: ${insertionResults.creditsConsumed || 0}`);
-    console.log(`   📄 Current Page: ${currentPage + 1}`);
-    console.log(`   ➡️  Has More Results: ${searchResults.pagination.has_next_page}`);
-    console.log(`${'='.repeat(60)}\n`);
+    console.log(`✅ GMaps agent ${agentId}: +${insertionResults.inserted} leads (page ${currentPage + 1})`);
 
     return {
       success: true,
@@ -541,56 +462,25 @@ class GoogleMapsAgentService {
    * Filter places based on agent criteria
    */
   _filterPlaces(places, agent) {
-    console.log(`\n📊 === FILTER DEBUG (Agent: ${agent.id}) ===`);
-    console.log(`📥 Total places received from API: ${places.length}`);
-    console.log(`🔧 Agent filters: min_rating=${agent.min_rating}, min_reviews=${agent.min_reviews}, require_phone=${agent.require_phone}, require_email=${agent.require_email}`);
-
-    let filteredByRating = 0;
-    let filteredByReviews = 0;
-    let filteredByPhone = 0;
-    let filteredByEmail = 0;
-
     const filtered = places.filter(place => {
       // Filter by rating
       if (agent.min_rating && (!place.rating || place.rating < agent.min_rating)) {
-        filteredByRating++;
-        console.log(`   ❌ [Rating] "${place.title}" - rating: ${place.rating || 'N/A'} < min: ${agent.min_rating}`);
         return false;
       }
-
       // Filter by review count
       if (agent.min_reviews && (!place.reviews || place.reviews < agent.min_reviews)) {
-        filteredByReviews++;
-        console.log(`   ❌ [Reviews] "${place.title}" - reviews: ${place.reviews || 0} < min: ${agent.min_reviews}`);
         return false;
       }
-
       // Filter by phone requirement
       if (agent.require_phone && !place.phone) {
-        filteredByPhone++;
-        console.log(`   ❌ [Phone] "${place.title}" - no phone number`);
         return false;
       }
-
       // Filter by email requirement (note: Google Maps rarely has emails)
       if (agent.require_email && !place.email) {
-        filteredByEmail++;
-        console.log(`   ❌ [Email] "${place.title}" - no email (⚠️ Google Maps rarely provides emails!)`);
         return false;
       }
-
-      console.log(`   ✅ PASSED: "${place.title}" (rating: ${place.rating}, reviews: ${place.reviews}, phone: ${place.phone ? 'yes' : 'no'})`);
       return true;
     });
-
-    console.log(`\n📊 === FILTER SUMMARY ===`);
-    console.log(`   📥 Total input: ${places.length}`);
-    console.log(`   ❌ Filtered by rating: ${filteredByRating}`);
-    console.log(`   ❌ Filtered by reviews: ${filteredByReviews}`);
-    console.log(`   ❌ Filtered by phone: ${filteredByPhone}`);
-    console.log(`   ❌ Filtered by email: ${filteredByEmail}`);
-    console.log(`   ✅ Passed filters: ${filtered.length}`);
-    console.log(`===========================\n`);
 
     return filtered;
   }
@@ -600,29 +490,15 @@ class GoogleMapsAgentService {
    * Each lead inserted consumes 1 AI credit
    */
   async _insertPlacesIntoCRM(places, agent, pageNumber) {
-    console.log(`\n📥 === CRM INSERTION DEBUG (Agent: ${agent.id}, Page: ${pageNumber}) ===`);
-    console.log(`📋 Places to insert: ${places.length}`);
-
     let inserted = 0;
     let skipped = 0;
-    let skippedDuplicate = 0;
-    let skippedNoCredits = 0;
-    let skippedError = 0;
     let creditsConsumed = 0;
 
     for (let i = 0; i < places.length; i++) {
       const place = places[i];
 
       try {
-        // Normalize place data to contact format
         const contactData = serpApiClient.normalizePlaceToContact(place);
-
-        console.log(`\n🔄 [${i + 1}/${places.length}] Processing: "${contactData.name}"`);
-        console.log(`   📍 Address: ${contactData.address}`);
-        console.log(`   📞 Phone: ${contactData.phone || 'N/A'}`);
-        console.log(`   📧 Email: ${contactData.email || 'N/A (⚠️ SerpApi/Google Maps não fornece emails)'}`);
-        console.log(`   ⭐ Rating: ${contactData.rating || 'N/A'}, Reviews: ${contactData.review_count || 0}`);
-        console.log(`   🆔 Place ID: ${contactData.place_id}`);
 
         // Check if contact already exists (by place_id)
         const existingContact = await this._findContactByPlaceId(
@@ -631,17 +507,13 @@ class GoogleMapsAgentService {
         );
 
         if (existingContact) {
-          console.log(`   ⏭️  SKIPPED: Duplicate (place_id already exists in CRM)`);
           skipped++;
-          skippedDuplicate++;
           continue;
         }
 
         // Check if account has enough credits before inserting
         const hasCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
         if (!hasCredits) {
-          console.log(`   ⚠️  STOPPED: Insufficient credits for account ${agent.account_id}`);
-          skippedNoCredits++;
           break;
         }
 
@@ -656,7 +528,7 @@ class GoogleMapsAgentService {
           agent.account_id,
           1,
           agent.id,
-          null, // no conversation
+          null,
           agent.user_id,
           `Google Maps lead: ${contactData.name}`
         );
@@ -664,43 +536,22 @@ class GoogleMapsAgentService {
 
         // Auto-assign to user using centralized round-robin service
         try {
-          const assignment = await roundRobinService.autoAssignLeadOnCreation({
+          await roundRobinService.autoAssignLeadOnCreation({
             leadId: contact.lead_id,
             sectorId: agent.sector_id,
             accountId: agent.account_id,
-            campaignId: null, // Google Maps agents don't use campaigns
+            campaignId: null,
             source: 'google_maps'
           });
-
-          if (assignment.assigned) {
-            console.log(`   👤 ASSIGNED: Lead assigned to ${assignment.user.name} (method: ${assignment.method})`);
-          } else {
-            console.log(`   ⚠️  ASSIGNMENT: ${assignment.reason || 'No assignment method available'}`);
-          }
         } catch (rotationError) {
           // Don't fail the insertion if rotation fails
-          console.log(`   ⚠️  ROTATION ERROR: ${rotationError.message}`);
         }
 
         inserted++;
-        console.log(`   ✅ INSERTED: ${contactData.name} (1 credit consumed)`);
-
       } catch (error) {
-        console.error(`   ❌ ERROR inserting "${place.title}":`, error.message);
         skipped++;
-        skippedError++;
       }
     }
-
-    console.log(`\n📊 === CRM INSERTION SUMMARY ===`);
-    console.log(`   📥 Total input: ${places.length}`);
-    console.log(`   ✅ Inserted: ${inserted}`);
-    console.log(`   ⏭️  Skipped (total): ${skipped}`);
-    console.log(`      - Duplicates: ${skippedDuplicate}`);
-    console.log(`      - No credits: ${skippedNoCredits}`);
-    console.log(`      - Errors: ${skippedError}`);
-    console.log(`   💰 Credits consumed: ${creditsConsumed}`);
-    console.log(`================================\n`);
 
     return { inserted, skipped, creditsConsumed };
   }

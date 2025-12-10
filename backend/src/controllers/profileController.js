@@ -20,8 +20,6 @@ const connectLinkedInAccount = async (req, res) => {
     const { username, password } = req.body;
     const userId = req.user.id;
 
-    console.log(`🔄 Conectando conta LinkedIn para usuário ${userId}`);
-
     if (!username || !password) {
       throw new ValidationError('Username and password are required');
     }
@@ -31,14 +29,10 @@ const connectLinkedInAccount = async (req, res) => {
     }
 
     try {
-      console.log('📡 Enviando credenciais para Unipile...');
-
       const response = await unipileClient.account.connectLinkedin({
         username: username,
         password: password
       });
-
-      console.log('✅ Resposta da Unipile:', response);
 
       const accountId = response.account_id || response.id;
 
@@ -46,31 +40,21 @@ const connectLinkedInAccount = async (req, res) => {
         throw new UnipileError('No account ID returned from Unipile');
       }
 
-      console.log('🆔 Account ID recebido:', accountId);
-
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       let profileData = null;
       try {
-        console.log('👤 Buscando dados do perfil...');
         profileData = await unipileClient.users.getOwnProfile(accountId);
-        console.log('✅ Perfil obtido:', profileData?.name || 'Nome não disponível');
-        console.log('📊 DADOS DO PERFIL NA CONEXÃO:', JSON.stringify(profileData, null, 2));
-        console.log('🔍 Premium:', profileData?.premium);
-        console.log('🔍 Sales Navigator:', profileData?.sales_navigator);
-        console.log('🔍 Recruiter:', profileData?.recruiter);
       } catch (profileError) {
-        console.warn('⚠️ Erro ao buscar perfil:', profileError.message);
+        // Silent fail
       }
 
-      // Criar objeto estruturado com informações do tipo de conta
       const accountTypeInfo = profileData ? {
         premium: profileData.premium || false,
         sales_navigator: profileData.sales_navigator || null,
         recruiter: profileData.recruiter || null
       } : null;
 
-      // 🆕 AUTO-DETECTAR TIPO DE CONTA
       let detectedAccountType = 'free';
       if (profileData) {
         if (profileData.recruiter !== null && profileData.recruiter !== undefined) {
@@ -82,11 +66,7 @@ const connectLinkedInAccount = async (req, res) => {
         }
       }
 
-      console.log(`🔍 Tipo de conta detectado: ${detectedAccountType}`);
-
-      // 🆕 DEFINIR LIMITE SEGURO INICIAL
       const initialLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType].safe;
-      console.log(`💡 Limite inicial sugerido: ${initialLimit}/dia`);
 
       const accountData = {
         user_id: userId,

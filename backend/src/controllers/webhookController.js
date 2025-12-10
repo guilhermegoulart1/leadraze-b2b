@@ -18,15 +18,12 @@ async function processAndSaveAttachments(payload, conversationId, messageId, acc
   const attachments = payload.attachments || [];
   const savedAttachments = [];
 
-  // Se não tem attachments mas é uma mensagem de mídia, tentar extrair do payload
   const messageType = payload.message_type || 'text';
   const isMediaMessage = ['image', 'video', 'audio', 'document', 'sticker', 'file'].includes(messageType);
 
   if (attachments.length === 0 && !isMediaMessage) {
     return savedAttachments;
   }
-
-  console.log(`📎 Processando ${attachments.length} attachment(s) para mensagem ${messageId}`);
 
   for (const att of attachments) {
     try {
@@ -35,14 +32,8 @@ async function processAndSaveAttachments(payload, conversationId, messageId, acc
       const filename = att.filename || att.name || `attachment_${attachmentId}.${getExtensionFromMime(mimeType)}`;
       const fileSize = att.size || att.file_size || 0;
 
-      console.log(`   📥 Baixando attachment ${attachmentId} (${mimeType})`);
-
-      // Baixar attachment via Unipile API
       const unipileAccountId = await getUnipileAccountId(linkedinAccountId);
-      if (!unipileAccountId) {
-        console.warn(`   ⚠️ Não foi possível obter unipile_account_id para download`);
-        continue;
-      }
+      if (!unipileAccountId) continue;
 
       const attachmentData = await unipileClient.messaging.getAttachment({
         account_id: unipileAccountId,
@@ -50,13 +41,8 @@ async function processAndSaveAttachments(payload, conversationId, messageId, acc
         attachment_id: attachmentId
       });
 
-      if (!attachmentData?.data) {
-        console.warn(`   ⚠️ Attachment ${attachmentId} sem dados`);
-        continue;
-      }
+      if (!attachmentData?.data) continue;
 
-      // Upload para R2
-      console.log(`   📤 Enviando para R2...`);
       const r2Result = await storageService.uploadEmailAttachment(
         conversationId,
         Buffer.from(attachmentData.data),
@@ -64,7 +50,6 @@ async function processAndSaveAttachments(payload, conversationId, messageId, acc
         filename
       );
 
-      // Salvar registro no banco
       const attachmentRecord = {
         account_id: accountId,
         conversation_id: conversationId,
@@ -87,12 +72,8 @@ async function processAndSaveAttachments(payload, conversationId, messageId, acc
         mime_type: attachmentData.contentType || mimeType,
         size: attachmentData.data.length
       });
-
-      console.log(`   ✅ Attachment salvo no R2: ${r2Result.key}`);
-
     } catch (attError) {
-      console.error(`   ❌ Erro ao processar attachment:`, attError.message);
-      // Continuar com próximo attachment
+      // Continue with next attachment
     }
   }
 
@@ -133,18 +114,10 @@ async function fetchUserProfileFromUnipile(accountId, userProviderId) {
   const dsn = process.env.UNIPILE_DSN;
   const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
 
-  if (!dsn || !token) {
-    console.warn('⚠️ Unipile não configurado, usando dados básicos do webhook');
-    return null;
-  }
+  if (!dsn || !token) return null;
 
   try {
-    console.log(`🔍 Buscando perfil completo via Unipile API...`);
-    console.log(`   Account ID: ${accountId}`);
-    console.log(`   User Provider ID: ${userProviderId}`);
-
     const url = `https://${dsn}/api/v1/users/${userProviderId}`;
-
     const response = await axios({
       method: 'GET',
       url,
@@ -152,18 +125,11 @@ async function fetchUserProfileFromUnipile(accountId, userProviderId) {
         'X-API-KEY': token,
         'Accept': 'application/json'
       },
-      params: {
-        account_id: accountId
-      },
+      params: { account_id: accountId },
       timeout: 10000
     });
-
-    console.log('✅ Perfil obtido via API Unipile');
     return response.data;
-
   } catch (error) {
-    console.warn('⚠️ Erro ao buscar perfil via API:', error.message);
-    // Não falhar o webhook, apenas retornar null e usar dados básicos
     return null;
   }
 }
@@ -217,32 +183,12 @@ function parseUnipileWebhook(rawPayload) {
 // 1. RECEBER WEBHOOK DO UNIPILE
 // ================================
 const receiveWebhook = async (req, res) => {
-  // ✅ LOGS DETALHADOS PARA DEBUG
-  console.log('\n🔔 ======================================');
-  console.log('📨 WEBHOOK RECEBIDO');
-  console.log('======================================');
-  console.log('⏰ Timestamp:', new Date().toISOString());
-  console.log('🌐 Method:', req.method);
-  console.log('🔗 URL:', req.originalUrl);
-  console.log('📍 IP:', req.ip || req.connection.remoteAddress);
-  console.log('📋 Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('📦 Body:', JSON.stringify(req.body, null, 2));
-  console.log('======================================\n');
-
   try {
-    // O payload já vem parseado pelo middleware do app.js
     const rawPayload = req.body;
     const signature = req.headers['x-unipile-signature'];
 
-    // ✅ DETECTAR TIPO DE EVENTO E NORMALIZAR PAYLOAD
+    // Detectar tipo de evento e normalizar payload
     const { eventType, payload } = parseUnipileWebhook(rawPayload);
-
-    console.log('📨 Processando webhook do Unipile');
-    console.log('Event type:', eventType);
-    console.log('Webhook name:', payload.webhook_name);
-    console.log('Account type:', payload.account_type);
-    console.log('Account ID:', payload.account_id);
-    console.log('Chat ID:', payload.chat_id);
 
     // Validar signature (se configurado)
     if (process.env.WEBHOOK_SECRET && signature) {
@@ -256,7 +202,6 @@ const receiveWebhook = async (req, res) => {
     // Check for duplicate webhook (idempotency)
     const alreadyProcessed = await isWebhookProcessed(eventType, payload);
     if (alreadyProcessed) {
-      console.log('⚠️ Webhook já processado, ignorando duplicata');
       return res.status(200).json({
         success: true,
         message: 'Webhook already processed (duplicate)',
@@ -272,12 +217,10 @@ const receiveWebhook = async (req, res) => {
       processed: false
     });
 
-    // ✅ NOVO: Adicionar job à fila em vez de processar síncronamente
+    // Adicionar job à fila em vez de processar síncronamente
     const job = await addWebhookJob(eventType, payload, webhookLog.id);
 
-    console.log(`✅ Webhook enfileirado - Job ID: ${job.id}`);
-
-    // ✅ Retornar 200 IMEDIATAMENTE (sem aguardar processamento)
+    // Retornar 200 IMEDIATAMENTE (sem aguardar processamento)
     res.status(200).json({
       success: true,
       message: 'Webhook queued for processing',
@@ -286,7 +229,7 @@ const receiveWebhook = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro ao processar webhook:', error);
+    console.error('Webhook error:', error.message);
 
     // Salvar erro no log
     try {
@@ -303,7 +246,7 @@ const receiveWebhook = async (req, res) => {
         [error.message, eventType]
       );
     } catch (logError) {
-      console.error('Erro ao salvar log:', logError);
+      // Silent fail for log errors
     }
 
     // Sempre retornar 200 para não reenviar webhook
@@ -430,35 +373,24 @@ async function getChannelSettings(channelId) {
 // ================================
 async function registerContactChannel(contactId, channelType, channelId, channelUsername, attendeeId = null) {
   try {
-    // Verificar se já existe esse canal para o contato
     const existingChannel = await db.query(
       `SELECT id, metadata FROM contact_channels
-       WHERE contact_id = $1 AND channel_type = $2
-       LIMIT 1`,
+       WHERE contact_id = $1 AND channel_type = $2 LIMIT 1`,
       [contactId, channelType.toLowerCase()]
     );
 
     if (existingChannel.rows.length > 0) {
-      // Atualizar last_interaction, message_count e attendee_id no metadata
       const existingMetadata = existingChannel.rows[0].metadata || {};
-      const newMetadata = attendeeId
-        ? { ...existingMetadata, attendee_id: attendeeId }
-        : existingMetadata;
+      const newMetadata = attendeeId ? { ...existingMetadata, attendee_id: attendeeId } : existingMetadata;
 
       await db.query(
         `UPDATE contact_channels
-         SET last_interaction_at = NOW(),
-             message_count = message_count + 1,
-             is_active = true,
-             metadata = $2
+         SET last_interaction_at = NOW(), message_count = message_count + 1, is_active = true, metadata = $2
          WHERE id = $1`,
         [existingChannel.rows[0].id, JSON.stringify(newMetadata)]
       );
-      console.log(`📱 Canal ${channelType} atualizado para contato`);
     } else {
-      // Criar novo registro de canal com attendee_id no metadata
       const metadata = attendeeId ? { attendee_id: attendeeId } : {};
-
       await db.insert('contact_channels', {
         contact_id: contactId,
         channel_type: channelType.toLowerCase(),
@@ -470,11 +402,9 @@ async function registerContactChannel(contactId, channelType, channelId, channel
         message_count: 1,
         metadata: JSON.stringify(metadata)
       });
-      console.log(`📱 Canal ${channelType} registrado para contato`);
     }
   } catch (error) {
-    console.error('⚠️ Erro ao registrar canal do contato:', error.message);
-    // Não falhar o webhook por erro de canal
+    // Silent fail - não falhar o webhook por erro de canal
   }
 }
 
@@ -482,114 +412,56 @@ async function registerContactChannel(contactId, channelType, channelId, channel
 // HELPER: BUSCAR E ATUALIZAR DADOS DO CONTATO VIA UNIPILE
 // ================================
 async function fetchAndUpdateContactFromAttendee(accountId, contactId, attendeeId, options = {}) {
-  if (!attendeeId) {
-    console.log('⚠️ Sem attendeeId para buscar dados do contato');
-    return null;
-  }
+  if (!attendeeId) return null;
 
   const { fetchPicture = true, updateName = false } = options;
   const result = { updated: false, fields: [] };
 
   try {
-    console.log(`🔄 Buscando dados do attendee: ${attendeeId}`);
-
-    // 1. Buscar dados completos do attendee via API
     const attendeeData = await unipileClient.messaging.getAttendeeById(attendeeId);
 
     if (attendeeData) {
-      console.log('📋 Dados do attendee recebidos:', JSON.stringify(attendeeData, null, 2));
-
-      // Extrair campos úteis do attendee
       const updates = {};
-
-      // Nome (só atualiza se solicitado ou se contato não tem nome válido)
-      const attendeeName = attendeeData.name
-        || attendeeData.display_name
-        || attendeeData.full_name
-        || attendeeData.pushname;
+      const attendeeName = attendeeData.name || attendeeData.display_name || attendeeData.full_name || attendeeData.pushname;
 
       if (updateName && attendeeName && !attendeeName.match(/^\+?\d+$/)) {
         updates.name = attendeeName;
         result.fields.push('name');
       }
 
-      // Telefone (extrair de attendee_specifics se disponível)
-      const phoneNumber = attendeeData.phone_number
-        || attendeeData.attendee_specifics?.phone_number
-        || attendeeData.identifier;
-
-      // Headline/Bio (se disponível)
       if (attendeeData.headline || attendeeData.bio || attendeeData.about) {
         updates.headline = attendeeData.headline || attendeeData.bio || attendeeData.about;
         result.fields.push('headline');
       }
 
-      // Atualizar contato com dados básicos
       if (Object.keys(updates).length > 0) {
-        const setClause = Object.keys(updates)
-          .map((key, i) => `${key} = $${i + 2}`)
-          .join(', ');
+        const setClause = Object.keys(updates).map((key, i) => `${key} = $${i + 2}`).join(', ');
         const values = [contactId, ...Object.values(updates)];
-
-        await db.query(
-          `UPDATE contacts SET ${setClause}, updated_at = NOW() WHERE id = $1`,
-          values
-        );
+        await db.query(`UPDATE contacts SET ${setClause}, updated_at = NOW() WHERE id = $1`, values);
         result.updated = true;
-        console.log(`✅ Dados do contato atualizados: ${result.fields.join(', ')}`);
       }
     }
 
-    // 2. Buscar e salvar foto de perfil
     if (fetchPicture) {
-      console.log(`📸 Buscando foto de perfil do attendee: ${attendeeId}`);
-
       const pictureResult = await unipileClient.messaging.getAttendeePicture(attendeeId);
 
       if (pictureResult && pictureResult.data) {
-        console.log(`✅ Foto encontrada: ${pictureResult.contentType}, ${pictureResult.data.length} bytes`);
-
-        // Determinar extensão do arquivo
-        const mimeToExt = {
-          'image/jpeg': '.jpg',
-          'image/jpg': '.jpg',
-          'image/png': '.png',
-          'image/gif': '.gif',
-          'image/webp': '.webp'
-        };
+        const mimeToExt = { 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
         const ext = mimeToExt[pictureResult.contentType] || '.jpg';
 
-        // Upload para R2
         const uploadResult = await storageService.uploadContactPicture(
-          accountId,
-          contactId,
-          pictureResult.data,
-          pictureResult.contentType,
-          `profile${ext}`
+          accountId, contactId, pictureResult.data, pictureResult.contentType, `profile${ext}`
         );
 
-        console.log(`✅ Foto salva no R2: ${uploadResult.url}`);
-
-        // Atualizar contato com a URL da foto
-        await db.query(
-          `UPDATE contacts SET profile_picture = $1, updated_at = NOW() WHERE id = $2`,
-          [uploadResult.url, contactId]
-        );
-
+        await db.query(`UPDATE contacts SET profile_picture = $1, updated_at = NOW() WHERE id = $2`, [uploadResult.url, contactId]);
         result.updated = true;
         result.fields.push('profile_picture');
         result.pictureUrl = uploadResult.url;
-        console.log(`✅ Contato atualizado com foto de perfil`);
-      } else {
-        console.log('⚠️ Nenhuma foto de perfil disponível no Unipile');
       }
     }
 
     return result;
-
   } catch (error) {
-    console.error('⚠️ Erro ao buscar/atualizar dados do contato:', error.message);
-    // Não falhar o processo por erro
     return result;
   }
 }
@@ -600,87 +472,62 @@ async function fetchAndUpdateContactFromAttendee(accountId, contactId, attendeeI
 async function findOrCreateContact(userId, accountId, contactData) {
   const { phone, providerId, name, profileUrl, profilePicture, headline, location, source, attendeeId } = contactData;
 
-  // Formatar telefone para busca
   const phoneClean = phone?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
   const phoneFormatted = formatPhoneNumber(phone);
 
-  console.log(`🔍 Buscando contato existente...`);
-  console.log(`   Phone: ${phoneFormatted}`);
-  console.log(`   Provider ID: ${providerId}`);
-  console.log(`   Attendee ID: ${attendeeId}`);
-
-  // Buscar contato existente pelo telefone ou provider_id
   let contact = null;
   let isNewContact = false;
 
   // Tentar buscar pelo telefone
   if (phoneFormatted) {
     const contactQuery = await db.query(
-      `SELECT * FROM contacts
-       WHERE account_id = $1
-       AND (phone = $2 OR phone = $3 OR phone LIKE $4)
-       LIMIT 1`,
+      `SELECT * FROM contacts WHERE account_id = $1
+       AND (phone = $2 OR phone = $3 OR phone LIKE $4) LIMIT 1`,
       [accountId, phoneFormatted, phoneClean, `%${phoneClean}%`]
     );
     if (contactQuery.rows.length > 0) {
       contact = contactQuery.rows[0];
-      console.log(`✅ Contato encontrado pelo telefone: ${contact.name}`);
     }
   }
 
-  // Se não encontrou, buscar pelo linkedin_profile_id (que pode conter o provider_id do WhatsApp)
+  // Se não encontrou, buscar pelo linkedin_profile_id
   if (!contact && providerId) {
     const contactQuery = await db.query(
-      `SELECT * FROM contacts
-       WHERE account_id = $1
-       AND (linkedin_profile_id = $2 OR linkedin_profile_id = $3)
-       LIMIT 1`,
+      `SELECT * FROM contacts WHERE account_id = $1
+       AND (linkedin_profile_id = $2 OR linkedin_profile_id = $3) LIMIT 1`,
       [accountId, providerId, phoneClean]
     );
     if (contactQuery.rows.length > 0) {
       contact = contactQuery.rows[0];
-      console.log(`✅ Contato encontrado pelo provider_id: ${contact.name}`);
     }
   }
 
   // Se não encontrou, criar novo contato
   if (!contact) {
-    console.log(`🆕 Criando novo contato...`);
-
-    const newContact = await db.insert('contacts', {
+    contact = await db.insert('contacts', {
       user_id: userId,
       account_id: accountId,
       name: name || phoneFormatted || 'Contato',
       phone: phoneFormatted,
-      linkedin_profile_id: providerId, // Usar para guardar o provider_id do WhatsApp/IG
+      linkedin_profile_id: providerId,
       profile_url: profileUrl || null,
       profile_picture: profilePicture || null,
       headline: headline || null,
       location: location || null,
       source: source || 'whatsapp'
     });
-
-    contact = newContact;
     isNewContact = true;
-    console.log(`✅ Contato criado: ${contact.name} (ID: ${contact.id})`);
   }
 
-  // Buscar dados e foto do attendee se:
-  // 1. É novo contato OU contato existente sem foto
-  // 2. Temos attendeeId disponível
+  // Buscar dados e foto do attendee em background
   const shouldFetchData = attendeeId && (!contact.profile_picture || isNewContact);
   if (shouldFetchData) {
-    // Executar em background para não bloquear o webhook
     fetchAndUpdateContactFromAttendee(accountId, contact.id, attendeeId, {
       fetchPicture: true,
-      updateName: isNewContact // Só atualiza nome se for contato novo
-    })
-      .then(result => {
-        if (result?.pictureUrl) {
-          contact.profile_picture = result.pictureUrl;
-        }
-      })
-      .catch(err => console.error('⚠️ Erro ao buscar dados em background:', err.message));
+      updateName: isNewContact
+    }).then(result => {
+      if (result?.pictureUrl) contact.profile_picture = result.pictureUrl;
+    }).catch(() => {});
   }
 
   return contact;
@@ -690,40 +537,10 @@ async function findOrCreateContact(userId, accountId, contactData) {
 // 2. MENSAGEM RECEBIDA
 // ================================
 async function handleMessageReceived(payload) {
-  console.log('💬 Processando mensagem recebida');
-  console.log('📋 Payload keys:', Object.keys(payload));
-
-  // 🔍 LOG DETALHADO PARA ANÁLISE
-  console.log('═══════════════════════════════════════════════════════════════');
-  console.log('🔍 PAYLOAD COMPLETO:');
-  console.log(JSON.stringify(payload, null, 2));
-  console.log('═══════════════════════════════════════════════════════════════');
-
-  // Log específico do sender
-  if (payload.sender) {
-    console.log('👤 SENDER DETALHADO:');
-    console.log('   attendee_provider_id:', payload.sender.attendee_provider_id);
-    console.log('   attendee_specifics:', JSON.stringify(payload.sender.attendee_specifics));
-    console.log('   display_name:', payload.sender.display_name);
-  }
-
-  // Log dos attendees
-  if (payload.attendees) {
-    console.log('👥 ATTENDEES:');
-    payload.attendees.forEach((att, i) => {
-      console.log(`   [${i}] provider_id: ${att.attendee_provider_id}`);
-      console.log(`       specifics: ${JSON.stringify(att.attendee_specifics)}`);
-      console.log(`       display_name: ${att.display_name}`);
-    });
-  }
-
   const { account_id, chat_id, message, sender, message_id, timestamp } = payload;
-  const providerType = payload.account_type || 'LINKEDIN'; // LINKEDIN, WHATSAPP, INSTAGRAM, etc.
+  const providerType = payload.account_type || 'LINKEDIN';
   const attendeeCount = payload.attendees?.length || 2;
   const isGroup = isGroupChat(payload);
-
-  console.log(`📱 Provider: ${providerType}`);
-  console.log(`👥 Attendees: ${attendeeCount} | Is Group: ${isGroup}`);
 
   if (!account_id || !chat_id) {
     return { handled: false, reason: 'Missing required fields (account_id or chat_id)' };
@@ -732,9 +549,6 @@ async function handleMessageReceived(payload) {
   // Message pode vir como string diretamente no payload
   const messageContent = typeof message === 'string' ? message : (message?.text || message?.content || '');
 
-  console.log('📨 Message content:', messageContent);
-  console.log('👤 Sender:', sender);
-
   try {
     // Buscar conta (LinkedIn ou outro canal)
     const connectedChannel = await db.findOne('linkedin_accounts', {
@@ -742,13 +556,11 @@ async function handleMessageReceived(payload) {
     });
 
     if (!connectedChannel) {
-      console.log('⚠️ Canal conectado não encontrado');
       return { handled: false, reason: 'Connected channel not found' };
     }
 
-    // ✅ IGNORAR CANAIS DESCONECTADOS
+    // Ignorar canais desconectados
     if (connectedChannel.status === 'disconnected') {
-      console.log('⏭️ Ignorando mensagem - canal está desconectado');
       return {
         handled: true,
         skipped: true,
@@ -757,14 +569,11 @@ async function handleMessageReceived(payload) {
       };
     }
 
-    // ✅ VERIFICAR CONFIGURAÇÕES DO CANAL
+    // Verificar configurações do canal
     const channelSettings = await getChannelSettings(connectedChannel.id);
 
-    // ✅ FILTRAR GRUPOS SE CONFIGURADO
+    // Filtrar grupos se configurado
     if (isGroup && channelSettings.ignore_groups) {
-      console.log(`⏭️ Ignorando mensagem de grupo (${attendeeCount} participantes)`);
-      console.log(`   Provider: ${providerType}`);
-      console.log(`   Configuração ignore_groups: ${channelSettings.ignore_groups}`);
       return {
         handled: true,
         skipped: true,
@@ -777,28 +586,13 @@ async function handleMessageReceived(payload) {
     // Alias para compatibilidade com código existente
     const linkedinAccount = connectedChannel;
 
-    // ✅ DETECTAR SE É MENSAGEM PRÓPRIA OU DO LEAD
-    // Mensagens enviadas pelo próprio usuário (de outro dispositivo) também vêm em message_received
-    // Usar channel_identifier da conta conectada (não account_info que não existe no payload)
+    // Detectar se é mensagem própria ou do lead
     const ownIdentifier = connectedChannel.channel_identifier;
     const senderIdentifier = sender?.attendee_provider_id?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
     const isOwnMessage = sender && ownIdentifier &&
                         (senderIdentifier === ownIdentifier || sender.attendee_provider_id === ownIdentifier);
 
-    console.log('🔍 Comparando sender:', senderIdentifier, 'vs own:', ownIdentifier, '→', isOwnMessage ? 'PRÓPRIA' : 'LEAD');
-
-    if (isOwnMessage) {
-      console.log('📤 Mensagem própria detectada (enviada de outro dispositivo)');
-      console.log('   Apenas logando, não processando IA');
-
-      // Salvar mensagem mas marcar como 'user' ao invés de 'lead'
-      // Não processar IA para mensagens próprias
-      const isSelfMessage = true;
-      var skipAI = true;
-    } else {
-      console.log('📨 Mensagem do lead detectada');
-      var skipAI = false;
-    }
+    var skipAI = isOwnMessage;
 
     // Buscar ou criar conversa
     // ✅ IMPORTANTE: Buscar por chat_id OU pelo contact/lead para evitar duplicatas
@@ -806,29 +600,20 @@ async function handleMessageReceived(payload) {
       unipile_chat_id: chat_id
     });
 
-    // ✅ SE NÃO ENCONTROU POR CHAT_ID, BUSCAR POR CONTACT/LEAD
-    // Isso evita duplicação quando o chat_id muda entre envio e recebimento
+    // Se não encontrou por chat_id, buscar por contact/lead
     if (!conversation) {
-      console.log('🔍 Conversa não encontrada por chat_id, buscando por contact/lead...');
-
-      // Identificar o provider_id do lead/contact para busca
       let searchProviderId = null;
       let attendeesData = payload.attendees || [];
 
-      // Tentar pegar o provider_id do outro participante
       if (attendeesData.length > 0) {
         const ownIdentifierClean = ownIdentifier?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
-
-        // Encontrar o attendee que NÃO é o próprio usuário
         const otherAttendee = attendeesData.find(att => {
           const attId = att.attendee_provider_id?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
           return attId !== ownIdentifierClean && att.attendee_provider_id !== ownIdentifier;
         });
-
         searchProviderId = otherAttendee?.attendee_provider_id;
       }
 
-      // Se é mensagem do lead, o provider_id é o sender
       if (!isOwnMessage && sender?.attendee_provider_id) {
         searchProviderId = sender.attendee_provider_id;
       }
@@ -837,18 +622,13 @@ async function handleMessageReceived(payload) {
         const searchProviderIdClean = searchProviderId.replace(/@s\.whatsapp\.net|@c\.us/gi, '');
         const phoneFormatted = formatPhoneNumber(searchProviderId);
 
-        console.log('🔍 Buscando conversa por provider_id:', searchProviderIdClean);
-
-        // Buscar conversa pelo contact (telefone) ou lead (provider_id)
         const conversationQuery = await db.query(
           `SELECT conv.* FROM conversations conv
            LEFT JOIN contacts ct ON conv.contact_id = ct.id
            LEFT JOIN leads ld ON conv.lead_id = ld.id
            WHERE conv.linkedin_account_id = $1
            AND (
-             -- Buscar por contact (telefone)
              ct.phone = $2 OR ct.phone = $3 OR ct.linkedin_profile_id = $4
-             -- Buscar por lead (provider_id)
              OR ld.provider_id = $4 OR ld.provider_id = $5
            )
            ORDER BY conv.created_at DESC
@@ -858,12 +638,6 @@ async function handleMessageReceived(payload) {
 
         if (conversationQuery.rows.length > 0) {
           conversation = conversationQuery.rows[0];
-          console.log('✅ Conversa encontrada por contact/lead! ID:', conversation.id);
-
-          // ✅ ATUALIZAR O CHAT_ID DA CONVERSA EXISTENTE
-          console.log('🔄 Atualizando chat_id da conversa...');
-          console.log(`   Antigo: ${conversation.unipile_chat_id}`);
-          console.log(`   Novo: ${chat_id}`);
 
           await db.update('conversations', {
             unipile_chat_id: chat_id
@@ -871,11 +645,10 @@ async function handleMessageReceived(payload) {
 
           conversation.unipile_chat_id = chat_id;
 
-          // ✅ REGISTRAR CANAL DO CONTATO (para conversas existentes)
           if (conversation.contact_id) {
             await registerContactChannel(
               conversation.contact_id,
-              providerType, // 'WHATSAPP', 'INSTAGRAM', etc.
+              providerType,
               searchProviderIdClean,
               sender?.display_name || null
             );
@@ -885,17 +658,12 @@ async function handleMessageReceived(payload) {
     }
 
     if (!conversation) {
-      console.log('🆕 Criando nova conversa');
-
-      // ✅ Encontrar o lead correto baseado no attendee que NÃO é o sender
-      // Se eu enviei a mensagem, o lead é o outro participante
-      // Se o lead enviou, o lead é o sender
+      // Encontrar o lead correto baseado no attendee
       let leadProviderId = null;
       let attendeesData = payload.attendees || [];
 
       // Se não temos attendees suficientes no payload, buscar via API
       if (attendeesData.length < 2 && isOwnMessage) {
-        console.log('🔍 Buscando attendees do chat via Unipile API...');
         try {
           const chatUrl = `https://${process.env.UNIPILE_DSN}/api/v1/chats/${chat_id}?account_id=${account_id}`;
           const axios = require('axios');
@@ -907,43 +675,30 @@ async function handleMessageReceived(payload) {
             timeout: 10000
           });
           attendeesData = chatResponse.data?.attendees || attendeesData;
-          console.log('✅ Attendees obtidos via API:', attendeesData.length);
-          console.log('   Attendees completos:', JSON.stringify(attendeesData, null, 2));
         } catch (apiError) {
-          console.warn('⚠️ Erro ao buscar chat via API:', apiError.message);
+          // Silent fail
         }
       }
 
       if (attendeesData.length > 0) {
-        // Se é mensagem própria, o lead é o attendee que não é o sender
         if (isOwnMessage) {
-          // Comparar usando número limpo (sem @s.whatsapp.net)
           const otherAttendee = attendeesData.find(att => {
             const attId = att.attendee_provider_id?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
             return attId !== ownIdentifier && att.attendee_provider_id !== sender?.attendee_provider_id;
           });
           leadProviderId = otherAttendee?.attendee_provider_id;
-          console.log('📤 Mensagem própria - Lead é o outro participante:', leadProviderId);
         } else {
-          // Se o lead enviou, o lead é o sender
           leadProviderId = sender?.attendee_provider_id;
-          console.log('📨 Mensagem do lead - Lead é o sender:', leadProviderId);
         }
       }
 
       if (!leadProviderId) {
-        console.log('⚠️ Não foi possível identificar o lead provider_id');
-        console.log('   Attendees disponíveis:', JSON.stringify(attendeesData, null, 2));
         return { handled: false, reason: 'Lead provider_id not found' };
       }
 
-      // ✅ VALIDAÇÃO CRÍTICA: Nunca criar lead/contato com o próprio número do usuário!
+      // Validação: Nunca criar lead/contato com o próprio número do usuário
       const leadProviderIdClean = leadProviderId.replace(/@s\.whatsapp\.net|@c\.us/gi, '');
       if (leadProviderIdClean === ownIdentifier) {
-        console.error('❌ ERRO CRÍTICO: leadProviderId é o próprio usuário!');
-        console.error('   leadProviderId:', leadProviderId);
-        console.error('   ownIdentifier:', ownIdentifier);
-        console.error('   Isso não deveria acontecer. Abortando criação de conversa.');
         return { handled: false, reason: 'Cannot create conversation with own number as lead' };
       }
 
@@ -958,10 +713,6 @@ async function handleMessageReceived(payload) {
       let leadData = null;
       let shouldActivateAI = false;
 
-      // ✅ PASSO 1: SEMPRE criar/buscar CONTATO primeiro (para WhatsApp/Instagram)
-      console.log('📇 Buscando ou criando CONTATO...');
-      console.log('   Provider ID:', leadProviderId);
-
       // Buscar dados do perfil via API Unipile
       const profileData = await fetchUserProfileFromUnipile(account_id, leadProviderId);
 
@@ -974,9 +725,7 @@ async function handleMessageReceived(payload) {
           })
         : sender;
 
-      console.log('🔍 AttendeeData:', attendeeData ? JSON.stringify(attendeeData) : 'null');
-
-      // Extrair melhor nome (evita "You" e formata telefone)
+      // Extrair melhor nome
       const contactName = profileData?.display_name
         || profileData?.name
         || profileData?.full_name
@@ -996,11 +745,7 @@ async function handleMessageReceived(payload) {
       const headline = profileData?.headline || '';
       const location = profileData?.location || '';
 
-      console.log('📋 Dados do contato:');
-      console.log(`   Nome: ${contactName}`);
-      console.log(`   Telefone: ${formatPhoneNumber(leadProviderId)}`);
-
-      // CRIAR OU BUSCAR CONTATO
+      // Criar ou buscar contato
       contactData = await findOrCreateContact(
         linkedinAccount.user_id,
         linkedinAccount.account_id,
@@ -1017,9 +762,7 @@ async function handleMessageReceived(payload) {
         }
       );
 
-      console.log(`✅ Contato: ${contactData.name} (ID: ${contactData.id})`);
-
-      // ✅ REGISTRAR CANAL DO CONTATO (WhatsApp, Instagram, etc.)
+      // Registrar canal do contato
       await registerContactChannel(
         contactData.id,
         providerType, // 'WHATSAPP', 'INSTAGRAM', etc.
@@ -1042,11 +785,7 @@ async function handleMessageReceived(payload) {
 
       if (leadQuery.rows.length > 0) {
         leadData = leadQuery.rows[0];
-        console.log(`📊 Lead/Oportunidade encontrado: ${leadData.name} (Campanha ID: ${leadData.campaign_id})`);
         shouldActivateAI = leadData.automation_active === true;
-        console.log(`🤖 IA: ${shouldActivateAI ? 'ATIVA' : 'DESATIVADA'}`);
-      } else {
-        console.log('📇 Conversa orgânica - sem oportunidade/lead associado');
       }
 
       // Criar conversa - SEMPRE com contact_id, lead_id é opcional
@@ -1074,7 +813,7 @@ async function handleMessageReceived(payload) {
         group_name: isGroup ? (payload.chat_name || payload.group_name || null) : null
       });
 
-      // ✅ EMIT WEBSOCKET: Nova conversa criada
+      // Emit WebSocket: Nova conversa criada
       publishNewConversation({
         accountId: linkedinAccount.account_id,
         conversation: {
@@ -1087,7 +826,6 @@ async function handleMessageReceived(payload) {
           is_group: isGroup
         }
       });
-      console.log(`📡 WebSocket: Evento new_conversation emitido para account:${linkedinAccount.account_id}`);
 
       // Atualizar lead para "accepted" se ainda não estiver (só se tiver lead)
       if (leadData && leadData.status === LEAD_STATUS.INVITE_SENT) {
@@ -1255,56 +993,33 @@ async function handleMessageReceived(payload) {
 // ================================
 // 3. NOVA RELAÇÃO (new_relation) - CONVITE ACEITO
 // ================================
-// ⚠️ IMPORTANTE: Este webhook pode demorar até 8 horas (polling do Unipile)
 async function handleNewRelation(payload) {
-  console.log('\n🔗 ═══════════════════════════════════════════════════════════');
-  console.log('🔗 [NEW-RELATION] CONVITE ACEITO - INICIANDO PROCESSAMENTO');
-  console.log('🔗 ═══════════════════════════════════════════════════════════');
-  console.log('🔗 ⏰ Timestamp:', new Date().toISOString());
-  console.log('🔗 ⏰ Nota: Este evento pode ter delay de até 8h (polling do LinkedIn)');
-  console.log('🔗 📋 Payload:', JSON.stringify(payload, null, 2));
-
-  // Import services needed for invite system
   const inviteQueueService = require('../services/inviteQueueService');
   const notificationService = require('../services/notificationService');
 
-  // ✅ CAMPOS CORRETOS SEGUNDO DOCUMENTAÇÃO UNIPILE
   const {
     account_id,
-    user_provider_id, // ID do usuário no LinkedIn
-    user_public_identifier, // Vanity URL (ex: "john-doe")
-    user_profile_url, // URL completa do perfil
+    user_provider_id,
+    user_public_identifier,
+    user_profile_url,
     user_full_name,
     user_picture_url
   } = payload;
 
-  console.log('🔗 [1] Dados recebidos:');
-  console.log(`🔗     account_id: ${account_id}`);
-  console.log(`🔗     user_provider_id: ${user_provider_id}`);
-  console.log(`🔗     user_public_identifier: ${user_public_identifier}`);
-  console.log(`🔗     user_full_name: ${user_full_name}`);
-
   if (!account_id || !user_provider_id) {
-    console.log('🔗 ❌ ERRO: Campos obrigatórios ausentes');
     return { handled: false, reason: 'Missing required fields (account_id or user_provider_id)' };
   }
 
   try {
-    // Buscar conta LinkedIn
-    console.log('🔗 [2] Buscando conta LinkedIn no banco...');
     const linkedinAccount = await db.findOne('linkedin_accounts', {
       unipile_account_id: account_id
     });
 
     if (!linkedinAccount) {
-      console.log('🔗 ❌ ERRO: Conta LinkedIn não encontrada');
       return { handled: false, reason: 'LinkedIn account not found' };
     }
-    console.log(`🔗 ✅ Conta encontrada: ${linkedinAccount.id}`);
 
-    // ✅ IGNORAR CANAIS DESCONECTADOS
     if (linkedinAccount.status === 'disconnected') {
-      console.log('⏭️ Ignorando nova relação - canal está desconectado');
       return {
         handled: true,
         skipped: true,
@@ -1313,9 +1028,6 @@ async function handleNewRelation(payload) {
       };
     }
 
-    // Buscar lead pelo provider_id ou linkedin_profile_id ou public_identifier
-    // ✅ AMPLIADO: Busca leads com status 'invite_sent' OU na fila de convites
-    console.log('🔗 [3] Buscando lead no banco...');
     const leadQuery = `
       SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active, c.name as campaign_name,
              c.account_id,
@@ -1341,42 +1053,20 @@ async function handleNewRelation(payload) {
     ]);
 
     if (leadResult.rows.length === 0) {
-      console.log('🔗 ❌ Lead não encontrado para este convite');
-      console.log('🔗    Buscou por:');
-      console.log(`🔗    - provider_id = ${user_provider_id}`);
-      console.log(`🔗    - linkedin_profile_id = ${user_public_identifier}`);
-      console.log(`🔗    - profile_url LIKE %${user_public_identifier}%`);
       return { handled: false, reason: 'Lead not found' };
     }
 
     const lead = leadResult.rows[0];
-    console.log('🔗 ✅ Lead encontrado!');
-    console.log(`🔗     Lead ID: ${lead.id}`);
-    console.log(`🔗     Nome: ${lead.name}`);
-    console.log(`🔗     Campanha: ${lead.campaign_name} (${lead.campaign_id})`);
-    console.log(`🔗     Status atual: ${lead.status}`);
-    console.log(`🔗     Round Robin Config: sector_id=${lead.sector_id}, users=${lead.round_robin_users?.length || 0}`);
 
-    // ✅ BUSCAR PERFIL COMPLETO VIA UNIPILE API
-    console.log('🔗 [4] Buscando perfil completo via Unipile API...');
+    // Buscar perfil completo via Unipile API
     const fullProfile = await fetchUserProfileFromUnipile(account_id, user_provider_id);
-    if (fullProfile) {
-      console.log('🔗 ✅ Perfil completo obtido');
-      console.log(`🔗     Nome: ${fullProfile.first_name} ${fullProfile.last_name}`);
-      console.log(`🔗     Headline: ${fullProfile.headline?.substring(0, 50)}...`);
-    } else {
-      console.log('🔗 ⚠️ Não foi possível obter perfil completo');
-    }
 
-    // ✅ ATUALIZAR LEAD COM DADOS COMPLETOS DO PERFIL
-    console.log('🔗 [5] Preparando dados para atualização do lead...');
     const leadUpdateData = {
       status: LEAD_STATUS.ACCEPTED,
       accepted_at: new Date()
     };
 
     if (fullProfile) {
-      console.log('✅ Perfil completo obtido, atualizando dados do lead...');
 
       // Dados básicos
       if (fullProfile.first_name) leadUpdateData.first_name = fullProfile.first_name;
@@ -1417,15 +1107,9 @@ async function handleNewRelation(payload) {
       if (fullProfile.follower_count) leadUpdateData.follower_count = fullProfile.follower_count;
     }
 
-    // ✅ DISTRIBUIÇÃO VIA ROUND ROBIN
-    console.log('🔗 [6] Verificando distribuição Round Robin...');
+    // Distribuição via Round Robin
     let responsibleUserId = null;
     if (lead.sector_id && lead.round_robin_users && lead.round_robin_users.length > 0) {
-      console.log('🔗     Round Robin ATIVO');
-      console.log(`🔗     Setor: ${lead.sector_id}`);
-      console.log(`🔗     Usuários na rotação: ${lead.round_robin_users.length}`);
-
-      // Buscar último usuário atribuído no setor
       const sectorResult = await db.query(
         `SELECT last_assigned_user_id FROM sectors WHERE id = $1`,
         [lead.sector_id]
@@ -1443,7 +1127,6 @@ async function handleNewRelation(payload) {
 
       responsibleUserId = lead.round_robin_users[nextIndex];
 
-      // Atualizar setor com último atribuído
       await db.query(
         `UPDATE sectors SET last_assigned_user_id = $1 WHERE id = $2`,
         [responsibleUserId, lead.sector_id]
@@ -1451,50 +1134,31 @@ async function handleNewRelation(payload) {
 
       leadUpdateData.responsible_user_id = responsibleUserId;
       leadUpdateData.round_robin_distributed_at = new Date();
-
-      // Buscar nome do usuário para log
-      const userResult = await db.query(
-        `SELECT name FROM users WHERE id = $1`,
-        [responsibleUserId]
-      );
-      console.log(`🔗 ✅ Lead distribuído para: ${userResult.rows[0]?.name || responsibleUserId}`);
-    } else {
-      console.log('🔗     Round Robin NÃO configurado para esta campanha');
     }
 
     // Atualizar lead
-    console.log('🔗 [7] Atualizando lead no banco...');
     await db.update('leads', leadUpdateData, { id: lead.id });
-    console.log('🔗 ✅ Lead atualizado com status ACCEPTED');
 
-    // ✅ MARCAR CONVITE COMO ACEITO NA FILA
-    console.log('🔗 [8] Marcando convite como aceito na fila...');
+    // Marcar convite como aceito na fila
     try {
       await inviteQueueService.markInviteAsAccepted(lead.id);
-      console.log('🔗 ✅ Convite marcado como aceito na fila');
     } catch (queueError) {
-      console.warn('🔗 ⚠️ Erro ao atualizar fila de convites:', queueError.message);
-      console.log('🔗    (Pode não existir na fila - fluxo legado)');
+      // Silent fail - pode não existir na fila (fluxo legado)
     }
 
-    // 🆕 ATUALIZAR LOG DE CONVITE PARA 'ACCEPTED' (legado)
+    // Atualizar log de convite para 'accepted' (legado)
     try {
       await db.query(
         `UPDATE linkedin_invite_logs
-         SET status = 'accepted',
-             accepted_at = NOW()
-         WHERE lead_id = $1
-           AND linkedin_account_id = $2
-           AND status = 'sent'`,
+         SET status = 'accepted', accepted_at = NOW()
+         WHERE lead_id = $1 AND linkedin_account_id = $2 AND status = 'sent'`,
         [lead.id, linkedinAccount.id]
       );
-      console.log('✅ Log de convite atualizado para "accepted"');
     } catch (logError) {
-      console.warn('⚠️ Erro ao atualizar log de convite:', logError.message);
+      // Silent fail
     }
 
     // Atualizar contadores da campanha
-    console.log('🔗 [9] Atualizando contadores da campanha...');
     await db.query(
       `UPDATE campaigns
        SET leads_sent = GREATEST(0, leads_sent - 1),
@@ -1503,10 +1167,8 @@ async function handleNewRelation(payload) {
        WHERE id = $1`,
       [lead.campaign_id]
     );
-    console.log('🔗 ✅ Contadores atualizados');
 
-    // ✅ CRIAR NOTIFICAÇÃO NA PLATAFORMA
-    console.log('🔗 [10] Criando notificação na plataforma...');
+    // Criar notificação na plataforma
     const notifyUserId = responsibleUserId || lead.user_id;
     try {
       await notificationService.notifyInviteAccepted({
@@ -1517,28 +1179,21 @@ async function handleNewRelation(payload) {
         campaignId: lead.campaign_id,
         campaignName: lead.campaign_name
       });
-      console.log(`🔗 ✅ Notificação criada para usuário ${notifyUserId}`);
     } catch (notifError) {
-      console.warn('🔗 ⚠️ Erro ao criar notificação:', notifError.message);
+      // Silent fail
     }
 
-    // ✅ IA ATIVA SOMENTE SE CAMPANHA TEM AUTOMAÇÃO ATIVA
-    console.log('🔗 [11] Verificando configuração de IA...');
+    // IA ativa somente se campanha tem automação ativa
     const shouldActivateAI = lead.automation_active === true;
 
-    console.log(`🔗     Automação da campanha: ${lead.automation_active ? 'ATIVA' : 'INATIVA'}`);
-    console.log(`🔗     IA será ${shouldActivateAI ? 'ATIVADA' : 'DESATIVADA'} para esta conversa`);
-
     // Criar conversa automaticamente
-    // ⚠️ NOTA: new_relation NÃO inclui chat_id, será criado quando primeira mensagem chegar
-    console.log('🔗 [12] Criando conversa...');
     const conversationData = {
       user_id: lead.user_id,
       account_id: lead.account_id,
       linkedin_account_id: linkedinAccount.id,
       lead_id: lead.id,
       campaign_id: lead.campaign_id,
-      unipile_chat_id: `temp_chat_${lead.id}`, // Temporário, atualizado em message_received
+      unipile_chat_id: `temp_chat_${lead.id}`,
       status: shouldActivateAI ? 'ai_active' : 'manual',
       ai_active: shouldActivateAI,
       ai_agent_id: lead.ai_agent_id || null,
@@ -1547,43 +1202,20 @@ async function handleNewRelation(payload) {
     };
 
     const conversation = await db.insert('conversations', conversationData);
-    console.log(`🔗 ✅ Conversa criada: ${conversation.id}`);
 
-    // ✅ AGENDAR INÍCIO DE CONVERSA COM DELAY RANDÔMICO DA CONFIG
-    console.log('🔗 [13] Verificando agendamento de IA...');
+    // Agendar início de conversa com delay randômico
     let delayedJobScheduled = false;
     try {
       if (shouldActivateAI) {
-        // Usar delay configurado na campanha
         const delayMin = lead.ai_initiate_delay_min || 5;
         const delayMax = lead.ai_initiate_delay_max || 60;
         const randomDelay = Math.floor(Math.random() * (delayMax - delayMin + 1)) + delayMin;
-
-        console.log(`🔗     Agendando início de conversa automático para daqui ${randomDelay} minutos`);
-        console.log(`🔗     (Config: min=${delayMin}min, max=${delayMax}min)`);
-
-        // scheduleDelayedConversation aceita delay opcional em ms
         await scheduleDelayedConversation(lead.id, conversation.id, randomDelay * 60 * 1000);
         delayedJobScheduled = true;
-
-        console.log('🔗 ✅ Job de delay agendado com sucesso');
-      } else {
-        console.log('🔗     IA desativada - não agendando conversa automática');
       }
     } catch (automationError) {
-      console.error('🔗 ❌ Erro ao agendar início de conversa:', automationError);
-      // Não falhar o webhook se automação der erro
+      // Silent fail - não falhar o webhook se automação der erro
     }
-
-    console.log('\n🔗 ═══════════════════════════════════════════════════════════');
-    console.log('🔗 ✅ [NEW-RELATION] PROCESSAMENTO CONCLUÍDO COM SUCESSO!');
-    console.log(`🔗     Lead: ${lead.name}`);
-    console.log(`🔗     Status: ACCEPTED`);
-    console.log(`🔗     Conversa: ${conversation.id}`);
-    console.log(`🔗     Responsável: ${responsibleUserId || 'Não atribuído'}`);
-    console.log(`🔗     IA Agendada: ${delayedJobScheduled ? 'SIM' : 'NÃO'}`);
-    console.log(`🔗     Perfil Enriquecido: ${fullProfile ? 'SIM' : 'NÃO'}`);
-    console.log('🔗 ═══════════════════════════════════════════════════════════\n');
 
     return {
       handled: true,
