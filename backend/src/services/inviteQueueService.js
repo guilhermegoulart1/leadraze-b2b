@@ -644,7 +644,13 @@ const getCampaignReport = async (campaignId, filters = {}) => {
   let paramIndex = 2;
 
   if (status) {
-    whereClause += ` AND l.status = $${paramIndex}`;
+    // Filter by invite status (ciq.status) for invite-related filters
+    const inviteStatuses = ['pending', 'scheduled', 'sent', 'accepted', 'expired', 'withdrawn', 'failed'];
+    if (inviteStatuses.includes(status)) {
+      whereClause += ` AND ciq.status = $${paramIndex}`;
+    } else {
+      whereClause += ` AND l.status = $${paramIndex}`;
+    }
     params.push(status);
     paramIndex++;
   }

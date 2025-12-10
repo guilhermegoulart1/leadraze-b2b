@@ -179,16 +179,30 @@ const unipileClient = {
 
     sendConnectionRequest: async (params) => {
       const { account_id, user_id, message } = params;
-      const url = `https://${dsn}/api/v1/users/${user_id}/connection?account_id=${account_id}`;
 
-      const body = message ? { message } : {};
+      // Endpoint correto conforme documentação Unipile:
+      // https://developer.unipile.com/reference/userscontroller_adduserbyidentifier
+      const url = `https://${dsn}/api/v1/users/invite`;
+
+      const body = {
+        provider_id: user_id,
+        account_id: account_id
+      };
+
+      // Mensagem opcional (max 300 caracteres)
+      if (message) {
+        body.message = message.substring(0, 300);
+      }
+
+      console.log('📤 Unipile sendConnectionRequest:', { url, provider_id: user_id, account_id, hasMessage: !!message });
 
       const response = await axios.post(url, body, {
         headers: {
           'X-API-KEY': unipileToken,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        timeout: 15000
+        timeout: 30000
       });
 
       return response.data;

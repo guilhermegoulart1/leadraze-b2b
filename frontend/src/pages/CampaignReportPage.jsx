@@ -1,10 +1,10 @@
 // frontend/src/pages/CampaignReportPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Users, Clock, CheckCircle, XCircle, Send, UserCheck,
   Pause, Ban, RefreshCw, Loader, Calendar, AlertCircle, Filter,
-  ChevronLeft, ChevronRight, ExternalLink
+  ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -16,6 +16,7 @@ const STATUS_COLORS = {
   accepted: { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-700 dark:text-green-300', label: 'Aceito' },
   expired: { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-700 dark:text-red-300', label: 'Expirado' },
   withdrawn: { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-700 dark:text-purple-300', label: 'Retirado' },
+  failed: { bg: 'bg-orange-100 dark:bg-orange-900/50', text: 'text-orange-700 dark:text-orange-300', label: 'Falhou' },
 };
 
 const PIPELINE_STATUS_COLORS = {
@@ -49,6 +50,7 @@ const CampaignReportPage = () => {
     total: 0,
     totalPages: 0,
   });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     loadData();
@@ -141,6 +143,69 @@ const CampaignReportPage = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
+
+  // Sorting logic
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) {
+      return <ArrowUpDown className="w-3 h-3 opacity-40" />;
+    }
+    return sortConfig.direction === 'asc'
+      ? <ArrowUp className="w-3 h-3" />
+      : <ArrowDown className="w-3 h-3" />;
+  };
+
+  const sortedLeads = useMemo(() => {
+    if (!sortConfig.key) return leads;
+
+    return [...leads].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+        case 'name':
+          aValue = a.name || '';
+          bValue = b.name || '';
+          break;
+        case 'company':
+          aValue = a.company || '';
+          bValue = b.company || '';
+          break;
+        case 'invite_status':
+          aValue = a.invite_status || 'pending';
+          bValue = b.invite_status || 'pending';
+          break;
+        case 'scheduled_for':
+          aValue = a.scheduled_for ? new Date(a.scheduled_for).getTime() : 0;
+          bValue = b.scheduled_for ? new Date(b.scheduled_for).getTime() : 0;
+          break;
+        case 'days_waiting':
+          aValue = a.invite_sent_at ? new Date(a.invite_sent_at).getTime() : 0;
+          bValue = b.invite_sent_at ? new Date(b.invite_sent_at).getTime() : 0;
+          break;
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [leads, sortConfig]);
 
   const getInviteStatusBadge = (lead) => {
     const status = lead.invite_status || 'pending';
@@ -348,6 +413,8 @@ const CampaignReportPage = () => {
               <option value="sent">Enviados</option>
               <option value="accepted">Aceitos</option>
               <option value="expired">Expirados</option>
+              <option value="failed">Falhou</option>
+              <option value="withdrawn">Retirados</option>
             </select>
           </div>
 
@@ -361,23 +428,68 @@ const CampaignReportPage = () => {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Lead</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Empresa</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Status Convite</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Dias Esperando</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Pipeline</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Responsável</th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center gap-1">
+                    Lead {getSortIcon('name')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleSort('company')}
+                >
+                  <div className="flex items-center gap-1">
+                    Empresa {getSortIcon('company')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleSort('invite_status')}
+                >
+                  <div className="flex items-center gap-1">
+                    Status Convite {getSortIcon('invite_status')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleSort('scheduled_for')}
+                >
+                  <div className="flex items-center gap-1">
+                    Agendado Para {getSortIcon('scheduled_for')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleSort('days_waiting')}
+                >
+                  <div className="flex items-center gap-1">
+                    Dias Esperando {getSortIcon('days_waiting')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center gap-1">
+                    Pipeline {getSortIcon('status')}
+                  </div>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  Responsável
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {leads.length === 0 ? (
+              {sortedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                     Nenhum lead encontrado com este filtro
                   </td>
                 </tr>
               ) : (
-                leads.map((lead) => (
+                sortedLeads.map((lead) => (
                   <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-4 py-3 max-w-xs">
                       <div className="flex items-center gap-3">
@@ -417,6 +529,22 @@ const CampaignReportPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       {getInviteStatusBadge(lead)}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {lead.scheduled_for ? (
+                        <span className="text-blue-600 dark:text-blue-400">
+                          {new Date(lead.scheduled_for).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      ) : lead.invite_status === 'sent' ? (
+                        <span className="text-green-600 dark:text-green-400 text-xs">Enviado</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {lead.invite_status === 'sent' ? (
