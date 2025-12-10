@@ -150,6 +150,26 @@ const GoogleMapsAgentsPage = () => {
     }
   };
 
+  const handleExportAgent = async (agentId, agentName) => {
+    try {
+      console.log('📥 Exportando contatos do agente:', agentId);
+      const csv = await apiService.exportGoogleMapsAgentContacts(agentId);
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `google-maps-${agentName.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      console.log('✅ CSV exportado com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao exportar CSV:', error);
+      alert(t('agents.exportError', 'Erro ao exportar CSV. Tente novamente.'));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -218,6 +238,7 @@ const GoogleMapsAgentsPage = () => {
                 onPause={handlePauseAgent}
                 onResume={handleResumeAgent}
                 onDelete={handleDeleteAgent}
+                onExport={handleExportAgent}
               />
             ))}
           </div>

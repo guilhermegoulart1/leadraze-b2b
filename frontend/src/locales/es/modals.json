@@ -34,7 +34,8 @@
     "leadsWillBeActivated": "lead(s) serán activados",
     "activating": "Activando...",
     "activateCampaign": "Activar Campaña",
-    "viewLinkedInProfile": "Ver perfil en LinkedIn"
+    "viewLinkedInProfile": "Ver perfil en LinkedIn",
+    "exportCSV": "Exportar CSV"
   },
   "profileDetails": {
     "title": "Detalles del Perfil",

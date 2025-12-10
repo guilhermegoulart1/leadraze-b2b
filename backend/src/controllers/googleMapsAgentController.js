@@ -379,3 +379,88 @@ exports.getAssignments = async (req, res) => {
     });
   }
 };
+
+/**
+ * Export agent contacts to CSV
+ * GET /api/google-maps-agents/:id/export
+ */
+exports.exportAgentContacts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    console.log(`📥 CSV export request for agent ${id}`);
+
+    // Get agent info for filename
+    const agent = await googleMapsAgentService.getAgent(id, accountId);
+
+    // Get all contacts for this agent
+    const contacts = await googleMapsAgentService.getAgentContacts(id, accountId);
+
+    if (!contacts || contacts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhum contato encontrado para este agente'
+      });
+    }
+
+    // Generate CSV
+    const headers = [
+      'Nome',
+      'Categoria',
+      'Endereço',
+      'Cidade',
+      'Estado',
+      'País',
+      'Telefone',
+      'Email',
+      'Website',
+      'Rating',
+      'Reviews',
+      'Google Maps URL'
+    ];
+
+    const escapeCsvValue = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = contacts.map(c => [
+      escapeCsvValue(c.name),
+      escapeCsvValue(c.business_category),
+      escapeCsvValue(c.address),
+      escapeCsvValue(c.city),
+      escapeCsvValue(c.state),
+      escapeCsvValue(c.country),
+      escapeCsvValue(c.phone),
+      escapeCsvValue(c.email),
+      escapeCsvValue(c.website),
+      c.rating || '',
+      c.review_count || 0,
+      escapeCsvValue(c.google_maps_url)
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    // Set headers for CSV download
+    const filename = `google-maps-${agent.name.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Send CSV with BOM for Excel UTF-8 support
+    res.send('\uFEFF' + csv);
+
+    console.log(`✅ CSV exported successfully: ${contacts.length} contacts`);
+
+  } catch (error) {
+    console.error('❌ Error exporting agent contacts:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error exporting contacts'
+    });
+  }
+};

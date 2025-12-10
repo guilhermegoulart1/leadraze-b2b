@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, CheckCircle, Users, Sparkles, MessageSquare, Play,
   ArrowLeft, Loader, AlertCircle, Trash2, Settings, Clock,
-  Save, Globe, Calendar, Bot
+  Save, Globe, Calendar, Bot, Download
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -224,6 +224,64 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
     }
   };
 
+  // Exportar leads para CSV
+  const handleExportCSV = () => {
+    if (leads.length === 0) return;
+
+    const headers = [
+      'Nome',
+      'Cargo',
+      'Empresa',
+      'Email',
+      'Telefone',
+      'Localização',
+      'Headline',
+      'URL LinkedIn',
+      'Conexões',
+      'Seguidores',
+      'Premium',
+      'Creator',
+      'Influencer'
+    ];
+
+    const escapeCsvValue = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = leads.map(lead => [
+      escapeCsvValue(lead.name || ''),
+      escapeCsvValue(lead.title || ''),
+      escapeCsvValue(lead.company || ''),
+      escapeCsvValue(lead.email || ''),
+      escapeCsvValue(lead.phone || ''),
+      escapeCsvValue(lead.location || ''),
+      escapeCsvValue(lead.headline || ''),
+      escapeCsvValue(lead.profile_url || ''),
+      lead.connections_count || '',
+      lead.follower_count || '',
+      lead.is_premium ? 'Sim' : 'Não',
+      lead.is_creator ? 'Sim' : 'Não',
+      lead.is_influencer ? 'Sim' : 'Não'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `leads-${campaign?.name || 'campanha'}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!isOpen) return null;
 
@@ -587,6 +645,14 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                         {leads.length}
                       </span>
                     </div>
+                    <button
+                      onClick={handleExportCSV}
+                      disabled={leads.length === 0}
+                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={t('campaignReview.exportCSV', 'Exportar CSV')}
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                     {t('campaignReview.selectLeadsToDelete')}

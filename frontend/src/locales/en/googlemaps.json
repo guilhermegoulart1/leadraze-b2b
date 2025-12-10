@@ -34,6 +34,8 @@
     "errorDelete": "Error deleting campaign",
     "errorPause": "Error pausing campaign",
     "errorResume": "Error resuming campaign",
-    "errorExecute": "Error executing campaign"
+    "errorExecute": "Error executing campaign",
+    "exportCSV": "Export CSV",
+    "exportError": "Error exporting CSV. Try again."
   }
 }

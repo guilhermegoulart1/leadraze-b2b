@@ -772,6 +772,42 @@ class GoogleMapsAgentService {
 
     return nextExec;
   }
+
+  /**
+   * Get all contacts found by an agent (for CSV export)
+   * @param {string} agentId - Agent UUID
+   * @param {string} accountId - Account UUID for multi-tenancy
+   * @returns {Array} List of contacts with all Google Maps data
+   */
+  async getAgentContacts(agentId, accountId) {
+    const query = `
+      SELECT
+        c.name,
+        c.email,
+        c.phone,
+        c.company,
+        c.address,
+        c.city,
+        c.state,
+        c.country,
+        c.website,
+        c.rating,
+        c.review_count,
+        c.business_category,
+        c.google_maps_url,
+        c.latitude,
+        c.longitude,
+        gac.fetched_at,
+        gac.page_number
+      FROM google_maps_agent_contacts gac
+      INNER JOIN contacts c ON c.id = gac.contact_id
+      INNER JOIN google_maps_agents gma ON gma.id = gac.agent_id
+      WHERE gac.agent_id = $1 AND gma.account_id = $2
+      ORDER BY gac.fetched_at DESC
+    `;
+    const result = await db.query(query, [agentId, accountId]);
+    return result.rows;
+  }
 }
 
 module.exports = new GoogleMapsAgentService();

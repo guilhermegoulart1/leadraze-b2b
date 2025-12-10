@@ -1295,6 +1295,24 @@ class ApiService {
     return this.request(`/google-maps-agents/${id}/assignments?limit=${limit}`);
   }
 
+  async exportGoogleMapsAgentContacts(agentId) {
+    const url = `${this.baseURL}/google-maps-agents/${agentId}/export`;
+    const token = this.getToken();
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao exportar CSV');
+    }
+
+    return response.text();
+  }
+
   // ================================
   // CONTACT LISTS
   // ================================

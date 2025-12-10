@@ -90,4 +90,11 @@ router.put('/:id/assignees', googleMapsAgentController.setAssignees);
  */
 router.get('/:id/assignments', googleMapsAgentController.getAssignments);
 
+/**
+ * @route   GET /api/google-maps-agents/:id/export
+ * @desc    Export all contacts from an agent as CSV
+ * @access  Private
+ */
+router.get('/:id/export', googleMapsAgentController.exportAgentContacts);
+
 module.exports = router;

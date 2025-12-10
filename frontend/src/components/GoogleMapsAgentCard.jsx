@@ -13,12 +13,13 @@ import {
   AlertCircle,
   Loader2,
   Building2,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete }) => {
+const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport }) => {
   const getStatusConfig = (status) => {
     switch (status) {
       case 'active':
@@ -245,6 +246,16 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete }) => {
             <span>Concluído</span>
           </span>
         )}
+
+        {/* Export CSV button */}
+        <button
+          onClick={() => onExport(agent.id, agent.name)}
+          disabled={!agent.leads_inserted || agent.leads_inserted === 0}
+          className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Exportar CSV"
+        >
+          <Download className="w-4 h-4" />
+        </button>
 
         <button
           onClick={() => onDelete(agent.id)}
