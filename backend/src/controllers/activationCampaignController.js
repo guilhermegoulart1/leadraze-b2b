@@ -556,6 +556,15 @@ const deleteActivationCampaign = async (req, res) => {
       throw new ValidationError('Não é possível deletar campanha ativa. Pare a campanha primeiro.');
     }
 
+    // Cancelar qualquer job pendente na fila (segurança extra)
+    try {
+      console.log('🛑 Cancelando jobs pendentes antes de deletar...');
+      const cancelResult = await cancelCampaignInvites(id);
+      console.log(`✅ ${cancelResult.canceled || 0} jobs cancelados da fila`);
+    } catch (cancelError) {
+      console.warn('⚠️ Erro ao cancelar jobs (continuando delete):', cancelError.message);
+    }
+
     // Deletar campanha (contatos serão deletados em cascata)
     await db.query(
       'DELETE FROM activation_campaigns WHERE id = $1 AND account_id = $2 AND user_id = $3',
