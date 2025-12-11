@@ -285,6 +285,33 @@ class GoogleMapsAgentService {
     // Get agent data
     let agent = await this._getAgentById(agentId);
 
+    // Check if agent is in a valid state to execute
+    if (agent.status === 'paused') {
+      console.log(`⏸️  Agent ${agentId} is paused - skipping execution`);
+      return {
+        success: false,
+        leads_inserted: 0,
+        leads_skipped: 0,
+        pages_fetched: 0,
+        status: 'paused',
+        message: 'Agent is paused',
+        reason: 'agent_paused'
+      };
+    }
+
+    if (agent.status === 'completed') {
+      console.log(`✅ Agent ${agentId} is already completed - skipping execution`);
+      return {
+        success: false,
+        leads_inserted: 0,
+        leads_skipped: 0,
+        pages_fetched: 0,
+        status: 'completed',
+        message: 'Agent already completed',
+        reason: 'agent_completed'
+      };
+    }
+
     // Calculate how many pages to fetch based on daily_limit
     const dailyLimit = agent.daily_limit || 20;
     const pagesToFetch = Math.ceil(dailyLimit / 20);
@@ -452,19 +479,63 @@ class GoogleMapsAgentService {
   }
 
   /**
-   * Pause an agent
+   * Pause an agent - also removes jobs from queue
    */
   async pauseAgent(agentId, accountId) {
+    // Remove jobs from queue first
+    try {
+      // Remove repeatable jobs
+      const repeatableJobs = await googleMapsAgentQueue.getRepeatableJobs();
+      const agentJobs = repeatableJobs.filter(j => j.key.includes(agentId));
+
+      for (const job of agentJobs) {
+        await googleMapsAgentQueue.removeRepeatableByKey(job.key);
+        console.log(`⏸️  Removed repeatable job: ${job.key}`);
+      }
+
+      // Remove pending/waiting/delayed jobs
+      const jobs = await googleMapsAgentQueue.getJobs(['waiting', 'delayed']);
+      const agentSpecificJobs = jobs.filter(j => j.data.agentId === agentId);
+
+      for (const job of agentSpecificJobs) {
+        await job.remove();
+        console.log(`⏸️  Removed pending job: ${job.id}`);
+      }
+    } catch (error) {
+      console.error(`⚠️  Error removing jobs for agent ${agentId}:`, error.message);
+    }
+
     await this._updateAgentStatus(agentId, 'paused', accountId);
     console.log(`⏸️  Agent paused: ${agentId}`);
     return { success: true, status: 'paused' };
   }
 
   /**
-   * Resume an agent
+   * Resume an agent - re-adds jobs to queue
    */
   async resumeAgent(agentId, accountId) {
+    // Update status first
     await this._updateAgentStatus(agentId, 'active', accountId);
+
+    // Re-add repeatable job to queue
+    try {
+      await googleMapsAgentQueue.add(
+        { agentId },
+        {
+          jobId: `agent-${agentId}-repeat-${Date.now()}`,
+          repeat: {
+            every: 24 * 60 * 60 * 1000, // 24 hours
+            limit: 365
+          },
+          removeOnComplete: true,
+          removeOnFail: false
+        }
+      );
+      console.log(`▶️  Repeatable job re-scheduled for agent ${agentId}`);
+    } catch (error) {
+      console.error(`⚠️  Error re-scheduling job for agent ${agentId}:`, error.message);
+    }
+
     console.log(`▶️  Agent resumed: ${agentId}`);
     return { success: true, status: 'active' };
   }

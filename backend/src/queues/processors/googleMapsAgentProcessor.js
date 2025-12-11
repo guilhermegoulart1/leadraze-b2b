@@ -28,9 +28,10 @@ async function processGoogleMapsAgent(job) {
     console.log(`   - Leads skipped: ${result.leads_skipped}`);
     console.log(`   - Has more results: ${result.has_more_results}`);
 
-    // If agent is completed (no more results), remove repeatable job
-    if (!result.has_more_results || result.status === 'completed') {
-      console.log(`🏁 [Job ${job.id}] Agent completed - removing repeatable job`);
+    // If agent is paused, completed, or no more results - remove repeatable job
+    if (result.status === 'paused' || result.status === 'completed' || !result.has_more_results) {
+      const reason = result.status === 'paused' ? 'paused' : 'completed';
+      console.log(`🏁 [Job ${job.id}] Agent ${reason} - removing repeatable job`);
 
       // Remove the repeatable job
       const repeatableJobs = await googleMapsAgentQueue.getRepeatableJobs();
