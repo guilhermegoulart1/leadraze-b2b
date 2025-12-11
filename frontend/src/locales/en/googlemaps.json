@@ -36,6 +36,29 @@
     "errorResume": "Error resuming campaign",
     "errorExecute": "Error executing campaign",
     "exportCSV": "Export CSV",
-    "exportError": "Error exporting CSV. Try again."
+    "exportError": "Error exporting CSV. Try again.",
+    "dailyLimit": "Leads per day",
+    "dailyLimitCredits": "GMaps credits/day",
+    "dailyLimitInfo": "Every 20 leads = 1 GMaps credit. Pagination is saved to bring different leads each day.",
+    "editCampaign": "Edit Campaign",
+    "editDailyLimit": "Edit daily limit",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "errorUpdate": "Error updating campaign. Try again."
+  },
+  "creditsModal": {
+    "title": "Supercharge Your Prospecting",
+    "subtitle": "Get credits to generate unlimited leads",
+    "currentCredits": "Your current credits:",
+    "benefit1": "Each credit = 1 qualified lead from Google Maps",
+    "benefit2": "Purchased credits never expire!",
+    "credits": "credits",
+    "centsPerLead": "cents/lead",
+    "popular": "Popular",
+    "paymentSecure": "Secure payment via Stripe. You will be redirected to complete.",
+    "maybeLater": "Maybe later",
+    "creditGmapsDay": "GMaps credit/day",
+    "creditsGmapsDay": "GMaps credits/day"
   }
 }

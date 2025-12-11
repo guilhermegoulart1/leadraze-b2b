@@ -36,6 +36,29 @@
     "errorResume": "Error al reanudar campaña",
     "errorExecute": "Error al ejecutar campaña",
     "exportCSV": "Exportar CSV",
-    "exportError": "Error al exportar CSV. Intente nuevamente."
+    "exportError": "Error al exportar CSV. Intente nuevamente.",
+    "dailyLimit": "Leads por día",
+    "dailyLimitCredits": "créditos GMaps/día",
+    "dailyLimitInfo": "Cada 20 leads = 1 crédito GMaps. La paginación se guarda para traer leads diferentes cada día.",
+    "editCampaign": "Editar Campaña",
+    "editDailyLimit": "Editar límite diario",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "cancel": "Cancelar",
+    "errorUpdate": "Error al actualizar campaña. Intente nuevamente."
+  },
+  "creditsModal": {
+    "title": "Potencia tu Prospección",
+    "subtitle": "Adquiere créditos para generar leads ilimitados",
+    "currentCredits": "Tus créditos actuales:",
+    "benefit1": "Cada crédito = 1 lead calificado de Google Maps",
+    "benefit2": "¡Los créditos comprados nunca expiran!",
+    "credits": "créditos",
+    "centsPerLead": "centavos/lead",
+    "popular": "Popular",
+    "paymentSecure": "Pago seguro vía Stripe. Serás redirigido para finalizar.",
+    "maybeLater": "Quizás después",
+    "creditGmapsDay": "crédito GMaps/día",
+    "creditsGmapsDay": "créditos GMaps/día"
   }
 }

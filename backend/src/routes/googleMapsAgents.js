@@ -35,6 +35,13 @@ router.get('/', googleMapsAgentController.getAgents);
 router.get('/:id', googleMapsAgentController.getAgent);
 
 /**
+ * @route   PUT /api/google-maps-agents/:id
+ * @desc    Update a Google Maps agent configuration
+ * @access  Private
+ */
+router.put('/:id', googleMapsAgentController.updateAgent);
+
+/**
  * @route   POST /api/google-maps-agents/:id/execute
  * @desc    Manually execute an agent (fetch next batch)
  * @access  Private

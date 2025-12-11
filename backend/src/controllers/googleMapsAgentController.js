@@ -135,6 +135,49 @@ exports.getAgent = async (req, res) => {
 };
 
 /**
+ * Update an agent's configuration
+ * PUT /api/google-maps-agents/:id
+ */
+exports.updateAgent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+    const { dailyLimit } = req.body;
+
+    // Validate dailyLimit is multiple of 20
+    if (dailyLimit !== undefined && dailyLimit % 20 !== 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'dailyLimit deve ser múltiplo de 20'
+      });
+    }
+
+    // Validate minimum value
+    if (dailyLimit !== undefined && dailyLimit < 20) {
+      return res.status(400).json({
+        success: false,
+        message: 'dailyLimit deve ser no mínimo 20'
+      });
+    }
+
+    const agent = await googleMapsAgentService.updateAgent(id, accountId, { dailyLimit });
+
+    res.json({
+      success: true,
+      message: 'Agent updated successfully',
+      agent
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating agent:', error);
+    res.status(error.message.includes('not found') ? 404 : 500).json({
+      success: false,
+      message: error.message || 'Error updating agent'
+    });
+  }
+};
+
+/**
  * Execute an agent manually (fetch next batch of leads)
  * POST /api/google-maps-agents/:id/execute
  */

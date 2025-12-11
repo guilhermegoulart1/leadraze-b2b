@@ -40,6 +40,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     minReviews: null,
     requirePhone: false,
     requireEmail: false,
+    dailyLimit: 20, // Leads per day (must be multiple of 20)
 
     // Step 5: Actions
     actionType: 'crm_only',
@@ -233,8 +234,8 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         // Assignees for rotation (will be set after agent creation)
         assignees: formData.assignees.map(u => u.id),
 
-        // Fixed params
-        dailyLimit: 20
+        // Daily limit (configurable)
+        dailyLimit: formData.dailyLimit
       };
 
       await onSubmit(payload);
@@ -478,6 +479,42 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                     <Mail className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Exigir email</span>
                   </label>
+                </div>
+              </div>
+
+              {/* Daily Limit Slider */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Leads por dia
+                </label>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {formData.dailyLimit}
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {Math.ceil(formData.dailyLimit / 20)} crédito{Math.ceil(formData.dailyLimit / 20) > 1 ? 's' : ''} GMaps/dia
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="20"
+                    max="200"
+                    step="20"
+                    value={formData.dailyLimit}
+                    onChange={(e) => updateField('dailyLimit', parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>20</span>
+                    <span>60</span>
+                    <span>100</span>
+                    <span>140</span>
+                    <span>200</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Cada 20 leads = 1 crédito GMaps. A paginação é salva para trazer leads diferentes a cada dia.
+                  </p>
                 </div>
               </div>
             </div>

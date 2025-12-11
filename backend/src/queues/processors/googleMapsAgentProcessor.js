@@ -19,10 +19,11 @@ async function processGoogleMapsAgent(job) {
   console.log(`   Attempt: ${job.attemptsMade + 1}/${job.opts.attempts}`);
 
   try {
-    // Execute the agent (fetch next 20 leads + insert into CRM)
+    // Execute the agent (fetch pages based on daily_limit + insert into CRM)
     const result = await googleMapsAgentService.executeAgent(agentId);
 
     console.log(`✅ [Job ${job.id}] Agent execution completed:`);
+    console.log(`   - Pages fetched: ${result.pages_fetched || 1}`);
     console.log(`   - Leads inserted: ${result.leads_inserted}`);
     console.log(`   - Leads skipped: ${result.leads_skipped}`);
     console.log(`   - Has more results: ${result.has_more_results}`);

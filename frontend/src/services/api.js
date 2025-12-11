@@ -1252,6 +1252,13 @@ class ApiService {
     });
   }
 
+  async updateGoogleMapsAgent(id, data) {
+    return this.request(`/google-maps-agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   async executeGoogleMapsAgent(id) {
     return this.request(`/google-maps-agents/${id}/execute`, {
       method: 'POST',

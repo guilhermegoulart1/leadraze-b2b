@@ -214,7 +214,67 @@ class GoogleMapsAgentService {
   }
 
   /**
-   * Execute an agent - fetch next page and insert into CRM
+   * Update an agent's configuration
+   *
+   * @param {string} agentId - Agent ID
+   * @param {string} accountId - Account ID (for security)
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<Object>} - Updated agent
+   */
+  async updateAgent(agentId, accountId, updates) {
+    const { dailyLimit } = updates;
+
+    // Validate dailyLimit is multiple of 20
+    if (dailyLimit !== undefined && dailyLimit % 20 !== 0) {
+      throw new Error('dailyLimit must be a multiple of 20');
+    }
+
+    // Build dynamic update query
+    const fields = [];
+    const values = [];
+    let paramCount = 0;
+
+    if (dailyLimit !== undefined) {
+      paramCount++;
+      fields.push(`daily_limit = $${paramCount}`);
+      values.push(dailyLimit);
+    }
+
+    if (fields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    // Add updated_at
+    paramCount++;
+    fields.push(`updated_at = $${paramCount}`);
+    values.push(new Date());
+
+    // Add agentId and accountId for WHERE clause
+    paramCount++;
+    values.push(agentId);
+    paramCount++;
+    values.push(accountId);
+
+    const query = `
+      UPDATE google_maps_agents
+      SET ${fields.join(', ')}
+      WHERE id = $${paramCount - 1} AND account_id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await db.query(query, values);
+
+    if (result.rows.length === 0) {
+      throw new Error('Agent not found or unauthorized');
+    }
+
+    console.log(`✅ Google Maps agent updated: ${agentId} - daily_limit: ${dailyLimit}`);
+
+    return result.rows[0];
+  }
+
+  /**
+   * Execute an agent - fetch pages based on daily_limit and insert into CRM
    *
    * @param {string} agentId - Agent ID
    * @returns {Promise<Object>} - Execution results
@@ -223,28 +283,35 @@ class GoogleMapsAgentService {
     console.log(`🤖 Executing GMaps agent ${agentId}`);
 
     // Get agent data
-    const agent = await this._getAgentById(agentId);
+    let agent = await this._getAgentById(agentId);
 
-    // Check if account has AI credits before executing
+    // Calculate how many pages to fetch based on daily_limit
+    const dailyLimit = agent.daily_limit || 20;
+    const pagesToFetch = Math.ceil(dailyLimit / 20);
+
+    console.log(`📊 Agent ${agentId}: daily_limit=${dailyLimit}, pages to fetch=${pagesToFetch}`);
+
+    // Check initial credits before starting
     const hasAiCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
     if (!hasAiCredits) {
       return {
         success: false,
         leads_inserted: 0,
         leads_skipped: 0,
+        pages_fetched: 0,
         status: 'paused',
         message: 'Insufficient AI credits',
         reason: 'insufficient_ai_credits'
       };
     }
 
-    // Check if account has GMaps credits for the search
     const hasGmapsCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
     if (!hasGmapsCredits) {
       return {
         success: false,
         leads_inserted: 0,
         leads_skipped: 0,
+        pages_fetched: 0,
         status: 'paused',
         message: 'Insufficient GMaps credits',
         reason: 'insufficient_gmaps_credits'
@@ -261,14 +328,8 @@ class GoogleMapsAgentService {
       throw new Error(`Cannot execute agent with status: ${agent.status}`);
     }
 
-    // Calculate pagination offset
-    const currentPage = agent.current_page || 0;
-    const start = currentPage * 20;
-
-    // Build search query
+    // Build search query and location once (reused for all pages)
     const searchQuery = this._buildSearchQuery(agent);
-
-    // Build location parameter (prefer lat/lng if available)
     let location;
     if (agent.latitude && agent.longitude) {
       const radiusKm = agent.radius || (agent.search_radius ? agent.search_radius / 1000 : 14);
@@ -280,65 +341,113 @@ class GoogleMapsAgentService {
         : agent.search_location;
     }
 
-    const searchResults = await serpApiClient.searchGoogleMaps({
-      query: searchQuery,
-      location: location,
-      start: start
-    });
+    // Track totals across all pages
+    let totalInserted = 0;
+    let totalSkipped = 0;
+    let totalCreditsConsumed = 0;
+    let pagesFetched = 0;
+    let hasMoreResults = true;
+    let lastPage = agent.current_page || 0;
 
-    // Consume 1 GMaps credit for the search (charged per API call)
-    await billingService.consumeCredits(
-      agent.account_id,
-      'gmaps',
-      1,
-      {
-        resourceType: 'google_maps_agent',
-        resourceId: agent.id,
-        userId: agent.user_id,
-        description: `Google Maps search: "${searchQuery}" in ${location} (page ${currentPage})`
+    // Fetch multiple pages based on daily_limit
+    for (let i = 0; i < pagesToFetch && hasMoreResults; i++) {
+      // Check credits before each page
+      const hasGmapsCreditsForPage = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
+      if (!hasGmapsCreditsForPage) {
+        console.log(`⚠️ Agent ${agentId}: Stopped at page ${i + 1} - insufficient GMaps credits`);
+        break;
       }
-    );
 
-    if (!searchResults.success || searchResults.total_results === 0) {
-      await this._updateAgentStatus(agentId, 'completed');
-      return {
-        success: true,
-        leads_inserted: 0,
-        leads_skipped: 0,
-        status: 'completed',
-        message: 'No more results available'
-      };
+      const hasAiCreditsForPage = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
+      if (!hasAiCreditsForPage) {
+        console.log(`⚠️ Agent ${agentId}: Stopped at page ${i + 1} - insufficient AI credits`);
+        break;
+      }
+
+      // Calculate pagination offset for current page
+      const currentPage = lastPage + i;
+      const start = currentPage * 20;
+
+      console.log(`📄 Agent ${agentId}: Fetching page ${currentPage + 1} (offset ${start})`);
+
+      const searchResults = await serpApiClient.searchGoogleMaps({
+        query: searchQuery,
+        location: location,
+        start: start
+      });
+
+      // Consume 1 GMaps credit for the search
+      await billingService.consumeCredits(
+        agent.account_id,
+        'gmaps',
+        1,
+        {
+          resourceType: 'google_maps_agent',
+          resourceId: agent.id,
+          userId: agent.user_id,
+          description: `Google Maps search: "${searchQuery}" in ${location} (page ${currentPage + 1})`
+        }
+      );
+
+      pagesFetched++;
+
+      if (!searchResults.success || searchResults.total_results === 0) {
+        hasMoreResults = false;
+        console.log(`📭 Agent ${agentId}: No more results at page ${currentPage + 1}`);
+        break;
+      }
+
+      // Filter results based on agent criteria
+      const filteredPlaces = this._filterPlaces(searchResults.places, agent);
+
+      // Insert into CRM
+      const insertionResults = await this._insertPlacesIntoCRM(
+        filteredPlaces,
+        agent,
+        currentPage
+      );
+
+      totalInserted += insertionResults.inserted;
+      totalSkipped += insertionResults.skipped;
+      totalCreditsConsumed += insertionResults.creditsConsumed || 0;
+
+      // Update agent statistics after each page
+      await this._updateAgentStats(agentId, {
+        currentPage: currentPage + 1,
+        leadsFound: searchResults.total_results,
+        leadsInserted: insertionResults.inserted,
+        leadsSkipped: insertionResults.skipped,
+        apiCalls: 1,
+        hasMoreResults: searchResults.pagination.has_next_page
+      });
+
+      hasMoreResults = searchResults.pagination.has_next_page;
+
+      console.log(`✅ Agent ${agentId}: Page ${currentPage + 1} - +${insertionResults.inserted} leads`);
+
+      // If there are more pages to fetch, add a small delay to avoid rate limiting
+      if (i < pagesToFetch - 1 && hasMoreResults) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
 
-    // Filter results based on agent criteria
-    const filteredPlaces = this._filterPlaces(searchResults.places, agent);
+    // If no more results available, mark as completed
+    if (!hasMoreResults) {
+      await this._updateAgentStatus(agentId, 'completed');
+    }
 
-    // Insert into CRM
-    const insertionResults = await this._insertPlacesIntoCRM(
-      filteredPlaces,
-      agent,
-      currentPage
-    );
-
-    // Update agent statistics
-    await this._updateAgentStats(agentId, {
-      currentPage: currentPage + 1,
-      leadsFound: searchResults.total_results,
-      leadsInserted: insertionResults.inserted,
-      leadsSkipped: insertionResults.skipped,
-      apiCalls: 1,
-      hasMoreResults: searchResults.pagination.has_next_page
-    });
-
-    console.log(`✅ GMaps agent ${agentId}: +${insertionResults.inserted} leads (page ${currentPage + 1})`);
+    const finalPage = lastPage + pagesFetched;
+    console.log(`🏁 Agent ${agentId}: Execution complete - ${pagesFetched} pages, ${totalInserted} leads inserted`);
 
     return {
       success: true,
-      leads_inserted: insertionResults.inserted,
-      leads_skipped: insertionResults.skipped,
-      credits_consumed: insertionResults.creditsConsumed || 0,
-      current_page: currentPage + 1,
-      has_more_results: searchResults.pagination.has_next_page
+      leads_inserted: totalInserted,
+      leads_skipped: totalSkipped,
+      credits_consumed: totalCreditsConsumed,
+      pages_fetched: pagesFetched,
+      current_page: finalPage,
+      has_more_results: hasMoreResults,
+      status: hasMoreResults ? 'active' : 'completed'
     };
   }
 

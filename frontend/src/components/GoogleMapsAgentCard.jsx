@@ -14,12 +14,14 @@ import {
   Loader2,
   Building2,
   Users,
-  Download
+  Download,
+  Settings,
+  Target
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport }) => {
+const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport, onEdit }) => {
   const getStatusConfig = (status) => {
     switch (status) {
       case 'active':
@@ -158,6 +160,12 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport }) =
               📞 Obrigatório
             </span>
           )}
+          {agent.daily_limit && (
+            <span className="flex items-center gap-1 text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded">
+              <Target className="w-3 h-3" />
+              {agent.daily_limit}/dia
+            </span>
+          )}
         </div>
 
         {/* Sector and rotation info */}
@@ -245,6 +253,17 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport }) =
             <CheckCircle className="w-4 h-4" />
             <span>Concluído</span>
           </span>
+        )}
+
+        {/* Edit button */}
+        {onEdit && (
+          <button
+            onClick={() => onEdit(agent)}
+            className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+            title="Editar limite diário"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         )}
 
         {/* Export CSV button */}
