@@ -58,6 +58,16 @@ async function getLeadAndCampaign(leadId) {
       ai.behavioral_profile,
       ai.tone,
       ai.language,
+      ai.system_prompt,
+      ai.products_services,
+      ai.response_style_instructions,
+      ai.auto_schedule,
+      ai.scheduling_link,
+      ai.intent_detection_enabled,
+      ai.priority_rules,
+      ai.target_audience,
+      ai.escalation_rules,
+      ai.max_messages_before_transfer,
       la.unipile_account_id
     FROM leads l
     LEFT JOIN campaigns c ON l.campaign_id = c.id
@@ -76,65 +86,57 @@ async function getLeadAndCampaign(leadId) {
 
 /**
  * Gerar mensagem inicial da IA
+ * Usa aiResponseService.generateInitialMessage() para garantir consistencia
+ * com o Test Mode e usar todas as configuracoes do agente (Contratar Vendedor)
  * @param {Object} leadData - Dados do lead e campanha
  * @returns {Promise<string>} Mensagem gerada
  */
 async function generateInitialMessage(leadData) {
-  // Se houver mensagem inicial configurada, processar template
-  if (leadData.initial_approach) {
-    const leadTemplateData = TemplateProcessor.extractLeadData({
-      name: leadData.lead_name,
-      title: leadData.title,
-      company: leadData.company,
-      location: leadData.location,
-      industry: leadData.industry
-    });
-
-    const message = TemplateProcessor.processTemplate(
-      leadData.initial_approach,
-      leadTemplateData
-    );
-
-    return message;
-  }
-
-  // Caso contrário, gerar mensagem via IA
-  const context = {
-    lead: {
-      name: leadData.lead_name,
-      title: leadData.title,
-      company: leadData.company,
-      industry: leadData.industry,
-      location: leadData.location
-    },
-    agent: {
-      objective: leadData.objective,
-      tone: leadData.tone || 'professional',
-      language: leadData.language || 'pt-BR'
-    }
+  // Montar objeto ai_agent com todos os campos necessarios
+  const ai_agent = {
+    id: leadData.ai_agent_id,
+    name: leadData.ai_agent_name,
+    initial_approach: leadData.initial_approach,
+    objective: leadData.objective,
+    behavioral_profile: leadData.behavioral_profile,
+    tone: leadData.tone,
+    language: leadData.language,
+    system_prompt: leadData.system_prompt,
+    products_services: leadData.products_services,
+    response_style_instructions: leadData.response_style_instructions,
+    auto_schedule: leadData.auto_schedule,
+    scheduling_link: leadData.scheduling_link,
+    intent_detection_enabled: leadData.intent_detection_enabled,
+    priority_rules: leadData.priority_rules,
+    target_audience: leadData.target_audience,
+    escalation_rules: leadData.escalation_rules,
+    max_messages_before_transfer: leadData.max_messages_before_transfer,
+    agent_type: 'linkedin' // Sempre LinkedIn neste worker
   };
 
-  const prompt = `Você é um agente de IA iniciando uma conversa no LinkedIn.
+  // Montar objeto lead_data para o aiResponseService
+  const lead_data = {
+    name: leadData.lead_name,
+    title: leadData.title,
+    company: leadData.company,
+    location: leadData.location,
+    industry: leadData.industry,
+    headline: leadData.headline,
+    summary: leadData.summary,
+    profile_url: leadData.profile_url
+  };
 
-Informações do lead:
-- Nome: ${context.lead.name}
-- Cargo: ${context.lead.title || 'Não informado'}
-- Empresa: ${context.lead.company || 'Não informada'}
-- Indústria: ${context.lead.industry || 'Não informada'}
-
-Objetivo: ${context.agent.objective}
-Tom: ${context.agent.tone}
-
-Escreva uma mensagem de abertura natural e personalizada (máximo 150 palavras):`;
-
-  const response = await aiResponseService.generateResponse({
-    messages: [],
-    prompt,
-    temperature: 0.8,
-    maxTokens: 300
+  // Usar aiResponseService.generateInitialMessage para consistencia com Test Mode
+  const message = await aiResponseService.generateInitialMessage({
+    ai_agent,
+    lead_data,
+    campaign: {
+      id: leadData.campaign_id,
+      name: leadData.campaign_name
+    }
   });
 
-  return response;
+  return message;
 }
 
 /**

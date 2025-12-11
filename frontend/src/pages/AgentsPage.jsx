@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Bot, Mail, MessageCircle, Linkedin, Edit2, Trash2, Filter, BookOpen, Zap, Users, Loader, Shield } from 'lucide-react';
 import api from '../services/api';
-import SimpleAgentWizard from '../components/SimpleAgentWizard';
-import { HireSalesRepWizard, RulesEditor } from '../components/hire';
+import { HireSalesRepWizard, AgentEditModal, RulesEditor } from '../components/hire';
 import KnowledgeBaseModal from '../components/KnowledgeBaseModal';
 import AIAgentTestModal from '../components/AIAgentTestModal';
 import AgentAssignmentsModal from '../components/AgentAssignmentsModal';
@@ -418,15 +417,19 @@ const AgentsPage = () => {
         }}
       />
 
-      {/* Edit Wizard (for existing agents) */}
-      <SimpleAgentWizard
-        isOpen={showWizard && !!selectedAgent}
+      {/* Edit Modal (for existing agents) - Usando novo modal com sidebar */}
+      <AgentEditModal
+        isOpen={selectedAgent && showWizard}
         onClose={() => {
           setShowWizard(false);
           setSelectedAgent(null);
         }}
-        onSubmit={handleCreateAgent}
         agent={selectedAgent}
+        onSaved={() => {
+          loadAgents();
+          setShowWizard(false);
+          setSelectedAgent(null);
+        }}
       />
 
       {/* Test Modal */}

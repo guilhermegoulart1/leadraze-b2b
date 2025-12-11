@@ -20,7 +20,6 @@ import ListasPage from './pages/ListasPage';
 import LeadsPage from './pages/LeadsPage';
 import ContactsPage from './pages/ContactsPage';
 import ConversationsPage from './pages/ConversationsPage';
-import AIAgentsPage from './pages/AIAgentsPage';
 import AgentsPage from './pages/AgentsPage';
 import InsightsPage from './pages/InsightsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -139,7 +138,6 @@ function AppRoutes() {
         <Route path="leads" element={<LeadsPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
-        <Route path="ai-agents" element={<AIAgentsPage />} />
         <Route path="insights" element={<InsightsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="activation-agents" element={<ActivationAgentsPage />} />

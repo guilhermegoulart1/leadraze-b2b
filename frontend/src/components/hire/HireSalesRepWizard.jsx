@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Bot } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+// Helper to detect if avatar is a base64 data URL (uploaded image)
+const isBase64Image = (url) => url && url.startsWith('data:image/');
 
 // Step Components
 import CandidateGallery from './CandidateGallery';
+import CustomizeAgentStep from './CustomizeAgentStep';
 import ChannelSelector from './ChannelSelector';
 import { ProductStep, TargetAudienceStep } from './ConversationalStep';
 import ConnectionStrategyStep from './ConnectionStrategyStep';
@@ -18,6 +22,7 @@ import api from '../../services/api';
 
 const STEPS = {
   CANDIDATE: 'candidate',
+  CUSTOMIZE: 'customize',
   CHANNEL: 'channel',
   PRODUCT: 'product',
   TARGET: 'target',
@@ -32,6 +37,7 @@ const STEPS = {
 const getStepOrder = (channel) => {
   const baseSteps = [
     STEPS.CANDIDATE,
+    STEPS.CUSTOMIZE,
     STEPS.CHANNEL,
     STEPS.PRODUCT,
     STEPS.TARGET
@@ -58,9 +64,10 @@ const getStepOrder = (channel) => {
   ];
 };
 
-const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
+const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) => {
   const { t } = useTranslation('hire');
-  const [currentStep, setCurrentStep] = useState(STEPS.CANDIDATE);
+  const isEditMode = !!agent;
+  const [currentStep, setCurrentStep] = useState(isEditMode ? STEPS.PRODUCT : STEPS.CANDIDATE);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -74,6 +81,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
   const [formData, setFormData] = useState({
     candidate: null,
     channel: null,
+    customAvatar: null, // Custom avatar URL (Unsplash or uploaded)
     productService: {
       categories: [],
       description: ''
@@ -90,15 +98,89 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
     objective: 'qualify_transfer',
     maxMessages: 3,
     schedulingLink: '',
-    conversionLink: '',
-    agentName: ''
+    agentName: '',
+    priorityRules: [],
+    waitTimeAfterAccept: 5,
+    requireLeadReply: false
   });
+
+  // Preencher dados do agente em modo de edição
+  React.useEffect(() => {
+    if (isOpen && agent) {
+      console.log('Loading agent in edit mode:', {
+        behavioral_profile: agent.behavioral_profile,
+        config: agent.config
+      });
+      // Parse products_services (pode ser string JSON ou objeto)
+      let productService = { categories: [], description: '' };
+      if (agent.products_services) {
+        if (typeof agent.products_services === 'string') {
+          try {
+            productService = JSON.parse(agent.products_services);
+          } catch {
+            productService = { categories: [], description: agent.products_services };
+          }
+        } else {
+          productService = agent.products_services;
+        }
+      }
+
+      // Parse target_audience
+      let targetAudience = { roles: [], companySizes: [], industry: '' };
+      if (agent.target_audience) {
+        if (typeof agent.target_audience === 'string') {
+          try {
+            targetAudience = JSON.parse(agent.target_audience);
+          } catch {
+            targetAudience = { roles: [], companySizes: [], industry: agent.target_audience };
+          }
+        } else {
+          targetAudience = agent.target_audience;
+        }
+      }
+
+      // Parse config JSON for methodology, objective, etc.
+      const agentConfig = typeof agent.config === 'string'
+        ? JSON.parse(agent.config || '{}')
+        : (agent.config || {});
+
+      setFormData({
+        candidate: {
+          id: 'existing',
+          name: agent.name,
+          color: '#3B82F6',
+          defaultConfig: {}
+        },
+        channel: agentConfig.channel || agent.agent_type || 'linkedin',
+        productService,
+        targetAudience,
+        connectionStrategy: agent.connection_strategy || 'with-intro',
+        inviteMessage: agent.invite_message || agent.initial_approach || '',
+        conversationStyle: agent.behavioral_profile || 'consultivo',
+        methodology: agentConfig.methodology_template_id || null,
+        objective: agentConfig.objective || 'qualify_transfer',
+        maxMessages: agentConfig.max_messages_before_escalation || 3,
+        schedulingLink: agent.scheduling_link || '',
+        agentName: agent.name || ''
+      });
+
+      // Em modo edição, começar do passo de produto (pular seleção de candidato e canal)
+      setCurrentStep(STEPS.PRODUCT);
+    }
+  }, [isOpen, agent]);
 
   // Get step order based on selected channel
   const stepOrder = getStepOrder(formData.channel);
   const currentStepIndex = stepOrder.indexOf(currentStep);
   const totalSteps = stepOrder.length;
   const progress = ((currentStepIndex + 1) / totalSteps) * 100;
+
+  // Create a display candidate object with customized values
+  const displayCandidate = formData.candidate ? {
+    ...formData.candidate,
+    name: formData.agentName || formData.candidate.name,
+    avatar: formData.customAvatar || formData.candidate.avatar
+  } : null;
 
   // Update form data
   const updateFormData = (key, value) => {
@@ -111,6 +193,9 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
     switch (currentStep) {
       case STEPS.CANDIDATE:
         return !!formData.candidate;
+      case STEPS.CUSTOMIZE:
+        // Name is required (use candidate name as fallback)
+        return !!(formData.agentName || formData.candidate?.name);
       case STEPS.CHANNEL:
         return !!formData.channel;
       case STEPS.PRODUCT:
@@ -159,48 +244,77 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
     setError('');
   };
 
-  // Create agent
+  // Create or update agent
   const handleCreateAgent = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      // Build agent data from form
+      // Build agent data from form - only fields that exist in the database
+      console.log('Creating agent with formData:', {
+        conversationStyle: formData.conversationStyle,
+        methodology: formData.methodology,
+        objective: formData.objective
+      });
+
+      // Apply defaults from candidate FIRST, then override with form values
+      const candidateDefaults = isEditMode ? {} : (formData.candidate?.defaultConfig || {});
+
       const agentData = {
+        // 1. Candidate defaults (lowest priority)
+        ...candidateDefaults,
+
+        // 2. Form values (override defaults)
         name: formData.agentName || formData.candidate?.name || 'Vendedor Digital',
+        agent_type: formData.channel || 'linkedin',
         products_services: formData.productService,
         behavioral_profile: formData.conversationStyle,
-        methodology_template_id: formData.methodology,
         target_audience: formData.targetAudience,
-        channel: formData.channel,
         connection_strategy: formData.connectionStrategy,
         invite_message: formData.inviteMessage,
-        objective: formData.objective,
-        max_messages_before_transfer: formData.maxMessages,
+        initial_approach: formData.inviteMessage || null,
         scheduling_link: formData.schedulingLink,
-        conversion_link: formData.conversionLink,
-        candidate_template_id: formData.candidate?.id,
+        priority_rules: formData.priorityRules || [],
+        wait_time_after_accept: formData.waitTimeAfterAccept || 5,
+        require_lead_reply: formData.requireLeadReply || false,
+        avatar_url: formData.customAvatar || formData.candidate?.avatar || null,
 
-        // Apply defaults from candidate
-        ...formData.candidate?.defaultConfig,
-
-        // Escalation rules based on objective
-        escalation_rules: {
+        // 3. Config JSON with wizard settings (merge with any candidate config)
+        config: {
+          ...(candidateDefaults.config || {}),
+          methodology_template_id: formData.methodology,
+          objective: formData.objective,
+          channel: formData.channel,
+          max_messages_before_escalation: formData.maxMessages || 3,
           escalate_on_price_question: formData.objective === 'qualify_transfer',
           escalate_on_specific_feature: true,
           escalate_keywords: ['preço', 'quanto custa', 'demo', 'reunião', 'proposta'],
-          max_messages_before_escalation: formData.maxMessages || 3
+          candidate_template_id: formData.candidate?.id
         }
       };
 
-      const result = await api.createAIAgent(agentData);
-      setCreatedAgentId(result.id || result.agent_id);
+      console.log('Final agentData being sent:', {
+        behavioral_profile: agentData.behavioral_profile,
+        config: agentData.config
+      });
 
-      // Show post-hire dialog instead of closing immediately
-      setShowPostHireDialog(true);
+      let result;
+      if (isEditMode) {
+        // Modo edição - atualizar agente existente
+        result = await api.updateAIAgent(agent.id, agentData);
+        // Fechar diretamente sem mostrar dialog de regras
+        onAgentCreated();
+        handleClose();
+      } else {
+        // Modo criação - criar novo agente
+        result = await api.createAIAgent(agentData);
+        setCreatedAgentId(result.id || result.agent_id);
+        // Show post-hire dialog instead of closing immediately
+        setShowPostHireDialog(true);
+      }
     } catch (err) {
-      console.error('Error creating agent:', err);
-      setError(err.message || 'Erro ao criar vendedor');
+      console.error('Error saving agent:', err);
+      setError(err.message || (isEditMode ? 'Erro ao atualizar vendedor' : 'Erro ao criar vendedor'));
     } finally {
       setIsLoading(false);
     }
@@ -259,6 +373,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
     setFormData({
       candidate: null,
       channel: null,
+      customAvatar: null,
       productService: { categories: [], description: '' },
       targetAudience: { roles: [], companySizes: [], industry: '' },
       connectionStrategy: 'with-intro',
@@ -294,9 +409,14 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
   // Get step title
   const getStepTitle = () => {
+    if (isEditMode) {
+      return `Editando ${formData.agentName || agent?.name || 'Vendedor'}`;
+    }
     if (currentStep === STEPS.CANDIDATE) return t('candidates.title');
     if (formData.candidate) {
-      return t('wizard.getting_to_know', { name: formData.candidate.name });
+      // Use custom name if set, otherwise use candidate name
+      const displayName = formData.agentName || formData.candidate.name;
+      return t('wizard.getting_to_know', { name: displayName });
     }
     return t('wizard.title');
   };
@@ -309,10 +429,26 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
           <div className="flex items-center gap-3">
             {formData.candidate && (
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white"
                 style={{ backgroundColor: formData.candidate.color }}
               >
-                {formData.candidate.name[0]}
+                {/* If custom avatar is base64 (uploaded), show robot icon */}
+                {isBase64Image(formData.customAvatar) ? (
+                  <Bot className="w-5 h-5 text-white" />
+                ) : (formData.customAvatar || formData.candidate.avatar) ? (
+                  <img
+                    src={formData.customAvatar || formData.candidate.avatar}
+                    alt={formData.agentName || formData.candidate.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <span style={{ display: (formData.customAvatar || formData.candidate.avatar) && !isBase64Image(formData.customAvatar) ? 'none' : isBase64Image(formData.customAvatar) ? 'none' : 'flex' }}>
+                  {(formData.agentName || formData.candidate.name)[0]}
+                </span>
               </div>
             )}
             <div>
@@ -335,7 +471,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
         {/* Progress Bar */}
         <div className="h-1 bg-gray-100 dark:bg-gray-800 flex-shrink-0">
           <div
-            className="h-full bg-blue-500 transition-all duration-300"
+            className="h-full bg-purple-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -361,14 +497,28 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
                 if (candidate.methodology) {
                   updateFormData('methodology', candidate.methodology);
                 }
+                // Pre-fill name from candidate
+                if (candidate.name && !formData.agentName) {
+                  updateFormData('agentName', candidate.name);
+                }
               }}
               onCreateFromScratch={handleCreateFromScratch}
             />
           )}
 
+          {currentStep === STEPS.CUSTOMIZE && (
+            <CustomizeAgentStep
+              candidate={formData.candidate}
+              agentName={formData.agentName || formData.candidate?.name || ''}
+              onChangeName={(name) => updateFormData('agentName', name)}
+              avatarUrl={formData.customAvatar}
+              onChangeAvatar={(url) => updateFormData('customAvatar', url)}
+            />
+          )}
+
           {currentStep === STEPS.CHANNEL && (
             <ChannelSelector
-              selectedCandidate={formData.candidate}
+              selectedCandidate={displayCandidate}
               selectedChannel={formData.channel}
               onSelect={(channel) => updateFormData('channel', channel)}
             />
@@ -376,7 +526,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.PRODUCT && (
             <ProductStep
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               data={formData.productService}
               onChange={(data) => updateFormData('productService', data)}
             />
@@ -384,7 +534,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.TARGET && (
             <TargetAudienceStep
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               productValue={formData.productService?.description || ''}
               data={formData.targetAudience}
               onChange={(data) => updateFormData('targetAudience', data)}
@@ -393,7 +543,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.CONNECTION && (
             <ConnectionStrategyStep
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               selectedStrategy={formData.connectionStrategy}
               onSelectStrategy={(strategy) => updateFormData('connectionStrategy', strategy)}
               inviteMessage={formData.inviteMessage}
@@ -403,7 +553,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.STYLE && (
             <ConversationStyleStep
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               selectedStyle={formData.conversationStyle}
               onSelect={(style) => updateFormData('conversationStyle', style)}
             />
@@ -411,7 +561,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.METHODOLOGY && (
             <SalesMethodologyStep
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               selectedMethodology={formData.methodology}
               onSelect={(method) => updateFormData('methodology', method)}
               onSkip={() => {
@@ -423,7 +573,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.OBJECTIVE && (
             <ObjectiveStep
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               channel={formData.channel}
               selectedObjective={formData.objective}
               onSelect={(obj) => updateFormData('objective', obj)}
@@ -438,7 +588,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
 
           {currentStep === STEPS.SUMMARY && (
             <ContractSummary
-              candidate={formData.candidate}
+              candidate={displayCandidate}
               formData={formData}
               onEdit={() => goToStep(STEPS.CANDIDATE)}
               onEditProduct={() => goToStep(STEPS.PRODUCT)}
@@ -449,6 +599,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
               onEditConnection={() => goToStep(STEPS.CONNECTION)}
               onConfirm={handleCreateAgent}
               isLoading={isLoading}
+              isEditMode={isEditMode}
             />
           )}
         </div>
@@ -471,7 +622,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
             <button
               onClick={goNext}
               disabled={!canGoNext()}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('wizard.next')}
               <ArrowRight className="w-4 h-4" />
@@ -488,7 +639,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated }) => {
         onSkip={handleSkipRules}
         agentName={formData.agentName || formData.candidate?.name || 'Vendedor'}
         agentColor={formData.candidate?.color || '#3B82F6'}
-        agentAvatar={formData.candidate?.avatar}
+        agentAvatar={formData.customAvatar || formData.candidate?.avatar}
       />
 
       {/* Rules Editor */}

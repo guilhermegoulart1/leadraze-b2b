@@ -54,7 +54,11 @@
       "Bash(powershell -Command \"Set-Location ''c:\\leadraze-b2b\\frontend''; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/pt/agents.json'', ''utf8'')); console.log(''PT OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/en/agents.json'', ''utf8'')); console.log(''EN OK'')\"\" 2>&1; node -e \"\"JSON.parse(require(''fs'').readFileSync(''src/locales/es/agents.json'', ''utf8'')); console.log(''ES OK'')\"\" 2>&1\")",
       "Bash(dir /b \"c:\\leadraze-b2b\\backend\\src\\migrations\")",
       "Bash(dir /b \"c:\\leadraze-b2b\\backend\\migrations\")",
-      "Bash(dir /b \"c:\\leadraze-b2b\\backend\\database\\migrations\")"
+      "Bash(dir /b \"c:\\leadraze-b2b\\backend\\database\\migrations\")",
+      "Bash(dir /b \"c:\\leadraze-b2b\\frontend\\src\\components\\hire\")",
+      "Bash(del \"c:\\leadraze-b2b\\frontend\\src\\pages\\AIAgentsPage.jsx\")",
+      "Bash(dir /b \"c:\\leadraze-b2b\\backend\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

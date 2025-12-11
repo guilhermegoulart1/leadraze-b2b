@@ -9,35 +9,39 @@ const iconMap = {
   Mail
 };
 
-const ChannelSelector = ({ selectedCandidate, selectedChannel, onSelect }) => {
+const ChannelSelector = ({ selectedCandidate, selectedChannel, onSelect, customAvatar, agentName }) => {
   const { t } = useTranslation('hire');
+
+  // Use custom values if provided, fallback to candidate values
+  const displayName = agentName || selectedCandidate?.name || '';
+  const displayAvatar = customAvatar || selectedCandidate?.avatar;
 
   return (
     <div className="space-y-6">
       {/* Chat bubble from candidate */}
       <div className="max-w-md mx-auto">
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl rounded-tl-none p-4 border border-blue-100 dark:border-blue-800">
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl rounded-tl-none p-4 border border-purple-100 dark:border-purple-800">
           <div className="flex items-start gap-3">
             <div
               className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-offset-1"
-              style={{ ringColor: selectedCandidate?.color || '#3B82F6' }}
+              style={{ ringColor: selectedCandidate?.color || '#6366F1' }}
             >
-              {selectedCandidate?.avatar ? (
+              {displayAvatar ? (
                 <img
-                  src={selectedCandidate.avatar}
-                  alt={selectedCandidate?.name || ''}
+                  src={displayAvatar}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-sm font-bold text-white" style="background-color: ${selectedCandidate?.color || '#3B82F6'}">${selectedCandidate?.name?.[0] || '?'}</div>`;
+                    e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-sm font-bold text-white" style="background-color: ${selectedCandidate?.color || '#6366F1'}">${displayName?.[0] || '?'}</div>`;
                   }}
                 />
               ) : (
                 <div
                   className="w-full h-full flex items-center justify-center text-sm font-bold text-white"
-                  style={{ backgroundColor: selectedCandidate?.color || '#3B82F6' }}
+                  style={{ backgroundColor: selectedCandidate?.color || '#6366F1' }}
                 >
-                  {selectedCandidate?.name?.[0] || '?'}
+                  {displayName?.[0] || '?'}
                 </div>
               )}
             </div>

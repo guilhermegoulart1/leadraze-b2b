@@ -187,8 +187,25 @@ const receiveWebhook = async (req, res) => {
     const rawPayload = req.body;
     const signature = req.headers['x-unipile-signature'];
 
+    // Log de entrada do webhook
+    const eventKeys = Object.keys(rawPayload);
+    if (eventKeys.includes('NewRelation') || eventKeys.includes('RelationCreated')) {
+      console.log('');
+      console.log('📥 ═══════════════════════════════════════════════════════════════');
+      console.log('📥 [WEBHOOK ENTRY] NEW_RELATION/RELATION_CREATED RECEBIDO!');
+      console.log('📥 [WEBHOOK ENTRY] Timestamp:', new Date().toISOString());
+      console.log('📥 [WEBHOOK ENTRY] Raw payload keys:', eventKeys);
+      console.log('📥 ═══════════════════════════════════════════════════════════════');
+    }
+
     // Detectar tipo de evento e normalizar payload
     const { eventType, payload } = parseUnipileWebhook(rawPayload);
+
+    // Log adicional para new_relation
+    if (eventType === 'new_relation') {
+      console.log('📥 [WEBHOOK ENTRY] Evento detectado como new_relation');
+      console.log('📥 [WEBHOOK ENTRY] Payload normalizado:', JSON.stringify(payload, null, 2));
+    }
 
     // Validar signature (se configurado)
     if (process.env.WEBHOOK_SECRET && signature) {
@@ -997,6 +1014,15 @@ async function handleNewRelation(payload) {
   const inviteQueueService = require('../services/inviteQueueService');
   const notificationService = require('../services/notificationService');
 
+  // ========== LOG DETALHADO DO WEBHOOK DE CONVITE ACEITO ==========
+  console.log('');
+  console.log('🔔 ═══════════════════════════════════════════════════════════════');
+  console.log('🔔 [NEW_RELATION] WEBHOOK RECEBIDO - CONVITE ACEITO');
+  console.log('🔔 ═══════════════════════════════════════════════════════════════');
+  console.log('🔔 [NEW_RELATION] Timestamp:', new Date().toISOString());
+  console.log('🔔 [NEW_RELATION] Raw payload:', JSON.stringify(payload, null, 2));
+  console.log('🔔 ───────────────────────────────────────────────────────────────');
+
   const {
     account_id,
     user_provider_id,
@@ -1006,7 +1032,17 @@ async function handleNewRelation(payload) {
     user_picture_url
   } = payload;
 
+  console.log('🔔 [NEW_RELATION] Campos extraídos:');
+  console.log('🔔   - account_id:', account_id);
+  console.log('🔔   - user_provider_id:', user_provider_id);
+  console.log('🔔   - user_public_identifier:', user_public_identifier);
+  console.log('🔔   - user_profile_url:', user_profile_url);
+  console.log('🔔   - user_full_name:', user_full_name);
+  console.log('🔔   - user_picture_url:', user_picture_url);
+
   if (!account_id || !user_provider_id) {
+    console.log('❌ [NEW_RELATION] ERRO: Campos obrigatórios ausentes!');
+    console.log('❌ [NEW_RELATION] account_id:', account_id, '| user_provider_id:', user_provider_id);
     return { handled: false, reason: 'Missing required fields (account_id or user_provider_id)' };
   }
 
@@ -1015,11 +1051,22 @@ async function handleNewRelation(payload) {
       unipile_account_id: account_id
     });
 
+    console.log('🔔 [NEW_RELATION] Busca conta LinkedIn por unipile_account_id:', account_id);
+    console.log('🔔 [NEW_RELATION] Conta encontrada:', linkedinAccount ? `ID ${linkedinAccount.id}` : 'NÃO');
+
     if (!linkedinAccount) {
+      console.log('❌ [NEW_RELATION] ERRO: Conta LinkedIn não encontrada para account_id:', account_id);
       return { handled: false, reason: 'LinkedIn account not found' };
     }
 
+    console.log('🔔 [NEW_RELATION] Conta LinkedIn:', {
+      id: linkedinAccount.id,
+      status: linkedinAccount.status,
+      name: linkedinAccount.name
+    });
+
     if (linkedinAccount.status === 'disconnected') {
+      console.log('⚠️ [NEW_RELATION] Conta desconectada, ignorando webhook');
       return {
         handled: true,
         skipped: true,
@@ -1028,6 +1075,7 @@ async function handleNewRelation(payload) {
       };
     }
 
+    // Busca lead com status pendente
     const leadQuery = `
       SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active, c.name as campaign_name,
              c.account_id,
@@ -1047,6 +1095,13 @@ async function handleNewRelation(payload) {
       LIMIT 1
     `;
 
+    console.log('🔔 [NEW_RELATION] Buscando lead com parâmetros:');
+    console.log('🔔   - linkedin_account_id:', linkedinAccount.id);
+    console.log('🔔   - provider_id:', user_provider_id);
+    console.log('🔔   - linkedin_profile_id:', user_public_identifier);
+    console.log('🔔   - profile_url LIKE:', `%${user_public_identifier}%`);
+    console.log('🔔   - status IN: (invite_sent, invite_queued)');
+
     const leadResult = await db.query(leadQuery, [
       linkedinAccount.id,
       user_provider_id,
@@ -1054,11 +1109,56 @@ async function handleNewRelation(payload) {
       `%${user_public_identifier}%`
     ]);
 
+    console.log('🔔 [NEW_RELATION] Resultado da busca:', leadResult.rows.length, 'lead(s) encontrado(s)');
+
     if (leadResult.rows.length === 0) {
+      // Log adicional: buscar lead sem filtro de status para debug
+      const debugQuery = `
+        SELECT l.id, l.name, l.status, l.provider_id, l.linkedin_profile_id, l.profile_url, c.name as campaign_name
+        FROM leads l
+        JOIN campaigns c ON l.campaign_id = c.id
+        WHERE c.linkedin_account_id = $1
+        AND (
+          l.provider_id = $2
+          OR l.linkedin_profile_id = $3
+          OR l.profile_url LIKE $4
+        )
+        LIMIT 5
+      `;
+      const debugResult = await db.query(debugQuery, [
+        linkedinAccount.id,
+        user_provider_id,
+        user_public_identifier,
+        `%${user_public_identifier}%`
+      ]);
+
+      console.log('❌ [NEW_RELATION] Lead NÃO encontrado com status pendente!');
+      console.log('🔍 [NEW_RELATION] Debug - Leads encontrados SEM filtro de status:');
+      if (debugResult.rows.length > 0) {
+        debugResult.rows.forEach((l, i) => {
+          console.log(`🔍   [${i+1}] ID: ${l.id}, Nome: ${l.name}, Status: ${l.status}, Campanha: ${l.campaign_name}`);
+          console.log(`🔍       provider_id: ${l.provider_id}`);
+          console.log(`🔍       linkedin_profile_id: ${l.linkedin_profile_id}`);
+          console.log(`🔍       profile_url: ${l.profile_url}`);
+        });
+      } else {
+        console.log('🔍   Nenhum lead encontrado mesmo sem filtro de status');
+        console.log('🔍   Isso indica que os identificadores não batem com nenhum lead');
+      }
+      console.log('🔔 ═══════════════════════════════════════════════════════════════');
+      console.log('');
       return { handled: false, reason: 'Lead not found' };
     }
 
     const lead = leadResult.rows[0];
+    console.log('✅ [NEW_RELATION] Lead encontrado:');
+    console.log('✅   - ID:', lead.id);
+    console.log('✅   - Nome:', lead.name);
+    console.log('✅   - Status atual:', lead.status);
+    console.log('✅   - Campanha:', lead.campaign_name, '(ID:', lead.campaign_id, ')');
+    console.log('✅   - provider_id do lead:', lead.provider_id);
+    console.log('✅   - linkedin_profile_id do lead:', lead.linkedin_profile_id);
+    console.log('🔔 ───────────────────────────────────────────────────────────────');
 
     // Buscar perfil completo via Unipile API
     const fullProfile = await fetchUserProfileFromUnipile(account_id, user_provider_id);
@@ -1140,6 +1240,8 @@ async function handleNewRelation(payload) {
 
     // Atualizar lead
     await db.update('leads', leadUpdateData, { id: lead.id });
+    console.log('✅ [NEW_RELATION] Lead atualizado para status ACCEPTED!');
+    console.log('✅ [NEW_RELATION] Lead ID:', lead.id, '| Novo status: accepted');
 
     // Marcar convite como aceito na fila
     try {
@@ -1248,6 +1350,16 @@ async function handleNewRelation(payload) {
       console.error('🔗 [CONNECTION STRATEGY] Erro ao agendar conversa:', automationError.message);
       // Silent fail - não falhar o webhook se automação der erro
     }
+
+    console.log('');
+    console.log('🎉 ═══════════════════════════════════════════════════════════════');
+    console.log('🎉 [NEW_RELATION] PROCESSAMENTO CONCLUÍDO COM SUCESSO!');
+    console.log('🎉   Lead ID:', lead.id);
+    console.log('🎉   Lead Nome:', lead.name);
+    console.log('🎉   Conversation ID:', conversation.id);
+    console.log('🎉   Automação agendada:', delayedJobScheduled ? 'Sim' : 'Não');
+    console.log('🎉 ═══════════════════════════════════════════════════════════════');
+    console.log('');
 
     return {
       handled: true,

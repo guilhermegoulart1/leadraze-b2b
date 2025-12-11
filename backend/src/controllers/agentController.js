@@ -113,7 +113,7 @@ const getAgents = async (req, res) => {
     // Query params
     const { agent_type, is_active, limit = 50, offset = 0 } = req.query;
 
-    // Build query
+    // Build query - includes all fields from migrations 066, 067, 068
     let query = `
       SELECT
         id,
@@ -135,7 +135,21 @@ const getAgents = async (req, res) => {
         last_execution_at,
         next_execution_at,
         created_at,
-        updated_at
+        updated_at,
+        products_services,
+        target_audience,
+        behavioral_profile,
+        connection_strategy,
+        wait_time_after_accept,
+        require_lead_reply,
+        invite_message,
+        initial_approach,
+        scheduling_link,
+        auto_schedule,
+        intent_detection_enabled,
+        response_style_instructions,
+        priority_rules,
+        linkedin_variables
       FROM ai_agents
       WHERE account_id = $1
     `;
@@ -261,7 +275,21 @@ const createAgent = async (req, res) => {
       handoff_message = null,
       notify_on_handoff = true,
       // Assignees for rotation
-      assignee_user_ids = []
+      assignee_user_ids = [],
+      // Hire wizard fields
+      products_services,
+      target_audience,
+      behavioral_profile,
+      connection_strategy = 'with-intro',
+      wait_time_after_accept = 5,
+      require_lead_reply = false,
+      invite_message,
+      initial_approach,
+      scheduling_link,
+      auto_schedule = false,
+      intent_detection_enabled = true,
+      response_style_instructions,
+      priority_rules = []
     } = req.body;
 
     // Validation
@@ -308,7 +336,7 @@ const createAgent = async (req, res) => {
       }
     }
 
-    // Insert agent
+    // Insert agent with all hire wizard fields
     const result = await db.query(
       `INSERT INTO ai_agents (
         account_id,
@@ -327,8 +355,21 @@ const createAgent = async (req, res) => {
         handoff_after_exchanges,
         handoff_silent,
         handoff_message,
-        notify_on_handoff
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        notify_on_handoff,
+        products_services,
+        target_audience,
+        behavioral_profile,
+        connection_strategy,
+        wait_time_after_accept,
+        require_lead_reply,
+        invite_message,
+        initial_approach,
+        scheduling_link,
+        auto_schedule,
+        intent_detection_enabled,
+        response_style_instructions,
+        priority_rules
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
       RETURNING *`,
       [
         accountId,
@@ -347,7 +388,20 @@ const createAgent = async (req, res) => {
         handoff_after_exchanges,
         handoff_silent,
         handoff_message,
-        notify_on_handoff
+        notify_on_handoff,
+        products_services ? (typeof products_services === 'string' ? products_services : JSON.stringify(products_services)) : null,
+        target_audience ? (typeof target_audience === 'string' ? target_audience : JSON.stringify(target_audience)) : null,
+        behavioral_profile || null,
+        connection_strategy,
+        wait_time_after_accept,
+        require_lead_reply,
+        invite_message || null,
+        initial_approach || null,
+        scheduling_link || null,
+        auto_schedule,
+        intent_detection_enabled,
+        response_style_instructions || null,
+        JSON.stringify(priority_rules)
       ]
     );
 
@@ -404,7 +458,20 @@ const updateAgent = async (req, res) => {
       is_active,
       daily_limit,
       execution_time,
-      priority_rules
+      priority_rules,
+      // Hire wizard fields
+      products_services,
+      target_audience,
+      behavioral_profile,
+      connection_strategy,
+      wait_time_after_accept,
+      require_lead_reply,
+      invite_message,
+      initial_approach,
+      scheduling_link,
+      auto_schedule,
+      intent_detection_enabled,
+      response_style_instructions
     } = req.body;
 
     // Validate config if provided
@@ -471,6 +538,79 @@ const updateAgent = async (req, res) => {
     if (priority_rules !== undefined) {
       updates.push(`priority_rules = $${paramIndex}`);
       params.push(JSON.stringify(priority_rules));
+      paramIndex++;
+    }
+
+    // Hire wizard fields
+    if (products_services !== undefined) {
+      updates.push(`products_services = $${paramIndex}`);
+      params.push(typeof products_services === 'string' ? products_services : JSON.stringify(products_services));
+      paramIndex++;
+    }
+
+    if (target_audience !== undefined) {
+      updates.push(`target_audience = $${paramIndex}`);
+      params.push(typeof target_audience === 'string' ? target_audience : JSON.stringify(target_audience));
+      paramIndex++;
+    }
+
+    if (behavioral_profile !== undefined) {
+      updates.push(`behavioral_profile = $${paramIndex}`);
+      params.push(behavioral_profile);
+      paramIndex++;
+    }
+
+    if (connection_strategy !== undefined) {
+      updates.push(`connection_strategy = $${paramIndex}`);
+      params.push(connection_strategy);
+      paramIndex++;
+    }
+
+    if (wait_time_after_accept !== undefined) {
+      updates.push(`wait_time_after_accept = $${paramIndex}`);
+      params.push(wait_time_after_accept);
+      paramIndex++;
+    }
+
+    if (require_lead_reply !== undefined) {
+      updates.push(`require_lead_reply = $${paramIndex}`);
+      params.push(require_lead_reply);
+      paramIndex++;
+    }
+
+    if (invite_message !== undefined) {
+      updates.push(`invite_message = $${paramIndex}`);
+      params.push(invite_message);
+      paramIndex++;
+    }
+
+    if (initial_approach !== undefined) {
+      updates.push(`initial_approach = $${paramIndex}`);
+      params.push(initial_approach);
+      paramIndex++;
+    }
+
+    if (scheduling_link !== undefined) {
+      updates.push(`scheduling_link = $${paramIndex}`);
+      params.push(scheduling_link);
+      paramIndex++;
+    }
+
+    if (auto_schedule !== undefined) {
+      updates.push(`auto_schedule = $${paramIndex}`);
+      params.push(auto_schedule);
+      paramIndex++;
+    }
+
+    if (intent_detection_enabled !== undefined) {
+      updates.push(`intent_detection_enabled = $${paramIndex}`);
+      params.push(intent_detection_enabled);
+      paramIndex++;
+    }
+
+    if (response_style_instructions !== undefined) {
+      updates.push(`response_style_instructions = $${paramIndex}`);
+      params.push(response_style_instructions);
       paramIndex++;
     }
 

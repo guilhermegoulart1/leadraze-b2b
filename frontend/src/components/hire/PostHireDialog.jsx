@@ -1,6 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle, Settings, ArrowRight, PartyPopper } from 'lucide-react';
+import { CheckCircle, Settings, ArrowRight, PartyPopper, Bot } from 'lucide-react';
+
+// Helper to detect if avatar is a base64 data URL (uploaded image)
+const isBase64Image = (url) => url && url.startsWith('data:image/');
 
 const PostHireDialog = ({
   isOpen,
@@ -31,7 +34,11 @@ const PostHireDialog = ({
               className="w-20 h-20 rounded-full overflow-hidden ring-4 ring-white dark:ring-gray-900 shadow-lg mx-auto"
               style={{ backgroundColor: agentColor }}
             >
-              {agentAvatar ? (
+              {isBase64Image(agentAvatar) ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Bot className="w-10 h-10 text-white" />
+                </div>
+              ) : agentAvatar ? (
                 <img
                   src={agentAvatar}
                   alt={agentName}

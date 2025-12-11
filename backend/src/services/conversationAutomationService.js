@@ -446,7 +446,18 @@ async function getConversationDetails(conversationId) {
       aa.scheduling_link,
       aa.intent_detection_enabled,
       aa.response_style_instructions,
-      aa.priority_rules
+      aa.priority_rules,
+      aa.objective,
+      aa.tone,
+      aa.language,
+      aa.target_audience,
+      aa.escalation_rules,
+      aa.escalation_keywords,
+      aa.escalation_sentiments,
+      aa.conversation_steps,
+      aa.knowledge_similarity_threshold,
+      aa.max_messages_before_transfer,
+      aa.handoff_after_exchanges
     FROM conversations conv
     JOIN leads l ON conv.lead_id = l.id
     JOIN campaigns c ON conv.campaign_id = c.id
@@ -475,7 +486,18 @@ async function getConversationDetails(conversationId) {
       scheduling_link: row.scheduling_link,
       intent_detection_enabled: row.intent_detection_enabled,
       response_style_instructions: row.response_style_instructions,
-      priority_rules: row.priority_rules || []
+      priority_rules: row.priority_rules || [],
+      objective: row.objective,
+      tone: row.tone,
+      language: row.language,
+      target_audience: row.target_audience,
+      escalation_rules: row.escalation_rules,
+      escalation_keywords: row.escalation_keywords,
+      escalation_sentiments: row.escalation_sentiments,
+      conversation_steps: row.conversation_steps,
+      knowledge_similarity_threshold: row.knowledge_similarity_threshold,
+      max_messages_before_transfer: row.max_messages_before_transfer,
+      handoff_after_exchanges: row.handoff_after_exchanges
     } : null,
     lead_data: {
       name: row.lead_name,

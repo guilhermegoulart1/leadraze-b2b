@@ -52,6 +52,9 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
         break;
 
       case 'new_relation':
+        console.log('[webhookWorker] 🔔 NEW_RELATION event - Processing invite accepted webhook');
+        console.log('[webhookWorker] 🔔 Payload user_full_name:', payload?.user_full_name);
+        console.log('[webhookWorker] 🔔 Payload user_provider_id:', payload?.user_provider_id);
         result = await webhookController.handleNewRelation(payload);
         break;
 

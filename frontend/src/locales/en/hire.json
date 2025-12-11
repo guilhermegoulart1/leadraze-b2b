@@ -316,5 +316,16 @@
     "exampleAlways": "be polite and cordial",
     "addRules": "Add Rules",
     "skip": "Do this later"
+  },
+  "customize": {
+    "title": "Customize your sales rep",
+    "subtitle": "Give it a name and choose the appearance of your assistant",
+    "nameLabel": "Sales rep name",
+    "refreshAvatar": "Another photo",
+    "uploadAvatar": "Upload image",
+    "infoNote": "This image will only be used for your internal identification. Contacts will receive the normal profile photo from each channel (LinkedIn, WhatsApp, etc).",
+    "errorNotImage": "Please select an image",
+    "errorTooLarge": "The image must be at most 2MB",
+    "errorReading": "Error reading the image"
   }
 }

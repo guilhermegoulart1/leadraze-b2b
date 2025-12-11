@@ -1,5 +1,6 @@
 // Hire Sales Rep Components
 export { default as HireSalesRepWizard } from './HireSalesRepWizard';
+export { default as AgentEditModal } from './AgentEditModal';
 export { default as CandidateGallery } from './CandidateGallery';
 export { default as ChannelSelector } from './ChannelSelector';
 export { ProductStep, TargetAudienceStep } from './ConversationalStep';

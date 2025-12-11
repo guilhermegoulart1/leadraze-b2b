@@ -316,5 +316,16 @@
     "exampleAlways": "ser educado y cordial",
     "addRules": "Agregar Reglas",
     "skip": "Hacer esto después"
+  },
+  "customize": {
+    "title": "Personaliza tu vendedor",
+    "subtitle": "Dale un nombre y elige la apariencia de tu asistente",
+    "nameLabel": "Nombre del vendedor",
+    "refreshAvatar": "Otra foto",
+    "uploadAvatar": "Subir imagen",
+    "infoNote": "Esta imagen se usará solo para tu identificación interna. Los contactos recibirán la foto de perfil normal de cada canal (LinkedIn, WhatsApp, etc).",
+    "errorNotImage": "Por favor, selecciona una imagen",
+    "errorTooLarge": "La imagen debe tener como máximo 2MB",
+    "errorReading": "Error al leer la imagen"
   }
 }

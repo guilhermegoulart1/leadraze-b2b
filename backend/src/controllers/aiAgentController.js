@@ -75,6 +75,10 @@ const createAIAgent = async (req, res) => {
       auto_schedule,
       scheduling_link,
       target_audience,
+      avatar_url,
+      config,
+      agent_type = 'linkedin',
+      priority_rules,
       // Connection strategy fields
       connection_strategy,
       invite_message,
@@ -136,6 +140,8 @@ const createAIAgent = async (req, res) => {
       account_id: accountId,
       name,
       description: agentDescription,
+      avatar_url: avatar_url || null,
+      agent_type: agent_type || 'linkedin',
       products_services: typeof products_services === 'object' ? JSON.stringify(products_services) : products_services,
       target_audience: typeof target_audience === 'object' ? JSON.stringify(target_audience) : target_audience,
       behavioral_profile,
@@ -149,6 +155,8 @@ const createAIAgent = async (req, res) => {
       intent_detection_enabled: true,
       response_style_instructions: profile.systemPrompt,
       is_active: true,
+      config: config ? JSON.stringify(config) : null,
+      priority_rules: priority_rules ? JSON.stringify(priority_rules) : '[]',
       // Connection strategy fields
       connection_strategy: finalStrategy,
       invite_message: invite_message || null,
@@ -223,7 +231,24 @@ const updateAIAgent = async (req, res) => {
       throw new NotFoundError('Agente não encontrado');
     }
 
-    const updated = await db.update('ai_agents', req.body, { id: req.params.id });
+    // Preparar dados para atualização, convertendo objetos para JSON
+    const updateData = { ...req.body };
+
+    // Converter campos de objeto para JSON string
+    if (typeof updateData.products_services === 'object' && updateData.products_services !== null) {
+      updateData.products_services = JSON.stringify(updateData.products_services);
+    }
+    if (typeof updateData.target_audience === 'object' && updateData.target_audience !== null) {
+      updateData.target_audience = JSON.stringify(updateData.target_audience);
+    }
+    if (typeof updateData.escalation_rules === 'object' && updateData.escalation_rules !== null) {
+      updateData.escalation_rules = JSON.stringify(updateData.escalation_rules);
+    }
+    if (typeof updateData.priority_rules === 'object' && updateData.priority_rules !== null) {
+      updateData.priority_rules = JSON.stringify(updateData.priority_rules);
+    }
+
+    const updated = await db.update('ai_agents', updateData, { id: req.params.id });
     updated.linkedin_variables = typeof updated.linkedin_variables === 'string'
       ? JSON.parse(updated.linkedin_variables)
       : updated.linkedin_variables;

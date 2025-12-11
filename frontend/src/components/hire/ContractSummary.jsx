@@ -14,7 +14,8 @@ const ContractSummary = ({
   onEditObjective,
   onEditConnection,
   onConfirm,
-  isLoading
+  isLoading,
+  isEditMode = false
 }) => {
   const { t } = useTranslation('hire');
 
@@ -211,7 +212,9 @@ const ContractSummary = ({
                   {t('summary.objective')}
                 </p>
                 <p className="text-sm text-gray-900 dark:text-white font-medium">
-                  {t(`objective.objectives.${formData.objective}.name`, { defaultValue: objective.name })}
+                  {t(`objective.objectives.${formData.objective}.name.${formData.channel}`, {
+                    defaultValue: t(`objective.objectives.${formData.objective}.name`, { defaultValue: objective.name })
+                  })}
                 </p>
               </div>
               {onEditObjective && (
@@ -236,17 +239,17 @@ const ContractSummary = ({
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`flex items-center gap-2 px-6 py-3 ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>{t('wizard.hiring')}</span>
+                <span>{isEditMode ? 'Salvando...' : t('wizard.hiring')}</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
-                <span>{t('summary.hire', { name: candidate?.name || t('summary.salesRep') })}</span>
+                {isEditMode ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                <span>{isEditMode ? 'Salvar Alterações' : t('summary.hire', { name: candidate?.name || t('summary.salesRep') })}</span>
               </>
             )}
           </button>
