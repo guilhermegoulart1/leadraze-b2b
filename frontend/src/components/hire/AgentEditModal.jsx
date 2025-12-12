@@ -178,14 +178,19 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
     }
   };
 
-  // Sidebar sections config
+  // Get agent channel type
+  const agentChannel = agent?.agent_type || 'linkedin';
+  const isLinkedIn = agentChannel === 'linkedin';
+
+  // Sidebar sections config - filter based on channel
   const sections = [
     { id: SECTIONS.PRODUCT, icon: Package, label: 'Produto' },
     { id: SECTIONS.TARGET, icon: Target, label: 'Público-alvo' },
     { id: SECTIONS.STYLE, icon: MessageSquare, label: 'Estilo' },
     { id: SECTIONS.METHODOLOGY, icon: BookOpen, label: 'Metodologia' },
     { id: SECTIONS.OBJECTIVE, icon: Check, label: 'Objetivo' },
-    { id: SECTIONS.LINKEDIN, icon: Linkedin, label: 'LinkedIn' },
+    // Only show LinkedIn section for LinkedIn agents
+    ...(isLinkedIn ? [{ id: SECTIONS.LINKEDIN, icon: Linkedin, label: 'LinkedIn' }] : []),
     { id: SECTIONS.RULES, icon: Shield, label: 'Regras' }
   ];
 
@@ -284,7 +289,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
               />
             )}
 
-            {activeSection === SECTIONS.LINKEDIN && (
+            {isLinkedIn && activeSection === SECTIONS.LINKEDIN && (
               <LinkedInSection
                 connectionStrategy={formData.connectionStrategy}
                 inviteMessage={formData.inviteMessage}
