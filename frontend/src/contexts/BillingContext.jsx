@@ -182,7 +182,7 @@ export const BillingProvider = ({ children }) => {
   // Purchase credits
   const purchaseCredits = async (packageId, currency = 'brl') => {
     try {
-      const response = await api.purchaseCredits({ packageId, currency });
+      const response = await api.purchaseCredits({ packageKey: packageId, currency });
       if (response.success && response.data.url) {
         window.location.href = response.data.url;
       }

@@ -235,7 +235,8 @@ const GoogleMapsAgentsPage = () => {
   const creditPackages = [
     { id: 'gmaps_500', credits: 500, price: 9, popular: false },
     { id: 'gmaps_1000', credits: 1000, price: 17, popular: true },
-    { id: 'gmaps_2500', credits: 2500, price: 39, popular: false }
+    { id: 'gmaps_2500', credits: 2500, price: 39, popular: false },
+    { id: 'gmaps_5000', credits: 5000, price: 55, popular: false }
   ];
 
   return (
