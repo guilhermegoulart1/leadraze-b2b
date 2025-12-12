@@ -774,6 +774,26 @@ const LinkedInSection = ({ connectionStrategy, inviteMessage, onChange }) => {
     HandWaving: Hand
   };
 
+  // Default messages for each strategy (same as in ConnectionStrategyStep)
+  const defaultMessages = {
+    'with-intro': `Oi {{first_name}}, tudo bem?
+
+Vi que você trabalha com {{title}} na {{company}}.
+Tenho ajudado empresas como a sua a [benefício].
+
+Aceita conectar?`,
+    'icebreaker': 'Oi {{first_name}}, tudo bem?',
+    'silent': ''
+  };
+
+  const handleStrategyChange = (strategyId) => {
+    onChange('connectionStrategy', strategyId);
+    // Update invite message to default when strategy changes
+    if (strategyId !== connectionStrategy) {
+      onChange('inviteMessage', defaultMessages[strategyId] || '');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -798,7 +818,7 @@ const LinkedInSection = ({ connectionStrategy, inviteMessage, onChange }) => {
               <button
                 key={strategy.id}
                 type="button"
-                onClick={() => onChange('connectionStrategy', strategy.id)}
+                onClick={() => handleStrategyChange(strategy.id)}
                 className={`w-full text-left p-3 rounded-lg border transition-all ${
                   isSelected
                     ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
