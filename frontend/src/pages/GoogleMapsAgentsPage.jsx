@@ -437,21 +437,16 @@ const GoogleMapsAgentsPage = () => {
         </div>
       )}
 
-      {/* Credits Purchase Modal - Friendly design */}
+      {/* Credits Purchase Modal - Compact design */}
       {showCreditsModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 text-white">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <MapPin className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">{t('creditsModal.title')}</h2>
-                    <p className="text-purple-100 text-sm">{t('creditsModal.subtitle')}</p>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <Zap className="w-5 h-5" />
+                  <h2 className="text-lg font-bold">{t('creditsModal.title')}</h2>
                 </div>
                 <button
                   onClick={() => setShowCreditsModal(false)}
@@ -463,84 +458,73 @@ const GoogleMapsAgentsPage = () => {
             </div>
 
             {/* Content */}
-            <div className="p-6">
+            <div className="p-4">
               {/* Current credits info */}
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Zap className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <span className="text-gray-700 dark:text-gray-300">{t('creditsModal.currentCredits')}</span>
-                  </div>
-                  <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {credits?.gmaps?.available || 0}
-                  </span>
-                </div>
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2 mb-3 flex items-center justify-between">
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('creditsModal.currentCredits')}</span>
+                <span className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                  {credits?.gmaps?.available || 0}
+                </span>
               </div>
 
-              {/* Benefits */}
-              <div className="mb-6">
-                <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 text-sm mb-3">
-                  <Sparkles className="w-4 h-4 text-yellow-500" />
-                  <span>{t('creditsModal.benefit1')}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 text-sm">
-                  <Gift className="w-4 h-4 text-green-500" />
-                  <span>{t('creditsModal.benefit2')}</span>
-                </div>
+              {/* Benefits - inline */}
+              <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-yellow-500" />
+                  {t('creditsModal.benefit1')}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Gift className="w-3 h-3 text-green-500" />
+                  {t('creditsModal.benefit2')}
+                </span>
               </div>
 
               {/* Package options */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {creditPackages.map((pkg) => (
                   <button
                     key={pkg.id}
                     onClick={() => handlePurchaseCredits(pkg.id)}
                     disabled={purchasingPackage !== null}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-2 transition-all ${
                       pkg.popular
-                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-2">
                       {pkg.popular && (
-                        <span className="bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        <span className="bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">
                           {t('creditsModal.popular')}
                         </span>
                       )}
                       <div className="text-left">
-                        <p className="font-bold text-gray-900 dark:text-white text-lg">
+                        <span className="font-bold text-gray-900 dark:text-white">
                           {pkg.credits.toLocaleString()} {t('creditsModal.credits')}
-                        </p>
-                        <p className="text-sm text-green-600 dark:text-green-400">
+                        </span>
+                        <span className="text-xs text-green-600 dark:text-green-400 ml-2">
                           ${(pkg.price / pkg.credits * 100).toFixed(1)} {t('creditsModal.centsPerLead')}
-                        </p>
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      {purchasingPackage === pkg.id ? (
-                        <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
-                      ) : (
-                        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                          ${pkg.price}
-                        </span>
-                      )}
-                    </div>
+                    {purchasingPackage === pkg.id ? (
+                      <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                    ) : (
+                      <span className="text-lg font-bold text-gray-900 dark:text-white">
+                        ${pkg.price}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
 
-              {/* Footer message */}
-              <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">
+              {/* Footer */}
+              <p className="text-center text-gray-400 text-xs mt-3">
                 {t('creditsModal.paymentSecure')}
               </p>
-            </div>
-
-            {/* Close button */}
-            <div className="px-6 pb-6">
               <button
                 onClick={() => setShowCreditsModal(false)}
-                className="w-full py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium transition-colors"
+                className="w-full py-2 mt-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 {t('creditsModal.maybeLater')}
               </button>

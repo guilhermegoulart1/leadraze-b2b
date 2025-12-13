@@ -28,6 +28,9 @@ router.get('/campaign/:campaignId', leadController.getCampaignLeads);
 // Criar leads em lote
 router.post('/bulk', leadController.createLeadsBulk);
 
+// Criar lead manual (sem campanha)
+router.post('/manual', leadController.createManualLead);
+
 // ================================
 // CRUD DE LEADS
 // ================================

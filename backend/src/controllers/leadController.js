@@ -964,11 +964,142 @@ const getAssignableUsers = async (req, res) => {
   }
 };
 
+// ================================
+// 11. CRIAR LEAD MANUAL (sem campanha)
+// ================================
+const createManualLead = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const {
+      name,
+      company,
+      title,
+      email,
+      phone,
+      location,
+      profile_url,
+      source = 'manual',
+      status = 'leads',
+      notes,
+      contact_id,
+      new_contact
+    } = req.body;
+
+    console.log(`📝 Criando lead manual: ${name}`);
+
+    // Validations
+    if (!name) {
+      throw new ValidationError('Nome e obrigatorio');
+    }
+
+    let contactId = contact_id;
+
+    // If creating a new contact
+    if (new_contact && !contact_id) {
+      if (!new_contact.name) {
+        throw new ValidationError('Nome do contato e obrigatorio');
+      }
+
+      // Create the contact first
+      const contactData = {
+        user_id: userId,
+        account_id: accountId,
+        name: new_contact.name,
+        email: new_contact.email || null,
+        phone: new_contact.phone || null,
+        company: new_contact.company || null,
+        title: new_contact.title || null,
+        location: new_contact.location || null,
+        profile_url: new_contact.profile_url || null,
+        source: 'manual'
+      };
+
+      const contact = await db.insert('contacts', contactData);
+      contactId = contact.id;
+      console.log(`👤 Contato criado: ${contact.id}`);
+    }
+
+    // Create the lead without campaign
+    const leadData = {
+      account_id: accountId,
+      campaign_id: null, // No campaign
+      sector_id: null,
+      linkedin_profile_id: `manual_${Date.now()}`,
+      name,
+      title: title || null,
+      company: company || null,
+      location: location || null,
+      profile_url: profile_url || null,
+      profile_picture: null,
+      headline: null,
+      status: status,
+      score: 0,
+      source: source,
+      notes: notes || null,
+      responsible_user_id: userId // Assign to creator
+    };
+
+    const lead = await db.insert('leads', leadData);
+    console.log(`✅ Lead manual criado: ${lead.id}`);
+
+    // Link lead to contact if we have a contact
+    if (contactId) {
+      await db.query(
+        `INSERT INTO contact_leads (contact_id, lead_id, role) VALUES ($1, $2, 'primary') ON CONFLICT DO NOTHING`,
+        [contactId, lead.id]
+      );
+      console.log(`🔗 Lead vinculado ao contato: ${contactId}`);
+
+      // Update contact email/phone if provided and contact doesn't have them
+      if (email || phone) {
+        const updates = [];
+        const params = [contactId];
+        let paramIndex = 2;
+
+        if (email) {
+          updates.push(`email = COALESCE(email, $${paramIndex})`);
+          params.push(email);
+          paramIndex++;
+        }
+        if (phone) {
+          updates.push(`phone = COALESCE(phone, $${paramIndex})`);
+          params.push(phone);
+          paramIndex++;
+        }
+
+        if (updates.length > 0) {
+          await db.query(
+            `UPDATE contacts SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            params
+          );
+        }
+      }
+    }
+
+    // Return lead with contact info
+    const result = await db.query(
+      `SELECT l.*, ct.id as contact_id, ct.name as contact_name
+       FROM leads l
+       LEFT JOIN contact_leads cl ON cl.lead_id = l.id
+       LEFT JOIN contacts ct ON ct.id = cl.contact_id
+       WHERE l.id = $1`,
+      [lead.id]
+    );
+
+    sendSuccess(res, result.rows[0] || lead, 'Lead criado com sucesso', 201);
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getLeads,
   getLead,
   createLead,
   createLeadsBulk,
+  createManualLead,
   updateLead,
   deleteLead,
   getCampaignLeads,

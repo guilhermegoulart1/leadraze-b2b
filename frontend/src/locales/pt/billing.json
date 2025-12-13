@@ -84,7 +84,10 @@
     "neverExpireNote": "Creditos comprados nunca expiram!",
     "perThousand": "${{price}} por 1.000",
     "credits": "creditos",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "popular": "Popular",
+    "perLead": "/lead",
+    "securePayment": "Pagamento seguro via Stripe"
   },
 
   "modals": {

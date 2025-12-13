@@ -268,6 +268,13 @@ class ApiService {
     });
   }
 
+  async createManualLead(data) {
+    return this.request('/leads/manual', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async updateLead(id, data) {
     return this.request(`/leads/${id}`, {
       method: 'PUT',

@@ -49,6 +49,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import LeadDetailModal from '../components/LeadDetailModal';
+import LeadFormModal from '../components/LeadFormModal';
 
 const LeadsPage = () => {
   const { t } = useTranslation('leads');
@@ -60,6 +61,7 @@ const LeadsPage = () => {
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [selectedLead, setSelectedLead] = useState(null); // For details modal
+  const [showLeadFormModal, setShowLeadFormModal] = useState(false); // For create/edit modal
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
@@ -275,6 +277,18 @@ const LeadsPage = () => {
     } else {
       setSortField(field);
       setSortDirection('asc');
+    }
+  };
+
+  const handleSaveLead = async (formData) => {
+    try {
+      const response = await api.createManualLead(formData);
+      if (response.success) {
+        loadLeads(); // Reload leads list
+      }
+    } catch (error) {
+      console.error('Error saving lead:', error);
+      throw error;
     }
   };
 
@@ -997,24 +1011,24 @@ const LeadsPage = () => {
     <div className="h-full flex flex-col bg-white dark:bg-gray-800 overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-        {/* Filters & View Toggle */}
+        {/* Search and Actions */}
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute left-2.5 top-1/2 transform -translate-y-1/2" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
 
           {/* Filters Button */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors">
-            <Filter className="w-3.5 h-3.5" />
-            <span>{t('filtersButton')}</span>
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 text-gray-700 dark:text-gray-300 transition-colors">
+            <Filter className="w-4 h-4" />
+            <span className="text-sm font-medium">{t('filtersButton')}</span>
           </button>
 
           {/* View Mode Toggle */}
@@ -1023,7 +1037,7 @@ const LeadsPage = () => {
               onClick={() => setViewMode('kanban')}
               className={`p-1.5 rounded transition-colors ${
                 viewMode === 'kanban'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
               title={t('viewModes.kanban')}
@@ -1034,7 +1048,7 @@ const LeadsPage = () => {
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
               title={t('viewModes.list')}
@@ -1042,6 +1056,15 @@ const LeadsPage = () => {
               <ListIcon className="w-4 h-4" />
             </button>
           </div>
+
+          {/* New Lead Button */}
+          <button
+            onClick={() => setShowLeadFormModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-medium">{t('newLead')}</span>
+          </button>
         </div>
       </div>
 
@@ -1091,6 +1114,13 @@ const LeadsPage = () => {
           }}
         />
       )}
+
+      {/* Lead Form Modal */}
+      <LeadFormModal
+        isOpen={showLeadFormModal}
+        onClose={() => setShowLeadFormModal(false)}
+        onSave={handleSaveLead}
+      />
     </div>
   );
 };
