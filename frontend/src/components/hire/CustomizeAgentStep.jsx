@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { RefreshCw, Upload, User, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import ChatMessage from './ChatMessage';
 
 // Unsplash professional portrait photo IDs for random selection (40+ options)
 const UNSPLASH_PHOTO_IDS = [
@@ -129,23 +130,28 @@ const CustomizeAgentStep = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          {t('customize.title', { defaultValue: 'Personalize seu vendedor' })}
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400">
+    <div className="space-y-4">
+      {/* Agent message */}
+      <ChatMessage
+        type="agent"
+        avatar={currentAvatar}
+        name={agentName || candidate?.name}
+        color={candidate?.color}
+      >
+        <p className="font-medium">{t('customize.title', { defaultValue: 'Personalize seu vendedor' })}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           {t('customize.subtitle', { defaultValue: 'Dê um nome e escolha a aparência do seu assistente' })}
         </p>
-      </div>
+      </ChatMessage>
 
-      {/* Avatar Section */}
-      <div className="flex flex-col items-center space-y-4">
+      {/* Customization Options */}
+      <ChatMessage type="options">
+        {/* Avatar Section */}
+        <div className="flex flex-col items-center space-y-3 mb-6">
         {/* Avatar Preview */}
         <div className="relative">
           <div
-            className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-purple-500/30 ring-offset-4 dark:ring-offset-gray-900"
+            className="w-28 h-28 rounded-full overflow-hidden ring-4 ring-purple-500/30 ring-offset-2 dark:ring-offset-gray-900"
             style={{ backgroundColor: candidate?.color || '#6366F1' }}
           >
             {currentAvatar ? (
@@ -159,7 +165,7 @@ const CustomizeAgentStep = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <User className="w-16 h-16 text-white/70" />
+                <User className="w-12 h-12 text-white/70" />
               </div>
             )}
           </div>
@@ -202,31 +208,32 @@ const CustomizeAgentStep = ({
         )}
       </div>
 
-      {/* Name Input */}
-      <div className="max-w-md mx-auto space-y-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {t('customize.nameLabel', { defaultValue: 'Nome do vendedor' })}
-        </label>
-        <input
-          type="text"
-          value={agentName}
-          onChange={(e) => onChangeName(e.target.value)}
-          placeholder={candidate?.name || 'Ex: Lucas, Marina, João...'}
-          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-        />
-      </div>
-
-      {/* Info Note */}
-      <div className="max-w-lg mx-auto p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-        <div className="flex gap-3">
-          <Info className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-purple-700 dark:text-purple-300">
-            {t('customize.infoNote', {
-              defaultValue: 'Essa imagem será usada apenas para sua identificação interna, os contatos receberão a foto de perfil normal de cada canal (LinkedIn, Whatsapp, etc).'
-            })}
-          </p>
+        {/* Name Input */}
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('customize.nameLabel', { defaultValue: 'Nome do vendedor' })}
+          </label>
+          <input
+            type="text"
+            value={agentName}
+            onChange={(e) => onChangeName(e.target.value)}
+            placeholder={candidate?.name || 'Ex: Lucas, Marina, João...'}
+            className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          />
         </div>
-      </div>
+
+        {/* Info Note */}
+        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+          <div className="flex gap-2">
+            <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-purple-700 dark:text-purple-300">
+              {t('customize.infoNote', {
+                defaultValue: 'Essa imagem será usada apenas para sua identificação interna, os contatos receberão a foto de perfil normal de cada canal (LinkedIn, Whatsapp, etc).'
+              })}
+            </p>
+          </div>
+        </div>
+      </ChatMessage>
     </div>
   );
 };

@@ -476,6 +476,13 @@ try {
   console.error('❌ Error loading checklist items routes:', error.message);
 }
 
+try {
+  app.use('/api/secret-agent', require('./routes/secretAgent'));
+  console.log('✅ Secret Agent routes loaded');
+} catch (error) {
+  console.error('❌ Error loading secret agent routes:', error.message);
+}
+
 // ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================
@@ -495,7 +502,7 @@ try {
   const { createBullBoard } = require('@bull-board/api');
   const { BullAdapter } = require('@bull-board/api/bullAdapter');
   const { ExpressAdapter } = require('@bull-board/express');
-  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue } = require('./queues');
+  const { webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue, secretAgentQueue } = require('./queues');
 
   // Create Express adapter for Bull Board
   const serverAdapter = new ExpressAdapter();
@@ -513,7 +520,8 @@ try {
       new BullAdapter(billingQueue),
       new BullAdapter(linkedinInviteQueue),
       new BullAdapter(connectionMessageQueue),
-      new BullAdapter(delayedConversationQueue)
+      new BullAdapter(delayedConversationQueue),
+      new BullAdapter(secretAgentQueue)
     ],
     serverAdapter
   });

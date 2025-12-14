@@ -45,7 +45,14 @@
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
-    "errorUpdate": "Error updating campaign. Try again."
+    "errorUpdate": "Error updating campaign. Try again.",
+    "deleteConfirmTitle": "Delete Campaign",
+    "deleteConfirmMessage": "You are about to delete the campaign:",
+    "leadsCollected": "{{count}} leads collected",
+    "deleteOnlyCampaign": "Delete campaign only",
+    "deleteOnlyCampaignDesc": "Collected leads will be kept",
+    "deleteCampaignAndLeads": "Delete campaign and leads",
+    "deleteCampaignAndLeadsDesc": "Delete {{count}} leads permanently"
   },
   "creditsModal": {
     "title": "Supercharge Your Prospecting",

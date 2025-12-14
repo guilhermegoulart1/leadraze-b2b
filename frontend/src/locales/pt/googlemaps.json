@@ -45,7 +45,14 @@
     "save": "Salvar",
     "saving": "Salvando...",
     "cancel": "Cancelar",
-    "errorUpdate": "Erro ao atualizar campanha. Tente novamente."
+    "errorUpdate": "Erro ao atualizar campanha. Tente novamente.",
+    "deleteConfirmTitle": "Deletar Campanha",
+    "deleteConfirmMessage": "Você está prestes a deletar a campanha:",
+    "leadsCollected": "{{count}} leads coletados",
+    "deleteOnlyCampaign": "Deletar apenas campanha",
+    "deleteOnlyCampaignDesc": "Os leads coletados serão mantidos",
+    "deleteCampaignAndLeads": "Deletar campanha e leads",
+    "deleteCampaignAndLeadsDesc": "Deletar {{count}} leads permanentemente"
   },
   "creditsModal": {
     "title": "Potencialize sua Prospecção",

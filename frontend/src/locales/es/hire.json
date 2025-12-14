@@ -118,8 +118,11 @@
   "connection": {
     "question": "Ahora necesito saber: ¿cómo quieres que haga el primer contacto?",
     "messageQuestion": "¿Qué quieres que diga en la solicitud de conexión?",
-    "variables": "Variables disponibles:",
+    "variables": "Variables:",
     "charLimit": "Límite: 300 caracteres (LinkedIn)",
+    "hideMessage": "Ocultar mensaje",
+    "editMessage": "Editar mensaje de invitación",
+    "messagePlaceholder": "Escribe el mensaje de invitación...",
     "strategies": {
       "silent": {
         "name": "CONEXIÓN SILENCIOSA",
@@ -256,7 +259,10 @@
     "objective": "Objetivo",
     "channel": "Canal",
     "edit": "Editar",
+    "editFromStart": "Editar desde el inicio",
     "hire": "Contratar a {{name}}",
+    "saving": "Guardando...",
+    "saveChanges": "Guardar Cambios",
     "readyMessage": "¡Estoy listo para empezar! En cuanto me presentes los contactos, me pongo a trabajar.",
     "noMethodology": "Libre",
     "employees": "empleados"

@@ -268,11 +268,17 @@ exports.deleteAgent = async (req, res) => {
     const { id } = req.params;
     const accountId = req.user.accountId;
 
-    await googleMapsAgentService.deleteAgent(id, accountId);
+    // Check for deleteLeads option in query string or body
+    const deleteLeads = req.query.deleteLeads === 'true' || req.body?.deleteLeads === true;
+
+    const result = await googleMapsAgentService.deleteAgent(id, accountId, { deleteLeads });
 
     res.json({
       success: true,
-      message: 'Agent deleted successfully'
+      message: deleteLeads
+        ? `Campanha e ${result.leadsDeleted} leads deletados com sucesso`
+        : 'Campanha deletada com sucesso',
+      leadsDeleted: result.leadsDeleted || 0
     });
 
   } catch (error) {
@@ -424,6 +430,36 @@ exports.getAssignments = async (req, res) => {
 };
 
 /**
+ * Get agent contacts as JSON
+ * GET /api/google-maps-agents/:id/contacts
+ */
+exports.getAgentContacts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    // Verify agent belongs to account
+    await googleMapsAgentService.getAgent(id, accountId);
+
+    // Get all contacts for this agent
+    const contacts = await googleMapsAgentService.getAgentContacts(id, accountId);
+
+    res.json({
+      success: true,
+      contacts: contacts || [],
+      count: contacts?.length || 0
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching agent contacts:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching contacts'
+    });
+  }
+};
+
+/**
  * Export agent contacts to CSV
  * GET /api/google-maps-agents/:id/export
  */
@@ -460,6 +496,9 @@ exports.exportAgentContacts = async (req, res) => {
       'Website',
       'Rating',
       'Reviews',
+      'Descrição da Empresa',
+      'Serviços',
+      'Possíveis Dores',
       'Google Maps URL'
     ];
 
@@ -470,6 +509,20 @@ exports.exportAgentContacts = async (req, res) => {
         return `"${str.replace(/"/g, '""')}"`;
       }
       return str;
+    };
+
+    // Helper to format JSON arrays as readable strings
+    const formatJsonArray = (jsonValue) => {
+      if (!jsonValue) return '';
+      try {
+        const arr = typeof jsonValue === 'string' ? JSON.parse(jsonValue) : jsonValue;
+        if (Array.isArray(arr)) {
+          return arr.join('; ');
+        }
+        return '';
+      } catch {
+        return '';
+      }
     };
 
     const rows = contacts.map(c => [
@@ -484,6 +537,9 @@ exports.exportAgentContacts = async (req, res) => {
       escapeCsvValue(c.website),
       c.rating || '',
       c.review_count || 0,
+      escapeCsvValue(c.company_description),
+      escapeCsvValue(formatJsonArray(c.company_services)),
+      escapeCsvValue(formatJsonArray(c.pain_points)),
       escapeCsvValue(c.google_maps_url)
     ]);
 
@@ -504,6 +560,32 @@ exports.exportAgentContacts = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error exporting contacts'
+    });
+  }
+};
+
+/**
+ * Get execution logs for an agent
+ * GET /api/google-maps-agents/:id/logs
+ */
+exports.getAgentLogs = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    const logs = await googleMapsAgentService.getAgentLogs(id, accountId);
+
+    res.json({
+      success: true,
+      logs: logs || [],
+      count: logs?.length || 0
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching agent logs:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching execution logs'
     });
   }
 };

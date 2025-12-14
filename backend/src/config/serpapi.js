@@ -96,10 +96,20 @@ class SerpApiClient {
           current_page: Math.floor(start / 20),
           has_next_page: data.serpapi_pagination?.next ? true : false,
           next_page_url: data.serpapi_pagination?.next
-        }
+        },
+        // Raw data for logging/debugging
+        raw_serpapi_pagination: data.serpapi_pagination || null,
+        raw_search_information: data.search_information || null
       };
 
       console.log(`✅ SerpApi success: ${results.total_results} places found (page ${results.pagination.current_page})`);
+
+      // Log first place raw data for debugging
+      if (results.places.length > 0) {
+        console.log('\n📋 [SERPAPI DEBUG] First place RAW data:');
+        console.log(JSON.stringify(results.places[0], null, 2));
+        console.log('---');
+      }
 
       return results;
 
@@ -182,12 +192,169 @@ class SerpApiClient {
   }
 
   /**
+   * Parse address string to extract street, city, state, country, postal_code
+   * Brazilian format: "R. Example, 123 - Bairro, Cidade - RS, 12345-678, Brazil"
+   * @param {string} address - Full address string
+   * @returns {Object} - { street_address, city, state, country, postal_code }
+   */
+  parseAddress(address) {
+    if (!address) return { street_address: null, city: null, state: null, country: null, postal_code: null };
+
+    const result = { street_address: null, city: null, state: null, country: null, postal_code: null };
+
+    // Common country names at the end
+    const countryPatterns = [
+      'Brazil', 'Brasil', 'United States', 'USA', 'Argentina', 'Chile',
+      'Portugal', 'Spain', 'México', 'Mexico', 'Colombia', 'Peru'
+    ];
+
+    // Brazilian state abbreviations
+    const brStates = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+      'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO',
+      'RR', 'SC', 'SP', 'SE', 'TO'];
+
+    // Extract CEP (Brazilian postal code): 12345-678 or 12345678
+    const cepMatch = address.match(/(\d{5}-?\d{3})/);
+    if (cepMatch) {
+      result.postal_code = cepMatch[1];
+    }
+
+    // Split by comma and clean
+    const parts = address.split(',').map(p => p.trim());
+
+    // Check last part for country
+    const lastPart = parts[parts.length - 1];
+    for (const country of countryPatterns) {
+      if (lastPart && lastPart.toLowerCase().includes(country.toLowerCase())) {
+        result.country = country;
+        parts.pop();
+        break;
+      }
+    }
+
+    // Extract street address (first part usually contains street + number)
+    if (parts.length > 0) {
+      const streetPart = parts[0];
+      // Check if it's actually a street address (starts with R., Rua, Av., Avenida, etc.)
+      if (streetPart.match(/^(R\.|Rua|Av\.|Avenida|Alameda|Al\.|Estrada|Est\.|Travessa|Tv\.|Praça|Pç\.|Rod\.|Rodovia)/i) ||
+          streetPart.match(/^\d+/) || // Starts with number
+          streetPart.match(/,\s*\d+/) // Contains number after comma
+      ) {
+        // Include number if on first or second part
+        if (parts.length > 1 && parts[1].match(/^\d+/)) {
+          result.street_address = `${streetPart}, ${parts[1]}`;
+        } else {
+          result.street_address = streetPart;
+        }
+      }
+    }
+
+    // Look for state abbreviation (typically after city with dash)
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      // Match patterns like "Cidade - RS" or "RS" or "12345-678" (CEP)
+      const stateMatch = part.match(/[-\s]([A-Z]{2})(?:\s|$|,)/);
+      if (stateMatch && brStates.includes(stateMatch[1])) {
+        result.state = stateMatch[1];
+        // The city is usually before the state
+        const cityPart = part.split('-')[0].trim();
+        if (cityPart && !cityPart.match(/^\d+$/)) {
+          result.city = cityPart;
+        }
+        break;
+      }
+      // Also check for standalone state code
+      if (brStates.includes(part.toUpperCase())) {
+        result.state = part.toUpperCase();
+        if (i > 0) {
+          result.city = parts[i - 1].split('-')[0].trim();
+        }
+        break;
+      }
+    }
+
+    // If no city found, try to get from second-to-last non-state/country part
+    if (!result.city && parts.length >= 2) {
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const part = parts[i].split('-')[0].trim();
+        if (part && !part.match(/^\d/) && part.length > 2 && part !== result.street_address) {
+          result.city = part;
+          break;
+        }
+      }
+    }
+
+    // Default country to Brazil if state was found
+    if (result.state && !result.country) {
+      result.country = 'Brazil';
+    }
+
+    return result;
+  }
+
+  /**
+   * Clean website URL - extract real URL from Google redirect
+   * Google sometimes returns URLs like: /url?q=https://real-site.com/&opi=...
+   * @param {string} url - Raw URL that may contain Google redirect
+   * @returns {string|null} - Clean URL or null
+   */
+  _cleanWebsiteUrl(url) {
+    if (!url) return null;
+
+    // Check if it's a Google redirect URL
+    if (url.includes('/url?q=') || url.includes('?q=http')) {
+      try {
+        // Extract the 'q' parameter which contains the real URL
+        const match = url.match(/[?&]q=([^&]+)/);
+        if (match && match[1]) {
+          const decodedUrl = decodeURIComponent(match[1]);
+          // Make sure it's a valid URL
+          if (decodedUrl.startsWith('http')) {
+            console.log(`   🔗 Cleaned Google redirect: ${url.substring(0, 50)}... → ${decodedUrl}`);
+            return decodedUrl;
+          }
+        }
+      } catch (e) {
+        console.log(`   ⚠️ Failed to clean URL: ${e.message}`);
+      }
+    }
+
+    // If it's a relative URL starting with /url, it's invalid
+    if (url.startsWith('/url')) {
+      console.log(`   ⚠️ Invalid relative URL, skipping: ${url.substring(0, 50)}...`);
+      return null;
+    }
+
+    // Return as-is if it's already a clean URL
+    return url;
+  }
+
+  /**
    * Normalize a place result from SerpApi to our contact schema
    *
    * @param {Object} place - Raw place object from SerpApi
    * @returns {Object} - Normalized contact data
    */
   normalizePlaceToContact(place) {
+    // Parse address to extract city/state/country
+    const addressParts = this.parseAddress(place.address);
+
+    // Clean website URL (extract from Google redirect if needed)
+    const cleanedWebsite = this._cleanWebsiteUrl(place.website);
+
+    // Debug log for field mapping
+    console.log(`\n🔄 [NORMALIZE] ${place.title}:`);
+    console.log(`   - rating: ${place.rating} (type: ${typeof place.rating})`);
+    console.log(`   - reviews: ${place.reviews} (type: ${typeof place.reviews})`);
+    console.log(`   - type: ${place.type}`);
+    console.log(`   - types: ${JSON.stringify(place.types)}`);
+    console.log(`   - address: ${place.address}`);
+    console.log(`   - phone: ${place.phone}`);
+    console.log(`   - website (raw): ${place.website}`);
+    console.log(`   - website (clean): ${cleanedWebsite}`);
+    console.log(`   - gps_coordinates: ${JSON.stringify(place.gps_coordinates)}`);
+    console.log(`   - parsed address: ${JSON.stringify(addressParts)}`);
+
     return {
       // Google Maps identifiers
       place_id: place.place_id,
@@ -199,13 +366,16 @@ class SerpApiClient {
       company: place.title,  // For businesses, name = company
       phone: place.phone || null,
       email: null,  // Google Maps doesn't typically provide emails
-      website: place.website || null,
+      website: cleanedWebsite,
 
-      // Address details
+      // Address details (full and structured)
       address: place.address || null,
       location: place.address || null,  // Backwards compatibility
-      // Note: city, state, country need to be parsed from address
-      // or geocoded separately
+      street_address: addressParts.street_address,
+      city: addressParts.city,
+      state: addressParts.state,
+      country: addressParts.country || 'Brazil',  // Default for most searches
+      postal_code: addressParts.postal_code,
 
       // Geographic coordinates
       latitude: place.gps_coordinates?.latitude || null,
@@ -223,7 +393,8 @@ class SerpApiClient {
       // Business information (JSONB)
       opening_hours: place.operating_hours || null,
       service_options: place.service_options || null,
-      photos: place.thumbnail ? [place.thumbnail] : null,
+      // Collect all available photos (thumbnail + any additional images)
+      photos: this._collectPhotos(place),
 
       // Additional data
       headline: place.description || null,
@@ -233,9 +404,45 @@ class SerpApiClient {
       source: 'google_maps',
       verified: false,  // Would need additional verification
       permanently_closed: false  // Would need to check status
-
-      // Note: custom_fields can store any additional data from SerpApi
     };
+  }
+
+  /**
+   * Collect all available photos from a SerpAPI place result
+   * @param {Object} place - Raw place object from SerpAPI
+   * @returns {Array<string>|null} - Array of photo URLs or null
+   */
+  _collectPhotos(place) {
+    const photos = [];
+
+    // Add thumbnail if available
+    if (place.thumbnail) {
+      photos.push(place.thumbnail);
+    }
+
+    // Add photos array if available (SerpAPI may return this)
+    if (Array.isArray(place.photos)) {
+      place.photos.forEach(photo => {
+        // Handle both string URLs and objects with image property
+        const url = typeof photo === 'string' ? photo : (photo.image || photo.src || photo.url);
+        if (url && !photos.includes(url)) {
+          photos.push(url);
+        }
+      });
+    }
+
+    // Add images array if available
+    if (Array.isArray(place.images)) {
+      place.images.forEach(img => {
+        const url = typeof img === 'string' ? img : (img.image || img.src || img.url);
+        if (url && !photos.includes(url)) {
+          photos.push(url);
+        }
+      });
+    }
+
+    // Return null if no photos found
+    return photos.length > 0 ? photos : null;
   }
 }
 

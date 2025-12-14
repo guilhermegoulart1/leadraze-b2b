@@ -2,6 +2,7 @@ import React from 'react';
 import { UserPlus, Filter, Calendar, ShoppingCart, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { OBJECTIVES } from './salesRepTemplates';
+import ChatMessage from './ChatMessage';
 
 const iconMap = {
   UserPlus,
@@ -52,41 +53,20 @@ const ObjectiveStep = ({
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Chat from candidate */}
-      <div className="flex items-start gap-3 mb-6">
-        <div
-          className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-offset-2 dark:ring-offset-gray-900"
-          style={{ ringColor: candidate?.color || '#3B82F6' }}
-        >
-          {candidate?.avatar ? (
-            <img
-              src={candidate.avatar}
-              alt={candidate?.name || ''}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-sm font-bold text-white" style="background-color: ${candidate?.color || '#3B82F6'}">${candidate?.name?.[0] || '?'}</div>`;
-              }}
-            />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center text-sm font-bold text-white"
-              style={{ backgroundColor: candidate?.color || '#3B82F6' }}
-            >
-              {candidate?.name?.[0] || '?'}
-            </div>
-          )}
-        </div>
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl rounded-tl-none p-4 border border-blue-100 dark:border-blue-800 max-w-lg">
-          <p className="text-gray-800 dark:text-gray-200 font-medium">
-            {getChannelText('question')}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-4">
+      {/* Agent question */}
+      <ChatMessage
+        type="agent"
+        avatar={candidate?.avatar}
+        name={candidate?.name}
+        color={candidate?.color}
+      >
+        <p className="font-medium">{getChannelText('question')}</p>
+      </ChatMessage>
 
       {/* Objective Options */}
-      <div className="space-y-3 pl-14">
+      <ChatMessage type="options">
+        <div className="space-y-2">
         {OBJECTIVES.map((objective) => {
           const Icon = iconMap[objective.icon] || UserPlus;
           const isSelected = selectedObjective === objective.id;
@@ -98,33 +78,25 @@ const ObjectiveStep = ({
                 className={`
                   w-full text-left p-4 rounded-xl border-2 transition-all
                   ${isSelected
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 bg-white dark:bg-gray-800'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
                   }
                 `}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2.5">
                   <div className={`
-                    w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
-                    ${isSelected ? 'bg-blue-100 dark:bg-blue-800' : 'bg-gray-100 dark:bg-gray-700'}
+                    w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
+                    ${isSelected ? 'bg-purple-100 dark:bg-purple-800' : 'bg-gray-100 dark:bg-gray-700'}
                   `}>
-                    <Icon className={`w-5 h-5 ${isSelected ? 'text-blue-600' : 'text-gray-500'}`} />
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-600' : 'text-gray-500'}`} />
                   </div>
 
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`
-                        w-4 h-4 rounded-full border-2 flex items-center justify-center
-                        ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 dark:border-gray-500'}
-                      `}>
-                        {isSelected && <Check className="w-3 h-3 text-white" />}
-                      </span>
-                      <h4 className="font-semibold text-gray-900 dark:text-white">
-                        {getChannelText('name', objective.id) || objective.name}
-                      </h4>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-0.5">
+                      {getChannelText('name', objective.id) || objective.name}
+                    </h4>
 
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                       {getChannelText('description', objective.id) || objective.description}
                     </p>
 
@@ -136,8 +108,8 @@ const ObjectiveStep = ({
                   </div>
 
                   {isSelected && (
-                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Check className="w-4 h-4 text-white" />
+                    <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Check className="w-3 h-3 text-white" />
                     </div>
                   )}
                 </div>
@@ -145,7 +117,7 @@ const ObjectiveStep = ({
 
               {/* Extra options for qualify_transfer */}
               {isSelected && objective.id === 'qualify_transfer' && (
-                <div className="mt-3 ml-14 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="mt-2 ml-10 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -180,7 +152,7 @@ const ObjectiveStep = ({
 
               {/* Scheduling link for schedule_meeting */}
               {isSelected && objective.id === 'schedule_meeting' && (
-                <div className="mt-3 ml-14 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="mt-2 ml-10 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('objective.schedulingLink')}
                   </label>
@@ -196,7 +168,7 @@ const ObjectiveStep = ({
 
               {/* Conversion link for sell_direct */}
               {isSelected && objective.id === 'sell_direct' && (
-                <div className="mt-3 ml-14 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="mt-2 ml-10 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('objective.conversionLink')}
                   </label>
@@ -212,7 +184,8 @@ const ObjectiveStep = ({
             </div>
           );
         })}
-      </div>
+        </div>
+      </ChatMessage>
     </div>
   );
 };

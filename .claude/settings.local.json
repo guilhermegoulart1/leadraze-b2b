@@ -58,7 +58,11 @@
       "Bash(dir /b \"c:\\leadraze-b2b\\frontend\\src\\components\\hire\")",
       "Bash(del \"c:\\leadraze-b2b\\frontend\\src\\pages\\AIAgentsPage.jsx\")",
       "Bash(dir /b \"c:\\leadraze-b2b\\backend\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(cd:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(del \"c:\\leadraze-b2b\\backend\\scripts\\run-migration-074.js\")"
     ],
     "deny": [],
     "ask": []

@@ -45,7 +45,14 @@
     "save": "Guardar",
     "saving": "Guardando...",
     "cancel": "Cancelar",
-    "errorUpdate": "Error al actualizar campaña. Intente nuevamente."
+    "errorUpdate": "Error al actualizar campaña. Intente nuevamente.",
+    "deleteConfirmTitle": "Eliminar Campaña",
+    "deleteConfirmMessage": "Está a punto de eliminar la campaña:",
+    "leadsCollected": "{{count}} leads recolectados",
+    "deleteOnlyCampaign": "Eliminar solo campaña",
+    "deleteOnlyCampaignDesc": "Los leads recolectados se mantendrán",
+    "deleteCampaignAndLeads": "Eliminar campaña y leads",
+    "deleteCampaignAndLeadsDesc": "Eliminar {{count}} leads permanentemente"
   },
   "creditsModal": {
     "title": "Potencia tu Prospección",

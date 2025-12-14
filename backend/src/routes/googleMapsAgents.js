@@ -98,10 +98,24 @@ router.put('/:id/assignees', googleMapsAgentController.setAssignees);
 router.get('/:id/assignments', googleMapsAgentController.getAssignments);
 
 /**
+ * @route   GET /api/google-maps-agents/:id/contacts
+ * @desc    Get all contacts from an agent as JSON
+ * @access  Private
+ */
+router.get('/:id/contacts', googleMapsAgentController.getAgentContacts);
+
+/**
  * @route   GET /api/google-maps-agents/:id/export
  * @desc    Export all contacts from an agent as CSV
  * @access  Private
  */
 router.get('/:id/export', googleMapsAgentController.exportAgentContacts);
+
+/**
+ * @route   GET /api/google-maps-agents/:id/logs
+ * @desc    Get execution logs for an agent (SERPAPI raw responses)
+ * @access  Private
+ */
+router.get('/:id/logs', googleMapsAgentController.getAgentLogs);
 
 module.exports = router;

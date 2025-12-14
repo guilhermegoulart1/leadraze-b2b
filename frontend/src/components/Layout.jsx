@@ -5,7 +5,7 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo, Tag
+  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo, Tag, Eye
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -70,6 +70,10 @@ const Layout = () => {
     { path: '/campaigns', labelKey: 'menu.linkedin', icon: Linkedin },
     { path: '/google-maps-agents', labelKey: 'menu.googleMaps', icon: MapPin },
     { path: '/activation-campaigns', labelKey: 'menu.lists', icon: Award },
+
+    // INTELIGÊNCIA (temporariamente desabilitado)
+    // { sectionKey: 'sections.intelligence' },
+    // { path: '/secret-agent', labelKey: 'menu.secretAgent', icon: Eye },
   ];
 
   const handleLogout = () => {

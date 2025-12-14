@@ -118,8 +118,11 @@
   "connection": {
     "question": "Now I need to know: how do you want me to make the first contact?",
     "messageQuestion": "What do you want me to say in the connection request?",
-    "variables": "Available variables:",
+    "variables": "Variables:",
     "charLimit": "Limit: 300 characters (LinkedIn)",
+    "hideMessage": "Hide message",
+    "editMessage": "Edit invite message",
+    "messagePlaceholder": "Write the invite message...",
     "strategies": {
       "silent": {
         "name": "SILENT CONNECTION",
@@ -256,7 +259,10 @@
     "objective": "Objective",
     "channel": "Channel",
     "edit": "Edit",
+    "editFromStart": "Edit from the start",
     "hire": "Hire {{name}}",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
     "readyMessage": "I'm ready to start! As soon as you introduce me to the contacts, I'll get to work.",
     "noMethodology": "Free",
     "employees": "employees"

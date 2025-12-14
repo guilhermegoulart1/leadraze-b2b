@@ -265,7 +265,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-h-[90vh] overflow-hidden flex flex-col ${currentStep === 2 ? 'max-w-6xl' : 'max-w-3xl'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
@@ -295,7 +295,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className={`flex-1 overflow-y-auto ${currentStep === 2 ? 'p-4' : 'p-6'}`}>
           {/* Error message */}
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
@@ -334,21 +334,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
 
           {/* Step 2: Location */}
           {currentStep === 2 && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Onde você quer buscar leads?
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Pesquise uma cidade, cole um link do Google Maps, ou clique no mapa
-                </p>
-              </div>
-
-              <LocationMapPicker
-                value={formData.location}
-                onChange={(locationData) => updateField('location', locationData)}
-              />
-            </div>
+            <LocationMapPicker
+              value={formData.location}
+              onChange={(locationData) => updateField('location', locationData)}
+            />
           )}
 
           {/* Step 3: Niche */}
@@ -493,7 +482,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                       {formData.dailyLimit}
                     </span>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {Math.ceil(formData.dailyLimit / 20)} crédito{Math.ceil(formData.dailyLimit / 20) > 1 ? 's' : ''} GMaps/dia
+                      {formData.dailyLimit} créditos GMaps/dia
                     </span>
                   </div>
                   <input
@@ -513,7 +502,7 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                     <span>200</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Cada 20 leads = 1 crédito GMaps. A paginação é salva para trazer leads diferentes a cada dia.
+                    A paginação é salva para trazer leads diferentes a cada dia.
                   </p>
                 </div>
               </div>
@@ -550,49 +539,26 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                   Canais de Ativação (opcional)
                 </h4>
 
-                {/* Email Activation */}
-                <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                {/* Email Activation - Coming Soon */}
+                <div className="space-y-3 opacity-60">
+                  <div className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-not-allowed bg-gray-50 dark:bg-gray-800/50">
                     <input
                       type="checkbox"
-                      checked={formData.activateEmail}
-                      onChange={(e) => updateField('activateEmail', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 dark:focus:ring-purple-400 dark:ring-offset-gray-800"
+                      checked={false}
+                      disabled
+                      className="w-5 h-5 text-gray-400 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded cursor-not-allowed"
                     />
-                    <Send className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <Send className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por Email</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagem de apresentação por email</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-500 dark:text-gray-400">Ativar por Email</span>
+                        <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                          Em breve
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Enviar mensagem de apresentação por email</p>
                     </div>
-                  </label>
-
-                  {formData.activateEmail && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Agente de Email *
-                      </label>
-                      {loadingAgents ? (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">Carregando agentes...</div>
-                      ) : emailAgents.length === 0 ? (
-                        <div className="text-sm text-amber-600 dark:text-amber-400">
-                          Nenhum agente de Email ativo. Crie um agente na página de Agentes.
-                        </div>
-                      ) : (
-                        <select
-                          value={formData.emailAgentId || ''}
-                          onChange={(e) => updateField('emailAgentId', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                        >
-                          <option value="">Selecione um agente de Email</option>
-                          {emailAgents.map(agent => (
-                            <option key={agent.id} value={agent.id}>
-                              {agent.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* WhatsApp Activation */}

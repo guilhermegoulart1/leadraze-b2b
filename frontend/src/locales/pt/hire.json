@@ -118,8 +118,11 @@
   "connection": {
     "question": "Agora preciso saber: como você quer que eu faça o primeiro contato?",
     "messageQuestion": "O que você quer que eu diga no convite de conexão?",
-    "variables": "Variáveis disponíveis:",
+    "variables": "Variáveis:",
     "charLimit": "Limite: 300 caracteres (LinkedIn)",
+    "hideMessage": "Ocultar mensagem",
+    "editMessage": "Editar mensagem do convite",
+    "messagePlaceholder": "Escreva a mensagem do convite...",
     "strategies": {
       "silent": {
         "name": "CONEXÃO SILENCIOSA",
@@ -256,7 +259,10 @@
     "objective": "Objetivo",
     "channel": "Canal",
     "edit": "Editar",
+    "editFromStart": "Editar desde o início",
     "hire": "Contratar {{name}}",
+    "saving": "Salvando...",
+    "saveChanges": "Salvar Alterações",
     "readyMessage": "Estou pronto para começar! Assim que você me apresentar os contatos, começo a trabalhar.",
     "noMethodology": "Livre",
     "employees": "funcionários"

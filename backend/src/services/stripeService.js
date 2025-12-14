@@ -423,6 +423,45 @@ class StripeService {
   }
 
   /**
+   * Get GMaps credit breakdown for an account
+   */
+  async getGmapsCreditBreakdown(accountId) {
+    const result = await db.query(`
+      SELECT
+        id,
+        credit_type,
+        initial_credits,
+        remaining_credits,
+        expires_at,
+        never_expires,
+        source,
+        created_at,
+        status
+      FROM credit_packages
+      WHERE account_id = $1
+        AND credit_type IN ('gmaps', 'gmaps_monthly')
+        AND status = 'active'
+        AND (never_expires = true OR expires_at > NOW())
+      ORDER BY
+        CASE WHEN credit_type = 'gmaps_monthly' THEN 0 ELSE 1 END,
+        expires_at ASC NULLS LAST
+    `, [accountId]);
+
+    const monthly = result.rows.filter(pkg => pkg.credit_type === 'gmaps_monthly');
+    const permanent = result.rows.filter(pkg => pkg.credit_type === 'gmaps');
+
+    return {
+      packages: result.rows,
+      total: result.rows.reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
+      monthly: {
+        remaining: monthly.reduce((sum, pkg) => sum + pkg.remaining_credits, 0),
+        expiresAt: monthly[0]?.expires_at || null
+      },
+      permanent: permanent.reduce((sum, pkg) => sum + pkg.remaining_credits, 0)
+    };
+  }
+
+  /**
    * Check if account has enough AI credits
    */
   async hasEnoughAiCredits(accountId, amount = 1) {

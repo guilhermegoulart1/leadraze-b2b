@@ -167,174 +167,187 @@ const LocationMapPicker = ({ value, onChange }) => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Search Input */}
-      <div className="relative">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Pesquisar cidade ou colar link do Google Maps..."
-              value={locationInput}
-              onChange={(e) => setLocationInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              onFocus={() => setShowSuggestions(searchResults.length > 0)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            disabled={searching || locationInput.trim().length < 3}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {searching ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" />
-                Buscando...
-              </>
-            ) : (
-              'Buscar'
-            )}
-          </button>
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full">
+      {/* Left Panel - Controls */}
+      <div className="lg:w-[300px] flex-shrink-0 space-y-4">
+        {/* Title */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Onde você quer buscar leads?
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Pesquise uma cidade, cole um link do Google Maps, ou clique no mapa
+          </p>
         </div>
 
-        {/* Search Suggestions */}
-        {showSuggestions && searchResults.length > 0 && (
-          <>
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setShowSuggestions(false)}
-            />
-            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-[350px] overflow-y-auto py-1">
-              {searchResults.map((result, index) => (
-                <li key={index}>
-                  <button
-                    onClick={() => handleSelectSuggestion(result)}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start space-x-2"
-                  >
-                    <MapPin className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-normal leading-snug">
-                        {result.display_name}
-                      </p>
-                      {result.importance && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {result.type}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
-
-      {/* Radius Slider */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Raio de busca
-          </label>
-          <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
-            {radius} km
-          </span>
-        </div>
-        <div className="flex items-center space-x-3">
-          <span className="text-xs text-gray-500 dark:text-gray-400">1km</span>
-          <input
-            type="range"
-            min="1"
-            max="50"
-            step="1"
-            value={radius}
-            onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
-            className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-purple"
-          />
-          <span className="text-xs text-gray-500 dark:text-gray-400">50km</span>
-        </div>
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>Área: ~{(Math.PI * radius * radius).toFixed(1)} km²</span>
-        </div>
-      </div>
-
-      {/* Map Container */}
-      <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700" style={{ height: '400px' }}>
-        {loading && (
-          <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-90 dark:bg-opacity-90 flex items-center justify-center z-50">
-            <div className="flex flex-col items-center space-y-2">
-              <Loader className="w-8 h-8 text-purple-600 dark:text-purple-400 animate-spin" />
-              <p className="text-sm text-gray-600 dark:text-gray-400">Carregando mapa...</p>
+        {/* Search Input */}
+        <div className="relative">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Pesquisar cidade ou colar link do Google Maps..."
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                onFocus={() => setShowSuggestions(searchResults.length > 0)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm"
+              />
             </div>
+            <button
+              onClick={handleSearch}
+              disabled={searching || locationInput.trim().length < 3}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+            >
+              {searching ? (
+                <Loader className="w-4 h-4 animate-spin" />
+              ) : (
+                'Buscar'
+              )}
+            </button>
           </div>
-        )}
 
-        <MapContainer
-          center={mapCenter}
-          zoom={zoom}
-          style={{ height: '100%', width: '100%' }}
-          ref={mapRef}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {/* Map Controller - updates center/zoom */}
-          <MapController center={mapCenter} zoom={zoom} />
-
-          {/* Map Events */}
-          <MapEventsHandler onMarkerDrag={handleMarkerDrag} />
-
-          {/* Draggable Marker */}
-          {markerPosition && (
+          {/* Search Suggestions */}
+          {showSuggestions && searchResults.length > 0 && (
             <>
-              <Marker
-                position={markerPosition}
-                draggable={true}
-                eventHandlers={{
-                  dragend: (e) => {
-                    const marker = e.target;
-                    const position = marker.getLatLng();
-                    handleMarkerDrag(position.lat, position.lng);
-                  }
-                }}
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowSuggestions(false)}
               />
-
-              {/* Radius Circle */}
-              <Circle
-                center={markerPosition}
-                radius={radius * 1000} // Convert km to meters
-                pathOptions={{
-                  color: '#7c3aed',
-                  fillColor: '#7c3aed',
-                  fillOpacity: 0.1,
-                  weight: 2
-                }}
-              />
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-[280px] overflow-y-auto py-1">
+                {searchResults.map((result, index) => (
+                  <li key={index}>
+                    <button
+                      onClick={() => handleSelectSuggestion(result)}
+                      className="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start space-x-2"
+                    >
+                      <MapPin className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-normal leading-snug">
+                          {result.display_name}
+                        </p>
+                        {result.importance && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {result.type}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </>
           )}
-        </MapContainer>
-      </div>
+        </div>
 
-      {/* Selected Location Display */}
-      {locationName && (
-        <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-3">
-          <div className="flex items-start space-x-2">
-            <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-purple-900 dark:text-purple-200">{locationName}</p>
-              {markerPosition && (
-                <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
-                  {markerPosition[0].toFixed(6)}, {markerPosition[1].toFixed(6)}
-                </p>
-              )}
-            </div>
+        {/* Radius Slider */}
+        <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Raio de busca
+            </label>
+            <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+              {radius} km
+            </span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400 w-6">1km</span>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              step="1"
+              value={radius}
+              onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
+              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-purple"
+            />
+            <span className="text-xs text-gray-500 dark:text-gray-400 w-8">50km</span>
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            Área: ~{(Math.PI * radius * radius).toFixed(1)} km²
           </div>
         </div>
-      )}
+
+        {/* Selected Location Display */}
+        {locationName && (
+          <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-3">
+            <div className="flex items-start space-x-2">
+              <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-purple-900 dark:text-purple-200 line-clamp-2">{locationName}</p>
+                {markerPosition && (
+                  <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                    {markerPosition[0].toFixed(6)}, {markerPosition[1].toFixed(6)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Right Panel - Map */}
+      <div className="flex-1 min-w-0">
+        <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 h-[300px] lg:h-full lg:min-h-[420px]">
+          {loading && (
+            <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-90 dark:bg-opacity-90 flex items-center justify-center z-50">
+              <div className="flex flex-col items-center space-y-2">
+                <Loader className="w-8 h-8 text-purple-600 dark:text-purple-400 animate-spin" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Carregando mapa...</p>
+              </div>
+            </div>
+          )}
+
+          <MapContainer
+            center={mapCenter}
+            zoom={zoom}
+            style={{ height: '100%', width: '100%' }}
+            ref={mapRef}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            {/* Map Controller - updates center/zoom */}
+            <MapController center={mapCenter} zoom={zoom} />
+
+            {/* Map Events */}
+            <MapEventsHandler onMarkerDrag={handleMarkerDrag} />
+
+            {/* Draggable Marker */}
+            {markerPosition && (
+              <>
+                <Marker
+                  position={markerPosition}
+                  draggable={true}
+                  eventHandlers={{
+                    dragend: (e) => {
+                      const marker = e.target;
+                      const position = marker.getLatLng();
+                      handleMarkerDrag(position.lat, position.lng);
+                    }
+                  }}
+                />
+
+                {/* Radius Circle */}
+                <Circle
+                  center={markerPosition}
+                  radius={radius * 1000} // Convert km to meters
+                  pathOptions={{
+                    color: '#7c3aed',
+                    fillColor: '#7c3aed',
+                    fillOpacity: 0.1,
+                    weight: 2
+                  }}
+                />
+              </>
+            )}
+          </MapContainer>
+        </div>
+      </div>
 
       {/* CSS for slider */}
       <style>{`

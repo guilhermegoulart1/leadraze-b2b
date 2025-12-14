@@ -16,7 +16,18 @@ const listeners = {
   new_message: [],
   message_read: [],
   conversation_updated: [],
-  new_conversation: []
+  new_conversation: [],
+  // Secret Agent events
+  investigation_queued: [],
+  investigation_started: [],
+  agent_started: [],
+  agent_progress: [],
+  agent_completed: [],
+  director_compiling: [],
+  investigation_complete: [],
+  agent_error: [],
+  // Google Maps Agent events
+  gmaps_agent_progress: []
 };
 
 /**
@@ -114,6 +125,53 @@ export function initializeSocket() {
     listeners.new_conversation.forEach(callback => callback(data));
   });
 
+  // Secret Agent Investigation events
+  socket.on('investigation_queued', (data) => {
+    console.log('Socket: investigation_queued recebido', data);
+    listeners.investigation_queued.forEach(callback => callback(data));
+  });
+
+  socket.on('investigation_started', (data) => {
+    console.log('Socket: investigation_started recebido', data);
+    listeners.investigation_started.forEach(callback => callback(data));
+  });
+
+  socket.on('agent_started', (data) => {
+    console.log('Socket: agent_started recebido', data);
+    listeners.agent_started.forEach(callback => callback(data));
+  });
+
+  socket.on('agent_progress', (data) => {
+    console.log('Socket: agent_progress recebido', data);
+    listeners.agent_progress.forEach(callback => callback(data));
+  });
+
+  socket.on('agent_completed', (data) => {
+    console.log('Socket: agent_completed recebido', data);
+    listeners.agent_completed.forEach(callback => callback(data));
+  });
+
+  socket.on('director_compiling', (data) => {
+    console.log('Socket: director_compiling recebido', data);
+    listeners.director_compiling.forEach(callback => callback(data));
+  });
+
+  socket.on('investigation_complete', (data) => {
+    console.log('Socket: investigation_complete recebido', data);
+    listeners.investigation_complete.forEach(callback => callback(data));
+  });
+
+  socket.on('agent_error', (data) => {
+    console.log('Socket: agent_error recebido', data);
+    listeners.agent_error.forEach(callback => callback(data));
+  });
+
+  // Google Maps Agent events
+  socket.on('gmaps_agent_progress', (data) => {
+    console.log('Socket: gmaps_agent_progress recebido', data);
+    listeners.gmaps_agent_progress.forEach(callback => callback(data));
+  });
+
   return socket;
 }
 
@@ -186,6 +244,77 @@ export function onNewConversation(callback) {
   };
 }
 
+// ============================================
+// Secret Agent Investigation Event Listeners
+// ============================================
+
+export function onInvestigationQueued(callback) {
+  listeners.investigation_queued.push(callback);
+  return () => {
+    listeners.investigation_queued = listeners.investigation_queued.filter(cb => cb !== callback);
+  };
+}
+
+export function onInvestigationStarted(callback) {
+  listeners.investigation_started.push(callback);
+  return () => {
+    listeners.investigation_started = listeners.investigation_started.filter(cb => cb !== callback);
+  };
+}
+
+export function onAgentStarted(callback) {
+  listeners.agent_started.push(callback);
+  return () => {
+    listeners.agent_started = listeners.agent_started.filter(cb => cb !== callback);
+  };
+}
+
+export function onAgentProgress(callback) {
+  listeners.agent_progress.push(callback);
+  return () => {
+    listeners.agent_progress = listeners.agent_progress.filter(cb => cb !== callback);
+  };
+}
+
+export function onAgentCompleted(callback) {
+  listeners.agent_completed.push(callback);
+  return () => {
+    listeners.agent_completed = listeners.agent_completed.filter(cb => cb !== callback);
+  };
+}
+
+export function onDirectorCompiling(callback) {
+  listeners.director_compiling.push(callback);
+  return () => {
+    listeners.director_compiling = listeners.director_compiling.filter(cb => cb !== callback);
+  };
+}
+
+export function onInvestigationComplete(callback) {
+  listeners.investigation_complete.push(callback);
+  return () => {
+    listeners.investigation_complete = listeners.investigation_complete.filter(cb => cb !== callback);
+  };
+}
+
+export function onAgentError(callback) {
+  listeners.agent_error.push(callback);
+  return () => {
+    listeners.agent_error = listeners.agent_error.filter(cb => cb !== callback);
+  };
+}
+
+// ============================================
+// Google Maps Agent Event Listeners
+// ============================================
+
+export function onGmapsAgentProgress(callback) {
+  listeners.gmaps_agent_progress.push(callback);
+  return () => {
+    listeners.gmaps_agent_progress = listeners.gmaps_agent_progress.filter(cb => cb !== callback);
+  };
+}
+
 /**
  * Remove todos os listeners
  */
@@ -194,6 +323,17 @@ export function removeAllListeners() {
   listeners.message_read = [];
   listeners.conversation_updated = [];
   listeners.new_conversation = [];
+  // Secret Agent events
+  listeners.investigation_queued = [];
+  listeners.investigation_started = [];
+  listeners.agent_started = [];
+  listeners.agent_progress = [];
+  listeners.agent_completed = [];
+  listeners.director_compiling = [];
+  listeners.investigation_complete = [];
+  listeners.agent_error = [];
+  // Google Maps Agent events
+  listeners.gmaps_agent_progress = [];
 }
 
 /**
@@ -213,6 +353,17 @@ export default {
   onMessageRead,
   onConversationUpdated,
   onNewConversation,
+  // Secret Agent events
+  onInvestigationQueued,
+  onInvestigationStarted,
+  onAgentStarted,
+  onAgentProgress,
+  onAgentCompleted,
+  onDirectorCompiling,
+  onInvestigationComplete,
+  onAgentError,
+  // Google Maps Agent events
+  onGmapsAgentProgress,
   removeAllListeners,
   getSocket
 };

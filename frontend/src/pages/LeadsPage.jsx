@@ -50,6 +50,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import LeadDetailModal from '../components/LeadDetailModal';
 import LeadFormModal from '../components/LeadFormModal';
+import ContactDetailsModal from '../components/ContactDetailsModal';
 
 const LeadsPage = () => {
   const { t } = useTranslation('leads');
@@ -62,6 +63,7 @@ const LeadsPage = () => {
   const [sortDirection, setSortDirection] = useState('desc');
   const [selectedLead, setSelectedLead] = useState(null); // For details modal
   const [showLeadFormModal, setShowLeadFormModal] = useState(false); // For create/edit modal
+  const [selectedContactId, setSelectedContactId] = useState(null); // For contact details modal
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
@@ -377,6 +379,17 @@ const LeadsPage = () => {
                     <span className="truncate">{lead.company}</span>
                   </p>
                 )}
+
+                {(lead.city || lead.state) && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 min-w-0">
+                    <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="truncate">
+                      {lead.city && lead.state
+                        ? `${lead.city} - ${lead.state}`
+                        : lead.city || lead.state}
+                    </span>
+                  </p>
+                )}
               </div>
 
               {/* View Details */}
@@ -444,12 +457,6 @@ const LeadsPage = () => {
               <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                 {/* Badges */}
                 <div className="flex flex-wrap gap-1 mb-1.5">
-                  {lead.is_premium && (
-                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title={t('badges.linkedInPremium')}>
-                      <Crown className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
-                      <span className="text-amber-700 font-semibold text-[9px] leading-tight">{t('badges.premium')}</span>
-                    </div>
-                  )}
                   {lead.is_creator && (
                     <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 rounded" title={t('badges.creatorMode')}>
                       <Star className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
@@ -477,18 +484,6 @@ const LeadsPage = () => {
                       <UserCheck className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium">{lead.follower_count.toLocaleString()}</span>
                     </div>
-                  )}
-                  {lead.public_identifier && (
-                    <a
-                      href={`https://www.linkedin.com/in/${lead.public_identifier}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline ml-auto"
-                      title={t('tooltips.viewLinkedIn')}
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span className="font-medium">{t('stats.profile')}</span>
-                    </a>
                   )}
                 </div>
               </div>
@@ -544,6 +539,9 @@ const LeadsPage = () => {
                     <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium ${config.className}`}>
                       <SourceIcon className="w-2.5 h-2.5" />
                       <span>{config.label}</span>
+                      {lead.source === 'linkedin' && lead.is_premium && (
+                        <Crown className="w-2.5 h-2.5 text-amber-500" title={t('badges.linkedInPremium')} />
+                      )}
                     </div>
                   );
                 })()}
@@ -734,17 +732,17 @@ const LeadsPage = () => {
                             {lead.title}
                           </div>
                         )}
+                        {(lead.city || lead.state) && (
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate flex items-center gap-1" title={`${lead.city || ''} ${lead.state || ''}`}>
+                            <MapPin className="w-2.5 h-2.5 inline flex-shrink-0" />
+                            <span>{lead.city && lead.state ? `${lead.city} - ${lead.state}` : lead.city || lead.state}</span>
+                          </div>
+                        )}
 
                         {/* Profile Badges & Stats */}
                         {(lead.is_premium || lead.is_creator || lead.is_influencer || lead.connections_count > 0 || lead.follower_count > 0) && (
                           <div className="flex flex-wrap items-center gap-1 mt-1">
                             {/* Badges */}
-                            {lead.is_premium && (
-                              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-300 rounded" title={t('badges.linkedInPremium')}>
-                                <Crown className="w-2 h-2 text-amber-600 dark:text-amber-400" />
-                                <span className="text-amber-700 font-semibold text-[8px] leading-tight">{t('badges.premium')}</span>
-                              </div>
-                            )}
                             {lead.is_creator && (
                               <div className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-300 rounded" title={t('badges.creatorMode')}>
                                 <Star className="w-2 h-2 text-blue-600 dark:text-blue-400" />
@@ -780,7 +778,10 @@ const LeadsPage = () => {
                                 title={t('tooltips.viewLinkedIn')}
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <ExternalLink className="w-2.5 h-2.5" />
+                                <Linkedin className="w-2.5 h-2.5" />
+                                {lead.is_premium && (
+                                  <Crown className="w-2 h-2 text-amber-500" title={t('badges.linkedInPremium')} />
+                                )}
                               </a>
                             )}
                           </div>
@@ -1112,6 +1113,7 @@ const LeadsPage = () => {
             // Update selectedLead with the new data
             setSelectedLead(updatedLead);
           }}
+          onViewContact={(contactId) => setSelectedContactId(contactId)}
         />
       )}
 
@@ -1120,6 +1122,13 @@ const LeadsPage = () => {
         isOpen={showLeadFormModal}
         onClose={() => setShowLeadFormModal(false)}
         onSave={handleSaveLead}
+      />
+
+      {/* Contact Details Modal */}
+      <ContactDetailsModal
+        isOpen={!!selectedContactId}
+        onClose={() => setSelectedContactId(null)}
+        contactId={selectedContactId}
       />
     </div>
   );

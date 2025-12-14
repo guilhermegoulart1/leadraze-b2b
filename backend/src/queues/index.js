@@ -405,9 +405,42 @@ const delayedConversationQueue = new Bull('delayed-conversation', {
 });
 
 /**
+ * Secret Agent Investigation Queue - Medium Priority
+ *
+ * Processes intelligence investigations asynchronously
+ * - Jobs added: when user starts investigation
+ * - Jobs processed: with rate limiting for external APIs
+ * - Multiple agents work in parallel on each investigation
+ * - WebSocket updates sent during processing
+ */
+const secretAgentQueue = new Bull('secret-agent', {
+  redis: bullRedisConfig,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 10000 // 10s, 20s, 40s
+    },
+    removeOnComplete: {
+      age: 7 * 24 * 3600, // 7 days
+      count: 500
+    },
+    removeOnFail: {
+      age: 30 * 24 * 3600, // 30 days
+      count: 1000
+    }
+  },
+  settings: {
+    stalledInterval: 120000, // 2 minutes - investigations can take time
+    maxStalledCount: 2,
+    lockDuration: 600000 // 10 minutes - long-running jobs
+  }
+});
+
+/**
  * Global error handler for all queues
  */
-const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue];
+const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue, secretAgentQueue];
 
 queues.forEach((queue) => {
   queue.on('error', (error) => {
@@ -452,5 +485,6 @@ module.exports = {
   linkedinInviteQueue,
   connectionMessageQueue,
   delayedConversationQueue,
+  secretAgentQueue,
   closeAllQueues
 };

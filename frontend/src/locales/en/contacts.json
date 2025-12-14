@@ -209,7 +209,13 @@
   "details": {
     "tabs": {
       "overview": "Overview",
-      "opportunities": "Opportunities"
+      "opportunities": "Opportunities",
+      "photos": "Photos"
+    },
+    "photos": {
+      "title": "Photos",
+      "noPhotos": "No photos available",
+      "googleMapsPhotos": "Google Maps Photos"
     },
     "contactInfo": "Contact Information",
     "email": "Email",
@@ -233,6 +239,31 @@
       "none": "No opportunities linked"
     },
     "loading": "Loading...",
-    "notFound": "Contact not found"
+    "notFound": "Contact not found",
+    "companyIntelligence": "GetRaze Secret Agent",
+    "services": "Services",
+    "painPoints": "Opportunities",
+    "website": "Website",
+    "allEmails": "Emails found",
+    "allPhones": "Phones found",
+    "socialLinks": "Social Media",
+    "teamMembers": "Team"
+  },
+  "officialData": {
+    "title": "Official Data",
+    "source": "Brazilian Federal Revenue Data (ReceitaWS)",
+    "noData": "Official data not available",
+    "cnpj": "CNPJ",
+    "razaoSocial": "Legal Name",
+    "nomeFantasia": "Trade Name",
+    "situation": "Status",
+    "since": "Since",
+    "openDate": "Opening Date",
+    "capitalSocial": "Share Capital",
+    "address": "Address",
+    "mainActivity": "Main Activity",
+    "partners": "Partners",
+    "morePartners": "additional partners",
+    "lastUpdate": "Last update"
   }
 }

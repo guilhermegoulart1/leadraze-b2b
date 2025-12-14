@@ -19,7 +19,8 @@
     "emails": "Emails",
     "settings": "Configuración",
     "help": "Ayuda",
-    "logout": "Salir"
+    "logout": "Salir",
+    "secretAgent": "Agente Secreto"
   },
   "sections": {
     "work": "TRABAJO",
@@ -29,7 +30,8 @@
     "linkedin": "LINKEDIN",
     "activation": "ACTIVACIÓN DE LISTAS",
     "crm": "CRM",
-    "emails": "EMAILS"
+    "emails": "EMAILS",
+    "intelligence": "INTELIGENCIA"
   },
   "userMenu": {
     "profile": "Perfil",

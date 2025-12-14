@@ -414,7 +414,7 @@ const BillingPage = () => {
                 <div>
                   <p className="text-sm text-green-700 dark:text-green-300">{t('credits.available')}</p>
                   <p className="text-3xl font-bold text-green-800 dark:text-green-200">
-                    {credits?.total?.toLocaleString() || 0}
+                    {credits?.gmaps?.available?.toLocaleString() || 0}
                   </p>
                 </div>
               </div>
@@ -425,21 +425,21 @@ const BillingPage = () => {
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">{t('credits.monthlyCredits')}</span>
                 <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {credits?.expiring?.toLocaleString() || credits?.monthly?.toLocaleString() || 0} {t('purchaseModal.credits')}
+                  {credits?.gmaps?.monthly?.toLocaleString() || 0} {t('purchaseModal.credits')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">{t('credits.purchasedCredits')}</span>
                 <span className="font-medium text-green-600 dark:text-green-400">
-                  {credits?.permanent?.toLocaleString() || credits?.purchased?.toLocaleString() || 0} {t('purchaseModal.credits')}
+                  {credits?.gmaps?.permanent?.toLocaleString() || 0} {t('purchaseModal.credits')}
                   <span className="text-xs text-green-500 dark:text-green-400 ml-1">{t('credits.neverExpire')}</span>
                 </span>
               </div>
-              {credits?.nextExpiry && (
+              {credits?.gmaps?.expiresAt && credits?.gmaps?.monthly > 0 && (
                 <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
                   <span>{t('credits.monthlyExpire')}</span>
                   <span className="font-medium">
-                    {t('credits.expireOn', { amount: credits.expiringAmount || credits.expiring, date: new Date(credits.nextExpiry).toLocaleDateString() })}
+                    {t('credits.expireOn', { amount: credits.gmaps.monthly, date: new Date(credits.gmaps.expiresAt).toLocaleDateString() })}
                   </span>
                 </div>
               )}

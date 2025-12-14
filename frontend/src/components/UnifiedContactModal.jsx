@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, Mail, Phone, Building2, MapPin, Linkedin,
+  X, Mail, Phone, Building2, MapPin, Linkedin, Globe, Briefcase,
   MessageCircle, Instagram, Send, Clock, MessageSquare,
-  ChevronRight, Trash2, Plus, Save, User, RefreshCw
+  ChevronRight, Trash2, Plus, Save, User, RefreshCw, Sparkles, Image, FileText
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import ContactAvatar from './ContactAvatar';
+import LocationMiniMap from './LocationMiniMap';
+import OfficialDataTab from './OfficialDataTab';
 
 const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation }) => {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,6 +33,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     title: '',
     location: '',
     profile_url: '',
+    website: '',
     tags: []
   });
   const [hasChanges, setHasChanges] = useState(false);
@@ -51,6 +56,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
         title: contact.title || '',
         location: contact.location || '',
         profile_url: contact.profile_url || '',
+        website: contact.website || '',
         tags: contact.tags?.map(t => t.id) || []
       });
       setHasChanges(false);
@@ -214,6 +220,32 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     return format(new Date(date), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR });
   };
 
+  // Parse JSON arrays safely (for AI analysis data)
+  const parseJsonArray = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // If not valid JSON, try splitting by comma
+        if (value.includes(',')) {
+          return value.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return value ? [value] : [];
+      }
+    }
+    return [];
+  };
+
+  // Check if contact has AI analysis data
+  const hasAIAnalysis = contact && (
+    contact.company_description ||
+    parseJsonArray(contact.company_services).length > 0 ||
+    parseJsonArray(contact.pain_points).length > 0
+  );
+
   const handleOpenConversation = (conversationId) => {
     if (onOpenConversation) {
       onOpenConversation(conversationId);
@@ -340,6 +372,47 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                     >
                       Oportunidades ({leads.length})
                     </button>
+                    {hasAIAnalysis && (
+                      <button
+                        onClick={() => setActiveTab('intelligence')}
+                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                          activeTab === 'intelligence'
+                            ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Inteligencia IA
+                      </button>
+                    )}
+                    {/* Photos Tab - only show if photos exist */}
+                    {contact && parseJsonArray(contact.photos).length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('photos')}
+                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                          activeTab === 'photos'
+                            ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        <Image className="w-3.5 h-3.5" />
+                        Fotos ({parseJsonArray(contact.photos).length})
+                      </button>
+                    )}
+                    {/* Official Data Tab - only show if cnpj_data exists */}
+                    {contact && contact.cnpj_data && (
+                      <button
+                        onClick={() => setActiveTab('officialData')}
+                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                          activeTab === 'officialData'
+                            ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {t('contacts.officialData.title')}
+                      </button>
+                    )}
                   </div>
 
                   {/* Overview Tab - Editable fields */}
@@ -411,6 +484,13 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                           className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Cidade, Estado"
                         />
+                        {/* Mini Map */}
+                        <LocationMiniMap
+                          latitude={contact?.latitude}
+                          longitude={contact?.longitude}
+                          height={120}
+                          className="mt-2"
+                        />
                       </div>
 
                       {/* LinkedIn */}
@@ -424,6 +504,20 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                           onChange={(e) => handleInputChange('profile_url', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="https://linkedin.com/in/..."
+                        />
+                      </div>
+
+                      {/* Website */}
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          <Globe className="w-3.5 h-3.5" /> Website
+                        </label>
+                        <input
+                          type="url"
+                          value={formData.website}
+                          onChange={(e) => handleInputChange('website', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="https://exemplo.com"
                         />
                       </div>
 
@@ -567,6 +661,148 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Intelligence Tab */}
+                  {activeTab === 'intelligence' && (
+                    <div className="space-y-6">
+                      {/* Header with gradient */}
+                      <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg p-4 text-white">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-5 h-5" />
+                          <h3 className="font-semibold">Analise Inteligente</h3>
+                        </div>
+                        <p className="text-sm text-purple-100">
+                          Dados coletados e analisados automaticamente pela IA
+                        </p>
+                      </div>
+
+                      {/* Company Description */}
+                      {contact.company_description && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                            <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            Sobre a Empresa
+                          </h4>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                            {contact.company_description}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Services */}
+                      {parseJsonArray(contact.company_services).length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                            <Briefcase className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            Servicos Oferecidos
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {parseJsonArray(contact.company_services).map((service, idx) => (
+                              <span
+                                key={idx}
+                                className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm rounded-lg border border-blue-200 dark:border-blue-700"
+                              >
+                                {service}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pain Points */}
+                      {parseJsonArray(contact.pain_points).length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                            <span className="text-amber-500">💡</span>
+                            Oportunidades de Venda
+                          </h4>
+                          <ul className="space-y-2">
+                            {parseJsonArray(contact.pain_points).map((pain, idx) => (
+                              <li
+                                key={idx}
+                                className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
+                              >
+                                <span className="text-amber-500 mt-0.5">•</span>
+                                <span>{pain}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Website Link */}
+                      {contact.website && (
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                            <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            Website Analisado
+                          </h4>
+                          <a
+                            href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                          >
+                            {contact.website}
+                            <ChevronRight className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Photos Tab */}
+                  {activeTab === 'photos' && (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg p-4 text-white">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Image className="w-5 h-5" />
+                          <h3 className="font-semibold">Fotos do Google Maps</h3>
+                        </div>
+                        <p className="text-sm text-purple-100">
+                          Imagens coletadas automaticamente do Google Maps
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {parseJsonArray(contact.photos).map((photo, idx) => (
+                          <a
+                            key={idx}
+                            href={photo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="relative group aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 transition-colors"
+                          >
+                            <img
+                              src={photo}
+                              alt={`${contact?.name || 'Contato'} - Foto ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                            <div className="hidden items-center justify-center w-full h-full text-gray-400 dark:text-gray-500">
+                              <Image className="w-8 h-8" />
+                            </div>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                Ver imagem
+                              </span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Official Data Tab */}
+                  {activeTab === 'officialData' && contact?.cnpj_data && (
+                    <OfficialDataTab
+                      cnpj={contact.cnpj}
+                      cnpjData={contact.cnpj_data}
+                    />
                   )}
                 </div>
 

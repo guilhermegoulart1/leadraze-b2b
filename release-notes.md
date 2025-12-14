@@ -1,21 +1,25 @@
-# 📦 Release v8.4.1
+# 📦 Release v8.4.2
 
 Bug Fixes
 
-CRM Filter Layout
+Normalização dos badges de LinkedIn Premium no card do CRM. Estava fora de padrao e ocupava espaço demais.
 
-Fixed layout issues affecting the filter display in the CRM dashboard. Filters now render correctly and consistently across all screen sizes.
+Ajuste nos creditos Google Maps, estavam consumindo de créditos da IA em algumas campanhas.
 
-Google Maps Credits on Billing Page
+Remoção do link "Perfil" do card do CRM para padronizaço do card.
 
-Fixed an issue where Google Maps credits were not being added correctly from the Billing page. Credit purchases now process and reflect accurately in your account balance.
+Ajustes no layout da criação de Vendedores IA para ficar mais intuitivo para o usuário e dar suporte para múltiplos nichos
 
-New Features
+Inclusão da função de edição de nome e foto nos Vendedores IA
 
-Add Opportunity to CRM
+Novas funcionalidades
 
-Manually create new opportunities directly within the CRM. Add deal information, associate contacts, and track potential revenue without requiring an inbound conversation or campaign lead.
+Nova janela de conversação para inclusão de novos agentes, mais intuitiva e direta.
 
-Add Contact
+Scraper de enriquecimento de dados para campanhas de Google Maps, usando informações do site.
 
-Quickly add new contacts to your CRM database manually. Input contact details directly through a simple form, enabling you to manage leads and relationships from any source.
+Agente especial de inteligência IA, de análise de dados do website no Google Maps para trazer insights sobre a empresa coletada.
+
+Nova página de relatório de campanhas Google Maps.
+
+Adição do mapa e de dados oficiais da empresa nos contatos.

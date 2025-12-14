@@ -151,25 +151,45 @@ exports.getUsage = async (req, res) => {
 };
 
 /**
- * Get available credits with breakdown
+ * Get available credits with breakdown (separated by type: gmaps and ai)
  */
 exports.getCredits = async (req, res) => {
   try {
     const accountId = req.user.account_id;
 
-    // Get detailed breakdown
-    const breakdown = await stripeService.getCreditBreakdown(accountId);
+    // Get detailed breakdown by type
+    const gmapsBreakdown = await stripeService.getGmapsCreditBreakdown(accountId);
+    const aiBreakdown = await stripeService.getAiCreditBreakdown(accountId);
 
     // Get credit packages for purchase
     const purchasePackages = getCreditPackages();
 
+    // Combine all packages for detailed view
+    const allPackages = [...gmapsBreakdown.packages, ...aiBreakdown.packages];
+
     res.json({
       success: true,
       data: {
-        total: breakdown.total,
-        expiring: breakdown.expiring,    // Créditos do plano mensal (expiram)
-        permanent: breakdown.permanent,   // Créditos comprados (não expiram)
-        packages: breakdown.packages.map(p => ({
+        // Legacy format (for backwards compatibility)
+        total: gmapsBreakdown.total + aiBreakdown.total,
+        expiring: gmapsBreakdown.monthly.remaining + aiBreakdown.monthly.remaining,
+        permanent: gmapsBreakdown.permanent + aiBreakdown.permanent,
+
+        // New format with separate gmaps and ai credits
+        gmaps: {
+          available: gmapsBreakdown.total,
+          monthly: gmapsBreakdown.monthly.remaining,
+          permanent: gmapsBreakdown.permanent,
+          expiresAt: gmapsBreakdown.monthly.expiresAt
+        },
+        ai: {
+          available: aiBreakdown.total,
+          monthly: aiBreakdown.monthly.remaining,
+          permanent: aiBreakdown.permanent,
+          expiresAt: aiBreakdown.monthly.expiresAt
+        },
+
+        packages: allPackages.map(p => ({
           id: p.id,
           type: p.credit_type,
           remaining: p.remaining_credits,
@@ -1010,34 +1030,45 @@ exports.getCreditsSummary = async (req, res) => {
     // Get AI credits
     const aiBreakdown = await stripeService.getAiCreditBreakdown(accountId);
 
-    // Get GMaps credits
-    const gmapsBreakdown = await stripeService.getCreditBreakdown(accountId);
+    // Get GMaps credits (using the specific method now)
+    const gmapsBreakdown = await stripeService.getGmapsCreditBreakdown(accountId);
 
     // Get subscription limits for monthly allocation
     const subscription = await subscriptionService.getStatus(accountId);
     const monthlyAiLimit = subscription?.limits?.monthlyAiCredits || 5000;
     const monthlyGmapsLimit = subscription?.limits?.monthlyGmapsCredits || 200;
 
+    // Calculate percentUsed more intelligently:
+    // - If user has monthly credits, show % used of monthly limit
+    // - If user only has permanent credits, show 0% used (they have full balance)
+    const aiMonthlyRemaining = aiBreakdown.monthly?.remaining || 0;
+    const gmapsMonthlyRemaining = gmapsBreakdown.monthly?.remaining || 0;
+
+    // If no monthly subscription credits exist, percentUsed = 0 (user has unused purchased credits)
+    const aiPercentUsed = aiMonthlyRemaining > 0 && monthlyAiLimit > 0
+      ? Math.round(((monthlyAiLimit - aiMonthlyRemaining) / monthlyAiLimit) * 100)
+      : (aiBreakdown.total > 0 ? 0 : 100); // 0% used if has credits, 100% if depleted
+
+    const gmapsPercentUsed = gmapsMonthlyRemaining > 0 && monthlyGmapsLimit > 0
+      ? Math.round(((monthlyGmapsLimit - gmapsMonthlyRemaining) / monthlyGmapsLimit) * 100)
+      : (gmapsBreakdown.total > 0 ? 0 : 100); // 0% used if has credits, 100% if depleted
+
     res.json({
       success: true,
       data: {
         ai: {
           total: aiBreakdown.total,
-          monthly: aiBreakdown.monthly?.remaining || 0,
+          monthly: aiMonthlyRemaining,
           permanent: aiBreakdown.permanent || 0,
           monthlyLimit: monthlyAiLimit,
-          percentUsed: monthlyAiLimit > 0
-            ? Math.round(((monthlyAiLimit - (aiBreakdown.monthly?.remaining || 0)) / monthlyAiLimit) * 100)
-            : 0
+          percentUsed: aiPercentUsed
         },
         gmaps: {
           total: gmapsBreakdown.total,
-          monthly: gmapsBreakdown.expiring || 0,
+          monthly: gmapsMonthlyRemaining,
           permanent: gmapsBreakdown.permanent || 0,
           monthlyLimit: monthlyGmapsLimit,
-          percentUsed: monthlyGmapsLimit > 0
-            ? Math.round(((monthlyGmapsLimit - (gmapsBreakdown.expiring || 0)) / monthlyGmapsLimit) * 100)
-            : 0
+          percentUsed: gmapsPercentUsed
         }
       }
     });

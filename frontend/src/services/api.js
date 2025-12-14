@@ -1284,8 +1284,9 @@ class ApiService {
     });
   }
 
-  async deleteGoogleMapsAgent(id) {
-    return this.request(`/google-maps-agents/${id}`, {
+  async deleteGoogleMapsAgent(id, options = {}) {
+    const { deleteLeads = false } = options;
+    return this.request(`/google-maps-agents/${id}?deleteLeads=${deleteLeads}`, {
       method: 'DELETE',
     });
   }
@@ -1309,6 +1310,10 @@ class ApiService {
     return this.request(`/google-maps-agents/${id}/assignments?limit=${limit}`);
   }
 
+  async getGoogleMapsAgentContacts(agentId) {
+    return this.request(`/google-maps-agents/${agentId}/contacts`);
+  }
+
   async exportGoogleMapsAgentContacts(agentId) {
     const url = `${this.baseURL}/google-maps-agents/${agentId}/export`;
     const token = this.getToken();
@@ -1325,6 +1330,10 @@ class ApiService {
     }
 
     return response.text();
+  }
+
+  async getGoogleMapsAgentLogs(agentId) {
+    return this.request(`/google-maps-agents/${agentId}/logs`);
   }
 
   // ================================
@@ -2424,6 +2433,70 @@ class ApiService {
       method: 'PATCH',
     });
   }
+
+  // ==========================================
+  // SECRET AGENT - Intelligence System
+  // ==========================================
+
+  secretAgent = {
+    // Sessions
+    createSession: () => this.request('/secret-agent/sessions', { method: 'POST' }),
+
+    getSessions: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return this.request(`/secret-agent/sessions${query ? `?${query}` : ''}`);
+    },
+
+    getSession: (id) => this.request(`/secret-agent/sessions/${id}`),
+
+    sendMessage: (sessionId, message, attachments = null) =>
+      this.request(`/secret-agent/sessions/${sessionId}/message`, {
+        method: 'POST',
+        body: JSON.stringify({ message, attachments }),
+      }),
+
+    startInvestigation: (sessionId, data) =>
+      this.request(`/secret-agent/sessions/${sessionId}/start-investigation`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    deleteSession: (id) =>
+      this.request(`/secret-agent/sessions/${id}`, { method: 'DELETE' }),
+
+    // Investigations
+    getInvestigations: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return this.request(`/secret-agent/investigations${query ? `?${query}` : ''}`);
+    },
+
+    getInvestigation: (id) => this.request(`/secret-agent/investigations/${id}`),
+
+    // Briefings
+    getBriefings: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return this.request(`/secret-agent/briefings${query ? `?${query}` : ''}`);
+    },
+
+    getBriefing: (id) => this.request(`/secret-agent/briefings/${id}`),
+
+    linkBriefingToLead: (briefingId, leadId) =>
+      this.request(`/secret-agent/briefings/${briefingId}/link-lead`, {
+        method: 'POST',
+        body: JSON.stringify({ leadId }),
+      }),
+
+    unlinkBriefingFromLead: (briefingId, leadId) =>
+      this.request(`/secret-agent/briefings/${briefingId}/link-lead/${leadId}`, {
+        method: 'DELETE',
+      }),
+
+    deleteBriefing: (id) =>
+      this.request(`/secret-agent/briefings/${id}`, { method: 'DELETE' }),
+
+    // Team info
+    getTeam: () => this.request('/secret-agent/team'),
+  };
 
 }
 

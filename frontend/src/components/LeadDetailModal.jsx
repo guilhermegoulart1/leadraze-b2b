@@ -47,6 +47,7 @@ import api from '../services/api';
 import MentionTextarea from './MentionTextarea';
 import TaskModal from './TaskModal';
 import LeadChecklists from './LeadChecklists';
+import LocationMiniMap from './LocationMiniMap';
 
 // Helper functions for dynamic Tailwind classes
 const getStageClasses = (color) => {
@@ -73,7 +74,7 @@ const getStatusDotClasses = (color) => {
   return colorMap[color] || colorMap.slate;
 };
 
-const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated }) => {
+const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated, onViewContact }) => {
   const { t } = useTranslation('leads');
   const [activeTab, setActiveTab] = useState('details'); // details | contact | comments | tasks
   const [activeChannel, setActiveChannel] = useState(null);
@@ -1455,6 +1456,17 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       </div>
                     )}
 
+                    {/* Mini Map */}
+                    {(lead.latitude && lead.longitude) && (
+                      <div className="mt-3">
+                        <LocationMiniMap
+                          latitude={lead.latitude}
+                          longitude={lead.longitude}
+                          height={120}
+                        />
+                      </div>
+                    )}
+
                     {lead.industry && (
                       <div className="flex items-center gap-2.5">
                         <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
@@ -1512,6 +1524,68 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line leading-relaxed pl-6">
                         {lead.about}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Company Intelligence (GPT Analysis) */}
+                  {(lead.company_description || lead.company_services || lead.pain_points) && (
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Zap className="w-4 h-4 text-purple-500" />
+                        <h3 className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">
+                          {t('modal.companyIntelligence')}
+                        </h3>
+                        <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded">
+                          IA
+                        </span>
+                      </div>
+
+                      {/* Company Description */}
+                      {lead.company_description && (
+                        <div className="pl-6 mb-4">
+                          <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                            {lead.company_description}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Services */}
+                      {lead.company_services && Array.isArray(lead.company_services) && lead.company_services.length > 0 && (
+                        <div className="pl-6 mb-4">
+                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">{t('modal.services')}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {lead.company_services.map((service, idx) => (
+                              <span
+                                key={idx}
+                                className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full"
+                              >
+                                {service}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pain Points */}
+                      {lead.pain_points && Array.isArray(lead.pain_points) && lead.pain_points.length > 0 && (
+                        <div className="pl-6">
+                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
+                            <Target className="w-3 h-3" />
+                            {t('modal.painPoints')}
+                          </p>
+                          <div className="space-y-1.5">
+                            {lead.pain_points.map((pain, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-amber-50 dark:bg-amber-900/10 p-2 rounded-lg"
+                              >
+                                <span className="text-amber-500 mt-0.5">•</span>
+                                <span>{pain}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1665,6 +1739,22 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         <UserCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p className="text-sm">Nenhuma informação de perfil disponível</p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Ver todos os dados - Link to full contact modal */}
+                  {lead.contact_id && onViewContact && (
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={() => {
+                          onClose();
+                          onViewContact(lead.contact_id);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm font-medium"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Ver todos os dados do contato
+                      </button>
                     </div>
                   )}
                 </div>

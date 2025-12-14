@@ -209,7 +209,13 @@
   "details": {
     "tabs": {
       "overview": "Visão Geral",
-      "opportunities": "Oportunidades"
+      "opportunities": "Oportunidades",
+      "photos": "Fotos"
+    },
+    "photos": {
+      "title": "Fotos",
+      "noPhotos": "Nenhuma foto disponível",
+      "googleMapsPhotos": "Fotos do Google Maps"
     },
     "contactInfo": "Informações de Contato",
     "email": "Email",
@@ -233,6 +239,31 @@
       "none": "Nenhuma oportunidade vinculada"
     },
     "loading": "Carregando...",
-    "notFound": "Contato não encontrado"
+    "notFound": "Contato não encontrado",
+    "companyIntelligence": "Agente Secreto GetRaze",
+    "services": "Serviços",
+    "painPoints": "Oportunidades",
+    "website": "Website",
+    "allEmails": "Emails encontrados",
+    "allPhones": "Telefones encontrados",
+    "socialLinks": "Redes Sociais",
+    "teamMembers": "Equipe"
+  },
+  "officialData": {
+    "title": "Dados Oficiais",
+    "source": "Dados da Receita Federal (ReceitaWS)",
+    "noData": "Dados oficiais não disponíveis",
+    "cnpj": "CNPJ",
+    "razaoSocial": "Razão Social",
+    "nomeFantasia": "Nome Fantasia",
+    "situation": "Situação",
+    "since": "Desde",
+    "openDate": "Data de Abertura",
+    "capitalSocial": "Capital Social",
+    "address": "Endereço",
+    "mainActivity": "Atividade Principal",
+    "partners": "Quadro Societário",
+    "morePartners": "sócios adicionais",
+    "lastUpdate": "Última atualização"
   }
 }

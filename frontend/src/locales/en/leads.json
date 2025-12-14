@@ -131,6 +131,9 @@
     "enrichedOn": "Enriched on",
     "qualificationScore": "Qualification Score",
     "source": "Source:",
-    "present": "Present"
+    "present": "Present",
+    "companyIntelligence": "GetRaze Secret Agent",
+    "services": "Services",
+    "painPoints": "Sales Opportunities"
   }
 }

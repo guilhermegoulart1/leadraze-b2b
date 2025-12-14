@@ -2,17 +2,62 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Building2, MapPin, Linkedin, Globe,
   MessageCircle, Instagram, Send, Calendar, FileText,
-  Briefcase, GraduationCap
+  Briefcase, GraduationCap, Image, Users, Facebook, Youtube, Twitter
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import ContactAvatar from './ContactAvatar';
+import LocationMiniMap from './LocationMiniMap';
+import OfficialDataTab from './OfficialDataTab';
 
 const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
   const { t } = useTranslation();
   const [contact, setContact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // overview, activity, opportunities
+
+  // Helper to safely parse JSON arrays that might come as strings from DB
+  const parseJsonArray = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // If it's a comma-separated string, split it
+        if (value.includes(',')) {
+          return value.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return value ? [value] : [];
+      }
+    }
+    return [];
+  };
+
+  // Helper to safely parse JSON objects
+  const parseJsonObject = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object' && !Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+
+  // Social icon mapping
+  const socialIcons = {
+    linkedin: { icon: Linkedin, color: 'text-blue-600', bg: 'bg-blue-50' },
+    instagram: { icon: Instagram, color: 'text-pink-600', bg: 'bg-pink-50' },
+    facebook: { icon: Facebook, color: 'text-blue-500', bg: 'bg-blue-50' },
+    youtube: { icon: Youtube, color: 'text-red-600', bg: 'bg-red-50' },
+    twitter: { icon: Twitter, color: 'text-sky-500', bg: 'bg-sky-50' }
+  };
 
   useEffect(() => {
     if (isOpen && contactId) {
@@ -152,6 +197,34 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                   >
                     {t('contacts.details.tabs.opportunities')} ({contact.opportunities?.length || 0})
                   </button>
+                  {/* Photos Tab - only show if photos exist */}
+                  {contact.photos && parseJsonArray(contact.photos).length > 0 && (
+                    <button
+                      onClick={() => setActiveTab('photos')}
+                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                        activeTab === 'photos'
+                          ? 'border-purple-600 text-purple-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Image className="w-3.5 h-3.5" />
+                      {t('contacts.details.tabs.photos')} ({parseJsonArray(contact.photos).length})
+                    </button>
+                  )}
+                  {/* Official Data Tab - only show if cnpj_data exists */}
+                  {contact.cnpj_data && (
+                    <button
+                      onClick={() => setActiveTab('officialData')}
+                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                        activeTab === 'officialData'
+                          ? 'border-purple-600 text-purple-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      {t('contacts.officialData.title')}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -195,6 +268,16 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                             </div>
                           </div>
                         )}
+                        {/* Mini Map */}
+                        {(contact.latitude && contact.longitude) && (
+                          <div className="col-span-2">
+                            <LocationMiniMap
+                              latitude={contact.latitude}
+                              longitude={contact.longitude}
+                              height={120}
+                            />
+                          </div>
+                        )}
                         {contact.industry && (
                           <div className="flex items-center gap-2">
                             <Briefcase className="w-4 h-4 text-gray-400" />
@@ -204,8 +287,149 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                             </div>
                           </div>
                         )}
+                        {contact.website && (
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="text-xs text-gray-500">{t('contacts.details.website', 'Website')}</p>
+                              <a
+                                href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-purple-600 hover:underline"
+                              >
+                                {contact.website}
+                              </a>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Multiple Emails */}
+                    {parseJsonArray(contact.emails).length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                          {t('contacts.details.allEmails', 'Emails encontrados')} ({parseJsonArray(contact.emails).length})
+                        </h3>
+                        <div className="space-y-2">
+                          {parseJsonArray(contact.emails).map((emailObj, idx) => (
+                            <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              <div className="flex-1 min-w-0">
+                                <a href={`mailto:${emailObj.email}`} className="text-sm text-purple-600 hover:underline truncate block">
+                                  {emailObj.email}
+                                </a>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {emailObj.type && (
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                      emailObj.type === 'personal' ? 'bg-green-100 text-green-700' :
+                                      emailObj.type === 'commercial' ? 'bg-blue-100 text-blue-700' :
+                                      emailObj.type === 'support' ? 'bg-orange-100 text-orange-700' :
+                                      'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {emailObj.type}
+                                    </span>
+                                  )}
+                                  {emailObj.department && (
+                                    <span className="text-[10px] text-gray-500">{emailObj.department}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Multiple Phones */}
+                    {parseJsonArray(contact.phones).length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                          {t('contacts.details.allPhones', 'Telefones encontrados')} ({parseJsonArray(contact.phones).length})
+                        </h3>
+                        <div className="space-y-2">
+                          {parseJsonArray(contact.phones).map((phoneObj, idx) => (
+                            <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              <div className="flex-1 min-w-0">
+                                <a href={`tel:${phoneObj.phone}`} className="text-sm text-gray-700 dark:text-gray-300">
+                                  {phoneObj.phone}
+                                </a>
+                                {phoneObj.type && (
+                                  <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                                    phoneObj.type === 'whatsapp' ? 'bg-green-100 text-green-700' :
+                                    phoneObj.type === 'mobile' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {phoneObj.type === 'whatsapp' ? 'WhatsApp' : phoneObj.type}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Social Links */}
+                    {Object.keys(parseJsonObject(contact.social_links)).length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                          {t('contacts.details.socialLinks', 'Redes Sociais')}
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(parseJsonObject(contact.social_links)).map(([network, url]) => {
+                            const config = socialIcons[network] || { icon: Globe, color: 'text-gray-600', bg: 'bg-gray-50' };
+                            const IconComponent = config.icon;
+                            return (
+                              <a
+                                key={network}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 px-3 py-2 ${config.bg} dark:bg-gray-800 rounded-lg hover:opacity-80 transition-opacity`}
+                              >
+                                <IconComponent className={`w-4 h-4 ${config.color}`} />
+                                <span className="text-sm capitalize text-gray-700 dark:text-gray-300">{network}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Team Members */}
+                    {parseJsonArray(contact.team_members).length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                          <Users className="w-4 h-4 inline mr-2" />
+                          {t('contacts.details.teamMembers', 'Equipe')} ({parseJsonArray(contact.team_members).length})
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {parseJsonArray(contact.team_members).map((member, idx) => (
+                            <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{member.name}</p>
+                              {member.role && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{member.role}</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-2">
+                                {member.email && (
+                                  <a href={`mailto:${member.email}`} className="text-purple-600 hover:underline">
+                                    <Mail className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                                {member.linkedin && (
+                                  <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                    <Linkedin className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Channels */}
                     {contact.channels && contact.channels.length > 0 && (
@@ -254,6 +478,65 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{contact.about}</p>
                       </div>
                     )}
+
+                    {/* Company Intelligence (GPT Analysis) */}
+                    {(() => {
+                      const services = parseJsonArray(contact.company_services);
+                      const painPoints = parseJsonArray(contact.pain_points);
+                      const hasIntelligence = contact.company_description || services.length > 0 || painPoints.length > 0;
+
+                      if (!hasIntelligence) return null;
+
+                      return (
+                        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Briefcase className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-200">
+                              {t('contacts.details.companyIntelligence', 'Inteligência da Empresa')}
+                            </h3>
+                            <span className="text-xs bg-purple-200 dark:bg-purple-700 text-purple-700 dark:text-purple-200 px-1.5 py-0.5 rounded">IA</span>
+                          </div>
+
+                          {/* Description */}
+                          {contact.company_description && (
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{contact.company_description}</p>
+                          )}
+
+                          {/* Services */}
+                          {services.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">
+                                {t('contacts.details.services', 'Serviços')}
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {services.map((service, idx) => (
+                                  <span key={idx} className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                                    {service}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Pain Points */}
+                          {painPoints.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">
+                                {t('contacts.details.painPoints', 'Oportunidades')}
+                              </p>
+                              <ul className="space-y-1">
+                                {painPoints.map((pain, idx) => (
+                                  <li key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-start gap-1.5">
+                                    <span className="text-amber-500 mt-0.5">•</span>
+                                    {pain}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Profile Links */}
                     {(contact.profile_url || contact.linkedin_profile_id) && (
@@ -354,6 +637,68 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                       </div>
                     )}
                   </div>
+                )}
+
+                {/* Photos Tab */}
+                {activeTab === 'photos' && (
+                  <div>
+                    {(() => {
+                      const photos = parseJsonArray(contact.photos);
+                      if (photos.length === 0) {
+                        return (
+                          <div className="text-center py-12 text-gray-500">
+                            <Image className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p>{t('contacts.details.photos.noPhotos')}</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            <Image className="w-4 h-4 text-purple-600" />
+                            {t('contacts.details.photos.googleMapsPhotos')}
+                          </h3>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {photos.map((photo, idx) => (
+                              <a
+                                key={idx}
+                                href={photo}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="relative group aspect-video rounded-lg overflow-hidden bg-gray-100 border border-gray-200 hover:border-purple-400 transition-colors"
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`${contact.name} - Photo ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="hidden items-center justify-center w-full h-full text-gray-400">
+                                  <Image className="w-8 h-8" />
+                                </div>
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                  <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Ver imagem
+                                  </span>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Official Data Tab */}
+                {activeTab === 'officialData' && contact.cnpj_data && (
+                  <OfficialDataTab
+                    cnpj={contact.cnpj}
+                    cnpjData={contact.cnpj_data}
+                  />
                 )}
               </div>
             </>

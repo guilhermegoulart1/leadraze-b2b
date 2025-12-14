@@ -30,6 +30,7 @@ import enWebsiteAgents from './locales/en/websiteAgents.json';
 import enTasks from './locales/en/tasks.json';
 import enHire from './locales/en/hire.json';
 import enKnowledge from './locales/en/knowledge.json';
+import enSecretAgent from './locales/en/secretAgent.json';
 
 // Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
@@ -59,6 +60,7 @@ import ptWebsiteAgents from './locales/pt/websiteAgents.json';
 import ptTasks from './locales/pt/tasks.json';
 import ptHire from './locales/pt/hire.json';
 import ptKnowledge from './locales/pt/knowledge.json';
+import ptSecretAgent from './locales/pt/secretAgent.json';
 
 // Import translations - Spanish
 import esCommon from './locales/es/common.json';
@@ -88,6 +90,7 @@ import esWebsiteAgents from './locales/es/websiteAgents.json';
 import esTasks from './locales/es/tasks.json';
 import esHire from './locales/es/hire.json';
 import esKnowledge from './locales/es/knowledge.json';
+import esSecretAgent from './locales/es/secretAgent.json';
 
 // Translation resources
 const resources = {
@@ -119,6 +122,7 @@ const resources = {
     tasks: enTasks,
     hire: enHire,
     knowledge: enKnowledge,
+    secretAgent: enSecretAgent,
   },
   pt: {
     common: ptCommon,
@@ -148,6 +152,7 @@ const resources = {
     tasks: ptTasks,
     hire: ptHire,
     knowledge: ptKnowledge,
+    secretAgent: ptSecretAgent,
   },
   es: {
     common: esCommon,
@@ -177,6 +182,7 @@ const resources = {
     tasks: esTasks,
     hire: esHire,
     knowledge: esKnowledge,
+    secretAgent: esSecretAgent,
   },
 };
 
@@ -193,7 +199,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent'
     ],
 
     // Language detection configuration

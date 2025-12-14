@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import SearchPage from './pages/SearchPage';
 import GoogleMapsSearchPage from './pages/GoogleMapsSearchPage';
 import GoogleMapsAgentsPage from './pages/GoogleMapsAgentsPage';
+import GoogleMapsAgentDetailPage from './pages/GoogleMapsAgentDetailPage';
 import CampaignsPage from './pages/CampaignsPage';
 import CampaignReportPage from './pages/CampaignReportPage';
 import LinkedInPage from './pages/LinkedInPage';
@@ -51,6 +52,7 @@ import MyAccountPage from './pages/MyAccountPage';
 import TagsPage from './pages/TagsPage';
 import ConfigPage from './pages/ConfigPage';
 import TeamPage from './pages/TeamPage';
+import SecretAgentPage from './pages/SecretAgentPage';
 
 // Partner Pages
 import PartnerLoginPage from './pages/partner/PartnerLoginPage';
@@ -133,6 +135,7 @@ function AppRoutes() {
         <Route path="search" element={<SearchPage />} />
         <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
+        <Route path="google-maps-agents/:id" element={<GoogleMapsAgentDetailPage />} />
         <Route path="campaigns" element={<LinkedInPage />} />
         <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
         <Route path="leads" element={<LeadsPage />} />
@@ -145,6 +148,7 @@ function AppRoutes() {
         <Route path="my-connections" element={<MyConnectionsPage />} />
         <Route path="contact-lists" element={<ContactListsPage />} />
         <Route path="tasks" element={<TasksPage />} />
+        <Route path="secret-agent" element={<SecretAgentPage />} />
         <Route path="admin/partners" element={<PartnersAdminPage />} />
 
         {/* Novas páginas com abas */}

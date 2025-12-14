@@ -1,6 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, ArrowRight, ArrowLeft, Bot } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import confetti from 'canvas-confetti';
+import ChatMessage from './ChatMessage';
+
+// Confetti celebration effect
+const triggerConfetti = () => {
+  const duration = 2000;
+  const end = Date.now() + duration;
+
+  const colors = ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#7C3AED'];
+
+  (function frame() {
+    confetti({
+      particleCount: 3,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0 },
+      colors: colors
+    });
+    confetti({
+      particleCount: 3,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1 },
+      colors: colors
+    });
+
+    if (Date.now() < end) {
+      requestAnimationFrame(frame);
+    }
+  }());
+
+  // Big burst in the center
+  setTimeout(() => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: colors
+    });
+  }, 250);
+};
 
 // Helper to detect if avatar is a base64 data URL (uploaded image)
 const isBase64Image = (url) => url && url.startsWith('data:image/');
@@ -71,11 +112,29 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Chat scroll ref
+  const chatContainerRef = useRef(null);
+
+  // Track answered steps for chat history
+  const [answeredSteps, setAnsweredSteps] = useState({});
+
   // Post-hire state
   const [showPostHireDialog, setShowPostHireDialog] = useState(false);
   const [showRulesEditor, setShowRulesEditor] = useState(false);
   const [createdAgentId, setCreatedAgentId] = useState(null);
   const [isSavingRules, setIsSavingRules] = useState(false);
+
+  // Auto-scroll to top when step changes (so user sees the new question)
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      setTimeout(() => {
+        chatContainerRef.current.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [currentStep]);
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -149,9 +208,11 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
           id: 'existing',
           name: agent.name,
           color: '#3B82F6',
+          avatar: agent.avatar_url || null,
           defaultConfig: {}
         },
         channel: agentConfig.channel || agent.agent_type || 'linkedin',
+        customAvatar: agent.avatar_url || null,
         productService,
         targetAudience,
         connectionStrategy: agent.connection_strategy || 'with-intro',
@@ -218,11 +279,58 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
     }
   };
 
+  // Get display text for answered step
+  const getAnswerText = (step) => {
+    switch (step) {
+      case STEPS.CANDIDATE:
+        return formData.candidate?.name || 'Candidato selecionado';
+      case STEPS.CUSTOMIZE:
+        return formData.agentName || formData.candidate?.name || 'Nome definido';
+      case STEPS.CHANNEL:
+        const channels = { linkedin: 'LinkedIn', whatsapp: 'WhatsApp', email: 'Email' };
+        return channels[formData.channel] || formData.channel;
+      case STEPS.PRODUCT:
+        const cats = formData.productService?.categories || [];
+        if (cats.length > 0) {
+          return cats.map(c => t(`product.categories.${c}`, { defaultValue: c })).join(', ');
+        }
+        return formData.productService?.description?.slice(0, 50) + '...' || 'Produto definido';
+      case STEPS.TARGET:
+        const roles = formData.targetAudience?.roles || [];
+        return roles.map(r => t(`target.roles.${r}`, { defaultValue: r })).join(', ') || 'Público definido';
+      case STEPS.CONNECTION:
+        const strategies = { silent: 'Conexão silenciosa', 'with-intro': 'Com apresentação', icebreaker: 'Quebra-gelo' };
+        return strategies[formData.connectionStrategy] || formData.connectionStrategy;
+      case STEPS.STYLE:
+        const styles = { direct: 'Direto', consultivo: 'Consultivo', educational: 'Educativo', friendly: 'Amigável' };
+        return styles[formData.conversationStyle] || formData.conversationStyle;
+      case STEPS.METHODOLOGY:
+        if (!formData.methodology) return 'Livre (sem metodologia)';
+        return formData.methodology.toUpperCase();
+      case STEPS.OBJECTIVE:
+        const objectives = {
+          connect_only: 'Só conectar',
+          qualify_transfer: 'Qualificar e transferir',
+          schedule_meeting: 'Agendar reunião',
+          sell_direct: 'Vender direto'
+        };
+        return objectives[formData.objective] || formData.objective;
+      default:
+        return 'Respondido';
+    }
+  };
+
   const goNext = () => {
     if (!canGoNext()) {
       setError('Preencha os campos obrigatórios');
       return;
     }
+
+    // Save answer for chat history
+    setAnsweredSteps(prev => ({
+      ...prev,
+      [currentStep]: getAnswerText(currentStep)
+    }));
 
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < stepOrder.length) {
@@ -309,6 +417,10 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
         // Modo criação - criar novo agente
         result = await api.createAIAgent(agentData);
         setCreatedAgentId(result.id || result.agent_id);
+
+        // 🎉 Trigger confetti celebration!
+        triggerConfetti();
+
         // Show post-hire dialog instead of closing immediately
         setShowPostHireDialog(true);
       }
@@ -386,6 +498,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
       conversionLink: '',
       agentName: ''
     });
+    setAnsweredSteps({});
     setError('');
     setShowPostHireDialog(false);
     setShowRulesEditor(false);
@@ -421,43 +534,75 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
     return t('wizard.title');
   };
 
+  // Helper to render compact history summary (chips)
+  const renderChatHistory = () => {
+    const historySteps = stepOrder.slice(0, currentStepIndex);
+    const answeredHistory = historySteps.filter(step => answeredSteps[step]);
+
+    if (answeredHistory.length === 0) return null;
+
+    // Skip showing CANDIDATE and CUSTOMIZE in history (already shown in header)
+    const visibleHistory = answeredHistory.filter(
+      step => step !== STEPS.CANDIDATE && step !== STEPS.CUSTOMIZE
+    );
+
+    if (visibleHistory.length === 0) return null;
+
+    return (
+      <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap gap-2">
+          {visibleHistory.map((step) => (
+            <span
+              key={step}
+              className="inline-flex items-center px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-full"
+            >
+              {answeredSteps[step]}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header - Compacto */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-3">
-            {formData.candidate && (
+            {displayCandidate && (
               <div
-                className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white"
-                style={{ backgroundColor: formData.candidate.color }}
+                className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900"
+                style={{ backgroundColor: displayCandidate.color, '--tw-ring-color': displayCandidate.color }}
               >
-                {/* If custom avatar is base64 (uploaded), show robot icon */}
-                {isBase64Image(formData.customAvatar) ? (
+                {isBase64Image(displayCandidate.avatar) ? (
                   <Bot className="w-5 h-5 text-white" />
-                ) : (formData.customAvatar || formData.candidate.avatar) ? (
+                ) : displayCandidate.avatar ? (
                   <img
-                    src={formData.customAvatar || formData.candidate.avatar}
-                    alt={formData.agentName || formData.candidate.name}
+                    src={displayCandidate.avatar}
+                    alt={displayCandidate.name}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
                   />
-                ) : null}
-                <span style={{ display: (formData.customAvatar || formData.candidate.avatar) && !isBase64Image(formData.customAvatar) ? 'none' : isBase64Image(formData.customAvatar) ? 'none' : 'flex' }}>
-                  {(formData.agentName || formData.candidate.name)[0]}
-                </span>
+                ) : (
+                  displayCandidate.name?.[0] || 'V'
+                )}
               </div>
             )}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {getStepTitle()}
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {isEditMode ? `Editando ${displayCandidate?.name || 'Vendedor'}` : (displayCandidate?.name || t('wizard.title'))}
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {t('wizard.step', { current: currentStepIndex + 1, total: totalSteps })}
-              </p>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-24 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-400">
+                  {currentStepIndex + 1}/{totalSteps}
+                </span>
+              </div>
             </div>
           </div>
           <button
@@ -468,21 +613,19 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
           </button>
         </div>
 
-        {/* Progress Bar */}
-        <div className="h-1 bg-gray-100 dark:bg-gray-800 flex-shrink-0">
-          <div
-            className="h-full bg-purple-500 transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Chat Content */}
+        <div
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
+
+          {/* Chat History - Respostas anteriores */}
+          {renderChatHistory()}
 
           {/* Step Content */}
           {currentStep === STEPS.CANDIDATE && (
@@ -591,6 +734,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
               candidate={displayCandidate}
               formData={formData}
               onEdit={() => goToStep(STEPS.CANDIDATE)}
+              onEditProfile={() => goToStep(STEPS.CUSTOMIZE)}
               onEditProduct={() => goToStep(STEPS.PRODUCT)}
               onEditTarget={() => goToStep(STEPS.TARGET)}
               onEditStyle={() => goToStep(STEPS.STYLE)}

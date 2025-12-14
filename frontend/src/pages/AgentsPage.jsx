@@ -191,21 +191,31 @@ const AgentsPage = () => {
             </button>
 
             {[
-              { type: 'linkedin', label: t('filters.linkedin'), icon: Linkedin, count: stats.linkedin },
-              { type: 'email', label: t('filters.email'), icon: Mail, count: stats.email },
-              { type: 'whatsapp', label: t('filters.whatsapp'), icon: MessageCircle, count: stats.whatsapp }
-            ].map(({ type, label, icon: Icon, count }) => (
+              { type: 'linkedin', label: t('filters.linkedin'), icon: Linkedin, count: stats.linkedin, comingSoon: false },
+              { type: 'email', label: t('filters.email'), icon: Mail, count: stats.email, comingSoon: true },
+              { type: 'whatsapp', label: t('filters.whatsapp'), icon: MessageCircle, count: stats.whatsapp, comingSoon: false }
+            ].map(({ type, label, icon: Icon, count, comingSoon }) => (
               <button
                 key={type}
-                onClick={() => setFilterType(type)}
+                onClick={() => !comingSoon && setFilterType(type)}
+                disabled={comingSoon}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filterType === type
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  comingSoon
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-not-allowed'
+                    : filterType === type
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                {label} ({count})
+                {label}
+                {comingSoon ? (
+                  <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                    Em breve
+                  </span>
+                ) : (
+                  ` (${count})`
+                )}
               </button>
             ))}
           </div>

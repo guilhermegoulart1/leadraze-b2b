@@ -1,11 +1,12 @@
 // frontend/src/pages/GoogleMapsAgentsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Plus, Loader2, AlertCircle, X, Target, MapPin, Sparkles, Gift, Zap } from 'lucide-react';
+import { Bot, Plus, Loader2, AlertCircle, X, Target, MapPin, Sparkles, Gift, Zap, Trash2 } from 'lucide-react';
 import apiService from '../services/api';
-import GoogleMapsAgentCard from '../components/GoogleMapsAgentCard';
+import GoogleMapsAgentRow from '../components/GoogleMapsAgentRow';
 import GoogleMapsAgentForm from '../components/GoogleMapsAgentForm';
 import { useBilling } from '../contexts/BillingContext';
+import { onGmapsAgentProgress } from '../services/socket';
 
 const GoogleMapsAgentsPage = () => {
   const { t } = useTranslation(['googlemaps', 'common']);
@@ -21,26 +22,91 @@ const GoogleMapsAgentsPage = () => {
   const [editDailyLimit, setEditDailyLimit] = useState(20);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Progress tracking for gamified status
+  const [agentProgress, setAgentProgress] = useState({});
+
   // Credits modal state
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [purchasingPackage, setPurchasingPackage] = useState(null);
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ show: false, agent: null, deleting: false });
 
   // Load agents on mount
   useEffect(() => {
     loadAgents();
   }, []);
 
-  // Polling effect - reload agents while some are executing
+  // Polling effect - reload agents while some are executing (fallback)
   useEffect(() => {
     if (executingAgents.size === 0) return;
 
     const interval = setInterval(() => {
-      console.log('🔄 Polling agents status...');
+      console.log('🔄 Polling agents status (fallback)...');
       loadAgents(true); // Silent refresh - don't show loading spinner
-    }, 3000); // Poll every 3 seconds
+    }, 10000); // Poll every 10 seconds as fallback
 
     return () => clearInterval(interval);
   }, [executingAgents]);
+
+  // WebSocket listener for real-time updates
+  useEffect(() => {
+    const unsubscribe = onGmapsAgentProgress((data) => {
+      console.log('📡 WebSocket: gmaps_agent_progress', data);
+
+      // Check if this is a "collecting" status (still working) or final status
+      const isCollecting = data.status === 'collecting';
+      const isFinalStatus = data.status === 'completed' || data.status === 'in_progress';
+
+      // Update the specific agent in state
+      setAgents(prev => prev.map(agent => {
+        if (agent.id === data.agentId) {
+          return {
+            ...agent,
+            // Only update status if it's the final status, keep 'collecting' during execution
+            status: isCollecting ? 'collecting' : data.status,
+            total_leads_found: data.leadsFound,
+            leads_inserted: data.leadsInserted
+          };
+        }
+        return agent;
+      }));
+
+      // Update progress for gamified status (only during collection)
+      if (isCollecting && data.step) {
+        setAgentProgress(prev => ({
+          ...prev,
+          [data.agentId]: {
+            step: data.step,
+            stepLabel: data.stepLabel,
+            currentPlace: data.currentPlace,
+            leadsFound: data.leadsFound,
+            leadsInserted: data.leadsInserted,
+            page: data.page,
+            progress: data.progress // { current, total }
+          }
+        }));
+      }
+
+      // If final status (completed or in_progress), remove from executing set and clear progress
+      if (isFinalStatus) {
+        console.log(`📡 Agent ${data.agentId} finished with status: ${data.status}`);
+        setExecutingAgents(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.agentId);
+          return newSet;
+        });
+        // Clear progress for finished agent
+        setAgentProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[data.agentId];
+          return newProgress;
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const loadAgents = async (silentRefresh = false) => {
     try {
@@ -55,24 +121,32 @@ const GoogleMapsAgentsPage = () => {
       if (response.success) {
         const loadedAgents = response.agents || [];
 
-        // Check if any executing agents have finished
-        setExecutingAgents(prev => {
-          const newExecuting = new Set(prev);
-          prev.forEach(agentId => {
-            const agent = loadedAgents.find(a => a.id === agentId);
-            // If agent status is not active, it finished executing
-            if (agent && agent.status !== 'active') {
-              newExecuting.delete(agentId);
-            }
-          });
-          return newExecuting;
+        // Check if any executing agents have finished and build updated set
+        let updatedExecuting = new Set(executingAgents);
+        executingAgents.forEach(agentId => {
+          const agent = loadedAgents.find(a => a.id === agentId);
+          // If agent status is completed, in_progress, paused, or failed - it finished executing
+          // 'in_progress' means more results available but current batch is done
+          if (agent && ['completed', 'in_progress', 'paused', 'failed'].includes(agent.status)) {
+            updatedExecuting.delete(agentId);
+          }
         });
 
-        // Merge with executing status
+        // Update state if changed
+        if (updatedExecuting.size !== executingAgents.size) {
+          setExecutingAgents(updatedExecuting);
+        }
+
+        // Merge with executing status using the UPDATED set
+        // Only override to 'collecting' if we're sure it's still executing
         const agentsWithStatus = loadedAgents.map(agent => ({
           ...agent,
-          // Override status to 'collecting' if in executingAgents
-          status: executingAgents.has(agent.id) ? 'collecting' : agent.status
+          // Override status to 'collecting' only if:
+          // 1. It's in executingAgents AND
+          // 2. Database status is still 'active' (not yet updated to final status)
+          status: updatedExecuting.has(agent.id) && agent.status === 'active'
+            ? 'collecting'
+            : agent.status
         }));
 
         setAgents(agentsWithStatus);
@@ -147,17 +221,66 @@ const GoogleMapsAgentsPage = () => {
     }
   };
 
-  const handleDeleteAgent = async (agentId) => {
-    if (!confirm(t('agents.confirmDelete'))) {
-      return;
+  const handleDeleteAgent = (agentId) => {
+    // Find the agent to show its info in the modal
+    const agent = agents.find(a => a.id === agentId);
+    if (agent) {
+      setDeleteModal({ show: true, agent, deleting: false });
     }
+  };
+
+  const confirmDelete = async (deleteLeads = false) => {
+    if (!deleteModal.agent) return;
+
+    setDeleteModal(prev => ({ ...prev, deleting: true }));
 
     try {
-      await apiService.deleteGoogleMapsAgent(agentId);
+      const result = await apiService.deleteGoogleMapsAgent(deleteModal.agent.id, { deleteLeads });
+      setDeleteModal({ show: false, agent: null, deleting: false });
       loadAgents(true); // Silent refresh
+
+      // Show success message if leads were deleted
+      if (deleteLeads && result.leadsDeleted > 0) {
+        console.log(`✅ Campanha e ${result.leadsDeleted} leads deletados`);
+      }
     } catch (error) {
       console.error('❌ Erro ao deletar campanha:', error);
+      setDeleteModal(prev => ({ ...prev, deleting: false }));
       alert(t('agents.errorDelete'));
+    }
+  };
+
+  const handleExecuteAgent = async (agentId) => {
+    try {
+      console.log('🚀 Executando agente manualmente:', agentId);
+
+      // Add to executing set immediately
+      setExecutingAgents(prev => new Set([...prev, agentId]));
+
+      // Update UI immediately to show "collecting" status
+      setAgents(prev => prev.map(agent =>
+        agent.id === agentId ? { ...agent, status: 'collecting' } : agent
+      ));
+
+      // Trigger execution
+      await apiService.executeGoogleMapsAgent(agentId);
+
+      console.log('✅ Agente executado, aguardando resultados...');
+
+      // Start polling (will be handled by useEffect)
+    } catch (error) {
+      console.error('❌ Erro ao executar agente:', error);
+      alert('Erro ao executar agente. Tente novamente.');
+
+      // Remove from executing set on error
+      setExecutingAgents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(agentId);
+        return newSet;
+      });
+
+      // Reload agents to restore correct status
+      loadAgents(true);
     }
   };
 
@@ -297,20 +420,48 @@ const GoogleMapsAgentsPage = () => {
           </div>
         )}
 
-        {/* Agents grid */}
+        {/* Agents table */}
         {!loading && agents.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {agents.map(agent => (
-              <GoogleMapsAgentCard
-                key={agent.id}
-                agent={agent}
-                onPause={handlePauseAgent}
-                onResume={handleResumeAgent}
-                onDelete={handleDeleteAgent}
-                onExport={handleExportAgent}
-                onEdit={handleEditAgent}
-              />
-            ))}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Campanha
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Leads
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Config
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Ultima
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Acoes
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map(agent => (
+                  <GoogleMapsAgentRow
+                    key={agent.id}
+                    agent={agent}
+                    onPause={handlePauseAgent}
+                    onResume={handleResumeAgent}
+                    onDelete={handleDeleteAgent}
+                    onExport={handleExportAgent}
+                    onEdit={handleEditAgent}
+                    onExecute={handleExecuteAgent}
+                    progress={agentProgress[agent.id]}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -527,6 +678,101 @@ const GoogleMapsAgentsPage = () => {
                 className="w-full py-2 mt-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 {t('creditsModal.maybeLater')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.show && deleteModal.agent && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-4 py-3 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Trash2 className="w-5 h-5" />
+                  <h2 className="text-lg font-bold">{t('agents.deleteConfirmTitle', 'Deletar Campanha')}</h2>
+                </div>
+                <button
+                  onClick={() => setDeleteModal({ show: false, agent: null, deleting: false })}
+                  disabled={deleteModal.deleting}
+                  className="text-white/80 hover:text-white p-1 disabled:opacity-50"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5">
+              <div className="text-center mb-5">
+                <p className="text-gray-700 dark:text-gray-300 mb-2">
+                  {t('agents.deleteConfirmMessage', 'Você está prestes a deletar a campanha:')}
+                </p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {deleteModal.agent.name}
+                </p>
+                {deleteModal.agent.leads_inserted > 0 && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {t('agents.leadsCollected', { count: deleteModal.agent.leads_inserted || 0 }, `${deleteModal.agent.leads_inserted || 0} leads coletados`)}
+                  </p>
+                )}
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3">
+                {/* Delete only campaign */}
+                <button
+                  onClick={() => confirmDelete(false)}
+                  disabled={deleteModal.deleting}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-orange-400 dark:hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {t('agents.deleteOnlyCampaign', 'Deletar apenas campanha')}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {t('agents.deleteOnlyCampaignDesc', 'Os leads coletados serão mantidos')}
+                    </p>
+                  </div>
+                  {deleteModal.deleting ? (
+                    <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                  ) : (
+                    <span className="text-orange-500 font-bold">→</span>
+                  )}
+                </button>
+
+                {/* Delete campaign and leads */}
+                <button
+                  onClick={() => confirmDelete(true)}
+                  disabled={deleteModal.deleting}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 border-red-200 dark:border-red-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="text-left">
+                    <p className="font-semibold text-red-600 dark:text-red-400">
+                      {t('agents.deleteCampaignAndLeads', 'Deletar campanha e leads')}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {t('agents.deleteCampaignAndLeadsDesc', { count: deleteModal.agent.leads_inserted || 0 }, `Deletar ${deleteModal.agent.leads_inserted || 0} leads permanentemente`)}
+                    </p>
+                  </div>
+                  {deleteModal.deleting ? (
+                    <Loader2 className="w-5 h-5 text-red-500 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                  )}
+                </button>
+              </div>
+
+              {/* Cancel button */}
+              <button
+                onClick={() => setDeleteModal({ show: false, agent: null, deleting: false })}
+                disabled={deleteModal.deleting}
+                className="w-full py-2 mt-4 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
+              >
+                {t('agents.cancel', 'Cancelar')}
               </button>
             </div>
           </div>

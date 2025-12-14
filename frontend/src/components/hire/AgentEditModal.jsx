@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   X, Package, Target, MessageSquare, BookOpen, Check, Save,
@@ -6,7 +6,7 @@ import {
   HeartPulse, Landmark, Megaphone, Cpu, Factory, ShoppingBag, Home,
   User, Users, UserCog, UserCheck, Building,
   UserPlus, MessageSquarePlus, Hand, Calendar, Filter, ShoppingCart,
-  Shield, Linkedin
+  Shield, Linkedin, RefreshCw, Upload
 } from 'lucide-react';
 import api from '../../services/api';
 import {
@@ -17,6 +17,7 @@ import {
 } from './salesRepTemplates';
 
 const SECTIONS = {
+  PROFILE: 'profile',
   PRODUCT: 'product',
   TARGET: 'target',
   STYLE: 'style',
@@ -24,6 +25,24 @@ const SECTIONS = {
   OBJECTIVE: 'objective',
   LINKEDIN: 'linkedin',
   RULES: 'rules'
+};
+
+// Unsplash professional portrait photo IDs for random selection
+const UNSPLASH_PHOTO_IDS = [
+  '1507003211169-0a1dd7228f2d', '1472099645785-5658abf4ff4e', '1519085360753-af0119f7cbe7',
+  '1500648767791-00dcc994a43e', '1506794778202-cad84cf45f1d', '1560250097-0b93528c311a',
+  '1573496359142-b8d87734a5a2', '1580489944761-15a19d654956', '1494790108377-be9c29b29330',
+  '1438761681033-6461ffad8d80', '1534528741775-53994a69daeb', '1573497019940-1c28c88b4f3e'
+];
+
+const getRandomUnsplashUrl = (currentUrl = null) => {
+  let availableIds = UNSPLASH_PHOTO_IDS;
+  if (currentUrl && currentUrl.includes('unsplash.com')) {
+    availableIds = UNSPLASH_PHOTO_IDS.filter(id => !currentUrl.includes(id));
+  }
+  if (availableIds.length === 0) availableIds = UNSPLASH_PHOTO_IDS;
+  const randomId = availableIds[Math.floor(Math.random() * availableIds.length)];
+  return `https://images.unsplash.com/photo-${randomId}?w=200&h=200&fit=crop&crop=face`;
 };
 
 const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
@@ -36,6 +55,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
+    avatarUrl: null,
     productService: { categories: [], description: '' },
     targetAudience: { roles: [], companySizes: [], industry: '' },
     conversationStyle: 'consultivo',
@@ -114,6 +134,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
 
       setFormData({
         name: agent.name || '',
+        avatarUrl: agent.avatar_url || null,
         productService,
         targetAudience,
         conversationStyle: agent.behavioral_profile || 'consultivo',
@@ -128,7 +149,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
         requireLeadReply: agent.require_lead_reply || false
       });
       setHasChanges(false);
-      setActiveSection(SECTIONS.PRODUCT);
+      setActiveSection(SECTIONS.PROFILE);
     }
   }, [isOpen, agent]);
 
@@ -145,6 +166,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
       // Build agent data with only fields that exist in the database
       const agentData = {
         name: formData.name,
+        avatar_url: formData.avatarUrl,
         products_services: formData.productService,
         behavioral_profile: formData.conversationStyle,
         target_audience: formData.targetAudience,
@@ -184,6 +206,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
 
   // Sidebar sections config - filter based on channel
   const sections = [
+    { id: SECTIONS.PROFILE, icon: User, label: 'Perfil' },
     { id: SECTIONS.PRODUCT, icon: Package, label: 'Produto' },
     { id: SECTIONS.TARGET, icon: Target, label: 'Público-alvo' },
     { id: SECTIONS.STYLE, icon: MessageSquare, label: 'Estilo' },
@@ -202,17 +225,24 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-              {formData.name?.[0] || 'A'}
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+              {formData.avatarUrl ? (
+                <img
+                  src={formData.avatarUrl}
+                  alt={formData.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              ) : (
+                formData.name?.[0] || 'A'
+              )}
             </div>
             <div>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => updateFormData('name', e.target.value)}
-                className="text-lg font-bold text-gray-900 dark:text-white bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-purple-500 rounded px-1 -ml-1"
-                placeholder="Nome do vendedor"
-              />
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                {formData.name || 'Vendedor'}
+              </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Editando configurações
               </p>
@@ -252,6 +282,15 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
 
           {/* Main content */}
           <div className="flex-1 p-4 overflow-y-auto">
+            {activeSection === SECTIONS.PROFILE && (
+              <ProfileSection
+                name={formData.name}
+                avatarUrl={formData.avatarUrl}
+                onChangeName={(value) => updateFormData('name', value)}
+                onChangeAvatar={(value) => updateFormData('avatarUrl', value)}
+              />
+            )}
+
             {activeSection === SECTIONS.PRODUCT && (
               <ProductSection
                 data={formData.productService}
@@ -350,6 +389,129 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
 };
 
 // ============ SECTION COMPONENTS ============
+
+const ProfileSection = ({ name, avatarUrl, onChangeName, onChangeAvatar }) => {
+  const fileInputRef = useRef(null);
+
+  const handleRefreshAvatar = () => {
+    const newUrl = getRandomUnsplashUrl(avatarUrl);
+    onChangeAvatar(newUrl);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione uma imagem');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      onChangeAvatar(event.target.result);
+    };
+    reader.onerror = () => {
+      alert('Erro ao ler a imagem');
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input
+    e.target.value = '';
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+          Perfil do Vendedor
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Personalize o nome e a aparência do seu vendedor.
+        </p>
+      </div>
+
+      {/* Avatar Section */}
+      <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+        {/* Avatar Preview */}
+        <div className="relative">
+          <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-purple-100 dark:ring-purple-900/30 bg-gradient-to-br from-purple-500 to-blue-600">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={name || 'Avatar'}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div
+              className="w-full h-full flex items-center justify-center text-3xl font-bold text-white"
+              style={{ display: avatarUrl ? 'none' : 'flex' }}
+            >
+              {name?.[0]?.toUpperCase() || 'V'}
+            </div>
+          </div>
+        </div>
+
+        {/* Avatar Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefreshAvatar}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Outra foto
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Enviar imagem
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        </div>
+
+        {/* Info Note */}
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center max-w-sm">
+          Esta imagem será usada apenas para sua identificação interna. Os contatos receberão a foto do perfil normal de cada canal (LinkedIn, WhatsApp, etc).
+        </p>
+      </div>
+
+      {/* Name Input */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+          Nome do vendedor
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => onChangeName(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          placeholder="Ex: Lucas, Marina, Vendedor..."
+        />
+      </div>
+    </div>
+  );
+};
 
 const ProductSection = ({ data, onChange }) => {
   const { t } = useTranslation('hire');

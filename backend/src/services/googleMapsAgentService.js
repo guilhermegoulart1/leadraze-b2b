@@ -7,6 +7,9 @@ const { googleMapsAgentQueue } = require('../queues');
 const stripeService = require('./stripeService');
 const billingService = require('./billingService');
 const roundRobinService = require('./roundRobinService');
+const emailScraperService = require('./emailScraperService');
+const socketService = require('./socketService');
+const cnpjService = require('./intelligence/cnpjService');
 // DEPRECATED: googleMapsRotationService - now using centralized roundRobinService
 // const googleMapsRotationService = require('./googleMapsRotationService');
 
@@ -318,20 +321,7 @@ class GoogleMapsAgentService {
 
     console.log(`📊 Agent ${agentId}: daily_limit=${dailyLimit}, pages to fetch=${pagesToFetch}`);
 
-    // Check initial credits before starting
-    const hasAiCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
-    if (!hasAiCredits) {
-      return {
-        success: false,
-        leads_inserted: 0,
-        leads_skipped: 0,
-        pages_fetched: 0,
-        status: 'paused',
-        message: 'Insufficient AI credits',
-        reason: 'insufficient_ai_credits'
-      };
-    }
-
+    // Check initial GMaps credits before starting (only GMaps credits needed for this agent)
     const hasGmapsCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
     if (!hasGmapsCredits) {
       return {
@@ -375,6 +365,7 @@ class GoogleMapsAgentService {
     let pagesFetched = 0;
     let hasMoreResults = true;
     let lastPage = agent.current_page || 0;
+    const executionLogs = [];
 
     // Fetch multiple pages based on daily_limit
     for (let i = 0; i < pagesToFetch && hasMoreResults; i++) {
@@ -385,23 +376,56 @@ class GoogleMapsAgentService {
         break;
       }
 
-      const hasAiCreditsForPage = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
-      if (!hasAiCreditsForPage) {
-        console.log(`⚠️ Agent ${agentId}: Stopped at page ${i + 1} - insufficient AI credits`);
-        break;
-      }
-
       // Calculate pagination offset for current page
       const currentPage = lastPage + i;
       const start = currentPage * 20;
 
       console.log(`📄 Agent ${agentId}: Fetching page ${currentPage + 1} (offset ${start})`);
 
+      // Emit gamified status: Searching
+      socketService.publishGmapsAgentProgress({
+        accountId: agent.account_id,
+        agentId,
+        status: 'collecting',
+        step: 'searching',
+        stepLabel: 'Buscando resultados no Google Maps...',
+        leadsFound: totalInserted + totalSkipped,
+        leadsInserted: totalInserted,
+        page: currentPage + 1
+      });
+
       const searchResults = await serpApiClient.searchGoogleMaps({
         query: searchQuery,
         location: location,
         start: start
       });
+
+      // Save execution log with SERPAPI raw data INCLUDING places for debugging
+      const pageLog = {
+        timestamp: new Date().toISOString(),
+        page: currentPage + 1,
+        offset: start,
+        query: searchQuery,
+        location: location,
+        results_count: searchResults.total_results,
+        places_returned: searchResults.places?.length || 0,
+        pagination: searchResults.pagination,
+        raw_serpapi_pagination: searchResults.raw_serpapi_pagination,
+        raw_search_information: searchResults.raw_search_information,
+        search_metadata: searchResults.search_metadata,
+        // Include places data for debugging (with key fields only to save space)
+        places: searchResults.places?.map(p => ({
+          title: p.title,
+          place_id: p.place_id,
+          rating: p.rating,
+          reviews: p.reviews,
+          phone: p.phone,
+          website: p.website,
+          address: p.address,
+          type: p.type
+        })) || []
+      };
+      executionLogs.push(pageLog);
 
       // Consume 1 GMaps credit for the search
       await billingService.consumeCredits(
@@ -424,29 +448,70 @@ class GoogleMapsAgentService {
         break;
       }
 
+      // Emit gamified status: Filtering
+      socketService.publishGmapsAgentProgress({
+        accountId: agent.account_id,
+        agentId,
+        status: 'collecting',
+        step: 'filtering',
+        stepLabel: 'Filtrando resultados...',
+        leadsFound: totalInserted + totalSkipped + searchResults.total_results,
+        leadsInserted: totalInserted,
+        page: currentPage + 1
+      });
+
       // Filter results based on agent criteria
       const filteredPlaces = this._filterPlaces(searchResults.places, agent);
 
-      // Insert into CRM
+      // Emit gamified status: Enriching (if places have websites)
+      const placesWithWebsite = filteredPlaces.filter(p => p.website);
+      if (placesWithWebsite.length > 0) {
+        socketService.publishGmapsAgentProgress({
+          accountId: agent.account_id,
+          agentId,
+          status: 'collecting',
+          step: 'enriching',
+          stepLabel: `Analisando ${placesWithWebsite.length} sites com IA...`,
+          leadsFound: totalInserted + totalSkipped + searchResults.total_results,
+          leadsInserted: totalInserted,
+          page: currentPage + 1
+        });
+      }
+
+      // Insert into CRM (pass running totals for accurate progress tracking)
       const insertionResults = await this._insertPlacesIntoCRM(
         filteredPlaces,
         agent,
-        currentPage
+        currentPage,
+        { inserted: totalInserted, skipped: totalSkipped }
       );
 
       totalInserted += insertionResults.inserted;
       totalSkipped += insertionResults.skipped;
       totalCreditsConsumed += insertionResults.creditsConsumed || 0;
 
+      // Emit gamified status: Saving
+      socketService.publishGmapsAgentProgress({
+        accountId: agent.account_id,
+        agentId,
+        status: 'collecting',
+        step: 'saving',
+        stepLabel: `Salvando ${insertionResults.inserted} leads no CRM...`,
+        leadsFound: totalInserted + totalSkipped,
+        leadsInserted: totalInserted,
+        page: currentPage + 1
+      });
+
       // Update agent statistics after each page
+      // Use places.length (actual leads returned this page), not total_results (API total)
       await this._updateAgentStats(agentId, {
         currentPage: currentPage + 1,
-        leadsFound: searchResults.total_results,
+        leadsFound: searchResults.places?.length || 0,
         leadsInserted: insertionResults.inserted,
         leadsSkipped: insertionResults.skipped,
         apiCalls: 1,
         hasMoreResults: searchResults.pagination.has_next_page
-      });
+      }, agent.account_id);
 
       hasMoreResults = searchResults.pagination.has_next_page;
 
@@ -458,6 +523,12 @@ class GoogleMapsAgentService {
       }
     }
 
+    // Save execution logs to database
+    await this._saveExecutionLogs(agentId, executionLogs);
+
+    // Determine final status: 'in_progress' if more results, 'completed' if done
+    const finalStatus = hasMoreResults ? 'in_progress' : 'completed';
+
     // If no more results available, mark as completed
     if (!hasMoreResults) {
       await this._updateAgentStatus(agentId, 'completed');
@@ -465,6 +536,21 @@ class GoogleMapsAgentService {
 
     const finalPage = lastPage + pagesFetched;
     console.log(`🏁 Agent ${agentId}: Execution complete - ${pagesFetched} pages, ${totalInserted} leads inserted`);
+
+    // Emit final WebSocket event with final status (not 'collecting' anymore)
+    socketService.publishGmapsAgentProgress({
+      accountId: agent.account_id,
+      agentId,
+      status: finalStatus,
+      step: null, // No step - execution finished
+      stepLabel: null,
+      leadsFound: totalInserted + totalSkipped,
+      leadsInserted: totalInserted,
+      page: finalPage,
+      message: hasMoreResults
+        ? `Coleta concluída: ${totalInserted} leads adicionados. Mais resultados disponíveis.`
+        : `Coleta finalizada: ${totalInserted} leads adicionados ao CRM.`
+    });
 
     return {
       success: true,
@@ -474,7 +560,7 @@ class GoogleMapsAgentService {
       pages_fetched: pagesFetched,
       current_page: finalPage,
       has_more_results: hasMoreResults,
-      status: hasMoreResults ? 'active' : 'completed'
+      status: finalStatus
     };
   }
 
@@ -541,10 +627,17 @@ class GoogleMapsAgentService {
   }
 
   /**
-   * Delete an agent
+   * Delete an agent and optionally its leads
+   * @param {string} agentId - Agent ID to delete
+   * @param {string} accountId - Account ID for security
+   * @param {Object} options - Delete options
+   * @param {boolean} options.deleteLeads - If true, also delete all leads collected by this agent
    */
-  async deleteAgent(agentId, accountId) {
-    // Remove jobs from queue first
+  async deleteAgent(agentId, accountId, options = {}) {
+    const { deleteLeads = false } = options;
+    let leadsDeleted = 0;
+
+    // 1. Remove ALL jobs from queue first (important: do this before DB changes)
     try {
       // Remove repeatable jobs
       const repeatableJobs = await googleMapsAgentQueue.getRepeatableJobs();
@@ -555,23 +648,67 @@ class GoogleMapsAgentService {
         console.log(`🗑️  Removed repeatable job: ${job.key}`);
       }
 
-      // Remove pending/waiting jobs
-      const jobs = await googleMapsAgentQueue.getJobs(['waiting', 'delayed', 'active']);
-      const agentSpecificJobs = jobs.filter(j => j.data.agentId === agentId);
+      // Remove ALL jobs (waiting, delayed, active, completed, failed)
+      const allStatuses = ['waiting', 'delayed', 'active', 'completed', 'failed'];
+      const jobs = await googleMapsAgentQueue.getJobs(allStatuses);
+      const agentSpecificJobs = jobs.filter(j => j.data?.agentId === agentId);
 
       for (const job of agentSpecificJobs) {
-        await job.remove();
-        console.log(`🗑️  Removed job: ${job.id}`);
+        try {
+          await job.remove();
+          console.log(`🗑️  Removed job: ${job.id}`);
+        } catch (jobError) {
+          console.warn(`⚠️  Could not remove job ${job.id}: ${jobError.message}`);
+        }
       }
+
+      console.log(`🧹 Cleaned ${agentSpecificJobs.length} jobs for agent ${agentId}`);
     } catch (error) {
       console.error(`⚠️  Error removing jobs for agent ${agentId}:`, error.message);
     }
 
-    // Delete agent from database
+    // 2. If deleteLeads option is true, delete all contacts collected by this agent
+    if (deleteLeads) {
+      try {
+        // Get contact IDs linked to this agent
+        const contactsQuery = `
+          SELECT contact_id FROM google_maps_agent_contacts
+          WHERE agent_id = $1
+        `;
+        const contactsResult = await db.query(contactsQuery, [agentId]);
+        const contactIds = contactsResult.rows.map(r => r.contact_id);
+
+        if (contactIds.length > 0) {
+          // Delete contacts (cascade will handle google_maps_agent_contacts)
+          const deleteContactsQuery = `
+            DELETE FROM contacts
+            WHERE id = ANY($1) AND account_id = $2
+          `;
+          const deleteResult = await db.query(deleteContactsQuery, [contactIds, accountId]);
+          leadsDeleted = deleteResult.rowCount || 0;
+          console.log(`🗑️  Deleted ${leadsDeleted} leads from agent ${agentId}`);
+        }
+      } catch (error) {
+        console.error(`⚠️  Error deleting leads for agent ${agentId}:`, error.message);
+      }
+    }
+
+    // 3. Delete the junction table entries (if not already deleted by cascade)
+    try {
+      await db.query('DELETE FROM google_maps_agent_contacts WHERE agent_id = $1', [agentId]);
+    } catch (error) {
+      // Ignore - might already be deleted
+    }
+
+    // 4. Delete agent from database
     const query = 'DELETE FROM google_maps_agents WHERE id = $1 AND account_id = $2';
     await db.query(query, [agentId, accountId]);
     console.log(`🗑️  Agent deleted: ${agentId}`);
-    return { success: true };
+
+    return {
+      success: true,
+      leadsDeleted
+    };
   }
 
   /**
@@ -668,8 +805,12 @@ class GoogleMapsAgentService {
   /**
    * Insert places into CRM as contacts
    * Each lead inserted consumes 1 AI credit
+   * @param {Array} places - Places to insert
+   * @param {Object} agent - Agent configuration
+   * @param {number} pageNumber - Current page number
+   * @param {Object} runningTotals - Running totals for progress tracking { inserted, skipped }
    */
-  async _insertPlacesIntoCRM(places, agent, pageNumber) {
+  async _insertPlacesIntoCRM(places, agent, pageNumber, runningTotals = { inserted: 0, skipped: 0 }) {
     let inserted = 0;
     let skipped = 0;
     let creditsConsumed = 0;
@@ -679,6 +820,111 @@ class GoogleMapsAgentService {
 
       try {
         const contactData = serpApiClient.normalizePlaceToContact(place);
+
+        // Emit WebSocket: Analyzing this place
+        socketService.publishGmapsAgentProgress({
+          accountId: agent.account_id,
+          agentId: agent.id,
+          status: 'collecting',
+          step: 'analyzing',
+          stepLabel: `Analisando ${contactData.name}...`,
+          currentPlace: contactData.name,
+          leadsFound: runningTotals.inserted + runningTotals.skipped + inserted + skipped,
+          leadsInserted: runningTotals.inserted + inserted,
+          page: pageNumber + 1,
+          progress: {
+            current: i + 1,
+            total: places.length
+          }
+        });
+
+        // === WEBSITE INTELLIGENCE: Email + Company Analysis (GPT-4o-mini) ===
+        // Scrape website for email AND generate company description for prospecting
+        if (contactData.website) {
+          // Emit WebSocket: Enriching with AI
+          socketService.publishGmapsAgentProgress({
+            accountId: agent.account_id,
+            agentId: agent.id,
+            status: 'collecting',
+            step: 'enriching',
+            stepLabel: `Enriquecendo ${contactData.name} com IA...`,
+            currentPlace: contactData.name,
+            leadsFound: runningTotals.inserted + runningTotals.skipped + inserted + skipped,
+            leadsInserted: runningTotals.inserted + inserted,
+            page: pageNumber + 1
+          });
+
+          try {
+            const intelligence = await emailScraperService.scrapeAndAnalyze(
+              contactData.website,
+              contactData.name,
+              contactData.business_category
+            );
+
+            // Email enrichment (primary email)
+            if (intelligence.email && !contactData.email) {
+              contactData.email = intelligence.email;
+              contactData.email_source = 'website_scraping';
+              contactData.email_scraped_from = intelligence.source;
+              console.log(`📧 [${agent.name}] Email: ${intelligence.email}`);
+            }
+
+            // Multiple emails (JSONB array)
+            if (intelligence.emails && intelligence.emails.length > 0) {
+              contactData.emails = intelligence.emails;
+              console.log(`📧 [${agent.name}] ${intelligence.emails.length} emails encontrados`);
+            }
+
+            // Multiple phones (JSONB array)
+            if (intelligence.phones && intelligence.phones.length > 0) {
+              contactData.phones = intelligence.phones;
+              console.log(`📞 [${agent.name}] ${intelligence.phones.length} telefones encontrados`);
+            }
+
+            // Social links (JSONB object)
+            if (intelligence.social_links && Object.keys(intelligence.social_links).length > 0) {
+              contactData.social_links = intelligence.social_links;
+              console.log(`🔗 [${agent.name}] Redes sociais: ${Object.keys(intelligence.social_links).join(', ')}`);
+            }
+
+            // Team members (JSONB array)
+            if (intelligence.team_members && intelligence.team_members.length > 0) {
+              contactData.team_members = intelligence.team_members;
+              console.log(`👥 [${agent.name}] ${intelligence.team_members.length} membros da equipe encontrados`);
+            }
+
+            // Company intelligence
+            if (intelligence.companyDescription) {
+              contactData.company_description = intelligence.companyDescription;
+              console.log(`🧠 [${agent.name}] Descrição gerada para ${contactData.name}`);
+            }
+            if (intelligence.companyServices) {
+              contactData.company_services = intelligence.companyServices;
+            }
+            if (intelligence.painPoints) {
+              contactData.pain_points = intelligence.painPoints;
+            }
+
+            // === CNPJ LOOKUP: Se scraper encontrou CNPJ, busca dados oficiais ===
+            if (intelligence.cnpj) {
+              contactData.cnpj = intelligence.cnpj;
+              console.log(`🏢 [${agent.name}] CNPJ encontrado: ${intelligence.cnpj}`);
+
+              try {
+                const cnpjData = await cnpjService.lookup(intelligence.cnpj);
+                contactData.cnpj_data = cnpjData;
+                console.log(`📋 [${agent.name}] Dados ReceitaWS obtidos: ${cnpjData.razaoSocial}`);
+              } catch (cnpjError) {
+                // CNPJ lookup failed - keep the CNPJ but no data
+                console.log(`⚠️ [${agent.name}] ReceitaWS lookup falhou: ${cnpjError.message}`);
+              }
+            }
+          } catch (scrapeError) {
+            // Don't block lead insertion if scraping fails
+            console.log(`⚠️ [${agent.name}] Scraping falhou para ${contactData.name}: ${scrapeError.message}`);
+          }
+        }
+        // === END WEBSITE INTELLIGENCE ===
 
         // Check if contact already exists (by place_id)
         const existingContact = await this._findContactByPlaceId(
@@ -691,26 +937,49 @@ class GoogleMapsAgentService {
           continue;
         }
 
-        // Check if account has enough credits before inserting
-        const hasCredits = await stripeService.hasEnoughAiCredits(agent.account_id, 1);
+        // Check if account has enough GMaps credits before inserting
+        const hasCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
         if (!hasCredits) {
+          console.log(`\n❌ [GMAPS CREDITS] Conta ${agent.account_id} sem créditos GMaps suficientes! Parando inserção.`);
           break;
         }
+
+        // Debug log: final data before insert
+        console.log(`\n💾 [INSERT DEBUG] ${contactData.name}:`);
+        console.log(`   - rating: ${contactData.rating}`);
+        console.log(`   - review_count: ${contactData.review_count}`);
+        console.log(`   - business_category: ${contactData.business_category}`);
+        console.log(`   - city: ${contactData.city}`);
+        console.log(`   - state: ${contactData.state}`);
+        console.log(`   - country: ${contactData.country}`);
+        console.log(`   - phone: ${contactData.phone}`);
+        console.log(`   - email: ${contactData.email}`);
+        console.log(`   - website: ${contactData.website}`);
+        console.log(`   - latitude: ${contactData.latitude}`);
+        console.log(`   - longitude: ${contactData.longitude}`);
+        console.log(`   - company_description: ${contactData.company_description ? 'YES' : 'NO'}`);
+        console.log(`   - company_services: ${contactData.company_services?.length || 0} items`);
+        console.log(`   - pain_points: ${contactData.pain_points?.length || 0} items`);
 
         // Insert contact
         const contact = await this._insertContact(contactData, agent);
 
+        // Debug: verify what was actually saved
+        console.log(`✅ [SAVED] ${contact.name}: website="${contact.website}", lat=${contact.latitude}, lng=${contact.longitude}`);
+
         // Link contact to agent
         await this._linkContactToAgent(agent.id, contact.id, pageNumber, i + 1);
 
-        // Consume 1 credit for the lead inserted
-        await stripeService.consumeAiCredits(
+        // Consume 1 GMaps credit for the lead inserted
+        await billingService.consumeCredits(
           agent.account_id,
+          'gmaps',
           1,
-          agent.id,
-          null,
-          agent.user_id,
-          `Google Maps lead: ${contactData.name}`
+          {
+            resourceType: 'google_maps_lead',
+            resourceId: contact.id,
+            description: `Google Maps lead: ${contactData.name}`
+          }
         );
         creditsConsumed++;
 
@@ -728,6 +997,20 @@ class GoogleMapsAgentService {
         }
 
         inserted++;
+
+        // Emit WebSocket: Lead saved - update counter
+        socketService.publishGmapsAgentProgress({
+          accountId: agent.account_id,
+          agentId: agent.id,
+          status: 'collecting',
+          step: 'saved',
+          stepLabel: `${contactData.name} salvo no CRM!`,
+          currentPlace: contactData.name,
+          leadsFound: runningTotals.inserted + runningTotals.skipped + inserted + skipped,
+          leadsInserted: runningTotals.inserted + inserted,
+          page: pageNumber + 1
+        });
+
       } catch (error) {
         skipped++;
       }
@@ -754,47 +1037,75 @@ class GoogleMapsAgentService {
       INSERT INTO contacts (
         account_id, sector_id, user_id,
         place_id, data_cid, google_maps_url,
-        name, company, phone, email,
+        name, company, phone, email, website,
         location, headline, about,
+        address, street_address, city, state, country, postal_code,
+        latitude, longitude,
+        rating, review_count,
+        business_category, business_types,
+        price_level, opening_hours, service_options, photos,
+        company_description, company_services, pain_points,
         custom_fields,
-        source, last_interaction_at
+        source, last_interaction_at,
+        cnpj, cnpj_data,
+        emails, phones, social_links, team_members
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27,
+        $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
       )
       RETURNING *
     `;
 
+    // Additional metadata that doesn't have dedicated columns
     const customFields = {
-      rating: contactData.rating,
-      review_count: contactData.review_count,
-      business_category: contactData.business_category,
-      business_types: contactData.business_types,
-      price_level: contactData.price_level,
-      opening_hours: contactData.opening_hours,
-      service_options: contactData.service_options,
-      photos: contactData.photos,
-      address: contactData.address,
-      latitude: contactData.latitude,
-      longitude: contactData.longitude
+      email_source: contactData.email_source || null,
+      email_scraped_from: contactData.email_scraped_from || null
     };
 
     const contactValues = [
-      agent.account_id,
-      agent.sector_id,
-      agent.user_id,
-      contactData.place_id,
-      contactData.data_cid,
-      contactData.google_maps_url,
-      contactData.name,
-      contactData.company,
-      contactData.phone,
-      contactData.email,
-      contactData.location || contactData.address,
-      contactData.headline,
-      contactData.about,
-      JSON.stringify(customFields),
-      contactData.source,
-      new Date()
+      agent.account_id,                                      // $1
+      agent.sector_id,                                       // $2
+      agent.user_id,                                         // $3
+      contactData.place_id,                                  // $4
+      contactData.data_cid,                                  // $5
+      contactData.google_maps_url,                           // $6
+      contactData.name,                                      // $7
+      contactData.company,                                   // $8
+      contactData.phone,                                     // $9
+      contactData.email,                                     // $10
+      contactData.website || null,                           // $11
+      contactData.location || contactData.address,           // $12 location
+      contactData.headline,                                  // $13
+      contactData.about,                                     // $14
+      contactData.address || null,                           // $15 address
+      contactData.street_address || null,                    // $16 street_address
+      contactData.city || null,                              // $17 city
+      contactData.state || null,                             // $18 state
+      contactData.country || null,                           // $19 country
+      contactData.postal_code || null,                       // $20 postal_code
+      contactData.latitude || null,                          // $21 latitude
+      contactData.longitude || null,                         // $22 longitude
+      contactData.rating || null,                            // $23 rating
+      contactData.review_count || 0,                         // $24 review_count
+      contactData.business_category || null,                 // $25 business_category
+      JSON.stringify(contactData.business_types || []),      // $26 business_types
+      contactData.price_level || null,                       // $27 price_level
+      JSON.stringify(contactData.opening_hours || null),     // $28 opening_hours
+      JSON.stringify(contactData.service_options || null),   // $29 service_options
+      JSON.stringify(contactData.photos || []),              // $30 photos
+      contactData.company_description || null,               // $31 company_description
+      JSON.stringify(contactData.company_services || []),    // $32 company_services
+      JSON.stringify(contactData.pain_points || []),         // $33 pain_points
+      JSON.stringify(customFields),                          // $34 custom_fields
+      contactData.source,                                    // $35 source
+      new Date(),                                            // $36 last_interaction_at
+      contactData.cnpj || null,                              // $37 cnpj
+      contactData.cnpj_data ? JSON.stringify(contactData.cnpj_data) : null,  // $38 cnpj_data
+      JSON.stringify(contactData.emails || []),              // $39 emails (JSONB)
+      JSON.stringify(contactData.phones || []),              // $40 phones (JSONB)
+      JSON.stringify(contactData.social_links || {}),        // $41 social_links (JSONB)
+      JSON.stringify(contactData.team_members || [])         // $42 team_members (JSONB)
     ];
 
     const contactResult = await db.query(contactQuery, contactValues);
@@ -807,11 +1118,12 @@ class GoogleMapsAgentService {
         campaign_id,
         linkedin_profile_id,
         name, company, location,
+        city, state, country,
         profile_picture,
         status, score,
         source
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
       )
       RETURNING *
     `;
@@ -829,6 +1141,9 @@ class GoogleMapsAgentService {
       contactData.name,
       contactData.company,
       contactData.location || contactData.address,
+      contactData.city || null,         // city
+      contactData.state || null,        // state
+      contactData.country || null,      // country
       profilePicture, // Thumbnail from Google Maps
       'leads', // Default status (valid value from check_status constraint)
       0, // Default score
@@ -871,8 +1186,9 @@ class GoogleMapsAgentService {
 
   /**
    * Update agent statistics after execution
+   * Note: WebSocket emission is handled separately in executeAgent to avoid overwriting gamified status
    */
-  async _updateAgentStats(agentId, stats) {
+  async _updateAgentStats(agentId, stats, accountId = null) {
     const {
       currentPage,
       leadsFound,
@@ -886,7 +1202,8 @@ class GoogleMapsAgentService {
     const nextExecution = new Date();
     nextExecution.setHours(nextExecution.getHours() + 24);
 
-    const newStatus = hasMoreResults ? 'active' : 'completed';
+    // Use 'in_progress' when there are more results, 'completed' when done
+    const newStatus = hasMoreResults ? 'in_progress' : 'completed';
 
     const query = `
       UPDATE google_maps_agents
@@ -904,6 +1221,7 @@ class GoogleMapsAgentService {
         status = $9,
         updated_at = NOW()
       WHERE id = $1
+      RETURNING total_leads_found, leads_inserted
     `;
 
     const values = [
@@ -919,6 +1237,9 @@ class GoogleMapsAgentService {
     ];
 
     await db.query(query, values);
+
+    // Note: WebSocket emission removed from here - it's now handled explicitly in executeAgent
+    // to avoid overwriting the gamified step info during execution
   }
 
   /**
@@ -960,23 +1281,29 @@ class GoogleMapsAgentService {
    * @returns {Array} List of contacts with all Google Maps data
    */
   async getAgentContacts(agentId, accountId) {
+    // Query with COALESCE to fallback to custom_fields for old records
     const query = `
       SELECT
+        c.id,
         c.name,
         c.email,
         c.phone,
         c.company,
-        c.address,
-        c.city,
-        c.state,
-        c.country,
+        COALESCE(c.address, c.custom_fields->>'address', c.location) as address,
+        COALESCE(c.city, c.custom_fields->>'city') as city,
+        COALESCE(c.state, c.custom_fields->>'state') as state,
+        COALESCE(c.country, c.custom_fields->>'country') as country,
         c.website,
-        c.rating,
-        c.review_count,
-        c.business_category,
+        COALESCE(c.rating, (c.custom_fields->>'rating')::decimal) as rating,
+        COALESCE(c.review_count, (c.custom_fields->>'review_count')::integer, 0) as review_count,
+        COALESCE(c.business_category, c.custom_fields->>'business_category') as business_category,
         c.google_maps_url,
-        c.latitude,
-        c.longitude,
+        COALESCE(c.latitude, (c.custom_fields->>'latitude')::decimal) as latitude,
+        COALESCE(c.longitude, (c.custom_fields->>'longitude')::decimal) as longitude,
+        c.company_description,
+        c.company_services,
+        c.pain_points,
+        c.location,
         gac.fetched_at,
         gac.page_number
       FROM google_maps_agent_contacts gac
@@ -987,6 +1314,62 @@ class GoogleMapsAgentService {
     `;
     const result = await db.query(query, [agentId, accountId]);
     return result.rows;
+  }
+
+  /**
+   * Save execution logs to database
+   * Appends new logs to existing logs array
+   */
+  async _saveExecutionLogs(agentId, logs) {
+    if (!logs || logs.length === 0) return;
+
+    try {
+      // Get current logs
+      const currentResult = await db.query(
+        'SELECT execution_logs FROM google_maps_agents WHERE id = $1',
+        [agentId]
+      );
+
+      let currentLogs = [];
+      if (currentResult.rows.length > 0 && currentResult.rows[0].execution_logs) {
+        currentLogs = currentResult.rows[0].execution_logs;
+      }
+
+      // Append new logs (keep last 100 entries)
+      const allLogs = [...currentLogs, ...logs].slice(-100);
+
+      // Save to database
+      await db.query(
+        'UPDATE google_maps_agents SET execution_logs = $1::jsonb WHERE id = $2',
+        [JSON.stringify(allLogs), agentId]
+      );
+
+      console.log(`📝 Saved ${logs.length} execution logs for agent ${agentId}`);
+    } catch (error) {
+      console.error(`⚠️ Error saving execution logs for agent ${agentId}:`, error.message);
+      // Don't throw - logs are not critical
+    }
+  }
+
+  /**
+   * Get execution logs for an agent
+   * @param {string} agentId - Agent UUID
+   * @param {string} accountId - Account UUID for security
+   * @returns {Array} Execution logs
+   */
+  async getAgentLogs(agentId, accountId) {
+    const query = `
+      SELECT execution_logs
+      FROM google_maps_agents
+      WHERE id = $1 AND account_id = $2
+    `;
+    const result = await db.query(query, [agentId, accountId]);
+
+    if (result.rows.length === 0) {
+      throw new Error('Agent not found');
+    }
+
+    return result.rows[0].execution_logs || [];
   }
 }
 

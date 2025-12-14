@@ -111,7 +111,12 @@ const getLeads = async (req, res) => {
         ct.education,
         ct.skills,
         ct.websites,
-        ct.custom_fields as contact_custom_fields
+        ct.website,
+        ct.custom_fields as contact_custom_fields,
+        -- Company intelligence (from GPT analysis)
+        ct.company_description,
+        ct.company_services,
+        ct.pain_points
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN users ru ON l.responsible_user_id = ru.id

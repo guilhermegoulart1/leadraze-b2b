@@ -459,52 +459,26 @@ const ActivationCampaignWizard = ({ isOpen, onClose, onSubmit, campaign = null }
               )}
 
               <div className="space-y-4">
-                {/* Email Activation */}
-                <div className="space-y-3">
-                  <label className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                {/* Email Activation - Coming Soon */}
+                <div className="space-y-3 opacity-60">
+                  <div className="flex items-center space-x-3 p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-not-allowed bg-gray-50 dark:bg-gray-800/50">
                     <input
                       type="checkbox"
-                      checked={formData.activate_email}
-                      onChange={(e) => handleChange('activate_email', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                      checked={false}
+                      disabled
+                      className="w-5 h-5 text-gray-400 rounded cursor-not-allowed"
                     />
-                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <Mail className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">Ativar por Email</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Enviar mensagens por email</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-500 dark:text-gray-400">Ativar por Email</span>
+                        <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                          Em breve
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Enviar mensagens por email</p>
                     </div>
-                  </label>
-
-                  {formData.activate_email && (
-                    <div className="ml-11 pl-4 border-l-2 border-purple-200 dark:border-purple-700">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Agente de Email *
-                      </label>
-                      {agents.filter(a => a.agent_type === 'email').length === 0 ? (
-                        <div className="text-sm text-amber-600 dark:text-amber-400">
-                          Nenhum agente de Email ativo. Crie um agente na página de Agentes.
-                        </div>
-                      ) : (
-                        <select
-                          value={formData.email_agent_id || ''}
-                          onChange={(e) => handleChange('email_agent_id', e.target.value)}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
-                            errors.email_agent ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                          }`}
-                        >
-                          <option value="">Selecione um agente de Email</option>
-                          {agents.filter(a => a.agent_type === 'email').map(agent => (
-                            <option key={agent.id} value={agent.id}>
-                              {agent.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      {errors.email_agent && (
-                        <p className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.email_agent}</p>
-                      )}
-                    </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* WhatsApp Activation */}

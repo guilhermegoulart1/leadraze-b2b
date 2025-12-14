@@ -209,7 +209,13 @@
   "details": {
     "tabs": {
       "overview": "Resumen",
-      "opportunities": "Oportunidades"
+      "opportunities": "Oportunidades",
+      "photos": "Fotos"
+    },
+    "photos": {
+      "title": "Fotos",
+      "noPhotos": "No hay fotos disponibles",
+      "googleMapsPhotos": "Fotos de Google Maps"
     },
     "contactInfo": "Información de Contacto",
     "email": "Correo",
@@ -233,6 +239,31 @@
       "none": "Ninguna oportunidad vinculada"
     },
     "loading": "Cargando...",
-    "notFound": "Contacto no encontrado"
+    "notFound": "Contacto no encontrado",
+    "companyIntelligence": "Agente Secreto GetRaze",
+    "services": "Servicios",
+    "painPoints": "Oportunidades",
+    "website": "Sitio Web",
+    "allEmails": "Emails encontrados",
+    "allPhones": "Teléfonos encontrados",
+    "socialLinks": "Redes Sociales",
+    "teamMembers": "Equipo"
+  },
+  "officialData": {
+    "title": "Datos Oficiales",
+    "source": "Datos del Registro Federal de Brasil (ReceitaWS)",
+    "noData": "Datos oficiales no disponibles",
+    "cnpj": "CNPJ",
+    "razaoSocial": "Razón Social",
+    "nomeFantasia": "Nombre Comercial",
+    "situation": "Situación",
+    "since": "Desde",
+    "openDate": "Fecha de Apertura",
+    "capitalSocial": "Capital Social",
+    "address": "Dirección",
+    "mainActivity": "Actividad Principal",
+    "partners": "Socios",
+    "morePartners": "socios adicionales",
+    "lastUpdate": "Última actualización"
   }
 }
