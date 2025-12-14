@@ -1589,6 +1589,111 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     </div>
                   )}
 
+                  {/* Multiple Contacts Data (emails, phones, social links) */}
+                  {(lead.contact_emails?.length > 0 || lead.contact_phones?.length > 0 || (lead.contact_social_links && Object.keys(lead.contact_social_links).length > 0)) && (
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Users className="w-4 h-4 text-emerald-500" />
+                        <h3 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                          {t('modal.contactChannels', 'Canais de Contato')}
+                        </h3>
+                      </div>
+
+                      {/* Multiple Emails */}
+                      {lead.contact_emails && Array.isArray(lead.contact_emails) && lead.contact_emails.length > 0 && (
+                        <div className="pl-6 mb-4">
+                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            Emails ({lead.contact_emails.length})
+                          </p>
+                          <div className="space-y-1.5">
+                            {lead.contact_emails.map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <a
+                                  href={`mailto:${item.email}`}
+                                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  {item.email}
+                                </a>
+                                {item.type && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                    item.type === 'personal' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                    item.type === 'commercial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                  }`}>
+                                    {item.type}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Multiple Phones */}
+                      {lead.contact_phones && Array.isArray(lead.contact_phones) && lead.contact_phones.length > 0 && (
+                        <div className="pl-6 mb-4">
+                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            Telefones ({lead.contact_phones.length})
+                          </p>
+                          <div className="space-y-1.5">
+                            {lead.contact_phones.map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <a
+                                  href={`tel:${item.phone}`}
+                                  className="text-xs text-gray-700 dark:text-gray-300 hover:text-blue-600"
+                                >
+                                  {item.phone}
+                                </a>
+                                {item.type && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                    item.type === 'whatsapp' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                    item.type === 'mobile' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                  }`}>
+                                    {item.type === 'whatsapp' ? 'WhatsApp' : item.type === 'mobile' ? 'Celular' : 'Fixo'}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Social Links */}
+                      {lead.contact_social_links && Object.keys(lead.contact_social_links).length > 0 && (
+                        <div className="pl-6">
+                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
+                            <Globe className="w-3 h-3" />
+                            Redes Sociais
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(lead.contact_social_links).map(([network, url]) => (
+                              <a
+                                key={network}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
+                                  network === 'linkedin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                  network === 'instagram' ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' :
+                                  network === 'facebook' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
+                                  network === 'youtube' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                  network === 'twitter' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
+                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                }`}
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                {network.charAt(0).toUpperCase() + network.slice(1)}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Experience */}
                   {lead.experience && Array.isArray(lead.experience) && lead.experience.length > 0 && (
                     <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">

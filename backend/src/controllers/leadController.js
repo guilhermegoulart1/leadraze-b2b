@@ -116,7 +116,12 @@ const getLeads = async (req, res) => {
         -- Company intelligence (from GPT analysis)
         ct.company_description,
         ct.company_services,
-        ct.pain_points
+        ct.pain_points,
+        -- Multiple contacts data
+        ct.emails as contact_emails,
+        ct.phones as contact_phones,
+        ct.social_links as contact_social_links,
+        ct.team_members as contact_team_members
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN users ru ON l.responsible_user_id = ru.id

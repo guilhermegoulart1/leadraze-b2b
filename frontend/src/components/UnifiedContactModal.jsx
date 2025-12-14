@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Mail, Phone, Building2, MapPin, Linkedin, Globe, Briefcase,
   MessageCircle, Instagram, Send, Clock, MessageSquare,
-  ChevronRight, Trash2, Plus, Save, User, RefreshCw, Sparkles, Image, FileText
+  ChevronRight, Trash2, Plus, Save, User, Users, RefreshCw, Sparkles, Image, FileText, ExternalLink
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -445,6 +445,107 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                           />
                         </div>
                       </div>
+
+                      {/* Multiple Contacts Data - Additional emails, phones, social links */}
+                      {(parseJsonArray(contact?.emails).length > 0 || parseJsonArray(contact?.phones).length > 0 || (contact?.social_links && Object.keys(contact.social_links).length > 0)) && (
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300 mb-3">
+                            <Users className="w-4 h-4" />
+                            Canais de Contato Adicionais
+                          </h4>
+
+                          {/* Multiple Emails */}
+                          {parseJsonArray(contact?.emails).length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                Emails ({parseJsonArray(contact?.emails).length})
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {parseJsonArray(contact?.emails).map((item, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={`mailto:${item.email}`}
+                                    className="text-xs bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-1"
+                                  >
+                                    {item.email}
+                                    {item.type && (
+                                      <span className={`text-[9px] px-1 py-0.5 rounded ${
+                                        item.type === 'personal' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
+                                        item.type === 'commercial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' :
+                                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                                      }`}>
+                                        {item.type}
+                                      </span>
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Multiple Phones */}
+                          {parseJsonArray(contact?.phones).length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                Telefones ({parseJsonArray(contact?.phones).length})
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {parseJsonArray(contact?.phones).map((item, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={`tel:${item.phone}`}
+                                    className="text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-700 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1"
+                                  >
+                                    {item.phone}
+                                    {item.type && (
+                                      <span className={`text-[9px] px-1 py-0.5 rounded ${
+                                        item.type === 'whatsapp' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
+                                        item.type === 'mobile' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' :
+                                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                                      }`}>
+                                        {item.type === 'whatsapp' ? 'WhatsApp' : item.type === 'mobile' ? 'Celular' : 'Fixo'}
+                                      </span>
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Social Links */}
+                          {contact?.social_links && Object.keys(contact.social_links).length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                                <Globe className="w-3 h-3" />
+                                Redes Sociais
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {Object.entries(contact.social_links).map(([network, url]) => (
+                                  <a
+                                    key={network}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
+                                      network === 'linkedin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                      network === 'instagram' ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' :
+                                      network === 'facebook' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
+                                      network === 'youtube' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                      network === 'twitter' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
+                                      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                    }`}
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    {network.charAt(0).toUpperCase() + network.slice(1)}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Company & Title */}
                       <div className="grid grid-cols-2 gap-4">
