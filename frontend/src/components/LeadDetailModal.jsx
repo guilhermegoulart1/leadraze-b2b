@@ -75,7 +75,7 @@ const getStatusDotClasses = (color) => {
 };
 
 const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated, onViewContact }) => {
-  const { t } = useTranslation('leads');
+  const { t } = useTranslation(['leads', 'contacts']);
   const [activeTab, setActiveTab] = useState('details'); // details | contact | comments | tasks
   const [activeChannel, setActiveChannel] = useState(null);
   const [conversations, setConversations] = useState({});
@@ -856,6 +856,23 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       </span>
                     )}
                   </div>
+
+                  {/* Business Category and Rating */}
+                  <div className="flex items-center gap-3 mt-2 text-sm text-purple-200">
+                    {lead.business_category && (
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3.5 h-3.5" />
+                        {lead.business_category}
+                      </span>
+                    )}
+                    {(lead.rating || lead.review_count > 0) && (
+                      <span className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
+                        {lead.rating && <span>{lead.rating}</span>}
+                        {lead.review_count > 0 && <span>({lead.review_count})</span>}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1446,7 +1463,29 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       </div>
                     )}
 
-                    {lead.location && (
+                    {/* Structured Address */}
+                    {(lead.city || lead.state || lead.country || lead.postal_code) ? (
+                      <div className="flex items-start gap-2.5">
+                        <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-1">Localização</span>
+                          <div className="grid grid-cols-2 gap-1 text-xs">
+                            {lead.city && (
+                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:city', 'Cidade')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.city}</span></div>
+                            )}
+                            {lead.state && (
+                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:state', 'Estado')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.state}</span></div>
+                            )}
+                            {lead.country && (
+                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:country', 'País')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.country}</span></div>
+                            )}
+                            {lead.postal_code && (
+                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:postalCode', 'CEP')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.postal_code}</span></div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : lead.location && (
                       <div className="flex items-center gap-2.5">
                         <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Localização</span>
@@ -1462,8 +1501,42 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         <LocationMiniMap
                           latitude={lead.latitude}
                           longitude={lead.longitude}
-                          height={120}
+                          height={200}
                         />
+                      </div>
+                    )}
+
+                    {/* Website Button */}
+                    {lead.website && (
+                      <div className="mt-3">
+                        <a
+                          href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          {t('contacts:visitWebsite', 'Visitar Site')}
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Opening Hours */}
+                    {lead.opening_hours && (
+                      <div className="mt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                            {t('contacts:openingHours', 'Horário de Funcionamento')}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-line bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 pl-6">
+                          {typeof lead.opening_hours === 'string'
+                            ? lead.opening_hours
+                            : Array.isArray(lead.opening_hours)
+                              ? lead.opening_hours.join('\n')
+                              : JSON.stringify(lead.opening_hours, null, 2)}
+                        </div>
                       </div>
                     )}
 
@@ -1586,6 +1659,46 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Team Members */}
+                  {lead.team_members && Array.isArray(lead.team_members) && lead.team_members.length > 0 && (
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Users className="w-4 h-4 text-indigo-500" />
+                        <h3 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
+                          {t('contacts:team.title', 'Equipe')} ({lead.team_members.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-2 pl-6">
+                        {lead.team_members.map((member, idx) => (
+                          <div key={idx} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-gray-900 dark:text-gray-100">{member.name}</div>
+                              {member.role && (
+                                <div className="text-[11px] text-gray-500 dark:text-gray-400">{member.role}</div>
+                              )}
+                              <div className="flex items-center gap-2 mt-1">
+                                {member.email && (
+                                  <a href={`mailto:${member.email}`} className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline">
+                                    {member.email}
+                                  </a>
+                                )}
+                                {member.linkedin && (
+                                  <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#0A66C2] hover:underline flex items-center gap-0.5">
+                                    <Linkedin className="w-3 h-3" />
+                                    LinkedIn
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -1858,7 +1971,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm font-medium"
                       >
                         <ExternalLink className="w-4 h-4" />
-                        Ver todos os dados do contato
+                        {t('contacts:viewFullDetails', 'Ver dados completos')}
                       </button>
                     </div>
                   )}

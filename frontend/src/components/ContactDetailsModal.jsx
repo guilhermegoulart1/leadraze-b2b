@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X, Mail, Phone, Building2, MapPin, Linkedin, Globe,
   MessageCircle, Instagram, Send, Calendar, FileText,
-  Briefcase, GraduationCap, Image, Users, Facebook, Youtube, Twitter
+  Briefcase, GraduationCap, Image, Users, Facebook, Youtube, Twitter,
+  Star, Clock, Tag, ExternalLink
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -11,7 +13,8 @@ import LocationMiniMap from './LocationMiniMap';
 import OfficialDataTab from './OfficialDataTab';
 
 const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation('contacts');
+  const navigate = useNavigate();
   const [contact, setContact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // overview, activity, opportunities
@@ -87,7 +90,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
     email: { icon: Mail, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Email' },
     linkedin: { icon: Linkedin, color: 'text-blue-700', bg: 'bg-blue-100', label: 'LinkedIn' },
     telegram: { icon: Send, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Telegram' },
-    phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100', label: t('contacts.details.phone') }
+    phone: { icon: Phone, color: 'text-gray-600', bg: 'bg-gray-100', label: t('details.phone') }
   };
 
   const tagColors = {
@@ -137,6 +140,29 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           {contact.company}
                         </p>
                       )}
+                      {/* Business Category */}
+                      {contact.business_category && (
+                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                          <Tag className="w-4 h-4" />
+                          {contact.business_category}
+                        </p>
+                      )}
+                      {/* Rating and Reviews */}
+                      {(contact.rating || contact.review_count > 0) && (
+                        <div className="flex items-center gap-2 mt-1">
+                          {contact.rating && (
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                              <span className="text-sm font-medium text-gray-700">{contact.rating}</span>
+                            </div>
+                          )}
+                          {contact.review_count > 0 && (
+                            <span className="text-sm text-gray-500">
+                              ({contact.review_count} {t('reviews')})
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {/* Tags */}
                       {contact.tags && contact.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
@@ -163,7 +189,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         }}
                         className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
                       >
-                        {t('contacts.actions.edit')}
+                        {t('actions.edit')}
                       </button>
                     )}
                     <button
@@ -185,7 +211,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    {t('contacts.details.tabs.overview')}
+                    {t('details.tabs.overview')}
                   </button>
                   <button
                     onClick={() => setActiveTab('opportunities')}
@@ -195,7 +221,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    {t('contacts.details.tabs.opportunities')} ({contact.opportunities?.length || 0})
+                    {t('details.tabs.opportunities')} ({contact.opportunities?.length || 0})
                   </button>
                   {/* Photos Tab - only show if photos exist */}
                   {contact.photos && parseJsonArray(contact.photos).length > 0 && (
@@ -208,7 +234,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                       }`}
                     >
                       <Image className="w-3.5 h-3.5" />
-                      {t('contacts.details.tabs.photos')} ({parseJsonArray(contact.photos).length})
+                      {t('details.tabs.photos')} ({parseJsonArray(contact.photos).length})
                     </button>
                   )}
                   {/* Official Data Tab - only show if cnpj_data exists */}
@@ -222,7 +248,21 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                       }`}
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      {t('contacts.officialData.title')}
+                      {t('officialData.title')}
+                    </button>
+                  )}
+                  {/* Team Tab - only show if team_members exist */}
+                  {parseJsonArray(contact.team_members).length > 0 && (
+                    <button
+                      onClick={() => setActiveTab('team')}
+                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                        activeTab === 'team'
+                          ? 'border-purple-600 text-purple-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      {t('team.title')} ({parseJsonArray(contact.team_members).length})
                     </button>
                   )}
                 </div>
@@ -235,13 +275,13 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                   <div className="space-y-6">
                     {/* Contact Info */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.contactInfo')}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('details.contactInfo')}</h3>
                       <div className="grid grid-cols-2 gap-4">
                         {contact.email && (
                           <div className="flex items-center gap-2">
                             <Mail className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">{t('contacts.details.email')}</p>
+                              <p className="text-xs text-gray-500">{t('details.email')}</p>
                               <a href={`mailto:${contact.email}`} className="text-sm text-purple-600 hover:underline">
                                 {contact.email}
                               </a>
@@ -252,29 +292,64 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2">
                             <Phone className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">{t('contacts.details.phone')}</p>
+                              <p className="text-xs text-gray-500">{t('details.phone')}</p>
                               <a href={`tel:${contact.phone}`} className="text-sm text-gray-700">
                                 {contact.phone}
                               </a>
                             </div>
                           </div>
                         )}
-                        {contact.location && (
+                        {/* Structured Address */}
+                        {(contact.city || contact.state || contact.country) && (
+                          <div className="col-span-2">
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                {contact.city && (
+                                  <div>
+                                    <span className="text-gray-500">{t('city')}:</span>{' '}
+                                    <span className="text-gray-700">{contact.city}</span>
+                                  </div>
+                                )}
+                                {contact.state && (
+                                  <div>
+                                    <span className="text-gray-500">{t('state')}:</span>{' '}
+                                    <span className="text-gray-700">{contact.state}</span>
+                                  </div>
+                                )}
+                                {contact.country && (
+                                  <div>
+                                    <span className="text-gray-500">{t('country')}:</span>{' '}
+                                    <span className="text-gray-700">{contact.country}</span>
+                                  </div>
+                                )}
+                                {contact.postal_code && (
+                                  <div>
+                                    <span className="text-gray-500">{t('postalCode')}:</span>{' '}
+                                    <span className="text-gray-700">{contact.postal_code}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {/* Fallback: Full location string if no structured address */}
+                        {contact.location && !contact.city && !contact.state && (
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">{t('contacts.details.location')}</p>
+                              <p className="text-xs text-gray-500">{t('details.location')}</p>
                               <p className="text-sm text-gray-700">{contact.location}</p>
                             </div>
                           </div>
                         )}
-                        {/* Mini Map */}
+                        {/* Mini Map - Increased height */}
                         {(contact.latitude && contact.longitude) && (
                           <div className="col-span-2">
                             <LocationMiniMap
                               latitude={contact.latitude}
                               longitude={contact.longitude}
-                              height={120}
+                              height={200}
                             />
                           </div>
                         )}
@@ -282,7 +357,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2">
                             <Briefcase className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">{t('contacts.details.industry')}</p>
+                              <p className="text-xs text-gray-500">{t('details.industry')}</p>
                               <p className="text-sm text-gray-700">{contact.industry}</p>
                             </div>
                           </div>
@@ -291,7 +366,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2">
                             <Globe className="w-4 h-4 text-gray-400" />
                             <div>
-                              <p className="text-xs text-gray-500">{t('contacts.details.website', 'Website')}</p>
+                              <p className="text-xs text-gray-500">{t('details.website', 'Website')}</p>
                               <a
                                 href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
                                 target="_blank"
@@ -304,13 +379,44 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           </div>
                         )}
                       </div>
+                      {/* Visit Website Button */}
+                      {contact.website && (
+                        <div className="mt-4">
+                          <a
+                            href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            {t('visitWebsite')}
+                          </a>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Opening Hours */}
+                    {contact.opening_hours && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          {t('openingHours')}
+                        </h3>
+                        <div className="text-sm text-gray-700 whitespace-pre-line bg-gray-50 rounded-lg p-3">
+                          {typeof contact.opening_hours === 'string'
+                            ? contact.opening_hours
+                            : Array.isArray(contact.opening_hours)
+                              ? contact.opening_hours.join('\n')
+                              : JSON.stringify(contact.opening_hours, null, 2)}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Multiple Emails */}
                     {parseJsonArray(contact.emails).length > 0 && (
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                          {t('contacts.details.allEmails', 'Emails encontrados')} ({parseJsonArray(contact.emails).length})
+                          {t('details.allEmails', 'Emails encontrados')} ({parseJsonArray(contact.emails).length})
                         </h3>
                         <div className="space-y-2">
                           {parseJsonArray(contact.emails).map((emailObj, idx) => (
@@ -346,7 +452,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {parseJsonArray(contact.phones).length > 0 && (
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                          {t('contacts.details.allPhones', 'Telefones encontrados')} ({parseJsonArray(contact.phones).length})
+                          {t('details.allPhones', 'Telefones encontrados')} ({parseJsonArray(contact.phones).length})
                         </h3>
                         <div className="space-y-2">
                           {parseJsonArray(contact.phones).map((phoneObj, idx) => (
@@ -376,7 +482,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {Object.keys(parseJsonObject(contact.social_links)).length > 0 && (
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                          {t('contacts.details.socialLinks', 'Redes Sociais')}
+                          {t('details.socialLinks', 'Redes Sociais')}
                         </h3>
                         <div className="flex flex-wrap gap-2">
                           {Object.entries(parseJsonObject(contact.social_links)).map(([network, url]) => {
@@ -404,7 +510,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
                           <Users className="w-4 h-4 inline mr-2" />
-                          {t('contacts.details.teamMembers', 'Equipe')} ({parseJsonArray(contact.team_members).length})
+                          {t('details.teamMembers', 'Equipe')} ({parseJsonArray(contact.team_members).length})
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
                           {parseJsonArray(contact.team_members).map((member, idx) => (
@@ -434,25 +540,39 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Channels */}
                     {contact.channels && contact.channels.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.channels')}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">{t('details.channels')}</h3>
                         <div className="grid grid-cols-2 gap-3">
                           {contact.channels.map((channel, idx) => {
                             const config = channelConfig[channel.type];
                             if (!config) return null;
                             const IconComponent = config.icon;
+                            const hasMessages = channel.messageCount > 0;
+                            const handleClick = () => {
+                              if (hasMessages && channel.conversationId) {
+                                onClose();
+                                navigate(`/conversation/${channel.conversationId}`);
+                              }
+                            };
                             return (
-                              <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                              <div
+                                key={idx}
+                                onClick={handleClick}
+                                className={`flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg ${
+                                  hasMessages ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors' : ''
+                                }`}
+                              >
                                 <div className={`p-2 rounded-full ${config.bg}`}>
                                   <IconComponent className={`w-4 h-4 ${config.color}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs text-gray-500">{config.label}</p>
-                                  <p className="text-sm text-gray-900 truncate">
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{config.label}</p>
+                                  <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
                                     {channel.username || channel.channelId || '-'}
                                   </p>
-                                  {channel.messageCount > 0 && (
-                                    <p className="text-xs text-gray-500">
-                                      {channel.messageCount} {t('contacts.details.messages')}
+                                  {hasMessages && (
+                                    <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                                      <MessageCircle className="w-3 h-3" />
+                                      {channel.messageCount} {t('details.messages')}
                                     </p>
                                   )}
                                 </div>
@@ -466,7 +586,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Headline */}
                     {contact.headline && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('contacts.details.headline')}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('details.headline')}</h3>
                         <p className="text-sm text-gray-700">{contact.headline}</p>
                       </div>
                     )}
@@ -474,7 +594,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* About */}
                     {contact.about && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('contacts.details.about')}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('details.about')}</h3>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{contact.about}</p>
                       </div>
                     )}
@@ -492,7 +612,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           <div className="flex items-center gap-2 mb-3">
                             <Briefcase className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                             <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-200">
-                              {t('contacts.details.companyIntelligence', 'Inteligência da Empresa')}
+                              {t('details.companyIntelligence', 'Inteligência da Empresa')}
                             </h3>
                             <span className="text-xs bg-purple-200 dark:bg-purple-700 text-purple-700 dark:text-purple-200 px-1.5 py-0.5 rounded">IA</span>
                           </div>
@@ -506,7 +626,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           {services.length > 0 && (
                             <div className="mb-3">
                               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">
-                                {t('contacts.details.services', 'Serviços')}
+                                {t('details.services', 'Serviços')}
                               </p>
                               <div className="flex flex-wrap gap-1">
                                 {services.map((service, idx) => (
@@ -522,7 +642,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                           {painPoints.length > 0 && (
                             <div>
                               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 uppercase">
-                                {t('contacts.details.painPoints', 'Oportunidades')}
+                                {t('details.painPoints', 'Oportunidades')}
                               </p>
                               <ul className="space-y-1">
                                 {painPoints.map((pain, idx) => (
@@ -541,7 +661,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Profile Links */}
                     {(contact.profile_url || contact.linkedin_profile_id) && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.profileLinks')}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('details.profileLinks')}</h3>
                         <div className="space-y-2">
                           {contact.profile_url && (
                             <a
@@ -572,7 +692,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     {/* Notes */}
                     {contact.notes && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('contacts.details.notesInternal')}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('details.notesInternal')}</h3>
                         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <p className="text-sm text-gray-700 whitespace-pre-wrap">{contact.notes}</p>
                         </div>
@@ -581,21 +701,21 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
 
                     {/* Metadata */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('contacts.details.systemInfo')}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('details.systemInfo')}</h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500">{t('contacts.details.source')}</p>
+                          <p className="text-gray-500">{t('details.source')}</p>
                           <p className="text-gray-900 capitalize">{contact.source || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">{t('contacts.details.createdAt')}</p>
+                          <p className="text-gray-500">{t('details.createdAt')}</p>
                           <p className="text-gray-900">
                             {new Date(contact.created_at).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                         {contact.last_interaction_at && (
                           <div>
-                            <p className="text-gray-500">{t('contacts.details.lastInteraction')}</p>
+                            <p className="text-gray-500">{t('details.lastInteraction')}</p>
                             <p className="text-gray-900">
                               {new Date(contact.last_interaction_at).toLocaleDateString('pt-BR')}
                             </p>
@@ -617,10 +737,10 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                               <div>
                                 <h4 className="font-medium text-gray-900">{opp.name}</h4>
                                 <p className="text-sm text-gray-500 mt-1">
-                                  {t('contacts.details.opportunities.role')}: <span className="capitalize">{opp.role}</span>
+                                  {t('details.opportunities.role')}: <span className="capitalize">{opp.role}</span>
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                  {t('contacts.details.opportunities.status')}: <span className="capitalize">{opp.status}</span>
+                                  {t('details.opportunities.status')}: <span className="capitalize">{opp.status}</span>
                                 </p>
                               </div>
                               <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
@@ -633,7 +753,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     ) : (
                       <div className="text-center py-12 text-gray-500">
                         <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>{t('contacts.details.opportunities.none')}</p>
+                        <p>{t('details.opportunities.none')}</p>
                       </div>
                     )}
                   </div>
@@ -648,7 +768,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         return (
                           <div className="text-center py-12 text-gray-500">
                             <Image className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                            <p>{t('contacts.details.photos.noPhotos')}</p>
+                            <p>{t('details.photos.noPhotos')}</p>
                           </div>
                         );
                       }
@@ -656,7 +776,7 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                         <div className="space-y-4">
                           <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                             <Image className="w-4 h-4 text-purple-600" />
-                            {t('contacts.details.photos.googleMapsPhotos')}
+                            {t('details.photos.googleMapsPhotos')}
                           </h3>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                             {photos.map((photo, idx) => (
@@ -700,11 +820,85 @@ const ContactDetailsModal = ({ isOpen, onClose, contactId, onEdit }) => {
                     cnpjData={contact.cnpj_data}
                   />
                 )}
+
+                {/* Team Tab */}
+                {activeTab === 'team' && (
+                  <div>
+                    {(() => {
+                      const members = parseJsonArray(contact.team_members);
+                      if (members.length === 0) {
+                        return (
+                          <div className="text-center py-12 text-gray-500">
+                            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p>{t('team.noMembers')}</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-purple-600" />
+                            {t('team.title')} ({members.length})
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {members.map((member, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100"
+                              >
+                                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <Users className="w-6 h-6 text-purple-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{member.name}</p>
+                                  {member.role && (
+                                    <p className="text-sm text-gray-500">{member.role}</p>
+                                  )}
+                                  <div className="flex items-center gap-3 mt-2">
+                                    {member.email && (
+                                      <a
+                                        href={`mailto:${member.email}`}
+                                        className="flex items-center gap-1 text-sm text-purple-600 hover:underline"
+                                      >
+                                        <Mail className="w-3.5 h-3.5" />
+                                        Email
+                                      </a>
+                                    )}
+                                    {member.linkedin && (
+                                      <a
+                                        href={member.linkedin}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                                      >
+                                        <Linkedin className="w-3.5 h-3.5" />
+                                        LinkedIn
+                                      </a>
+                                    )}
+                                    {member.phone && (
+                                      <a
+                                        href={`tel:${member.phone}`}
+                                        className="flex items-center gap-1 text-sm text-green-600 hover:underline"
+                                      >
+                                        <Phone className="w-3.5 h-3.5" />
+                                        Tel
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </>
           ) : (
             <div className="flex items-center justify-center h-96">
-              <p className="text-gray-500">{t('contacts.details.notFound')}</p>
+              <p className="text-gray-500">{t('details.notFound')}</p>
             </div>
           )}
         </div>

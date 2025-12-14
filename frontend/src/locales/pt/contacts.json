@@ -249,6 +249,20 @@
     "socialLinks": "Redes Sociais",
     "teamMembers": "Equipe"
   },
+  "team": {
+    "title": "Equipe",
+    "noMembers": "Nenhum membro da equipe encontrado"
+  },
+  "visitWebsite": "Visitar Site",
+  "viewFullDetails": "Ver dados completos",
+  "rating": "Avaliação",
+  "reviews": "avaliações",
+  "businessCategory": "Categoria",
+  "openingHours": "Horário de Funcionamento",
+  "city": "Cidade",
+  "state": "Estado",
+  "country": "País",
+  "postalCode": "CEP",
   "officialData": {
     "title": "Dados Oficiais",
     "source": "Dados da Receita Federal (ReceitaWS)",

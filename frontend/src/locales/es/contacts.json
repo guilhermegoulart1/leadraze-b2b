@@ -249,6 +249,20 @@
     "socialLinks": "Redes Sociales",
     "teamMembers": "Equipo"
   },
+  "team": {
+    "title": "Equipo",
+    "noMembers": "No se encontraron miembros del equipo"
+  },
+  "visitWebsite": "Visitar Sitio Web",
+  "viewFullDetails": "Ver datos completos",
+  "rating": "Calificación",
+  "reviews": "reseñas",
+  "businessCategory": "Categoría",
+  "openingHours": "Horario de Atención",
+  "city": "Ciudad",
+  "state": "Estado",
+  "country": "País",
+  "postalCode": "Código Postal",
   "officialData": {
     "title": "Datos Oficiales",
     "source": "Datos del Registro Federal de Brasil (ReceitaWS)",

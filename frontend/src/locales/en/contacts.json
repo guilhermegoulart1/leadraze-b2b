@@ -249,6 +249,20 @@
     "socialLinks": "Social Media",
     "teamMembers": "Team"
   },
+  "team": {
+    "title": "Team",
+    "noMembers": "No team members found"
+  },
+  "visitWebsite": "Visit Website",
+  "viewFullDetails": "View full details",
+  "rating": "Rating",
+  "reviews": "reviews",
+  "businessCategory": "Category",
+  "openingHours": "Opening Hours",
+  "city": "City",
+  "state": "State",
+  "country": "Country",
+  "postalCode": "Postal Code",
   "officialData": {
     "title": "Official Data",
     "source": "Brazilian Federal Revenue Data (ReceitaWS)",

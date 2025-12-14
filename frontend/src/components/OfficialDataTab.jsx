@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
  * @param {Object} props.cnpjData - Dados completos do ReceitaWS (parsed from JSON)
  */
 const OfficialDataTab = ({ cnpj, cnpjData }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation('contacts');
 
   // Parse cnpjData if it's a string
   const data = typeof cnpjData === 'string' ? JSON.parse(cnpjData) : cnpjData;
@@ -22,7 +22,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
     return (
       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
         <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>{t('contacts.officialData.noData')}</p>
+        <p>{t('officialData.noData')}</p>
       </div>
     );
   }
@@ -73,10 +73,10 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-4 text-white">
         <div className="flex items-center gap-2 mb-2">
           <Building2 className="w-5 h-5" />
-          <h3 className="font-semibold">{t('contacts.officialData.title')}</h3>
+          <h3 className="font-semibold">{t('officialData.title')}</h3>
         </div>
         <p className="text-sm text-blue-100">
-          {t('contacts.officialData.source')}
+          {t('officialData.source')}
         </p>
       </div>
 
@@ -87,7 +87,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
           <p className={`font-medium ${statusInfo.color}`}>{data.situacao}</p>
           {data.dataSituacao && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t('contacts.officialData.since')}: {formatDate(data.dataSituacao)}
+              {t('officialData.since')}: {formatDate(data.dataSituacao)}
             </p>
           )}
         </div>
@@ -99,7 +99,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
         <div className="flex items-start gap-3">
           <FileText className="w-4 h-4 text-gray-400 mt-1" />
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.cnpj')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.cnpj')}</p>
             <p className="text-sm font-mono text-gray-900 dark:text-gray-100">{cnpj || data.cnpj}</p>
           </div>
         </div>
@@ -108,7 +108,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
         <div className="flex items-start gap-3">
           <Building2 className="w-4 h-4 text-gray-400 mt-1" />
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.razaoSocial')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.razaoSocial')}</p>
             <p className="text-sm text-gray-900 dark:text-gray-100">{data.razaoSocial || '-'}</p>
           </div>
         </div>
@@ -118,7 +118,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
           <div className="flex items-start gap-3">
             <Building2 className="w-4 h-4 text-gray-400 mt-1" />
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.nomeFantasia')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.nomeFantasia')}</p>
               <p className="text-sm text-gray-900 dark:text-gray-100">{data.nomeFantasia}</p>
             </div>
           </div>
@@ -128,7 +128,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
         <div className="flex items-start gap-3">
           <Calendar className="w-4 h-4 text-gray-400 mt-1" />
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.openDate')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.openDate')}</p>
             <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(data.dataAbertura)}</p>
           </div>
         </div>
@@ -138,7 +138,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
           <div className="flex items-start gap-3">
             <DollarSign className="w-4 h-4 text-gray-400 mt-1" />
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.capitalSocial')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.capitalSocial')}</p>
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatCurrency(data.capitalSocial)}</p>
               {data.porte && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">{data.porte}</p>
@@ -152,7 +152,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
           <div className="flex items-start gap-3">
             <MapPin className="w-4 h-4 text-gray-400 mt-1" />
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.address')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.address')}</p>
               <p className="text-sm text-gray-900 dark:text-gray-100">
                 {data.endereco.logradouro}{data.endereco.numero ? `, ${data.endereco.numero}` : ''}
                 {data.endereco.complemento ? ` - ${data.endereco.complemento}` : ''}
@@ -172,7 +172,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
           <div className="flex items-start gap-3">
             <Briefcase className="w-4 h-4 text-gray-400 mt-1" />
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{t('contacts.officialData.mainActivity')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('officialData.mainActivity')}</p>
               <p className="text-sm text-gray-900 dark:text-gray-100">
                 {data.atividadePrincipal.text || data.atividadePrincipal.code}
               </p>
@@ -190,7 +190,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
           <div className="flex items-center gap-2 mb-3">
             <Users className="w-4 h-4 text-gray-400" />
             <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {t('contacts.officialData.partners')} ({data.qsa.length})
+              {t('officialData.partners')} ({data.qsa.length})
             </h4>
           </div>
           <div className="space-y-2">
@@ -205,7 +205,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
             ))}
             {data.qsa.length > 5 && (
               <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                +{data.qsa.length - 5} {t('contacts.officialData.morePartners')}
+                +{data.qsa.length - 5} {t('officialData.morePartners')}
               </p>
             )}
           </div>
@@ -215,7 +215,7 @@ const OfficialDataTab = ({ cnpj, cnpjData }) => {
       {/* Footer com data de atualizacao */}
       {data._fetchedAt && (
         <p className="text-xs text-gray-400 dark:text-gray-500 text-center pt-2">
-          {t('contacts.officialData.lastUpdate')}: {new Date(data._fetchedAt).toLocaleDateString('pt-BR')}
+          {t('officialData.lastUpdate')}: {new Date(data._fetchedAt).toLocaleDateString('pt-BR')}
         </p>
       )}
     </div>
