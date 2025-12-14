@@ -61,6 +61,46 @@ class GeminiService {
   }
 
   /**
+   * Generate JSON with Gemini - forces valid JSON output
+   * @param {string} systemPrompt - System instructions
+   * @param {string} userPrompt - User message/content
+   * @param {Object} options - Additional options
+   * @returns {Object} Parsed JSON object
+   */
+  async generateJson(systemPrompt, userPrompt, options = {}) {
+    if (!this.client && this.apiKey) {
+      this.client = new GoogleGenerativeAI(this.apiKey);
+    }
+
+    if (!this.client) {
+      throw new Error('Gemini API not configured');
+    }
+
+    // Create model specifically for JSON output
+    const jsonModel = this.client.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: options.temperature || 0.3,
+        maxOutputTokens: options.maxTokens || 4000,
+      },
+    });
+
+    // Combine system and user prompts for Gemini
+    const fullPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
+    const result = await jsonModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+    });
+
+    const response = result.response;
+    const text = response.text();
+
+    // Parse JSON response
+    return JSON.parse(text);
+  }
+
+  /**
    * Chat completion similar to OpenAI format
    * @param {Array} messages - Array of {role, content} messages
    * @param {Object} options - Additional options

@@ -286,47 +286,14 @@ Se nao encontrar alguma informacao, use null ou array vazio.
 CONTEUDO DO SITE:
 ${websiteText}`;
 
-      const response = await geminiService.generateText(systemPrompt, userPrompt, {
+      // Use generateJson which forces valid JSON output via responseMimeType
+      const parsed = await geminiService.generateJson(systemPrompt, userPrompt, {
         temperature: 0.3,
         maxTokens: 2000
       });
 
-      // Extrai JSON da resposta
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        let jsonStr = jsonMatch[0];
-
-        // Limpa problemas comuns de JSON do Gemini
-        // Remove trailing commas before ] or }
-        jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-        // Fix missing commas between array elements
-        jsonStr = jsonStr.replace(/"\s*\n\s*"/g, '",\n"');
-        jsonStr = jsonStr.replace(/"\s+"/g, '", "');
-        // Remove comments
-        jsonStr = jsonStr.replace(/\/\/[^\n]*/g, '');
-        // Fix unquoted nulls
-        jsonStr = jsonStr.replace(/:\s*null\s*([,}])/gi, ': null$1');
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          console.log(`🧠 Gemini analysis completed for ${companyName || 'company'}`);
-          return parsed;
-        } catch (parseError) {
-          console.log(`⚠️ JSON parse error after cleanup: ${parseError.message.substring(0, 50)}`);
-          // Tenta extrair pelo menos a descricao
-          const descMatch = response.match(/"description"\s*:\s*"([^"]+)"/);
-          if (descMatch) {
-            return {
-              company: { description: descMatch[1], services: [], differentials: [] },
-              team_members: [],
-              sales_opportunities: { pain_points: [], tech_gaps: [], needs: [] }
-            };
-          }
-          return null;
-        }
-      }
-
-      return null;
+      console.log(`🧠 Gemini analysis completed for ${companyName || 'company'}`);
+      return parsed;
     } catch (error) {
       console.log(`⚠️ Gemini analysis failed: ${error.message}`);
       return null;
