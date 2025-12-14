@@ -289,7 +289,7 @@ ${websiteText}`;
       // Use generateJson which forces valid JSON output via responseMimeType
       const parsed = await geminiService.generateJson(systemPrompt, userPrompt, {
         temperature: 0.3,
-        maxTokens: 2000
+        maxTokens: 8000  // Increased from 2000 to avoid truncated JSON
       });
 
       console.log(`🧠 Gemini analysis completed for ${companyName || 'company'}`);
