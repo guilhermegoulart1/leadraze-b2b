@@ -295,7 +295,9 @@ ${websiteText}`;
       console.log(`🧠 Gemini analysis completed for ${companyName || 'company'}`);
       return parsed;
     } catch (error) {
-      console.log(`⚠️ Gemini analysis failed: ${error.message}`);
+      console.log(`⚠️ Gemini analysis failed for ${companyName}: ${error.message}`);
+      console.log(`📊 [DEBUG] Website text length: ${websiteText?.length || 0} chars`);
+      console.log(`📊 [DEBUG] First 500 chars: ${websiteText?.substring(0, 500)}`);
       return null;
     }
   }

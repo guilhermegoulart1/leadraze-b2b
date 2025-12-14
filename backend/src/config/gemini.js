@@ -96,8 +96,15 @@ class GeminiService {
     const response = result.response;
     const text = response.text();
 
-    // Parse JSON response
-    return JSON.parse(text);
+    // Parse JSON response with debug logging
+    try {
+      return JSON.parse(text);
+    } catch (parseError) {
+      console.log(`🔴 [GEMINI DEBUG] JSON parse failed: ${parseError.message}`);
+      console.log(`🔴 [GEMINI DEBUG] Raw response (first 1000 chars):\n${text?.substring(0, 1000)}`);
+      console.log(`🔴 [GEMINI DEBUG] Raw response length: ${text?.length || 0}`);
+      throw parseError;
+    }
   }
 
   /**
