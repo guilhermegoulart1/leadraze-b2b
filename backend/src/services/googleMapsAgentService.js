@@ -734,7 +734,12 @@ class GoogleMapsAgentService {
    * Get agent by ID (internal)
    */
   async _getAgentById(agentId) {
-    const result = await db.query('SELECT * FROM google_maps_agents WHERE id = $1', [agentId]);
+    const result = await db.query(`
+      SELECT g.*, u.preferred_language as user_language
+      FROM google_maps_agents g
+      LEFT JOIN users u ON g.user_id = u.id
+      WHERE g.id = $1
+    `, [agentId]);
 
     if (result.rows.length === 0) {
       throw new Error('Agent not found');
@@ -858,7 +863,8 @@ class GoogleMapsAgentService {
             const intelligence = await emailScraperService.scrapeAndAnalyze(
               contactData.website,
               contactData.name,
-              contactData.business_category
+              contactData.business_category,
+              agent.user_language || 'pt'  // Pass user's preferred language
             );
 
             // Email enrichment (primary email)

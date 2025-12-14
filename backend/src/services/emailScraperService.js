@@ -65,9 +65,10 @@ class EmailScraperService {
    * @param {string} websiteUrl - URL do site
    * @param {string} companyName - Nome da empresa (para contexto)
    * @param {string} businessCategory - Categoria do negocio (para contexto)
+   * @param {string} language - Idioma para analise (pt, en, es). Default: pt
    * @returns {Promise<Object>} Dados extraidos
    */
-  async scrapeAndAnalyze(websiteUrl, companyName = '', businessCategory = '') {
+  async scrapeAndAnalyze(websiteUrl, companyName = '', businessCategory = '', language = 'pt') {
     const emptyResult = {
       email: null,
       source: null,
@@ -143,7 +144,7 @@ class EmailScraperService {
       // Analise com Gemini se tiver conteudo suficiente
       let analysis = null;
       if (allTextContent.length > 200 && geminiService.isConfigured()) {
-        analysis = await this._analyzeWithGemini(allTextContent, companyName, businessCategory);
+        analysis = await this._analyzeWithGemini(allTextContent, companyName, businessCategory, language);
       }
 
       // Merge team_members do Gemini com o que ja temos
@@ -235,9 +236,18 @@ class EmailScraperService {
   /**
    * Analisa o conteudo do site com Gemini para prospeccao B2B
    */
-  async _analyzeWithGemini(websiteText, companyName, businessCategory) {
+  async _analyzeWithGemini(websiteText, companyName, businessCategory, language = 'pt') {
     try {
-      const systemPrompt = `Voce e um especialista em inteligencia comercial B2B. Analise conteudo de sites de empresas e extraia informacoes uteis para prospeccao. Sempre responda em JSON valido.`;
+      // Map language code to full language name for prompt
+      const languageMap = {
+        'pt': 'PORTUGUES BRASILEIRO',
+        'pt-BR': 'PORTUGUES BRASILEIRO',
+        'en': 'ENGLISH',
+        'es': 'ESPANOL'
+      };
+      const targetLanguage = languageMap[language] || 'PORTUGUES BRASILEIRO';
+
+      const systemPrompt = `Voce e um especialista em inteligencia comercial B2B. Analise conteudo de sites de empresas e extraia informacoes uteis para prospeccao. SEMPRE responda em ${targetLanguage}, mesmo que o site esteja em outro idioma. Sempre responda em JSON valido.`;
 
       const userPrompt = `Analise o conteudo deste site e extraia TODAS as informacoes uteis para prospeccao B2B.
 
