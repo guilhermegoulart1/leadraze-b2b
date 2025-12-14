@@ -25,7 +25,7 @@ class GeminiService {
   getClient() {
     if (!this.client && this.apiKey) {
       this.client = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.client.getGenerativeModel({ model: 'gemini-1.5-pro' });
+      this.model = this.client.getGenerativeModel({ model: 'gemini-1.5-flash' });
     }
     return this.model;
   }
