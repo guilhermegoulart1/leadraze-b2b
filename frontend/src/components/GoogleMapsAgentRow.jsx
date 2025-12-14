@@ -25,13 +25,26 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import { getCategoryTranslation } from '../data/businessCategories';
 
 const GoogleMapsAgentRow = ({ agent, onPause, onResume, onDelete, onExport, onEdit, onExecute, progress }) => {
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Helper to extract city/state from full location string
+  const extractCityState = (location) => {
+    if (!location) return '';
+    const parts = location.split(',').map(p => p.trim());
+    if (parts.length >= 3) {
+      return `${parts[parts.length - 3]}, ${parts[parts.length - 2]}`;
+    }
+    return location;
+  };
 
   // Get gamified step info
   const getStepInfo = () => {
@@ -209,9 +222,9 @@ const GoogleMapsAgentRow = ({ agent, onPause, onResume, onDelete, onExport, onEd
               </p>
               <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                 <MapPin className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate max-w-[150px]">{agent.search_query}</span>
+                <span className="truncate max-w-[150px]">{getCategoryTranslation(agent.search_query, i18n.language)}</span>
                 <span className="text-gray-400">•</span>
-                <span className="truncate max-w-[100px]">{agent.search_location}</span>
+                <span className="truncate max-w-[100px]">{extractCityState(agent.search_location)}</span>
               </div>
             </div>
           </div>

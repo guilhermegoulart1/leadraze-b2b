@@ -335,8 +335,8 @@ class GoogleMapsAgentService {
       };
     }
 
-    // If agent is completed or paused, reactivate it
-    if (agent.status === 'completed' || agent.status === 'paused') {
+    // If agent is completed, paused or in_progress, reactivate it
+    if (agent.status === 'completed' || agent.status === 'paused' || agent.status === 'in_progress') {
       await this._updateAgentStatus(agentId, 'active');
       agent.status = 'active';
     }
@@ -1310,6 +1310,12 @@ class GoogleMapsAgentService {
         c.company_services,
         c.pain_points,
         c.location,
+        c.emails,
+        c.phones,
+        c.social_links,
+        c.team_members,
+        c.cnpj,
+        c.cnpj_data,
         gac.fetched_at,
         gac.page_number
       FROM google_maps_agent_contacts gac

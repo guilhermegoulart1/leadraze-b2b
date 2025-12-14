@@ -491,14 +491,24 @@ exports.exportAgentContacts = async (req, res) => {
       'Cidade',
       'Estado',
       'País',
-      'Telefone',
-      'Email',
+      'Telefone Principal',
+      'Telefones Adicionais',
+      'Email Principal',
+      'Emails Adicionais',
       'Website',
       'Rating',
       'Reviews',
+      'LinkedIn',
+      'Instagram',
+      'Facebook',
+      'YouTube',
+      'Twitter',
       'Descrição da Empresa',
       'Serviços',
       'Possíveis Dores',
+      'Membros da Equipe',
+      'CNPJ',
+      'Razão Social',
       'Google Maps URL'
     ];
 
@@ -525,6 +535,78 @@ exports.exportAgentContacts = async (req, res) => {
       }
     };
 
+    // Helper to format emails array (excluding the primary one)
+    const formatAdditionalEmails = (emailsJson, primaryEmail) => {
+      if (!emailsJson) return '';
+      try {
+        const emails = typeof emailsJson === 'string' ? JSON.parse(emailsJson) : emailsJson;
+        if (Array.isArray(emails)) {
+          return emails
+            .filter(e => e.email && e.email !== primaryEmail)
+            .map(e => e.email)
+            .join('; ');
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper to format phones array (excluding the primary one)
+    const formatAdditionalPhones = (phonesJson, primaryPhone) => {
+      if (!phonesJson) return '';
+      try {
+        const phones = typeof phonesJson === 'string' ? JSON.parse(phonesJson) : phonesJson;
+        if (Array.isArray(phones)) {
+          return phones
+            .filter(p => p.phone && p.phone !== primaryPhone)
+            .map(p => p.phone)
+            .join('; ');
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper to extract social link
+    const getSocialLink = (socialLinks, network) => {
+      if (!socialLinks) return '';
+      try {
+        const links = typeof socialLinks === 'string' ? JSON.parse(socialLinks) : socialLinks;
+        return links[network] || '';
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper to format team members
+    const formatTeamMembers = (teamJson) => {
+      if (!teamJson) return '';
+      try {
+        const team = typeof teamJson === 'string' ? JSON.parse(teamJson) : teamJson;
+        if (Array.isArray(team)) {
+          return team
+            .map(m => m.role ? `${m.name} (${m.role})` : m.name)
+            .join('; ');
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper to get razao social from cnpj_data
+    const getRazaoSocial = (cnpjData) => {
+      if (!cnpjData) return '';
+      try {
+        const data = typeof cnpjData === 'string' ? JSON.parse(cnpjData) : cnpjData;
+        return data.razaoSocial || data.razao_social || '';
+      } catch {
+        return '';
+      }
+    };
+
     const rows = contacts.map(c => [
       escapeCsvValue(c.name),
       escapeCsvValue(c.business_category),
@@ -533,13 +615,23 @@ exports.exportAgentContacts = async (req, res) => {
       escapeCsvValue(c.state),
       escapeCsvValue(c.country),
       escapeCsvValue(c.phone),
+      escapeCsvValue(formatAdditionalPhones(c.phones, c.phone)),
       escapeCsvValue(c.email),
+      escapeCsvValue(formatAdditionalEmails(c.emails, c.email)),
       escapeCsvValue(c.website),
       c.rating || '',
       c.review_count || 0,
+      escapeCsvValue(getSocialLink(c.social_links, 'linkedin')),
+      escapeCsvValue(getSocialLink(c.social_links, 'instagram')),
+      escapeCsvValue(getSocialLink(c.social_links, 'facebook')),
+      escapeCsvValue(getSocialLink(c.social_links, 'youtube')),
+      escapeCsvValue(getSocialLink(c.social_links, 'twitter')),
       escapeCsvValue(c.company_description),
       escapeCsvValue(formatJsonArray(c.company_services)),
       escapeCsvValue(formatJsonArray(c.pain_points)),
+      escapeCsvValue(formatTeamMembers(c.team_members)),
+      escapeCsvValue(c.cnpj),
+      escapeCsvValue(getRazaoSocial(c.cnpj_data)),
       escapeCsvValue(c.google_maps_url)
     ]);
 

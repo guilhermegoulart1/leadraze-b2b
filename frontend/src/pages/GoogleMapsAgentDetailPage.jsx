@@ -6,15 +6,18 @@ import {
   Star, MessageSquare, Building2, Download, RefreshCw, Loader,
   AlertCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Copy, Check,
   Pause, Play, Target, Clock, TrendingUp, CheckCircle, Users,
-  ChevronDown, ChevronRight, Brain, Sparkles
+  ChevronDown, ChevronRight, Brain, Sparkles, CalendarClock
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import { getCategoryTranslation } from '../data/businessCategories';
 
 const GoogleMapsAgentDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
 
   const [agent, setAgent] = useState(null);
   const [contacts, setContacts] = useState([]);
@@ -29,6 +32,17 @@ const GoogleMapsAgentDetailPage = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  // Helper to extract city/state from full location string
+  const extractCityState = (location) => {
+    if (!location) return '';
+    // Ex: "Centro, Belo Horizonte, MG, Brasil" → "Belo Horizonte, MG"
+    const parts = location.split(',').map(p => p.trim());
+    if (parts.length >= 3) {
+      return `${parts[parts.length - 3]}, ${parts[parts.length - 2]}`;
+    }
+    return location;
+  };
 
   useEffect(() => {
     loadData();
@@ -329,7 +343,7 @@ const GoogleMapsAgentDetailPage = () => {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{agent.name}</h1>
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <MapPin className="w-4 h-4" />
-                <span>{agent.search_query} em {agent.search_location}</span>
+                <span>{getCategoryTranslation(agent.search_query, i18n.language)} em {extractCityState(agent.search_location)}</span>
                 <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${statusConfig.color}`}>
                   {statusConfig.label}
                 </span>
@@ -341,18 +355,18 @@ const GoogleMapsAgentDetailPage = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={loadData}
-            className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
             Atualizar
           </button>
 
           <button
             onClick={handleExport}
             disabled={contacts.length === 0}
-            className="flex items-center gap-2 px-4 py-2 text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/50 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/70 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             Exportar CSV
           </button>
 
@@ -381,7 +395,7 @@ const GoogleMapsAgentDetailPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
             <TrendingUp className="w-4 h-4" />
@@ -412,6 +426,14 @@ const GoogleMapsAgentDetailPage = () => {
             <span className="text-xs">Última Execução</span>
           </div>
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatDate(agent.last_execution_at)}</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
+            <CalendarClock className="w-4 h-4" />
+            <span className="text-xs">Próxima Execução</span>
+          </div>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{agent.next_execution_at ? formatDate(agent.next_execution_at) : '-'}</p>
         </div>
 
         {agent.assignee_count > 0 && (
@@ -551,7 +573,7 @@ const GoogleMapsAgentDetailPage = () => {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          {contact.business_category || '-'}
+                          {contact.business_category ? getCategoryTranslation(contact.business_category, i18n.language) : '-'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
