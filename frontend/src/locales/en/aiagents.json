@@ -19,6 +19,8 @@
     "systemPromptPlaceholder": "Define the sales rep's behavior and personality",
     "knowledgeBase": "Training Materials",
     "selectKnowledgeBase": "Select Materials",
+    "language": "Response Language",
+    "languageHelp": "The agent will always respond in this language, even if the lead writes in another",
     "active": "Working",
     "inactive": "Paused",
     "cancel": "Cancel",

@@ -1,7 +1,57 @@
 // frontend/src/components/AIAgentTestModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, User, Bot, Loader, RotateCcw, Info, UserX, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Send, Sparkles, User, Bot, Loader, RotateCcw, Info, UserX, AlertTriangle, CheckCircle, Globe } from 'lucide-react';
 import api from '../services/api';
+
+// Mapeamento de códigos de idioma para nomes
+const LANGUAGE_NAMES = {
+  'pt-BR': 'Português (Brasil)',
+  'pt-PT': 'Português (Portugal)',
+  'en': 'English',
+  'es': 'Español',
+  'fr': 'Français',
+  'it': 'Italiano',
+  'de': 'Deutsch',
+  'nl': 'Nederlands',
+  'pl': 'Polski',
+  'ru': 'Русский',
+  'ja': '日本語',
+  'zh-CN': '简体中文',
+  'ko': '한국어',
+  'ar': 'العربية',
+  'tr': 'Türkçe',
+  'hi': 'हिन्दी'
+};
+
+// Processar template substituindo variáveis
+const processTemplate = (template, leadData) => {
+  if (!template || !leadData) return template;
+
+  let processed = template;
+  const firstName = leadData.name ? leadData.name.split(' ')[0] : '';
+
+  const variables = {
+    '{{first_name}}': firstName,
+    '{{primeiro_nome}}': firstName,
+    '{{name}}': leadData.name || '',
+    '{{nome}}': leadData.name || '',
+    '{{company}}': leadData.company || '',
+    '{{empresa}}': leadData.company || '',
+    '{{title}}': leadData.title || '',
+    '{{cargo}}': leadData.title || '',
+    '{{location}}': leadData.location || '',
+    '{{localizacao}}': leadData.location || '',
+    '{{industry}}': leadData.industry || '',
+    '{{industria}}': leadData.industry || '',
+  };
+
+  Object.entries(variables).forEach(([variable, value]) => {
+    const regex = new RegExp(variable.replace(/[{}]/g, '\\$&'), 'gi');
+    processed = processed.replace(regex, value);
+  });
+
+  return processed;
+};
 
 const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
   const [messages, setMessages] = useState([]);
@@ -93,6 +143,9 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
       } else if (agent.initial_approach) {
         initialMsg = agent.initial_approach;
       }
+
+      // Processar template substituindo variáveis com dados do lead de teste
+      initialMsg = processTemplate(initialMsg, testLeadData);
 
       setMessages([{
         id: Date.now(),
@@ -292,7 +345,15 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
               )}
               <div>
                 <h2 className="text-xl font-bold text-white">Testar Agente: {agent.name}</h2>
-                <p className="text-sm text-purple-100">Simule uma conversa e veja como o agente responde</p>
+                <div className="flex items-center gap-3 text-sm text-purple-100">
+                  <span>Simule uma conversa e veja como o agente responde</span>
+                  {agent.language && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                      <Globe className="w-3 h-3" />
+                      {LANGUAGE_NAMES[agent.language] || agent.language}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">

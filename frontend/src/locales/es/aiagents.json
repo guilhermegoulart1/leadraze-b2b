@@ -19,6 +19,8 @@
     "systemPromptPlaceholder": "Define el comportamiento y personalidad del vendedor",
     "knowledgeBase": "Material de Entrenamiento",
     "selectKnowledgeBase": "Seleccionar Material",
+    "language": "Idioma de Respuesta",
+    "languageHelp": "El agente siempre responderá en este idioma, aunque el lead escriba en otro",
     "active": "Trabajando",
     "inactive": "Pausado",
     "cancel": "Cancelar",

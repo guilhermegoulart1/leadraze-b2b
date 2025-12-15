@@ -1,12 +1,42 @@
 // frontend/src/components/AIAgentModal.jsx
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, Sparkles, Target, Zap, BookOpen, Smile, CheckCircle, Building, Brain, Book, UserX } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Sparkles, Target, Zap, BookOpen, Smile, CheckCircle, Building, Brain, Book, UserX, Globe } from 'lucide-react';
 import api from '../services/api';
+
+// Lista de idiomas disponíveis para o agente
+const AVAILABLE_LANGUAGES = [
+  { code: 'pt-BR', name: 'Português (Brasil)' },
+  { code: 'pt-PT', name: 'Português (Portugal)' },
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'it', name: 'Italiano' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'nl', name: 'Nederlands' },
+  { code: 'pl', name: 'Polski' },
+  { code: 'ru', name: 'Русский' },
+  { code: 'ja', name: '日本語' },
+  { code: 'zh-CN', name: '简体中文' },
+  { code: 'ko', name: '한국어' },
+  { code: 'ar', name: 'العربية' },
+  { code: 'tr', name: 'Türkçe' },
+  { code: 'hi', name: 'हिन्दी' }
+];
 
 const AIAgentModal = ({ isOpen, onClose, onAgentCreated, agent = null }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [profiles, setProfiles] = useState(null);
+
+  // Obter idioma do usuário do localStorage (i18next)
+  const getUserLanguage = () => {
+    const lng = localStorage.getItem('i18nextLng') || 'pt-BR';
+    // Normalizar para códigos suportados
+    if (lng.startsWith('pt')) return lng === 'pt-PT' ? 'pt-PT' : 'pt-BR';
+    if (lng.startsWith('en')) return 'en';
+    if (lng.startsWith('es')) return 'es';
+    return 'pt-BR';
+  };
 
   const [formData, setFormData] = useState({
     // Step 1: Produtos/Serviços
@@ -30,6 +60,7 @@ const AIAgentModal = ({ isOpen, onClose, onAgentCreated, agent = null }) => {
 
     // Step 5: Configuração Final
     name: '',
+    language: getUserLanguage(), // Idioma de resposta do agente
     initial_approach: '',
     auto_schedule: false,
     scheduling_link: ''
@@ -63,6 +94,7 @@ const AIAgentModal = ({ isOpen, onClose, onAgentCreated, agent = null }) => {
           max_messages_before_escalation: 10
         },
         name: agent.name || '',
+        language: agent.language || getUserLanguage(), // Idioma do agente ou preferência do usuário
         initial_approach: agent.initial_approach || '',
         auto_schedule: agent.auto_schedule || false,
         scheduling_link: agent.scheduling_link || ''
@@ -195,6 +227,7 @@ const AIAgentModal = ({ isOpen, onClose, onAgentCreated, agent = null }) => {
         max_messages_before_escalation: 10
       },
       name: '',
+      language: getUserLanguage(), // Reset para idioma do usuário
       initial_approach: '',
       auto_schedule: false,
       scheduling_link: ''
@@ -531,6 +564,25 @@ const AIAgentModal = ({ isOpen, onClose, onAgentCreated, agent = null }) => {
                   placeholder="Ex: Agente de Vendas B2B"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-blue-600" />
+                  Idioma de Resposta *
+                </label>
+                <select
+                  value={formData.language}
+                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  {AVAILABLE_LANGUAGES.map(lang => (
+                    <option key={lang.code} value={lang.code}>{lang.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  O agente sempre responderá neste idioma, mesmo que o lead escreva em outro
+                </p>
               </div>
 
               <div>

@@ -6,9 +6,29 @@ import {
   HeartPulse, Landmark, Megaphone, Cpu, Factory, ShoppingBag, Home,
   User, Users, UserCog, UserCheck, Building,
   UserPlus, MessageSquarePlus, Hand, Calendar, Filter, ShoppingCart,
-  Shield, Linkedin, RefreshCw, Upload
+  Shield, Linkedin, RefreshCw, Upload, Globe
 } from 'lucide-react';
 import api from '../../services/api';
+
+// Lista de idiomas disponíveis para o agente
+const AVAILABLE_LANGUAGES = [
+  { code: 'pt-BR', name: 'Português (Brasil)' },
+  { code: 'pt-PT', name: 'Português (Portugal)' },
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'it', name: 'Italiano' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'nl', name: 'Nederlands' },
+  { code: 'pl', name: 'Polski' },
+  { code: 'ru', name: 'Русский' },
+  { code: 'ja', name: '日本語' },
+  { code: 'zh-CN', name: '简体中文' },
+  { code: 'ko', name: '한국어' },
+  { code: 'ar', name: 'العربية' },
+  { code: 'tr', name: 'Türkçe' },
+  { code: 'hi', name: 'हिन्दी' }
+];
 import {
   CONNECTION_STRATEGIES,
   CONVERSATION_STYLES,
@@ -18,6 +38,7 @@ import {
 
 const SECTIONS = {
   PROFILE: 'profile',
+  LANGUAGE: 'language',
   PRODUCT: 'product',
   TARGET: 'target',
   STYLE: 'style',
@@ -56,6 +77,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
   const [formData, setFormData] = useState({
     name: '',
     avatarUrl: null,
+    language: localStorage.getItem('i18nextLng') || 'pt-BR',
     productService: { categories: [], description: '' },
     targetAudience: { roles: [], companySizes: [], industry: '' },
     conversationStyle: 'consultivo',
@@ -135,6 +157,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
       setFormData({
         name: agent.name || '',
         avatarUrl: agent.avatar_url || null,
+        language: agent.language || localStorage.getItem('i18nextLng') || 'pt-BR',
         productService,
         targetAudience,
         conversationStyle: agent.behavioral_profile || 'consultivo',
@@ -167,6 +190,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
       const agentData = {
         name: formData.name,
         avatar_url: formData.avatarUrl,
+        language: formData.language,
         products_services: formData.productService,
         behavioral_profile: formData.conversationStyle,
         target_audience: formData.targetAudience,
@@ -207,6 +231,7 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
   // Sidebar sections config - filter based on channel
   const sections = [
     { id: SECTIONS.PROFILE, icon: User, label: 'Perfil' },
+    { id: SECTIONS.LANGUAGE, icon: Globe, label: 'Idioma' },
     { id: SECTIONS.PRODUCT, icon: Package, label: 'Produto' },
     { id: SECTIONS.TARGET, icon: Target, label: 'Público-alvo' },
     { id: SECTIONS.STYLE, icon: MessageSquare, label: 'Estilo' },
@@ -288,6 +313,13 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
                 avatarUrl={formData.avatarUrl}
                 onChangeName={(value) => updateFormData('name', value)}
                 onChangeAvatar={(value) => updateFormData('avatarUrl', value)}
+              />
+            )}
+
+            {activeSection === SECTIONS.LANGUAGE && (
+              <LanguageSection
+                selected={formData.language}
+                onChange={(value) => updateFormData('language', value)}
               />
             )}
 
@@ -508,6 +540,59 @@ const ProfileSection = ({ name, avatarUrl, onChangeName, onChangeAvatar }) => {
           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Ex: Lucas, Marina, Vendedor..."
         />
+      </div>
+    </div>
+  );
+};
+
+const LanguageSection = ({ selected, onChange }) => {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+          Idioma de Resposta
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Em qual idioma o vendedor deve responder aos leads?
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {AVAILABLE_LANGUAGES.map((lang) => {
+          const isSelected = selected === lang.code;
+          return (
+            <button
+              key={lang.code}
+              type="button"
+              onClick={() => onChange(lang.code)}
+              className={`text-left p-3 rounded-lg border transition-all ${
+                isSelected
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Globe className={`w-4 h-4 ${isSelected ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <span className="font-medium text-sm text-gray-900 dark:text-white">
+                    {lang.name}
+                  </span>
+                </div>
+                {isSelected && (
+                  <div className="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Check className="w-2.5 h-2.5 text-white" />
+                  </div>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <p className="text-xs text-amber-800 dark:text-amber-200">
+          <strong>Importante:</strong> O vendedor sempre responderá neste idioma, mesmo que o lead escreva em outro idioma.
+        </p>
       </div>
     </div>
   );

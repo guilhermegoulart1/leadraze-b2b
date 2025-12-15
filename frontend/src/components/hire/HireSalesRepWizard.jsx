@@ -1,6 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, Bot } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Bot, Globe, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+// Lista de idiomas disponíveis para o agente
+const AVAILABLE_LANGUAGES = [
+  { code: 'pt-BR', name: 'Português (Brasil)' },
+  { code: 'pt-PT', name: 'Português (Portugal)' },
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'it', name: 'Italiano' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'nl', name: 'Nederlands' },
+  { code: 'pl', name: 'Polski' },
+  { code: 'ru', name: 'Русский' },
+  { code: 'ja', name: '日本語' },
+  { code: 'zh-CN', name: '简体中文' },
+  { code: 'ko', name: '한국어' },
+  { code: 'ar', name: 'العربية' },
+  { code: 'tr', name: 'Türkçe' },
+  { code: 'hi', name: 'हिन्दी' }
+];
 import confetti from 'canvas-confetti';
 import ChatMessage from './ChatMessage';
 
@@ -65,6 +85,7 @@ const STEPS = {
   CANDIDATE: 'candidate',
   CUSTOMIZE: 'customize',
   CHANNEL: 'channel',
+  LANGUAGE: 'language',
   PRODUCT: 'product',
   TARGET: 'target',
   CONNECTION: 'connection',
@@ -80,6 +101,7 @@ const getStepOrder = (channel) => {
     STEPS.CANDIDATE,
     STEPS.CUSTOMIZE,
     STEPS.CHANNEL,
+    STEPS.LANGUAGE,
     STEPS.PRODUCT,
     STEPS.TARGET
   ];
@@ -140,6 +162,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
   const [formData, setFormData] = useState({
     candidate: null,
     channel: null,
+    language: localStorage.getItem('i18nextLng') || 'pt-BR',
     customAvatar: null, // Custom avatar URL (Unsplash or uploaded)
     productService: {
       categories: [],
@@ -212,6 +235,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
           defaultConfig: {}
         },
         channel: agentConfig.channel || agent.agent_type || 'linkedin',
+        language: agent.language || localStorage.getItem('i18nextLng') || 'pt-BR',
         customAvatar: agent.avatar_url || null,
         productService,
         targetAudience,
@@ -259,6 +283,8 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
         return !!(formData.agentName || formData.candidate?.name);
       case STEPS.CHANNEL:
         return !!formData.channel;
+      case STEPS.LANGUAGE:
+        return !!formData.language;
       case STEPS.PRODUCT:
         // At least one category selected OR description with some text
         return formData.productService?.categories?.length > 0 || formData.productService?.description?.length >= 10;
@@ -289,6 +315,9 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
       case STEPS.CHANNEL:
         const channels = { linkedin: 'LinkedIn', whatsapp: 'WhatsApp', email: 'Email' };
         return channels[formData.channel] || formData.channel;
+      case STEPS.LANGUAGE:
+        const lang = AVAILABLE_LANGUAGES.find(l => l.code === formData.language);
+        return lang?.name || formData.language;
       case STEPS.PRODUCT:
         const cats = formData.productService?.categories || [];
         if (cats.length > 0) {
@@ -375,6 +404,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
         // 2. Form values (override defaults)
         name: formData.agentName || formData.candidate?.name || 'Vendedor Digital',
         agent_type: formData.channel || 'linkedin',
+        language: formData.language,
         products_services: formData.productService,
         behavioral_profile: formData.conversationStyle,
         target_audience: formData.targetAudience,
@@ -485,6 +515,7 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
     setFormData({
       candidate: null,
       channel: null,
+      language: localStorage.getItem('i18nextLng') || 'pt-BR',
       customAvatar: null,
       productService: { categories: [], description: '' },
       targetAudience: { roles: [], companySizes: [], industry: '' },
@@ -667,6 +698,14 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
             />
           )}
 
+          {currentStep === STEPS.LANGUAGE && (
+            <LanguageStep
+              candidate={displayCandidate}
+              selectedLanguage={formData.language}
+              onSelect={(language) => updateFormData('language', language)}
+            />
+          )}
+
           {currentStep === STEPS.PRODUCT && (
             <ProductStep
               candidate={displayCandidate}
@@ -795,6 +834,74 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
         agentName={formData.agentName || formData.candidate?.name || 'Vendedor'}
         isLoading={isSavingRules}
       />
+    </div>
+  );
+};
+
+// Language Step Component
+const LanguageStep = ({ candidate, selectedLanguage, onSelect }) => {
+  return (
+    <div className="space-y-4">
+      {/* Question from candidate */}
+      <div className="flex items-start gap-3">
+        <div
+          className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold text-white"
+          style={{ backgroundColor: candidate?.color || '#3B82F6' }}
+        >
+          {candidate?.avatar ? (
+            <img
+              src={candidate.avatar}
+              alt={candidate.name}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            candidate?.name?.[0] || 'V'
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-none p-4">
+            <p className="text-gray-900 dark:text-white">
+              Em qual <strong>idioma</strong> devo responder aos leads? 🌍
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Vou sempre responder neste idioma, mesmo que o lead escreva em outro.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Language options */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
+        {AVAILABLE_LANGUAGES.map((lang) => {
+          const isSelected = selectedLanguage === lang.code;
+          return (
+            <button
+              key={lang.code}
+              onClick={() => onSelect(lang.code)}
+              className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-left ${
+                isSelected
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
+              }`}
+            >
+              <Globe className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-purple-600' : 'text-gray-400'}`} />
+              <span className={`text-sm font-medium ${isSelected ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                {lang.name}
+              </span>
+              {isSelected && (
+                <Check className="w-4 h-4 text-purple-600 ml-auto flex-shrink-0" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Important note */}
+      <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <p className="text-xs text-amber-800 dark:text-amber-200">
+          <strong>Importante:</strong> Mesmo que o lead escreva em outro idioma, o vendedor sempre responderá no idioma selecionado.
+        </p>
+      </div>
     </div>
   );
 };

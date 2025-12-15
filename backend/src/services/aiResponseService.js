@@ -63,6 +63,38 @@ const EMAIL_CLOSINGS = {
 };
 
 /**
+ * Mapeamento de códigos de idioma para nomes completos
+ * Usado para instruir a IA sobre qual idioma usar nas respostas
+ */
+const LANGUAGE_NAMES = {
+  'pt-BR': 'Português do Brasil',
+  'pt-PT': 'Português de Portugal',
+  'en': 'English (Inglês)',
+  'es': 'Español (Espanhol)',
+  'fr': 'Français (Francês)',
+  'it': 'Italiano',
+  'de': 'Deutsch (Alemão)',
+  'nl': 'Nederlands (Holandês)',
+  'pl': 'Polski (Polonês)',
+  'ru': 'Русский (Russo)',
+  'ja': '日本語 (Japonês)',
+  'zh-CN': '简体中文 (Chinês Simplificado)',
+  'ko': '한국어 (Coreano)',
+  'ar': 'العربية (Árabe)',
+  'tr': 'Türkçe (Turco)',
+  'hi': 'हिन्दी (Hindi)'
+};
+
+/**
+ * Get human-readable language name from code
+ * @param {string} code - Language code (e.g., 'pt-BR', 'en')
+ * @returns {string} Human-readable language name
+ */
+function getLanguageName(code) {
+  return LANGUAGE_NAMES[code] || code || 'Português do Brasil';
+}
+
+/**
  * Perfis comportamentais pré-definidos para os agentes
  */
 const BEHAVIORAL_PROFILES = {
@@ -359,6 +391,15 @@ ${ai_agent.objective_instructions}`;
   const agentType = ai_agent.agent_type || 'linkedin';
   const channelContext = getChannelContext(agentType);
 
+  // Build language instruction
+  const agentLanguage = ai_agent.language || 'pt-BR';
+  const languageName = getLanguageName(agentLanguage);
+  const languageInstruction = `
+IDIOMA DE RESPOSTA OBRIGATÓRIO: ${languageName}
+Você DEVE responder SEMPRE em ${languageName}.
+Mesmo que o lead escreva em outro idioma, sua resposta deve ser EXCLUSIVAMENTE em ${languageName}.
+NÃO mude de idioma em nenhuma circunstância. Mantenha TODAS as suas respostas em ${languageName}.`;
+
   let basePrompt = `Você é ${ai_agent.name}, ${channelContext.agentDescription}
 
 PERFIL COMPORTAMENTAL: ${behavioralProfile.style}
@@ -397,6 +438,7 @@ QUANDO O LEAD DEMONSTRAR INTERESSE CLARO:
 - Ofereça valor concreto (case, material, demo)
 - Sugira próximos passos claros
 ${ai_agent.auto_schedule && ai_agent.scheduling_link ? `- Ofereça agendar uma conversa usando: ${ai_agent.scheduling_link}` : ''}
+${languageInstruction}
 
 Responda de forma natural, ${channelContext.naturalConversation}. Evite soar como um bot.`;
 
@@ -690,6 +732,10 @@ ${ai_agent.products_services || 'Não especificado'}
 ESTILO DE COMUNICAÇÃO: ${behavioralProfile.style}
 Tom: ${behavioralProfile.tone}`;
 
+  // Build language instruction for initial messages
+  const agentLanguage = ai_agent.language || 'pt-BR';
+  const languageName = getLanguageName(agentLanguage);
+
   // WhatsApp-specific prompt
   if (agentType === 'whatsapp') {
     return `Você é ${ai_agent.name}, um assistente de vendas via WhatsApp. Um novo lead entrou em contato ou foi adicionado ao seu fluxo de atendimento.
@@ -706,6 +752,7 @@ REGRAS PARA WHATSAPP:
 5. Faça uma pergunta aberta para entender a necessidade do lead
 6. Máximo de 3 frases curtas (WhatsApp exige mensagens concisas)
 7. NÃO mencione LinkedIn ou "conexão aceita"
+8. RESPONDA OBRIGATORIAMENTE em ${languageName}. NÃO use outro idioma.
 
 Escreva APENAS a mensagem, sem aspas ou explicações:`;
   }
@@ -726,6 +773,7 @@ REGRAS PARA EMAIL:
 5. Termine com um call-to-action claro
 6. Máximo de 4-5 frases no corpo do email
 7. NÃO inclua assunto, apenas o corpo da mensagem
+8. RESPONDA OBRIGATORIAMENTE em ${languageName}. NÃO use outro idioma.
 
 Escreva APENAS a mensagem, sem aspas ou explicações:`;
   }
@@ -744,6 +792,7 @@ REGRAS PARA LINKEDIN:
 4. Demonstre interesse real no perfil do lead
 5. Termine com uma pergunta leve ou comentário que convide resposta
 6. Máximo de 3 frases
+7. RESPONDA OBRIGATORIAMENTE em ${languageName}. NÃO use outro idioma.
 
 Escreva APENAS a mensagem, sem aspas ou explicações:`;
 }
@@ -1002,6 +1051,10 @@ async function generateInitialEmail(params) {
       greeting = `Prezado(a) Sr(a). ${lead_data.name},`;
     }
 
+    // Get language for initial email
+    const agentLanguage = ai_agent.language || 'pt-BR';
+    const languageName = getLanguageName(agentLanguage);
+
     const prompt = `Você é ${ai_agent.name}, escrevendo um EMAIL de primeiro contato para ${lead_data.name || 'um lead'}.
 
 INFORMAÇÕES DO LEAD:
@@ -1034,6 +1087,7 @@ REGRAS:
 4. Demonstre interesse real
 5. Inclua uma chamada para ação sutil
 6. NÃO inclua assinatura (será adicionada automaticamente)
+7. RESPONDA OBRIGATORIAMENTE em ${languageName}. NÃO use outro idioma.
 
 Escreva APENAS o conteúdo HTML do email:`;
 

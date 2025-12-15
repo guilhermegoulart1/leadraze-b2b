@@ -124,6 +124,7 @@ const getAgents = async (req, res) => {
         description,
         avatar_url,
         agent_type,
+        language,
         response_length,
         config,
         is_active,
@@ -277,6 +278,7 @@ const createAgent = async (req, res) => {
       // Assignees for rotation
       assignee_user_ids = [],
       // Hire wizard fields
+      language,
       products_services,
       target_audience,
       behavioral_profile,
@@ -346,6 +348,7 @@ const createAgent = async (req, res) => {
         description,
         avatar_url,
         agent_type,
+        language,
         response_length,
         config,
         is_active,
@@ -369,7 +372,7 @@ const createAgent = async (req, res) => {
         intent_detection_enabled,
         response_style_instructions,
         priority_rules
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
       RETURNING *`,
       [
         accountId,
@@ -379,6 +382,7 @@ const createAgent = async (req, res) => {
         description || null,
         avatar_url || null,
         agent_type,
+        language || null,
         response_length,
         JSON.stringify(config),
         is_active,
@@ -460,6 +464,7 @@ const updateAgent = async (req, res) => {
       execution_time,
       priority_rules,
       // Hire wizard fields
+      language,
       products_services,
       target_audience,
       behavioral_profile,
@@ -542,6 +547,12 @@ const updateAgent = async (req, res) => {
     }
 
     // Hire wizard fields
+    if (language !== undefined) {
+      updates.push(`language = $${paramIndex}`);
+      params.push(language);
+      paramIndex++;
+    }
+
     if (products_services !== undefined) {
       updates.push(`products_services = $${paramIndex}`);
       params.push(typeof products_services === 'string' ? products_services : JSON.stringify(products_services));
