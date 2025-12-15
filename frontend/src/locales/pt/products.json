@@ -1,0 +1,66 @@
+{
+  "title": "Produtos e Servicos",
+  "subtitle": "Gerencie seus produtos e servicos para associar aos leads ganhos",
+  "addProduct": "Novo Produto",
+  "editProduct": "Editar Produto",
+  "searchPlaceholder": "Buscar produtos...",
+  "empty": {
+    "title": "Nenhum produto cadastrado",
+    "description": "Cadastre seus produtos e servicos para associar aos leads ganhos"
+  },
+  "table": {
+    "name": "Nome",
+    "description": "Descricao",
+    "price": "Valor Padrao",
+    "timeUnit": "Unidade",
+    "status": "Status",
+    "actions": "Acoes"
+  },
+  "form": {
+    "name": "Nome do Produto",
+    "namePlaceholder": "Ex: Consultoria de Marketing",
+    "nameRequired": "Nome e obrigatorio",
+    "description": "Descricao",
+    "descriptionPlaceholder": "Descreva o produto ou servico...",
+    "defaultPrice": "Valor Padrao",
+    "defaultPricePlaceholder": "0,00",
+    "currency": "Moeda",
+    "timeUnit": "Unidade",
+    "timeUnitPlaceholder": "Selecione...",
+    "paymentConditions": "Condicoes de Pagamento",
+    "paymentConditionsPlaceholder": "Ex: 50% na entrada, 50% na entrega",
+    "isActive": "Produto ativo"
+  },
+  "timeUnits": {
+    "hour": "Por Hora",
+    "day": "Por Dia",
+    "week": "Por Semana",
+    "month": "Por Mes",
+    "project": "Por Projeto",
+    "unit": "Por Unidade"
+  },
+  "status": {
+    "active": "Ativo",
+    "inactive": "Inativo"
+  },
+  "actions": {
+    "edit": "Editar",
+    "delete": "Desativar",
+    "reactivate": "Reativar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "saving": "Salvando..."
+  },
+  "messages": {
+    "created": "Produto criado com sucesso",
+    "updated": "Produto atualizado com sucesso",
+    "deleted": "Produto desativado com sucesso",
+    "reactivated": "Produto reativado com sucesso",
+    "error": "Erro ao processar operacao",
+    "confirmDelete": "Tem certeza que deseja desativar este produto?"
+  },
+  "filters": {
+    "all": "Todos",
+    "activeOnly": "Apenas ativos"
+  }
+}

@@ -980,6 +980,139 @@ class ApiService {
     });
   }
 
+  // ================================
+  // PRODUCTS
+  // ================================
+
+  async getProducts(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/products${query ? '?' + query : ''}`);
+  }
+
+  async getProduct(productId) {
+    return this.request(`/products/${productId}`);
+  }
+
+  async createProduct(productData) {
+    return this.request('/products', {
+      method: 'POST',
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async updateProduct(productId, productData) {
+    return this.request(`/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async deleteProduct(productId) {
+    return this.request(`/products/${productId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reactivateProduct(productId) {
+    return this.request(`/products/${productId}/reactivate`, {
+      method: 'POST',
+    });
+  }
+
+  // ================================
+  // LEAD PRODUCTS (Win Deal)
+  // ================================
+
+  async getLeadProducts(leadId) {
+    return this.request(`/leads/${leadId}/products`);
+  }
+
+  async addLeadProduct(leadId, productData) {
+    return this.request(`/leads/${leadId}/products`, {
+      method: 'POST',
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async updateLeadProduct(leadId, productItemId, productData) {
+    return this.request(`/leads/${leadId}/products/${productItemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData),
+    });
+  }
+
+  async removeLeadProduct(leadId, productItemId) {
+    return this.request(`/leads/${leadId}/products/${productItemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async completeDeal(leadId, dealData) {
+    return this.request(`/leads/${leadId}/products/complete-deal`, {
+      method: 'POST',
+      body: JSON.stringify(dealData),
+    });
+  }
+
+  // ================================
+  // DISCARD REASONS
+  // ================================
+
+  async getDiscardReasons(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/discard-reasons${query ? '?' + query : ''}`);
+  }
+
+  async getDiscardReason(reasonId) {
+    return this.request(`/discard-reasons/${reasonId}`);
+  }
+
+  async createDiscardReason(reasonData) {
+    return this.request('/discard-reasons', {
+      method: 'POST',
+      body: JSON.stringify(reasonData),
+    });
+  }
+
+  async updateDiscardReason(reasonId, reasonData) {
+    return this.request(`/discard-reasons/${reasonId}`, {
+      method: 'PUT',
+      body: JSON.stringify(reasonData),
+    });
+  }
+
+  async deleteDiscardReason(reasonId) {
+    return this.request(`/discard-reasons/${reasonId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async seedDiscardReasons() {
+    return this.request('/discard-reasons/seed', {
+      method: 'POST',
+    });
+  }
+
+  // Discard lead
+  async discardLead(leadId, discardData) {
+    return this.request(`/leads/${leadId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: 'discarded',
+        discard_reason_id: discardData.reason_id,
+        discard_notes: discardData.notes,
+        previous_status: discardData.previous_status
+      }),
+    });
+  }
+
+  // Reactivate lead
+  async reactivateLead(leadId) {
+    return this.request(`/leads/${leadId}/reactivate`, {
+      method: 'POST',
+    });
+  }
+
   async exportContacts(filters = {}) {
     return this.request('/contacts/export', {
       method: 'POST',
@@ -2497,6 +2630,28 @@ class ApiService {
     // Team info
     getTeam: () => this.request('/secret-agent/team'),
   };
+
+  // ==========================================
+  // SECRET AGENT COACHING - Sales Coaching AI
+  // ==========================================
+
+  // Generate new coaching for a conversation
+  async generateSecretAgentCoaching(conversationId, data) {
+    return this.request(`/conversations/${conversationId}/secret-agent`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Get coaching history for a conversation
+  async getSecretAgentCoachingHistory(conversationId, limit = 10) {
+    return this.request(`/conversations/${conversationId}/secret-agent?limit=${limit}`);
+  }
+
+  // Get latest coaching for a conversation
+  async getLatestSecretAgentCoaching(conversationId) {
+    return this.request(`/conversations/${conversationId}/secret-agent/latest`);
+  }
 
 }
 

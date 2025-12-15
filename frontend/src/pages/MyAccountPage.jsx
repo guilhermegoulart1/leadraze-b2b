@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, CreditCard, Gift } from 'lucide-react';
+import { User, CreditCard, Gift, Globe, Users } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import ProfilePage from './ProfilePage';
 import BillingPage from './BillingPage';
 import AffiliatePage from './AffiliatePage';
+import WebsiteAgentsPage from './WebsiteAgentsPage';
+import WebsiteLeadsPage from './WebsiteLeadsPage';
 
 const MyAccountPage = () => {
   const { t } = useTranslation('settings');
+  const { isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
 
@@ -25,6 +29,11 @@ const MyAccountPage = () => {
     { id: 'profile', labelKey: 'tabs.profile', icon: User },
     { id: 'billing', labelKey: 'tabs.billing', icon: CreditCard },
     { id: 'affiliate', labelKey: 'tabs.affiliate', icon: Gift },
+    // Admin-only tabs
+    ...(isAdmin ? [
+      { id: 'website-agents', label: 'Website Agents', icon: Globe },
+      { id: 'website-leads', label: 'Website Leads', icon: Users },
+    ] : []),
   ];
 
   const renderContent = () => {
@@ -35,6 +44,10 @@ const MyAccountPage = () => {
         return <BillingPage />;
       case 'affiliate':
         return <AffiliatePage />;
+      case 'website-agents':
+        return <WebsiteAgentsPage />;
+      case 'website-leads':
+        return <WebsiteLeadsPage />;
       default:
         return <ProfilePage />;
     }
@@ -61,7 +74,7 @@ const MyAccountPage = () => {
                 `}
               >
                 <Icon className="w-4 h-4" />
-                {t(tab.labelKey)}
+                {tab.label || t(tab.labelKey)}
               </button>
             );
           })}

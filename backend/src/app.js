@@ -277,6 +277,20 @@ try {
 }
 
 try {
+  app.use('/api/products', require('./routes/products'));
+  console.log('✅ Products routes loaded');
+} catch (error) {
+  console.error('❌ Error loading products routes:', error.message);
+}
+
+try {
+  app.use('/api/discard-reasons', require('./routes/discardReasons'));
+  console.log('✅ Discard reasons routes loaded');
+} catch (error) {
+  console.error('❌ Error loading discard reasons routes:', error.message);
+}
+
+try {
   app.use('/api/conversations', require('./routes/conversations'));
   console.log('✅ Conversation routes loaded');
 } catch (error) {

@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const leadController = require('../controllers/leadController');
 const leadCommentsRouter = require('./leadComments');
+const leadProductsRouter = require('./leadProducts');
 const taskController = require('../controllers/taskController');
 const checklistController = require('../controllers/checklistController');
 const tagController = require('../controllers/tagController');
@@ -59,12 +60,25 @@ router.post('/:id/auto-assign', leadController.autoAssignLead);
 // Deletar lead
 router.delete('/:id', leadController.deleteLead);
 
+// Descartar lead (com motivo)
+router.post('/:id/discard', leadController.discardLead);
+
+// Reativar lead descartado
+router.post('/:id/reactivate', leadController.reactivateLead);
+
 // ================================
 // COMENTÁRIOS EM LEADS
 // ================================
 
 // Mount comments routes under /leads/:leadId/comments
 router.use('/:leadId/comments', leadCommentsRouter);
+
+// ================================
+// PRODUTOS DO LEAD (WIN DEAL)
+// ================================
+
+// Mount products routes under /leads/:leadId/products
+router.use('/:leadId/products', leadProductsRouter);
 
 // ================================
 // TAREFAS DO LEAD

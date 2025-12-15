@@ -1,0 +1,66 @@
+{
+  "title": "Productos y Servicios",
+  "subtitle": "Administre sus productos y servicios para asociar con leads ganados",
+  "addProduct": "Nuevo Producto",
+  "editProduct": "Editar Producto",
+  "searchPlaceholder": "Buscar productos...",
+  "empty": {
+    "title": "Ningun producto registrado",
+    "description": "Registre sus productos y servicios para asociar con leads ganados"
+  },
+  "table": {
+    "name": "Nombre",
+    "description": "Descripcion",
+    "price": "Precio Predeterminado",
+    "timeUnit": "Unidad",
+    "status": "Estado",
+    "actions": "Acciones"
+  },
+  "form": {
+    "name": "Nombre del Producto",
+    "namePlaceholder": "Ej: Consultoria de Marketing",
+    "nameRequired": "El nombre es obligatorio",
+    "description": "Descripcion",
+    "descriptionPlaceholder": "Describa el producto o servicio...",
+    "defaultPrice": "Precio Predeterminado",
+    "defaultPricePlaceholder": "0,00",
+    "currency": "Moneda",
+    "timeUnit": "Unidad",
+    "timeUnitPlaceholder": "Seleccione...",
+    "paymentConditions": "Condiciones de Pago",
+    "paymentConditionsPlaceholder": "Ej: 50% anticipo, 50% en entrega",
+    "isActive": "Producto activo"
+  },
+  "timeUnits": {
+    "hour": "Por Hora",
+    "day": "Por Dia",
+    "week": "Por Semana",
+    "month": "Por Mes",
+    "project": "Por Proyecto",
+    "unit": "Por Unidad"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo"
+  },
+  "actions": {
+    "edit": "Editar",
+    "delete": "Desactivar",
+    "reactivate": "Reactivar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "saving": "Guardando..."
+  },
+  "messages": {
+    "created": "Producto creado con exito",
+    "updated": "Producto actualizado con exito",
+    "deleted": "Producto desactivado con exito",
+    "reactivated": "Producto reactivado con exito",
+    "error": "Error al procesar la operacion",
+    "confirmDelete": "Esta seguro de que desea desactivar este producto?"
+  },
+  "filters": {
+    "all": "Todos",
+    "activeOnly": "Solo activos"
+  }
+}

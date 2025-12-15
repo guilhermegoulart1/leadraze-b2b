@@ -153,4 +153,18 @@ router.post('/:id/summary/update', conversationController.updateSummary);
 // Atualizar nome do contato/lead da conversa
 router.patch('/:id/contact-name', conversationController.updateContactName);
 
+// ================================
+// AGENTE SECRETO (COACHING DE VENDAS)
+// ================================
+const secretAgentCoachingController = require('../controllers/secretAgentCoachingController');
+
+// Gerar nova orientação de coaching
+router.post('/:conversationId/secret-agent', secretAgentCoachingController.generateCoaching);
+
+// Obter histórico de orientações
+router.get('/:conversationId/secret-agent', secretAgentCoachingController.getCoachingHistory);
+
+// Obter última orientação
+router.get('/:conversationId/secret-agent/latest', secretAgentCoachingController.getLatestCoaching);
+
 module.exports = router;

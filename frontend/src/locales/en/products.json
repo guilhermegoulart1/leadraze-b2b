@@ -1,0 +1,66 @@
+{
+  "title": "Products and Services",
+  "subtitle": "Manage your products and services to associate with won leads",
+  "addProduct": "New Product",
+  "editProduct": "Edit Product",
+  "searchPlaceholder": "Search products...",
+  "empty": {
+    "title": "No products registered",
+    "description": "Register your products and services to associate with won leads"
+  },
+  "table": {
+    "name": "Name",
+    "description": "Description",
+    "price": "Default Price",
+    "timeUnit": "Unit",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "form": {
+    "name": "Product Name",
+    "namePlaceholder": "Ex: Marketing Consulting",
+    "nameRequired": "Name is required",
+    "description": "Description",
+    "descriptionPlaceholder": "Describe the product or service...",
+    "defaultPrice": "Default Price",
+    "defaultPricePlaceholder": "0.00",
+    "currency": "Currency",
+    "timeUnit": "Unit",
+    "timeUnitPlaceholder": "Select...",
+    "paymentConditions": "Payment Conditions",
+    "paymentConditionsPlaceholder": "Ex: 50% upfront, 50% on delivery",
+    "isActive": "Product active"
+  },
+  "timeUnits": {
+    "hour": "Per Hour",
+    "day": "Per Day",
+    "week": "Per Week",
+    "month": "Per Month",
+    "project": "Per Project",
+    "unit": "Per Unit"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Deactivate",
+    "reactivate": "Reactivate",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saving": "Saving..."
+  },
+  "messages": {
+    "created": "Product created successfully",
+    "updated": "Product updated successfully",
+    "deleted": "Product deactivated successfully",
+    "reactivated": "Product reactivated successfully",
+    "error": "Error processing operation",
+    "confirmDelete": "Are you sure you want to deactivate this product?"
+  },
+  "filters": {
+    "all": "All",
+    "activeOnly": "Active only"
+  }
+}

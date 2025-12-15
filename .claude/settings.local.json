@@ -64,7 +64,8 @@
       "Bash(timeout /t 3 /nobreak)",
       "Bash(del \"c:\\leadraze-b2b\\backend\\scripts\\run-migration-074.js\")",
       "Bash(timeout /t 2 /nobreak)",
-      "Bash(del \"c:\\leadraze-b2b\\backend\\scripts\\test-gemini.js\")"
+      "Bash(del \"c:\\leadraze-b2b\\backend\\scripts\\test-gemini.js\")",
+      "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -5 {}')"
     ],
     "deny": [],
     "ask": []

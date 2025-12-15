@@ -5,7 +5,7 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo, Tag, Eye
+  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo, Eye
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -326,14 +326,6 @@ const Layout = () => {
                   >
                     <Settings className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                     <span>Configurações</span>
-                  </Link>
-                  <Link
-                    to="/tags"
-                    className="flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span>Etiquetas</span>
                   </Link>
                   {(hasPermission('users:view:all') || hasPermission('users:view:team') ||
                     hasPermission('sectors:view') || hasPermission('permissions:manage')) && (

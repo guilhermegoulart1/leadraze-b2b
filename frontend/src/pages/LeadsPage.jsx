@@ -51,6 +51,8 @@ import api from '../services/api';
 import LeadDetailModal from '../components/LeadDetailModal';
 import LeadFormModal from '../components/LeadFormModal';
 import ContactDetailsModal from '../components/ContactDetailsModal';
+import WinDealModal from '../components/WinDealModal';
+import DiscardLeadModal from '../components/DiscardLeadModal';
 
 const LeadsPage = () => {
   const { t } = useTranslation('leads');
@@ -66,6 +68,10 @@ const LeadsPage = () => {
   const [selectedContactId, setSelectedContactId] = useState(null); // For contact details modal
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [showWinDealModal, setShowWinDealModal] = useState(false);
+  const [pendingWinDealLead, setPendingWinDealLead] = useState(null);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [pendingDiscardLead, setPendingDiscardLead] = useState(null);
 
   // Pipeline stages matching backend
   const pipelineStages = {
@@ -199,6 +205,20 @@ const LeadsPage = () => {
     const sourceColumnLeads = getLeadsByStage(sourceStatus);
     const movedLead = sourceColumnLeads[source.index];
     if (!movedLead) return;
+
+    // If moving to 'qualified' (won), show Win Deal modal
+    if (newStatus === 'qualified' && sourceStatus !== 'qualified') {
+      setPendingWinDealLead(movedLead);
+      setShowWinDealModal(true);
+      return;
+    }
+
+    // If moving to 'discarded', show Discard modal
+    if (newStatus === 'discarded' && sourceStatus !== 'discarded') {
+      setPendingDiscardLead(movedLead);
+      setShowDiscardModal(true);
+      return;
+    }
 
     // Optimistic update with proper reordering
     setLeads(prevLeads => {
@@ -496,6 +516,18 @@ const LeadsPage = () => {
                   <Mail className="w-3 h-3 text-blue-500" />
                   {lead.email}
                 </p>
+              </div>
+            )}
+
+            {/* Deal Value - Show for qualified (won) leads */}
+            {lead.status === 'qualified' && lead.deal_value > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <Trophy className="w-3 h-3" />
+                  <span className="text-[10px] font-medium">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.deal_value)}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -1129,6 +1161,36 @@ const LeadsPage = () => {
         isOpen={!!selectedContactId}
         onClose={() => setSelectedContactId(null)}
         contactId={selectedContactId}
+      />
+
+      {/* Win Deal Modal */}
+      <WinDealModal
+        isOpen={showWinDealModal}
+        onClose={() => {
+          setShowWinDealModal(false);
+          setPendingWinDealLead(null);
+        }}
+        lead={pendingWinDealLead}
+        onSuccess={() => {
+          loadLeads();
+          setShowWinDealModal(false);
+          setPendingWinDealLead(null);
+        }}
+      />
+
+      {/* Discard Lead Modal */}
+      <DiscardLeadModal
+        isOpen={showDiscardModal}
+        onClose={() => {
+          setShowDiscardModal(false);
+          setPendingDiscardLead(null);
+        }}
+        lead={pendingDiscardLead}
+        onSuccess={() => {
+          loadLeads();
+          setShowDiscardModal(false);
+          setPendingDiscardLead(null);
+        }}
       />
     </div>
   );

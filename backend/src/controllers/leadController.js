@@ -1104,6 +1104,179 @@ const createManualLead = async (req, res) => {
   }
 };
 
+// ================================
+// 11. DESCARTAR LEAD
+// ================================
+const discardLead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { reason_id, notes, previous_status } = req.body;
+
+    console.log(`❌ Descartando lead ${id}`);
+
+    if (!reason_id) {
+      throw new ValidationError('Motivo de descarte é obrigatório');
+    }
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
+    // Verificar se lead pertence à conta
+    const leadCheck = await db.query(
+      `SELECT l.*, c.account_id as campaign_account_id
+       FROM leads l
+       LEFT JOIN campaigns c ON l.campaign_id = c.id
+       WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}`,
+      [id, accountId, ...sectorParams]
+    );
+
+    if (leadCheck.rows.length === 0) {
+      throw new NotFoundError('Lead not found');
+    }
+
+    const lead = leadCheck.rows[0];
+
+    // Verificar se motivo de descarte existe e pertence à conta
+    const reasonCheck = await db.query(
+      `SELECT * FROM discard_reasons WHERE id = $1 AND account_id = $2`,
+      [reason_id, accountId]
+    );
+
+    if (reasonCheck.rows.length === 0) {
+      throw new NotFoundError('Discard reason not found');
+    }
+
+    const reason = reasonCheck.rows[0];
+
+    // Atualizar lead
+    const updateData = {
+      status: LEAD_STATUS.DISCARDED,
+      discard_reason_id: reason_id,
+      discard_notes: notes || null,
+      previous_status: previous_status || lead.status,
+      discarded_at: new Date()
+    };
+
+    const updatedLead = await db.update('leads', updateData, { id });
+
+    // Atualizar contadores da campanha
+    if (lead.campaign_id && lead.status !== LEAD_STATUS.DISCARDED) {
+      await updateCampaignCounters(lead.campaign_id, lead.status, LEAD_STATUS.DISCARDED);
+    }
+
+    // Log na conversa se existir
+    const conversationCheck = await db.query(
+      `SELECT id FROM conversations WHERE lead_id = $1`,
+      [id]
+    );
+
+    if (conversationCheck.rows.length > 0) {
+      const conversationId = conversationCheck.rows[0].id;
+      const message = notes
+        ? `📋 Lead descartado. Motivo: ${reason.name}. Obs: ${notes}`
+        : `📋 Lead descartado. Motivo: ${reason.name}`;
+
+      await db.query(
+        `INSERT INTO messages (conversation_id, sender_type, content, sent_at)
+         VALUES ($1, 'system', $2, NOW())`,
+        [conversationId, message]
+      );
+      console.log(`📝 Log adicionado à conversa ${conversationId}`);
+    }
+
+    console.log(`✅ Lead descartado`);
+
+    sendSuccess(res, updatedLead, 'Lead discarded successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 12. REATIVAR LEAD
+// ================================
+const reactivateLead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { target_status } = req.body; // Opcionalmente especificar status alvo
+
+    console.log(`🔄 Reativando lead ${id}`);
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildLeadSectorFilter(userId, accountId, 3);
+
+    // Verificar se lead pertence à conta
+    const leadCheck = await db.query(
+      `SELECT l.*, c.account_id as campaign_account_id, dr.name as discard_reason_name
+       FROM leads l
+       LEFT JOIN campaigns c ON l.campaign_id = c.id
+       LEFT JOIN discard_reasons dr ON l.discard_reason_id = dr.id
+       WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}`,
+      [id, accountId, ...sectorParams]
+    );
+
+    if (leadCheck.rows.length === 0) {
+      throw new NotFoundError('Lead not found');
+    }
+
+    const lead = leadCheck.rows[0];
+
+    if (lead.status !== LEAD_STATUS.DISCARDED) {
+      throw new ValidationError('Lead não está descartado');
+    }
+
+    // Determinar status de destino
+    const newStatus = target_status || lead.previous_status || LEAD_STATUS.LEADS;
+
+    // Atualizar lead
+    const updateData = {
+      status: newStatus,
+      discard_reason_id: null,
+      discard_notes: null,
+      previous_status: null,
+      discarded_at: null
+    };
+
+    const updatedLead = await db.update('leads', updateData, { id });
+
+    // Atualizar contadores da campanha
+    if (lead.campaign_id) {
+      await updateCampaignCounters(lead.campaign_id, LEAD_STATUS.DISCARDED, newStatus);
+    }
+
+    // Log na conversa se existir
+    const conversationCheck = await db.query(
+      `SELECT id FROM conversations WHERE lead_id = $1`,
+      [id]
+    );
+
+    if (conversationCheck.rows.length > 0) {
+      const conversationId = conversationCheck.rows[0].id;
+      const previousReason = lead.discard_reason_name ? ` (estava: ${lead.discard_reason_name})` : '';
+      const message = `🔄 Lead reativado${previousReason}`;
+
+      await db.query(
+        `INSERT INTO messages (conversation_id, sender_type, content, sent_at)
+         VALUES ($1, 'system', $2, NOW())`,
+        [conversationId, message]
+      );
+      console.log(`📝 Log de reativação adicionado à conversa ${conversationId}`);
+    }
+
+    console.log(`✅ Lead reativado para status: ${newStatus}`);
+
+    sendSuccess(res, updatedLead, 'Lead reactivated successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getLeads,
   getLead,
@@ -1115,5 +1288,7 @@ module.exports = {
   getCampaignLeads,
   assignLead,
   autoAssignLead,
-  getAssignableUsers
+  getAssignableUsers,
+  discardLead,
+  reactivateLead
 };

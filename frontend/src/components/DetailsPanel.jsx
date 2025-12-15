@@ -7,6 +7,8 @@ import {
   ChevronDown, ChevronUp, ExternalLink, Edit2, X, Plus
 } from 'lucide-react';
 import api from '../services/api';
+import SecretAgentPanel from './SecretAgentPanel';
+import SecretAgentModal from './SecretAgentModal';
 
 const LEAD_STATUS_OPTIONS = [
   { value: 'leads', labelKey: 'details.leadStatus.leads', color: 'gray' },
@@ -61,6 +63,9 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
   const [sectors, setSectors] = useState([]);
   const [showSectorMenu, setShowSectorMenu] = useState(false);
   const [assigningSector, setAssigningSector] = useState(false);
+
+  // Secret Agent Modal state
+  const [showSecretAgentModal, setShowSecretAgentModal] = useState(false);
 
   const TAG_COLORS = [
     { name: 'blue', class: 'bg-blue-100 text-blue-700' },
@@ -783,6 +788,18 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
             )}
           </div>
 
+          {/* Secret Agent Panel */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <SecretAgentPanel
+              conversationId={conversationId}
+              onCallAgent={(callback) => {
+                setShowSecretAgentModal(true);
+                // Store callback to refresh panel after generation
+                window._secretAgentCallback = callback;
+              }}
+            />
+          </div>
+
           {/* Notas Internas - Expandable */}
           <div className="flex-1">
             <button
@@ -821,6 +838,21 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
           </div>
         </div>
       )}
+
+      {/* Secret Agent Modal */}
+      <SecretAgentModal
+        isOpen={showSecretAgentModal}
+        onClose={() => setShowSecretAgentModal(false)}
+        conversationId={conversationId}
+        onSuccess={(result) => {
+          setShowSecretAgentModal(false);
+          // Call the callback to refresh the panel
+          if (window._secretAgentCallback) {
+            window._secretAgentCallback(result);
+            window._secretAgentCallback = null;
+          }
+        }}
+      />
     </div>
   );
 };

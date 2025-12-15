@@ -40,7 +40,8 @@ import {
   Flag,
   Loader,
   List,
-  Package
+  Package,
+  RotateCcw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -48,6 +49,8 @@ import MentionTextarea from './MentionTextarea';
 import TaskModal from './TaskModal';
 import LeadChecklists from './LeadChecklists';
 import LocationMiniMap from './LocationMiniMap';
+import WinDealModal from './WinDealModal';
+import DiscardLeadModal from './DiscardLeadModal';
 
 // Helper functions for dynamic Tailwind classes
 const getStageClasses = (color) => {
@@ -95,6 +98,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [currentStatus, setCurrentStatus] = useState(lead?.status || 'leads');
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [currentSource, setCurrentSource] = useState(lead?.source || 'linkedin');
+  const [showWinDealModal, setShowWinDealModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Sync currentStatus when lead prop changes
@@ -548,14 +554,50 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleStatusChange = async (newStatus) => {
-    setCurrentStatus(newStatus);
     setShowStatusDropdown(false);
+
+    // If moving to 'qualified' (won), show Win Deal modal
+    if (newStatus === 'qualified' && currentStatus !== 'qualified') {
+      setShowWinDealModal(true);
+      return;
+    }
+
+    // If moving to 'discarded', show Discard modal
+    if (newStatus === 'discarded' && currentStatus !== 'discarded') {
+      setShowDiscardModal(true);
+      return;
+    }
+
+    setCurrentStatus(newStatus);
 
     try {
       await api.updateLeadStatus(lead.id, newStatus);
+      if (onLeadUpdated) {
+        onLeadUpdated({ ...lead, status: newStatus });
+      }
     } catch (error) {
       console.error('Error updating status:', error);
       setCurrentStatus(lead.status);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (reactivating) return;
+
+    setReactivating(true);
+    try {
+      const response = await api.reactivateLead(lead.id);
+      if (response.success) {
+        const newStatus = response.data.status || 'leads';
+        setCurrentStatus(newStatus);
+        if (onLeadUpdated) {
+          onLeadUpdated({ ...lead, status: newStatus });
+        }
+      }
+    } catch (error) {
+      console.error('Error reactivating lead:', error);
+    } finally {
+      setReactivating(false);
     }
   };
 
@@ -966,6 +1008,23 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                               </button>
                             ))}
                           </div>
+                        )}
+
+                        {/* Botão Reativar quando status é discarded */}
+                        {currentStatus === 'discarded' && (
+                          <button
+                            onClick={handleReactivate}
+                            disabled={reactivating}
+                            className="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+                            title={t('discard.reactivate', 'Reativar Lead')}
+                          >
+                            {reactivating ? (
+                              <Loader className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-3 h-3" />
+                            )}
+                            {t('discard.reactivate', 'Reativar')}
+                          </button>
                         )}
                       </div>
                     </div>
@@ -2290,6 +2349,34 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
         leadId={lead?.id}
         onSave={handleTaskSaved}
         isNested={true}
+      />
+
+      {/* Win Deal Modal */}
+      <WinDealModal
+        isOpen={showWinDealModal}
+        onClose={() => setShowWinDealModal(false)}
+        lead={lead}
+        onSuccess={() => {
+          setShowWinDealModal(false);
+          setCurrentStatus('qualified');
+          if (onLeadUpdated) {
+            onLeadUpdated({ ...lead, status: 'qualified' });
+          }
+        }}
+      />
+
+      {/* Discard Lead Modal */}
+      <DiscardLeadModal
+        isOpen={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        lead={lead}
+        onSuccess={() => {
+          setShowDiscardModal(false);
+          setCurrentStatus('discarded');
+          if (onLeadUpdated) {
+            onLeadUpdated({ ...lead, status: 'discarded' });
+          }
+        }}
       />
     </div>
   );

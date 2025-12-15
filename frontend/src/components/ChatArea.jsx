@@ -5,12 +5,13 @@ import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
   ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw,
   Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check,
-  Play, Pause
+  Play, Pause, Sparkles
 } from 'lucide-react';
 import api from '../services/api';
 import { joinConversation, leaveConversation, onNewMessage } from '../services/socket';
 import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
+import SecretAgentModal from './SecretAgentModal';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const { t, i18n } = useTranslation('conversations');
@@ -33,6 +34,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   // Estado para players de áudio customizados
   const [audioStates, setAudioStates] = useState({}); // { [audioId]: { playing: bool, currentTime: num, duration: num } }
   const audioRefs = useRef({}); // Refs para os elementos audio
+  // Secret Agent Modal
+  const [showSecretAgentModal, setShowSecretAgentModal] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const optionsMenuRef = useRef(null);
@@ -852,6 +855,15 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             </span>
           </div>
 
+          {/* Secret Agent Button */}
+          <button
+            onClick={() => setShowSecretAgentModal(true)}
+            className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+            title={t('chatArea.secretAgent', 'Agente Secreto')}
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
+
           {/* Channel Indicator */}
           {conversation?.channel === 'email' || conversation?.source === 'email' ? (
             <div
@@ -1451,6 +1463,16 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           </div>
         </div>
       )}
+
+      {/* Secret Agent Modal */}
+      <SecretAgentModal
+        isOpen={showSecretAgentModal}
+        onClose={() => setShowSecretAgentModal(false)}
+        conversationId={conversationId}
+        onSuccess={() => {
+          setShowSecretAgentModal(false);
+        }}
+      />
     </div>
   );
 };

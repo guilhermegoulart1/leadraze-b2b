@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Key, Link2, CheckSquare, Mail, Globe, Users } from 'lucide-react';
+import { Key, Link2, CheckSquare, Mail, Package, XCircle, Tag } from 'lucide-react';
 import ApiKeysPage from './ApiKeysPage';
 import ChannelsPage from './ChannelsPage';
 import ChecklistTemplatesPage from './ChecklistTemplatesPage';
 import EmailSettingsPage from './EmailSettingsPage';
-import WebsiteAgentsPage from './WebsiteAgentsPage';
-import WebsiteLeadsPage from './WebsiteLeadsPage';
+import TagsPage from './TagsPage';
+import ProductsTab from '../components/settings/ProductsTab';
+import DiscardReasonsTab from '../components/settings/DiscardReasonsTab';
 
 const ConfigPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'api-keys');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'products');
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -23,16 +24,23 @@ const ConfigPage = () => {
   };
 
   const tabs = [
+    { id: 'products', label: 'Produtos', icon: Package },
+    { id: 'discard-reasons', label: 'Motivos de Descarte', icon: XCircle },
+    { id: 'tags', label: 'Etiquetas', icon: Tag },
     { id: 'api-keys', label: 'API Key', icon: Key },
     { id: 'channels', label: 'Canais Conectados', icon: Link2 },
     { id: 'checklists', label: 'CRM Checklists', icon: CheckSquare },
     { id: 'emails', label: 'Emails', icon: Mail },
-    { id: 'website-agents', label: 'Website Agents', icon: Globe },
-    { id: 'website-leads', label: 'Website Leads', icon: Users },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'products':
+        return <ProductsTab />;
+      case 'discard-reasons':
+        return <DiscardReasonsTab />;
+      case 'tags':
+        return <TagsPage />;
       case 'api-keys':
         return <ApiKeysPage />;
       case 'channels':
@@ -41,12 +49,8 @@ const ConfigPage = () => {
         return <ChecklistTemplatesPage />;
       case 'emails':
         return <EmailSettingsPage />;
-      case 'website-agents':
-        return <WebsiteAgentsPage />;
-      case 'website-leads':
-        return <WebsiteLeadsPage />;
       default:
-        return <ApiKeysPage />;
+        return <ProductsTab />;
     }
   };
 
