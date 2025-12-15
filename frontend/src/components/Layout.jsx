@@ -70,11 +70,15 @@ const Layout = () => {
     { path: '/campaigns', labelKey: 'menu.linkedin', icon: Linkedin },
     { path: '/google-maps-agents', labelKey: 'menu.googleMaps', icon: MapPin },
     { path: '/activation-campaigns', labelKey: 'menu.lists', icon: Award },
-
-    // INTELIGÊNCIA (temporariamente desabilitado)
-    // { sectionKey: 'sections.intelligence' },
-    // { path: '/secret-agent', labelKey: 'menu.secretAgent', icon: Eye },
   ];
+
+  // INTELIGÊNCIA - apenas para admin
+  const adminNavItems = isAdmin ? [
+    { sectionKey: 'sections.intelligence' },
+    { path: '/secret-agent', labelKey: 'menu.secretAgent', icon: Eye },
+  ] : [];
+
+  const allNavItems = [...navItems, ...adminNavItems];
 
   const handleLogout = () => {
     logout();
@@ -138,7 +142,7 @@ const Layout = () => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
-          {navItems.map((item, index) => {
+          {allNavItems.map((item, index) => {
             // Section Header
             if (item.sectionKey) {
               if (isCollapsed) {
