@@ -67,7 +67,8 @@
       "Bash(del \"c:\\leadraze-b2b\\backend\\scripts\\test-gemini.js\")",
       "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -5 {}')",
       "Bash(tag \")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm run migrate:*)"
     ],
     "deny": [],
     "ask": []

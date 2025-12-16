@@ -63,6 +63,7 @@ const TasksPage = () => {
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
 
   useEffect(() => {
+    setTasks({});  // Clear tasks to show spinner during view switch
     loadData();
   }, [groupBy, filters.assigned_to, filters.lead_id]);
 

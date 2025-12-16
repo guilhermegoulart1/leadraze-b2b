@@ -8,7 +8,7 @@
 export const SALES_REP_TEMPLATES = [
   {
     id: 'lucas',
-    name: 'Lucas',
+    name: 'Alex',
     title: 'O Consultor',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
     gender: 'male',
@@ -30,7 +30,7 @@ export const SALES_REP_TEMPLATES = [
   },
   {
     id: 'marina',
-    name: 'Marina',
+    name: 'Sophia',
     title: 'A Direta',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&crop=face',
     gender: 'female',
@@ -52,7 +52,7 @@ export const SALES_REP_TEMPLATES = [
   },
   {
     id: 'pedro',
-    name: 'Pedro',
+    name: 'James',
     title: 'O Educador',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
     gender: 'male',
@@ -74,7 +74,7 @@ export const SALES_REP_TEMPLATES = [
   },
   {
     id: 'carla',
-    name: 'Carla',
+    name: 'Emma',
     title: 'A Conectora',
     avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop&crop=face',
     gender: 'female',
@@ -96,7 +96,7 @@ export const SALES_REP_TEMPLATES = [
   },
   {
     id: 'rafael',
-    name: 'Rafael',
+    name: 'Victor',
     title: 'O Closer',
     avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&crop=face',
     gender: 'male',

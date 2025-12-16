@@ -19,31 +19,31 @@
     "start": "Começar",
     "templates": {
       "lucas": {
-        "name": "LUCAS",
+        "name": "ALEX",
         "role": "O Consultor",
         "quote": "Primeiro eu entendo, depois sugiro",
         "idealFor": "Vendas complexas, consultoria, serviços"
       },
       "marina": {
-        "name": "MARINA",
+        "name": "SOPHIA",
         "role": "A Direta",
         "quote": "Vou direto ao ponto, sem rodeios",
         "idealFor": "Decisores ocupados que valorizam objetividade"
       },
       "pedro": {
-        "name": "PEDRO",
+        "name": "JAMES",
         "role": "O Educador",
         "quote": "Compartilho conhecimento antes de vender",
         "idealFor": "Mercados que precisam de educação"
       },
       "carla": {
-        "name": "CARLA",
+        "name": "EMMA",
         "role": "A Conectora",
         "quote": "Construo relacionamento genuíno",
         "idealFor": "Networking, parcerias"
       },
       "rafael": {
-        "name": "RAFAEL",
+        "name": "VICTOR",
         "role": "O Closer",
         "quote": "Foco total em fechar negócio",
         "idealFor": "Leads já qualificados"

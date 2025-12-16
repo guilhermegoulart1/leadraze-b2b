@@ -5,7 +5,7 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo, Eye
+  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,13 +72,7 @@ const Layout = () => {
     { path: '/activation-campaigns', labelKey: 'menu.lists', icon: Award },
   ];
 
-  // INTELIGÊNCIA - apenas para admin
-  const adminNavItems = isAdmin ? [
-    { sectionKey: 'sections.intelligence' },
-    { path: '/secret-agent', labelKey: 'menu.secretAgent', icon: Eye },
-  ] : [];
-
-  const allNavItems = [...navItems, ...adminNavItems];
+  const allNavItems = [...navItems];
 
   const handleLogout = () => {
     logout();

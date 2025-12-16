@@ -81,7 +81,7 @@ const ConfigPage = () => {
               );
             })}
           </nav>
-          <span className="text-xs text-gray-400 dark:text-gray-500">v8.3</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">v8.6</span>
         </div>
       </div>
 

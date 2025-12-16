@@ -50,7 +50,7 @@ const formatTask = (row, assignees = []) => {
     title: row.title,
     description: row.description || null,
     taskType: row.task_type || 'call',
-    status: row.is_completed ? 'completed' : 'pending',
+    status: row.status || (row.is_completed ? 'completed' : 'pending'),
     priority: row.priority || 'medium',
     isCompleted: row.is_completed,
     dueDate: row.due_date,
@@ -334,11 +334,11 @@ const getTasksBoard = async (req, res) => {
     let grouped;
 
     if (group_by === 'status') {
-      // For checklist items, we only have completed/pending
+      // Group by status field (pending, in_progress, completed)
       grouped = {
-        pending: tasks.filter(t => !t.isCompleted),
-        in_progress: [], // Not applicable for checklist items
-        completed: tasks.filter(t => t.isCompleted)
+        pending: tasks.filter(t => t.status === 'pending'),
+        in_progress: tasks.filter(t => t.status === 'in_progress'),
+        completed: tasks.filter(t => t.status === 'completed')
       };
     } else {
       // Group by due date
@@ -681,6 +681,7 @@ const updateTask = async (req, res) => {
     }
 
     if (status !== undefined) {
+      updates.status = status;
       updates.is_completed = status === 'completed';
       if (status === 'completed' && !existingResult.rows[0].is_completed) {
         updates.completed_at = new Date();
@@ -830,10 +831,11 @@ const updateTaskStatus = async (req, res) => {
       throw new NotFoundError('Task not found');
     }
 
-    // Map status to is_completed
+    // Map status to is_completed and save status field
     const isCompleted = status === 'completed';
 
     await db.update('checklist_items', {
+      status: status,
       is_completed: isCompleted,
       completed_at: isCompleted ? new Date() : null,
       completed_by: isCompleted ? userId : null,

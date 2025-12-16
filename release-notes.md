@@ -1,41 +1,29 @@
 # 📦 Release v8.6
 
 Deal Management
-Gerenciamento de vendas de produtos, preços e motivos de descarte para leads
 
-Agente Secreto nas Conversas
-Um agente treinado com técnicas de venda para ajudar o vendedor a definir o que falar e como falar, os próximos passos para fechar com o lead
+Manage your sales pipeline with the new Deal Management module. Track products, pricing, and discard reasons for each lead. Gain full control over your sales process with structured deal tracking and reporting.
 
-Agentes multi linguagens:
+Beta: Secret Agent in Conversations
 
-{ code: 'pt-BR', name: 'Português (Brasil)' },
-{ code: 'pt', name: 'Português (Portugal)' },
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'nl', name: 'Nederlands' },
-  { code: 'pl', name: 'Polski' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'ja', name: '日本語' },
-  { code: 'zh-CN', name: '简体中文' },
-  { code: 'ko', name: '한국어' },
-  { code: 'ar', name: 'العربية' },
-  { code: 'tr', name: 'Türkçe' },
-  { code: 'hi', name: 'हिन्दी' }
+A specialized AI agent trained in sales techniques to assist your sales team during conversations. Get real-time suggestions on what to say, how to approach objections, and the next steps to close the deal. Available as a beta feature for feedback and refinement.
 
-  ---
+Multi-Language AI Agents
 
-Performance Improvements - CRM
+AI agents now support 16 languages, enabling global outreach and localized conversations. Available languages include Portuguese (Brazil), Portuguese (Portugal), English, Spanish, French, Italian, German, Dutch, Polish, Russian, Japanese, Chinese (Simplified), Korean, Arabic, Turkish, and Hindi.
 
-Faster loading: The leads page now opens instantly, even with thousands of contacts
-Infinite scroll: Leads load automatically as you scroll, no need to click buttons
-Optimized search: Searches run in the background without interrupting your workflow
-Lower data usage: Only loads what's needed, saving bandwidth and memory
+Performance Improvements
 
-Benefits
+CRM Performance Optimization
 
-Smoother Kanban navigation
-Less waiting time when opening CRM
-More responsive experience on mobile devices
+The CRM has been significantly optimized for speed and efficiency. The leads page now loads instantly even with thousands of contacts. Infinite scroll loads leads automatically as you navigate, eliminating the need for pagination buttons. Searches run in the background without interrupting your workflow, and the system only loads necessary data to save bandwidth and memory. Experience smoother Kanban navigation, reduced wait times, and improved responsiveness on mobile devices.
+
+Bug Fixes
+
+Tasks Loading Indicator
+
+Fixed the loading spinner that was not appearing when switching between "Date" and "Status" views on the Tasks page. The system now clearly indicates when data is loading.
+
+Tasks "In Progress" Status Persistence
+
+Fixed an issue where tasks moved to the "In Progress" column in the Kanban board would revert to "Pending" after page reload. Task status is now saved correctly and persists after refresh or navigation.

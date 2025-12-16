@@ -217,7 +217,7 @@ const CustomizeAgentStep = ({
             type="text"
             value={agentName}
             onChange={(e) => onChangeName(e.target.value)}
-            placeholder={candidate?.name || 'Ex: Lucas, Marina, João...'}
+            placeholder={candidate?.name || 'Ex: Alex, Sophia, John...'}
             className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>

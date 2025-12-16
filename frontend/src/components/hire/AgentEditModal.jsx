@@ -538,7 +538,7 @@ const ProfileSection = ({ name, avatarUrl, onChangeName, onChangeAvatar }) => {
           value={name}
           onChange={(e) => onChangeName(e.target.value)}
           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          placeholder="Ex: Lucas, Marina, Vendedor..."
+          placeholder="Ex: Alex, Sophia, Sales Rep..."
         />
       </div>
     </div>

@@ -1,11 +1,11 @@
 ##### COMANDOS #####
 # git add .
-# git commit -m "Release v8.5"
+# git commit -m "Release v8.6"
 # git push origin main
-# git tag -a "v8.5" -F release-notes.md
+# git tag -a "v8.6" -F release-notes.md
 # git push origin --tags
-# git push origin "v8.5"
-# gh release create v8.5 --title "Versão Release v8.5" --notes-file release-notes.md
+# git push origin "v8.6"
+# gh release create v8.6 --title "Versão Release v8.6" --notes-file release-notes.md
 
 ## LIMPAR REDIS
 

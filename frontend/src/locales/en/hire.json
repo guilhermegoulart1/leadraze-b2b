@@ -19,31 +19,31 @@
     "start": "Start",
     "templates": {
       "lucas": {
-        "name": "LUCAS",
+        "name": "ALEX",
         "role": "The Consultant",
         "quote": "First I understand, then I suggest",
         "idealFor": "Complex sales, consulting, services"
       },
       "marina": {
-        "name": "MARINA",
+        "name": "SOPHIA",
         "role": "The Direct One",
         "quote": "I get straight to the point, no beating around the bush",
         "idealFor": "Busy decision-makers who value objectivity"
       },
       "pedro": {
-        "name": "PEDRO",
+        "name": "JAMES",
         "role": "The Educator",
         "quote": "I share knowledge before selling",
         "idealFor": "Markets that need education"
       },
       "carla": {
-        "name": "CARLA",
+        "name": "EMMA",
         "role": "The Connector",
         "quote": "I build genuine relationships",
         "idealFor": "Networking, partnerships"
       },
       "rafael": {
-        "name": "RAFAEL",
+        "name": "VICTOR",
         "role": "The Closer",
         "quote": "Total focus on closing deals",
         "idealFor": "Already qualified leads"
