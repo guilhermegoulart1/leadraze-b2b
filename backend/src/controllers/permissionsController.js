@@ -7,6 +7,7 @@ const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { BadRequestError, ForbiddenError } = require('../utils/errors');
 const { clearPermissionsCache } = require('../middleware/permissions');
+const { ensureAccountPermissions } = require('../services/permissionsService');
 
 /**
  * GET /permissions
@@ -78,6 +79,9 @@ exports.getRolePermissions = async (req, res) => {
     if (!validRoles.includes(role)) {
       throw new BadRequestError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
     }
+
+    // Ensure account has permissions configured (auto-initialize if needed)
+    await ensureAccountPermissions(accountId);
 
     const query = `
       SELECT
@@ -213,6 +217,9 @@ exports.updateRolePermissions = async (req, res) => {
 exports.getRolesSummary = async (req, res) => {
   try {
     const accountId = req.user.account_id;
+
+    // Ensure account has permissions configured (auto-initialize if needed)
+    await ensureAccountPermissions(accountId);
 
     const query = `
       SELECT

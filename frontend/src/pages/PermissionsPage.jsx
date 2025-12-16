@@ -138,23 +138,23 @@ const PermissionsPage = () => {
   // Determine which roles the current user can manage
   if (!isAdmin && !isSupervisor) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-900">
+      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <Lock className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-100 mb-2">Acesso Negado</h2>
-          <p className="text-gray-400">Você não tem permissão para gerenciar permissões.</p>
+          <Lock className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Acesso Negado</h2>
+          <p className="text-gray-500 dark:text-gray-400">Você não tem permissão para gerenciar permissões.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-700">
+      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-gray-100">Gestão de Permissões</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Gestão de Permissões</h1>
             <p className="text-xs text-gray-500 mt-0.5">
               Marque as permissões que cada perfil deve ter
             </p>
@@ -165,7 +165,7 @@ const PermissionsPage = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleReset}
-                className="px-3 py-1.5 text-xs font-medium text-gray-400 border border-gray-600 rounded-lg hover:bg-gray-800 hover:text-gray-200 transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               >
                 Descartar
               </button>
@@ -187,22 +187,22 @@ const PermissionsPage = () => {
         {saveMessage && (
           <div className={`mt-3 p-2.5 rounded-lg flex items-center gap-2 ${
             saveMessage.type === 'success'
-              ? 'bg-green-900/40 border border-green-700'
-              : 'bg-red-900/40 border border-red-700'
+              ? 'bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-700'
+              : 'bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700'
           }`}>
             {saveMessage.type === 'success' ? (
-              <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <Check className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
             )}
             <p className={`text-xs ${
-              saveMessage.type === 'success' ? 'text-green-300' : 'text-red-300'
+              saveMessage.type === 'success' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
             }`}>
               {saveMessage.text}
             </p>
             <button
               onClick={() => setSaveMessage(null)}
-              className="ml-auto text-gray-400 hover:text-gray-200"
+              className="ml-auto text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -219,22 +219,22 @@ const PermissionsPage = () => {
         ) : (
           <div className="px-4">
             <table className="w-full border-collapse">
-              <thead className="sticky top-0 bg-gray-800 z-10">
-                <tr className="border-b border-gray-700">
-                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-400 uppercase">Permissão</th>
-                  <th className="text-center py-2.5 px-2 text-xs font-semibold text-red-400 w-20">
+              <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 z-10">
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-2.5 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Permissão</th>
+                  <th className="text-center py-2.5 px-2 text-xs font-semibold text-red-600 dark:text-red-400 w-20">
                     <div className="flex items-center justify-center gap-1.5">
                       <Shield className="w-3.5 h-3.5" />
                       <span>Admin</span>
                     </div>
                   </th>
-                  <th className="text-center py-2.5 px-2 text-xs font-semibold text-blue-400 w-24">
+                  <th className="text-center py-2.5 px-2 text-xs font-semibold text-blue-600 dark:text-blue-400 w-24">
                     <div className="flex items-center justify-center gap-1.5">
                       <Users className="w-3.5 h-3.5" />
                       <span>Supervisor</span>
                     </div>
                   </th>
-                  <th className="text-center py-2.5 px-2 text-xs font-semibold text-gray-400 w-20">
+                  <th className="text-center py-2.5 px-2 text-xs font-semibold text-gray-500 dark:text-gray-400 w-20">
                     <div className="flex items-center justify-center gap-1.5">
                       <User className="w-3.5 h-3.5" />
                       <span>Usuário</span>
@@ -246,17 +246,17 @@ const PermissionsPage = () => {
                 {Object.entries(groupedPermissions).map(([category, perms]) => (
                   <React.Fragment key={category}>
                     {/* Category Header */}
-                    <tr className="bg-gray-800/60">
-                      <td colSpan="4" className="py-2 px-3 font-medium text-gray-300 text-xs uppercase tracking-wide">
+                    <tr className="bg-gray-200/60 dark:bg-gray-800/60">
+                      <td colSpan="4" className="py-2 px-3 font-medium text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide">
                         {category}
                       </td>
                     </tr>
 
                     {/* Permissions in this category */}
                     {perms.map((perm) => (
-                      <tr key={perm.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                      <tr key={perm.id} className="border-b border-gray-200/50 dark:border-gray-800/50 hover:bg-gray-100/50 dark:hover:bg-gray-800/30">
                         <td className="py-1.5 px-3">
-                          <div className="text-xs text-gray-200">{perm.description || perm.name}</div>
+                          <div className="text-xs text-gray-800 dark:text-gray-200">{perm.description || perm.name}</div>
                           {perm.description && (
                             <div className="text-[10px] text-gray-500 mt-0.5">{perm.name}</div>
                           )}
@@ -308,16 +308,16 @@ const PermissionsPage = () => {
 
       {/* Sticky Footer with Save Button */}
       {hasChanges && (
-        <div className="flex-shrink-0 px-4 py-3 border-t border-gray-700 bg-gray-800">
+        <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-amber-400">
+            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
               <AlertCircle className="w-4 h-4" />
               <span className="text-xs font-medium">Alterações não salvas</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleReset}
-                className="px-3 py-1.5 text-xs font-medium text-gray-400 border border-gray-600 rounded-lg hover:bg-gray-700 hover:text-gray-200 transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               >
                 Descartar
               </button>

@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const storageService = require('../services/storageService');
+const { assignUserToDefaultSector, getUserLanguage } = require('../services/sectorService');
 
 /**
  * GET /users
@@ -201,6 +202,16 @@ exports.createUser = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, true, $6)
       RETURNING id, email, name, company, role, is_active, created_at
     `, [email, password_hash, name, company, role, accountId]);
+
+    // Auto-assign new user to default "Geral" sector
+    try {
+      // Get the creator's language preference to use for sector name
+      const creatorLanguage = await getUserLanguage(req.user.id);
+      await assignUserToDefaultSector(newUser.rows[0].id, accountId, creatorLanguage);
+    } catch (sectorError) {
+      // Log but don't fail user creation if sector assignment fails
+      console.error('Warning: Could not assign user to default sector:', sectorError.message);
+    }
 
     sendSuccess(res, {
       message: 'User created successfully',

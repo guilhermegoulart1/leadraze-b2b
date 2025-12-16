@@ -203,13 +203,13 @@ const SectorsPage = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-700">
+      <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-100">Setores</h1>
-            <p className="text-sm text-gray-400 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Setores</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Organize sua equipe em setores para melhor gestão de acessos
             </p>
           </div>
@@ -224,14 +224,14 @@ const SectorsPage = () => {
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-900/40 border border-red-700 rounded-lg flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             </div>
             <button
               onClick={() => setError('')}
-              className="text-red-400 hover:text-red-200"
+              className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-200"
             >
               <X className="w-4 h-4" />
             </button>
@@ -242,44 +242,44 @@ const SectorsPage = () => {
       {/* Sectors Table */}
       <div className="flex-1 overflow-auto">
         {sectors.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-500">
             <UsersIcon className="w-12 h-12 mb-3 opacity-50" />
-            <p className="text-lg font-medium text-gray-400">Nenhum setor encontrado</p>
+            <p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhum setor encontrado</p>
             <p className="text-sm text-gray-500">Crie um novo setor para começar</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-800 border-b border-gray-700 sticky top-0">
+            <thead className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Nome
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Descrição
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Cor
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Usuários
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Supervisores
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Round-Robin
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Status
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   Ações
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {sectors.map((sector) => (
-                <tr key={sector.id} className="hover:bg-gray-800/50 transition-colors">
+                <tr key={sector.id} className="hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
                   {/* Nome */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -287,7 +287,7 @@ const SectorsPage = () => {
                         className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: sector.color || '#6366f1' }}
                       />
-                      <span className="text-sm font-medium text-gray-100">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {sector.name}
                       </span>
                     </div>
@@ -295,7 +295,7 @@ const SectorsPage = () => {
 
                   {/* Descrição */}
                   <td className="px-6 py-4">
-                    <span className="text-sm text-gray-400">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       {sector.description || '-'}
                     </span>
                   </td>
@@ -312,7 +312,7 @@ const SectorsPage = () => {
 
                   {/* Usuários */}
                   <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-900/40 text-blue-400 rounded-full border border-blue-700/50">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full border border-blue-300 dark:border-blue-700/50">
                       <UsersIcon className="w-3.5 h-3.5" />
                       <span className="text-xs font-medium">
                         {sector.user_count || 0}
@@ -322,7 +322,7 @@ const SectorsPage = () => {
 
                   {/* Supervisores */}
                   <td className="px-6 py-4 text-center">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-900/40 text-purple-400 rounded-full border border-purple-700/50">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full border border-purple-300 dark:border-purple-700/50">
                       <Shield className="w-3.5 h-3.5" />
                       <span className="text-xs font-medium">
                         {sector.supervisor_count || 0}
@@ -359,7 +359,7 @@ const SectorsPage = () => {
                       {sector.enable_round_robin && (
                         <button
                           onClick={() => handleOpenRoundRobinModal(sector)}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-900/40 text-blue-400 rounded-full border border-blue-700/50 hover:bg-blue-800/50 transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full border border-blue-300 dark:border-blue-700/50 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
                           title="Gerenciar usuários do round-robin"
                         >
                           <RefreshCw className="w-3 h-3" />
@@ -376,8 +376,8 @@ const SectorsPage = () => {
                     <span
                       className={`inline-block px-2.5 py-1 text-xs font-medium rounded-full ${
                         sector.is_active !== false
-                          ? 'bg-green-900/40 text-green-400 border border-green-700/50'
-                          : 'bg-gray-700/50 text-gray-400 border border-gray-600'
+                          ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-700/50'
+                          : 'bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600'
                       }`}
                     >
                       {sector.is_active !== false ? 'Ativo' : 'Inativo'}
@@ -389,7 +389,7 @@ const SectorsPage = () => {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => handleOpenModal(sector)}
-                        className="p-1.5 text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded transition-colors"
+                        className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 rounded transition-colors"
                         title="Editar"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -397,7 +397,7 @@ const SectorsPage = () => {
                       {sector.name !== 'Geral' && (
                         <button
                           onClick={() => handleDeleteSector(sector.id, sector.name)}
-                          className="p-1.5 text-red-400 hover:bg-red-900/40 rounded transition-colors"
+                          className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
                           title="Excluir"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -415,65 +415,65 @@ const SectorsPage = () => {
       {/* Sector Form Modal */}
       {showSectorModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <h2 className="text-xl font-bold text-gray-100">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 {selectedSector ? 'Editar Setor' : 'Novo Setor'}
               </h2>
               <button
                 onClick={handleCloseModal}
-                className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-auto p-6 space-y-4">
               {formErrors.general && (
-                <div className="p-3 bg-red-900/40 border border-red-700 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-300">{formErrors.general}</p>
+                <div className="p-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600 dark:text-red-300">{formErrors.general}</p>
                 </div>
               )}
 
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Nome <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nome <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className={`w-full px-3 py-2 bg-gray-900 border rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    formErrors.name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    formErrors.name ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder="Ex: Vendas, Marketing, Suporte"
                 />
                 {formErrors.name && (
-                  <p className="mt-1 text-xs text-red-400">{formErrors.name}</p>
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.name}</p>
                 )}
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Descrição
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Descrição opcional do setor"
                 />
               </div>
 
               {/* Color */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Cor
                 </label>
                 <div className="flex items-center gap-3">
@@ -481,13 +481,13 @@ const SectorsPage = () => {
                     type="color"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="w-16 h-10 border border-gray-600 rounded cursor-pointer bg-gray-900"
+                    className="w-16 h-10 border border-gray-300 dark:border-gray-600 rounded cursor-pointer bg-gray-50 dark:bg-gray-900"
                   />
                   <input
                     type="text"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     placeholder="#6366f1"
                   />
                 </div>
@@ -495,10 +495,10 @@ const SectorsPage = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 text-sm font-medium text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
@@ -516,14 +516,14 @@ const SectorsPage = () => {
       {/* Round-Robin Users Modal */}
       {showRoundRobinModal && roundRobinSector && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="text-xl font-bold text-gray-100">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   Usuários do Round-Robin
                 </h2>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Setor: {roundRobinSector.name}
                 </p>
               </div>
@@ -532,9 +532,9 @@ const SectorsPage = () => {
                   setShowRoundRobinModal(false);
                   setRoundRobinSector(null);
                 }}
-                className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
@@ -548,13 +548,13 @@ const SectorsPage = () => {
                 <div className="space-y-6">
                   {/* Current Round-Robin Users */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 text-green-400" />
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-green-500 dark:text-green-400" />
                       Usuários na rotação ({roundRobinUsers.length})
                     </h3>
 
                     {roundRobinUsers.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-4 bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-500 text-center py-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                         Nenhum usuário adicionado à rotação
                       </p>
                     ) : (
@@ -562,7 +562,7 @@ const SectorsPage = () => {
                         {roundRobinUsers.map((user) => (
                           <div
                             key={user.user_id || user.id}
-                            className="flex items-center justify-between p-3 bg-green-900/30 border border-green-700/50 rounded-lg"
+                            className="flex items-center justify-between p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700/50 rounded-lg"
                           >
                             <div className="flex items-center gap-3">
                               {user.avatar_url ? (
@@ -576,8 +576,8 @@ const SectorsPage = () => {
                                   className="w-8 h-8 rounded-full object-cover"
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-green-800 flex items-center justify-center">
-                                  <span className="text-xs font-medium text-green-300">
+                                <div className="w-8 h-8 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center">
+                                  <span className="text-xs font-medium text-green-700 dark:text-green-300">
                                     {(() => {
                                       const names = (user.name || '').trim().split(' ').filter(n => n.length > 0);
                                       if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
@@ -587,13 +587,13 @@ const SectorsPage = () => {
                                 </div>
                               )}
                               <div>
-                                <p className="text-sm font-medium text-gray-100">{user.name}</p>
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.name}</p>
                                 <p className="text-xs text-gray-500">{user.email}</p>
                               </div>
                             </div>
                             <button
                               onClick={() => handleRemoveFromRoundRobin(user.user_id || user.id)}
-                              className="p-1.5 text-red-400 hover:bg-red-900/40 rounded transition-colors"
+                              className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
                               title="Remover da rotação"
                             >
                               <UserMinus className="w-4 h-4" />
@@ -606,15 +606,15 @@ const SectorsPage = () => {
 
                   {/* Available Users */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                      <UsersIcon className="w-4 h-4 text-blue-400" />
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                      <UsersIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                       Usuários do setor
                     </h3>
 
                     {availableUsers.filter(u =>
                       !roundRobinUsers.some(rr => (rr.user_id || rr.id) === u.id)
                     ).length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-4 bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-500 text-center py-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                         Todos os usuários já estão na rotação
                       </p>
                     ) : (
@@ -624,7 +624,7 @@ const SectorsPage = () => {
                           .map((user) => (
                             <div
                               key={user.id}
-                              className="flex items-center justify-between p-3 bg-gray-700/50 border border-gray-600 rounded-lg"
+                              className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg"
                             >
                               <div className="flex items-center gap-3">
                                 {user.avatar_url ? (
@@ -638,8 +638,8 @@ const SectorsPage = () => {
                                     className="w-8 h-8 rounded-full object-cover"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                                    <span className="text-xs font-medium text-gray-300">
+                                  <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                       {(() => {
                                         const names = (user.name || '').trim().split(' ').filter(n => n.length > 0);
                                         if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
@@ -649,13 +649,13 @@ const SectorsPage = () => {
                                   </div>
                                 )}
                                 <div>
-                                  <p className="text-sm font-medium text-gray-100">{user.name}</p>
+                                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.name}</p>
                                   <p className="text-xs text-gray-500">{user.email}</p>
                                 </div>
                               </div>
                               <button
                                 onClick={() => handleAddToRoundRobin(user.id)}
-                                className="p-1.5 text-green-400 hover:bg-green-900/40 rounded transition-colors"
+                                className="p-1.5 text-green-500 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
                                 title="Adicionar à rotação"
                               >
                                 <UserPlus className="w-4 h-4" />
@@ -670,7 +670,7 @@ const SectorsPage = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
                   setShowRoundRobinModal(false);

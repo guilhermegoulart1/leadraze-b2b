@@ -147,28 +147,58 @@ async function generateResponse(params) {
     // Obter perfil comportamental
     const behavioralProfile = BEHAVIORAL_PROFILES[ai_agent.behavioral_profile] || BEHAVIORAL_PROFILES.consultivo;
 
-    // 🔍 BUSCAR CONHECIMENTO RELEVANTE usando RAG
+    // 🔍 BUSCAR CONHECIMENTO usando RAG + Essencial
     let knowledgeContext = '';
     try {
-      // Use agent's configured threshold or default to 0.7
-      const similarityThreshold = ai_agent.knowledge_similarity_threshold
-        ? parseFloat(ai_agent.knowledge_similarity_threshold)
-        : 0.7;
-
-      const relevantKnowledge = await ragService.searchRelevantKnowledge(
-        ai_agent.id,
-        lead_message,
-        {
-          limit: 5,
-          minSimilarity: similarityThreshold
+      // 1. Buscar conhecimento ESSENCIAL (sempre incluído, independente de busca)
+      let essentialKnowledge = [];
+      try {
+        essentialKnowledge = await ragService.getEssentialKnowledge(ai_agent.id);
+        if (essentialKnowledge.length > 0) {
+          console.log(`📌 ${essentialKnowledge.length} itens de conhecimento essencial encontrados`);
         }
-      );
+      } catch (error) {
+        console.error('⚠️ Erro ao buscar conhecimento essencial:', error.message);
+      }
 
-      if (relevantKnowledge && relevantKnowledge.length > 0) {
-        knowledgeContext = ragService.formatKnowledgeForPrompt(relevantKnowledge);
-        console.log(`📚 ${relevantKnowledge.length} itens de conhecimento relevantes encontrados e injetados no contexto`);
+      // 2. Buscar conhecimento CONTEXTUAL (via busca vetorial)
+      let contextualKnowledge = [];
+      try {
+        const similarityThreshold = ai_agent.knowledge_similarity_threshold
+          ? parseFloat(ai_agent.knowledge_similarity_threshold)
+          : 0.7;
+
+        contextualKnowledge = await ragService.searchRelevantKnowledge(
+          ai_agent.id,
+          lead_message,
+          {
+            limit: 5,
+            minSimilarity: similarityThreshold
+          }
+        );
+
+        if (contextualKnowledge && contextualKnowledge.length > 0) {
+          console.log(`📚 ${contextualKnowledge.length} itens de conhecimento contextual encontrados via RAG`);
+        }
+      } catch (error) {
+        console.error('⚠️ Erro ao buscar conhecimento contextual:', error.message);
+      }
+
+      // 3. Combinar: essencial + contextual (sem duplicatas)
+      const allKnowledge = [...essentialKnowledge];
+      const essentialIds = new Set(essentialKnowledge.map(k => k.id));
+
+      for (const item of contextualKnowledge) {
+        if (!essentialIds.has(item.id)) {
+          allKnowledge.push(item);
+        }
+      }
+
+      if (allKnowledge.length > 0) {
+        knowledgeContext = ragService.formatKnowledgeForPrompt(allKnowledge);
+        console.log(`✅ Total: ${allKnowledge.length} itens de conhecimento injetados no contexto (${essentialKnowledge.length} essenciais + ${allKnowledge.length - essentialKnowledge.length} contextuais)`);
       } else {
-        console.log(`📭 Nenhum conhecimento relevante encontrado para a query`);
+        console.log(`📭 Nenhum conhecimento encontrado para a query`);
       }
     } catch (error) {
       console.error('⚠️ Erro ao buscar conhecimento (continuando sem RAG):', error.message);
@@ -933,23 +963,45 @@ async function generateEmailResponse(params) {
     // Get behavioral profile
     const behavioralProfile = BEHAVIORAL_PROFILES[ai_agent.behavioral_profile] || BEHAVIORAL_PROFILES.consultivo;
 
-    // Search for relevant knowledge using RAG
+    // Search for relevant knowledge using RAG + Essential
     let knowledgeContext = '';
     try {
-      // Use agent's configured threshold or default to 0.7
-      const similarityThreshold = ai_agent.knowledge_similarity_threshold
-        ? parseFloat(ai_agent.knowledge_similarity_threshold)
-        : 0.7;
+      // 1. Buscar conhecimento ESSENCIAL
+      let essentialKnowledge = [];
+      try {
+        essentialKnowledge = await ragService.getEssentialKnowledge(ai_agent.id);
+      } catch (error) {
+        console.error('⚠️ Erro ao buscar conhecimento essencial:', error.message);
+      }
 
-      const relevantKnowledge = await ragService.searchRelevantKnowledge(
-        ai_agent.id,
-        lead_message,
-        { limit: 5, minSimilarity: similarityThreshold }
-      );
+      // 2. Buscar conhecimento CONTEXTUAL
+      let contextualKnowledge = [];
+      try {
+        const similarityThreshold = ai_agent.knowledge_similarity_threshold
+          ? parseFloat(ai_agent.knowledge_similarity_threshold)
+          : 0.7;
 
-      if (relevantKnowledge && relevantKnowledge.length > 0) {
-        knowledgeContext = ragService.formatKnowledgeForPrompt(relevantKnowledge);
-        console.log(`📚 ${relevantKnowledge.length} itens de conhecimento relevantes encontrados`);
+        contextualKnowledge = await ragService.searchRelevantKnowledge(
+          ai_agent.id,
+          lead_message,
+          { limit: 5, minSimilarity: similarityThreshold }
+        );
+      } catch (error) {
+        console.error('⚠️ Erro ao buscar conhecimento contextual:', error.message);
+      }
+
+      // 3. Combinar sem duplicatas
+      const allKnowledge = [...essentialKnowledge];
+      const essentialIds = new Set(essentialKnowledge.map(k => k.id));
+      for (const item of contextualKnowledge) {
+        if (!essentialIds.has(item.id)) {
+          allKnowledge.push(item);
+        }
+      }
+
+      if (allKnowledge.length > 0) {
+        knowledgeContext = ragService.formatKnowledgeForPrompt(allKnowledge);
+        console.log(`📚 ${allKnowledge.length} itens de conhecimento encontrados (${essentialKnowledge.length} essenciais)`);
       }
     } catch (error) {
       console.error('⚠️ Erro ao buscar conhecimento (continuando sem RAG):', error.message);

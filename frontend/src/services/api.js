@@ -1230,7 +1230,7 @@ class ApiService {
   }
 
   async assignUserToSector(data) {
-    return this.request('/sectors/users', {
+    return this.request('/sectors/assign-user', {
       method: 'POST',
       body: JSON.stringify(data),
     });

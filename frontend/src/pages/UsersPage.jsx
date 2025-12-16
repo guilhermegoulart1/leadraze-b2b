@@ -39,9 +39,9 @@ const UsersPage = () => {
   const [formErrors, setFormErrors] = useState({});
 
   const roleConfig = {
-    admin: { label: t('roles.admin'), icon: Shield, color: 'text-red-400', bg: 'bg-red-900/40', border: 'border-red-700/50' },
-    supervisor: { label: t('roles.supervisor'), icon: Users, color: 'text-blue-400', bg: 'bg-blue-900/40', border: 'border-blue-700/50' },
-    user: { label: t('roles.user'), icon: User, color: 'text-gray-400', bg: 'bg-gray-700/50', border: 'border-gray-600' }
+    admin: { label: t('roles.admin'), icon: Shield, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/40', border: 'border-red-300 dark:border-red-700/50' },
+    supervisor: { label: t('roles.supervisor'), icon: Users, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/40', border: 'border-blue-300 dark:border-blue-700/50' },
+    user: { label: t('roles.user'), icon: User, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-700/50', border: 'border-gray-300 dark:border-gray-600' }
   };
 
   useEffect(() => {
@@ -211,14 +211,14 @@ const UsersPage = () => {
   });
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-700">
+      <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
         {/* Title and Actions */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-100">{t('title')}</h1>
-            <p className="text-sm text-gray-400 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('title')}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {t('subtitle', { count: filteredUsers.length })}
             </p>
           </div>
@@ -238,13 +238,13 @@ const UsersPage = () => {
         {/* Search and Filters */}
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-gray-800 border border-gray-700 text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-500"
+              className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
             />
           </div>
 
@@ -252,8 +252,8 @@ const UsersPage = () => {
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
               showFilters
-                ? 'bg-purple-900/40 border-purple-600 text-purple-400'
-                : 'border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-500 dark:border-purple-600 text-purple-600 dark:text-purple-400'
+                : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200'
             }`}
           >
             <Filter className="w-4 h-4" />
@@ -263,15 +263,15 @@ const UsersPage = () => {
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
-            <label className="block text-sm font-medium text-gray-300 mb-2">{t('filterByRole')}</label>
+          <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filterByRole')}</label>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedRole('')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                   selectedRole === ''
-                    ? 'bg-purple-900/40 text-purple-400 border-purple-600'
-                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border-purple-500 dark:border-purple-600'
+                    : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
                 {t('all')}
@@ -285,7 +285,7 @@ const UsersPage = () => {
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                       selectedRole === role
                         ? `${config.bg} ${config.color} ${config.border}`
-                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }`}
                   >
                     <IconComponent className="w-3.5 h-3.5" />
@@ -305,36 +305,36 @@ const UsersPage = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400 dark:text-gray-500">
             <User className="w-12 h-12 mb-3 opacity-50" />
-            <p className="text-lg font-medium text-gray-400">{t('messages.noUsers')}</p>
+            <p className="text-lg font-medium text-gray-600 dark:text-gray-400">{t('messages.noUsers')}</p>
             <p className="text-sm text-gray-500">{t('messages.noUsersDescription')}</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
+            <thead className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase w-8">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase w-8">
                   {/* Expand icon column */}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   {t('table.user')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   {t('table.profile')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   {t('table.status')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   {t('table.createdAt')}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                   {t('table.actions')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
               {filteredUsers.map((user) => {
                 const config = roleConfig[user.role] || roleConfig.user;
                 const RoleIcon = config.icon;
@@ -343,18 +343,18 @@ const UsersPage = () => {
 
                 return (
                   <React.Fragment key={user.id}>
-                    <tr className="hover:bg-gray-800/50 transition-colors">
+                    <tr className="hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
                       {/* Expand Icon */}
                       <td className="px-4 py-3">
                         {hasTeam && (
                           <button
                             onClick={() => toggleExpand(user.id)}
-                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                           >
                             {isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-gray-400" />
+                              <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                             )}
                           </button>
                         )}
@@ -367,10 +367,10 @@ const UsersPage = () => {
                             {user.name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <div>
-                            <div className="font-semibold text-sm text-gray-100">
+                            <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                               {user.name}
                               {user.id === currentUser.id && (
-                                <span className="ml-2 text-xs text-purple-400">{t('table.you')}</span>
+                                <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">{t('table.you')}</span>
                               )}
                             </div>
                             <div className="text-xs text-gray-500">{user.email}</div>
@@ -389,12 +389,12 @@ const UsersPage = () => {
                       {/* Status */}
                       <td className="px-4 py-3">
                         {user.is_active !== false ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-900/40 text-green-400 rounded-full border border-green-700/50">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full border border-green-300 dark:border-green-700/50">
                             <Check className="w-3 h-3" />
                             <span className="text-xs font-medium">{t('status.active')}</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-700/50 text-gray-400 rounded-full border border-gray-600">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 rounded-full border border-gray-300 dark:border-gray-600">
                             <X className="w-3 h-3" />
                             <span className="text-xs font-medium">{t('status.inactive')}</span>
                           </div>
@@ -403,7 +403,7 @@ const UsersPage = () => {
 
                       {/* Data de Criação */}
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
                           {user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}
                         </div>
                       </td>
@@ -414,7 +414,7 @@ const UsersPage = () => {
                           <PermissionGate permission="users:edit:all">
                             <button
                               onClick={() => handleEditUser(user)}
-                              className="p-1.5 text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded transition-colors"
+                              className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 rounded transition-colors"
                               title={t('actions.edit')}
                             >
                               <Edit2 className="w-4 h-4" />
@@ -423,7 +423,7 @@ const UsersPage = () => {
                           {(isAdmin || isSupervisor) && (
                             <button
                               onClick={() => handleManagePermissions(user)}
-                              className="p-1.5 text-purple-400 hover:bg-purple-900/40 rounded transition-colors"
+                              className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 rounded transition-colors"
                               title={t('actions.permissions')}
                             >
                               <Settings className="w-4 h-4" />
@@ -433,7 +433,7 @@ const UsersPage = () => {
                             {user.role !== 'admin' && user.id !== currentUser.id && (
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
-                                className="p-1.5 text-red-400 hover:bg-red-900/40 rounded transition-colors"
+                                className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
                                 title={t('actions.delete')}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -447,12 +447,12 @@ const UsersPage = () => {
                     {/* Expanded Team Info */}
                     {isExpanded && hasTeam && (
                       <tr>
-                        <td colSpan="6" className="px-4 py-3 bg-gray-800/50">
-                          <div className="ml-12 p-4 bg-gray-800 rounded-lg border border-gray-700">
-                            <div className="text-sm font-medium text-gray-300 mb-2">
+                        <td colSpan="6" className="px-4 py-3 bg-gray-100 dark:bg-gray-800/50">
+                          <div className="ml-12 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                               {user.role === 'supervisor' ? t('table.teamMembers') : t('table.supervisor')}
                             </div>
-                            <div className="text-sm text-gray-400">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
                               {/* TODO: Load and display team information */}
                               <p className="text-gray-500 italic">{t('table.teamInfo')}</p>
                             </div>
@@ -483,97 +483,97 @@ const UsersPage = () => {
       {/* User Form Modal */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <h2 className="text-xl font-bold text-gray-100">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 {selectedUser ? t('form.editUser') : t('form.newUser')}
               </h2>
               <button
                 onClick={() => setShowUserModal(false)}
-                className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-auto p-6 space-y-4">
               {formErrors.general && (
-                <div className="p-3 bg-red-900/40 border border-red-700 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-300">{formErrors.general}</p>
+                <div className="p-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600 dark:text-red-300">{formErrors.general}</p>
                 </div>
               )}
 
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  {t('form.name')} <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('form.name')} <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-900 border rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    formErrors.name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    formErrors.name ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder={t('form.namePlaceholder')}
                 />
                 {formErrors.name && (
-                  <p className="mt-1 text-xs text-red-400">{formErrors.name}</p>
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.name}</p>
                 )}
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  {t('form.email')} <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('form.email')} <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-900 border rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    formErrors.email ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    formErrors.email ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder={t('form.emailPlaceholder')}
                 />
                 {formErrors.email && (
-                  <p className="mt-1 text-xs text-red-400">{formErrors.email}</p>
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.email}</p>
                 )}
               </div>
 
               {/* Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  {t('form.password')} {!selectedUser && <span className="text-red-400">*</span>}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('form.password')} {!selectedUser && <span className="text-red-500 dark:text-red-400">*</span>}
                 </label>
                 <input
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-900 border rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    formErrors.password ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    formErrors.password ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder={selectedUser ? t('form.passwordLeaveBlank') : t('form.passwordPlaceholder')}
                 />
                 {formErrors.password && (
-                  <p className="mt-1 text-xs text-red-400">{formErrors.password}</p>
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.password}</p>
                 )}
               </div>
 
               {/* Role */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  {t('form.role')} <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('form.role')} <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
                   disabled={selectedUser?.role === 'admin'}
-                  className={`w-full px-3 py-2 bg-gray-900 border rounded-lg text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    formErrors.role ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    formErrors.role ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
                   } ${selectedUser?.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <option value="user">{t('roles.user')}</option>
@@ -581,7 +581,7 @@ const UsersPage = () => {
                   <option value="admin">{t('roles.admin')}</option>
                 </select>
                 {formErrors.role && (
-                  <p className="mt-1 text-xs text-red-400">{formErrors.role}</p>
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.role}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
                   {formData.role === 'admin' && t('roles.adminDescription')}
@@ -597,19 +597,19 @@ const UsersPage = () => {
                   id="is_active"
                   checked={formData.is_active}
                   onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                  className="w-4 h-4 text-purple-600 bg-gray-900 border-gray-600 rounded focus:ring-purple-500"
+                  className="w-4 h-4 text-purple-600 bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500"
                 />
-                <label htmlFor="is_active" className="text-sm text-gray-300">
+                <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300">
                   {t('form.userActive')}
                 </label>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setShowUserModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg transition-colors"
               >
                 {t('form.cancel')}
               </button>

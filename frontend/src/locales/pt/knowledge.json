@@ -32,6 +32,8 @@
     "cancel": "Cancelar",
     "add": "Adicionar",
     "saveChanges": "Salvar Alterações",
+    "alwaysInclude": "Sempre incluir no contexto",
+    "alwaysIncludeDescription": "Este conhecimento será incluído em todas as conversas do agente, independente da pergunta do lead. Use para informações essenciais sobre seu produto/serviço.",
     "placeholders": {
       "question": "Ex: Qual o prazo de entrega?",
       "objection": "Ex: Está muito caro",
@@ -45,7 +47,8 @@
     "all": "Todos",
     "empty": "Nenhum conhecimento adicionado ainda",
     "emptyFiltered": "Nenhum item do tipo {{type}}",
-    "confirmDelete": "Tem certeza que deseja deletar este conhecimento?"
+    "confirmDelete": "Tem certeza que deseja deletar este conhecimento?",
+    "essential": "Essencial"
   },
   "search": {
     "title": "Testar Busca Semântica",

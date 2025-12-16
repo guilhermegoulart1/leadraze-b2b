@@ -163,8 +163,8 @@ const UserPermissionsModal = ({ user, onClose, onUpdate }) => {
       setError('');
 
       await api.assignUserToSector({
-        user_id: user.id,
-        sector_id: parseInt(selectedSectorId)
+        userId: user.id,
+        sectorId: selectedSectorId
       });
 
       setSelectedSectorId('');

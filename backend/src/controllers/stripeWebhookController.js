@@ -10,6 +10,7 @@ const billingService = require('../services/billingService');
 const emailService = require('../services/emailService');
 const affiliateService = require('../services/affiliateService');
 const partnerService = require('../services/partnerService');
+const { initializeAccountSector, assignUserToDefaultSector } = require('../services/sectorService');
 const { CREDIT_PACKAGES, getPlanByPriceId, TRIAL_LIMITS } = require('../config/stripe');
 const db = require('../config/database');
 const crypto = require('crypto');
@@ -324,12 +325,24 @@ async function createAccountFromStripe({ email, name, phone, address, stripeCust
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
     // Create admin user (with phone and billing address if provided)
-    await client.query(`
+    const userResult = await client.query(`
       INSERT INTO users (account_id, email, password_hash, name, phone, billing_address, role, is_active, password_reset_token, password_reset_expires)
       VALUES ($1, $2, $3, $4, $5, $6, 'admin', true, $7, $8)
+      RETURNING id
     `, [accountId, email.toLowerCase(), passwordHash, name, phone, address ? JSON.stringify(address) : null, resetTokenHash, resetTokenExpiry]);
 
+    const userId = userResult.rows[0].id;
+
     await client.query('COMMIT');
+
+    // Create default "Geral" sector and assign admin user to it
+    try {
+      await initializeAccountSector(accountId, 'pt');
+      await assignUserToDefaultSector(userId, accountId, 'pt');
+      console.log(`✅ Created default sector and assigned admin for account ${accountId}`);
+    } catch (sectorError) {
+      console.error('Warning: Could not initialize default sector:', sectorError.message);
+    }
 
     // Send welcome email with password setup link
     try {

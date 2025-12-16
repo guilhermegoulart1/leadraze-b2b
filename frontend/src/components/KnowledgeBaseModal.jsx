@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   X, Plus, Edit2, Trash2, Search, BookOpen, AlertCircle,
   Package, TrendingUp, FileText, Save, Lightbulb, FlaskConical,
-  Settings2
+  Settings2, Pin
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -28,7 +28,8 @@ const KnowledgeBaseModal = ({ isOpen, onClose, agent, onAgentUpdate }) => {
     answer: '',
     content: '',
     category: '',
-    tags: ''
+    tags: '',
+    always_include: false
   });
 
   // Search state
@@ -106,7 +107,8 @@ const KnowledgeBaseModal = ({ isOpen, onClose, agent, onAgentUpdate }) => {
         answer: formData.answer || null,
         content: formData.content || null,
         category: formData.category || null,
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : []
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+        always_include: formData.always_include || false
       };
 
       if (editingItem) {
@@ -136,7 +138,8 @@ const KnowledgeBaseModal = ({ isOpen, onClose, agent, onAgentUpdate }) => {
       answer: item.answer || '',
       content: item.content || '',
       category: item.category || '',
-      tags: Array.isArray(item.tags) ? item.tags.join(', ') : ''
+      tags: Array.isArray(item.tags) ? item.tags.join(', ') : '',
+      always_include: item.always_include || false
     });
     setShowForm(true);
   };
@@ -209,7 +212,8 @@ const KnowledgeBaseModal = ({ isOpen, onClose, agent, onAgentUpdate }) => {
       answer: '',
       content: '',
       category: '',
-      tags: ''
+      tags: '',
+      always_include: false
     });
     setError('');
   };
@@ -434,6 +438,26 @@ const KnowledgeBaseModal = ({ isOpen, onClose, agent, onAgentUpdate }) => {
                       </div>
                     </div>
 
+                    {/* Always Include Toggle */}
+                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.always_include}
+                          onChange={(e) => setFormData({ ...formData, always_include: e.target.checked })}
+                          className="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {t('form.alwaysInclude', 'Sempre incluir no contexto')}
+                          </span>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {t('form.alwaysIncludeDescription', 'Este conhecimento será incluído em todas as conversas do agente, independente da pergunta do lead. Use para informações essenciais sobre seu produto/serviço.')}
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
                       <button
@@ -550,10 +574,18 @@ const KnowledgeBaseModal = ({ isOpen, onClose, agent, onAgentUpdate }) => {
                         {filteredKnowledge.map((item) => (
                           <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                             <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getTypeColor(item.type)}`}>
-                                {getTypeIcon(item.type)}
-                                {knowledgeTypes[item.type]?.label || item.type}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getTypeColor(item.type)}`}>
+                                  {getTypeIcon(item.type)}
+                                  {knowledgeTypes[item.type]?.label || item.type}
+                                </span>
+                                {item.always_include && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                    <Pin className="w-3 h-3" />
+                                    {t('list.essential', 'Essencial')}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <div className="max-w-md">

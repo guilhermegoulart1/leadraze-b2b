@@ -32,6 +32,8 @@
     "cancel": "Cancel",
     "add": "Add",
     "saveChanges": "Save Changes",
+    "alwaysInclude": "Always include in context",
+    "alwaysIncludeDescription": "This knowledge will be included in all agent conversations, regardless of the lead's question. Use for essential information about your product/service.",
     "placeholders": {
       "question": "Ex: What is the delivery time?",
       "objection": "Ex: It's too expensive",
@@ -45,7 +47,8 @@
     "all": "All",
     "empty": "No knowledge added yet",
     "emptyFiltered": "No items of type {{type}}",
-    "confirmDelete": "Are you sure you want to delete this knowledge?"
+    "confirmDelete": "Are you sure you want to delete this knowledge?",
+    "essential": "Essential"
   },
   "search": {
     "title": "Test Semantic Search",

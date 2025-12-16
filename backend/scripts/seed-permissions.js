@@ -291,30 +291,46 @@ async function seedPermissions() {
 
     console.log(`✅ Inserted ${permissions.length} permissions`);
 
-    // Assign permissions to roles
-    for (const [role, permissionNames] of Object.entries(roleAssignments)) {
-      console.log(`\n📋 Assigning permissions to role: ${role}`);
+    // Get all accounts
+    const accountsResult = await client.query('SELECT id, name FROM accounts');
+    const accounts = accountsResult.rows;
 
-      for (const permissionName of permissionNames) {
-        const permissionResult = await client.query(
-          'SELECT id FROM permissions WHERE name = $1',
-          [permissionName]
-        );
+    if (accounts.length === 0) {
+      console.log('⚠️ No accounts found. Skipping role_permissions seeding.');
+      await client.query('COMMIT');
+      return;
+    }
 
-        if (permissionResult.rows.length > 0) {
-          await client.query(`
-            INSERT INTO role_permissions (role, permission_id)
-            VALUES ($1, $2)
-            ON CONFLICT (role, permission_id) DO NOTHING
-          `, [role, permissionResult.rows[0].id]);
+    console.log(`\n📊 Found ${accounts.length} accounts`);
+
+    // Assign permissions to roles FOR EACH ACCOUNT
+    for (const account of accounts) {
+      console.log(`\n🏢 Processing account: ${account.name} (${account.id})`);
+
+      for (const [role, permissionNames] of Object.entries(roleAssignments)) {
+        console.log(`  📋 Assigning permissions to role: ${role}`);
+
+        for (const permissionName of permissionNames) {
+          const permissionResult = await client.query(
+            'SELECT id FROM permissions WHERE name = $1',
+            [permissionName]
+          );
+
+          if (permissionResult.rows.length > 0) {
+            await client.query(`
+              INSERT INTO role_permissions (account_id, role, permission_id)
+              VALUES ($1, $2, $3)
+              ON CONFLICT (account_id, role, permission_id) DO NOTHING
+            `, [account.id, role, permissionResult.rows[0].id]);
+          }
         }
-      }
 
-      console.log(`✅ Assigned ${permissionNames.length} permissions to ${role}`);
+        console.log(`  ✅ Assigned ${permissionNames.length} permissions to ${role}`);
+      }
     }
 
     await client.query('COMMIT');
-    console.log('\n✅ Permissions seeded successfully!');
+    console.log('\n✅ Permissions seeded successfully for all accounts!');
 
   } catch (error) {
     await client.query('ROLLBACK');

@@ -95,7 +95,8 @@ async function addKnowledge(knowledge) {
       content,
       category,
       tags = [],
-      metadata = {}
+      metadata = {},
+      always_include = false
     } = knowledge;
 
     console.log(`➕ Adicionando conhecimento [${type}] ao agente ${ai_agent_id}...`);
@@ -139,8 +140,8 @@ async function addKnowledge(knowledge) {
 
     const result = await db.query(
       `INSERT INTO ai_agent_knowledge
-       (ai_agent_id, type, question, answer, content, category, tags, metadata, embedding)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector)
+       (ai_agent_id, type, question, answer, content, category, tags, metadata, embedding, always_include)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector, $10)
        RETURNING *`,
       [
         ai_agent_id,
@@ -151,7 +152,8 @@ async function addKnowledge(knowledge) {
         category || null,
         tags,
         JSON.stringify(metadata),
-        vectorString
+        vectorString,
+        always_include
       ]
     );
 
@@ -325,7 +327,7 @@ async function listKnowledge(agentId, filters = {}) {
       paramIndex++;
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY always_include DESC, created_at DESC';
 
     const result = await db.query(query, params);
 
@@ -333,6 +335,32 @@ async function listKnowledge(agentId, filters = {}) {
 
   } catch (error) {
     console.error('❌ Erro ao listar conhecimento:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Busca conhecimento essencial (always_include = true) de um agente
+ * Esses itens são SEMPRE incluídos no contexto, independente de busca vetorial
+ * @param {string} agentId - ID do agente
+ * @returns {Promise<Array>} - Conhecimentos essenciais
+ */
+async function getEssentialKnowledge(agentId) {
+  try {
+    const result = await db.query(
+      `SELECT id, type, question, answer, content, category
+       FROM ai_agent_knowledge
+       WHERE ai_agent_id = $1
+         AND active = true
+         AND always_include = true
+       ORDER BY type, created_at`,
+      [agentId]
+    );
+
+    return result.rows;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar conhecimento essencial:', error.message);
     throw error;
   }
 }
@@ -414,5 +442,6 @@ module.exports = {
   updateKnowledge,
   deleteKnowledge,
   listKnowledge,
+  getEssentialKnowledge,
   formatKnowledgeForPrompt
 };
