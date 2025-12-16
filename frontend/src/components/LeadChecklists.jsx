@@ -26,7 +26,7 @@ const TASK_TYPES = [
   { value: 'meeting', label: 'Reunião', icon: Video, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20' },
   { value: 'email', label: 'Email', icon: Mail, color: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' },
   { value: 'follow_up', label: 'Follow-up', icon: MessageSquare, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
-  { value: 'proposal', label: 'Proposta', icon: FileCheck, color: 'text-indigo-600 bg-indigo-50' },
+  { value: 'proposal', label: 'Proposta', icon: FileCheck, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' },
   { value: 'other', label: 'Outro', icon: MoreHorizontal, color: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50' }
 ];
 
@@ -1017,14 +1017,15 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                               e.stopPropagation();
                               setShowNewItemDateDropdown(showNewItemDateDropdown === checklist.id ? null : checklist.id);
                             }}
-                            className={`date-trigger p-0.5 rounded transition-all ${
+                            className={`date-trigger px-1 py-0.5 rounded text-[10px] flex items-center gap-0.5 transition-all ${
                               form.dueDate
                                 ? getDueDateColor(form.dueDate)
                                 : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             title={form.dueDate ? formatDate(form.dueDate) : 'Definir prazo'}
                           >
-                            <Calendar className="w-3.5 h-3.5" />
+                            <Calendar className="w-3 h-3" />
+                            {form.dueDate && <span>{formatDate(form.dueDate)}</span>}
                           </button>
 
                           <PortalDropdown
@@ -1182,7 +1183,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
             value={newChecklistName}
             onChange={(e) => setNewChecklistName(e.target.value)}
             placeholder="Nome da checklist..."
-            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800"
+            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             onBlur={() => {
               if (!newChecklistName.trim()) {
                 setShowNewChecklist(false);

@@ -24,3 +24,18 @@ Agentes multi linguagens:
   { code: 'ar', name: 'العربية' },
   { code: 'tr', name: 'Türkçe' },
   { code: 'hi', name: 'हिन्दी' }
+
+  ---
+
+Performance Improvements - CRM
+
+Faster loading: The leads page now opens instantly, even with thousands of contacts
+Infinite scroll: Leads load automatically as you scroll, no need to click buttons
+Optimized search: Searches run in the background without interrupting your workflow
+Lower data usage: Only loads what's needed, saving bandwidth and memory
+
+Benefits
+
+Smoother Kanban navigation
+Less waiting time when opening CRM
+More responsive experience on mobile devices

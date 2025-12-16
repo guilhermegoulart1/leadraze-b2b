@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import {
   Search,
   Filter,
@@ -60,6 +61,7 @@ const LeadsPage = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(''); // Debounced search for API
   const [viewMode, setViewMode] = useState('kanban'); // kanban, list, calendar
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -68,10 +70,20 @@ const LeadsPage = () => {
   const [selectedContactId, setSelectedContactId] = useState(null); // For contact details modal
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [totalLeads, setTotalLeads] = useState(0); // Total from server
+  const [totalsByStatus, setTotalsByStatus] = useState({}); // Real totals per status
+  const [loadedPagesByStatus, setLoadedPagesByStatus] = useState({}); // Track loaded pages per status
   const [showWinDealModal, setShowWinDealModal] = useState(false);
   const [pendingWinDealLead, setPendingWinDealLead] = useState(null);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [pendingDiscardLead, setPendingDiscardLead] = useState(null);
+
+  // Kanban column limit for performance
+  const KANBAN_COLUMN_LIMIT = 20;
+
+  // Store scroll positions and refs for each column at parent level
+  const columnScrollRefs = useRef({});
+  const columnScrollPositions = useRef({});
 
   // Pipeline stages matching backend
   const pipelineStages = {
@@ -144,22 +156,49 @@ const LeadsPage = () => {
     return colorMap[color] || colorMap.slate;
   };
 
+  // Debounce search input
   useEffect(() => {
-    loadLeads();
-  }, []);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Reset pagination when search/filter changes
+  // Reset pagination when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortField, sortDirection]);
+  }, [debouncedSearch]);
+
+  // Load leads with server-side pagination (for list view)
+  useEffect(() => {
+    if (viewMode === 'list') {
+      loadLeads();
+    }
+  }, [viewMode, currentPage, itemsPerPage, debouncedSearch, sortField, sortDirection]);
+
+  // Load all leads for kanban (but will limit display per column)
+  useEffect(() => {
+    if (viewMode === 'kanban') {
+      loadLeadsKanban();
+    }
+  }, [viewMode, debouncedSearch]);
 
   const loadLeads = async () => {
     try {
       setLoading(true);
-      const response = await api.getLeads({});
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        sort_field: sortField,
+        sort_direction: sortDirection
+      };
+      if (debouncedSearch) params.search = debouncedSearch;
+
+      const response = await api.getLeads(params);
 
       if (response.success) {
         setLeads(response.data.leads || []);
+        setTotalLeads(response.data.pagination?.total || 0);
       }
     } catch (error) {
       console.error('Erro ao carregar leads:', error);
@@ -168,13 +207,110 @@ const LeadsPage = () => {
     }
   };
 
-  const filteredLeads = leads.filter(lead =>
-    lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const loadLeadsKanban = async (showLoading = true) => {
+    try {
+      // Only show loading on initial load, not on search updates
+      if (showLoading && leads.length === 0) {
+        setLoading(true);
+      }
+      // For kanban, fetch leads from each status to ensure all columns have data
+      const statuses = ['leads', 'invite_sent', 'qualifying', 'accepted', 'qualified', 'discarded'];
+      const baseParams = {};
+      if (debouncedSearch) baseParams.search = debouncedSearch;
 
-  const getLeadsByStage = (stage) => {
-    return filteredLeads
+      // Fetch first page of leads from all statuses in parallel
+      const promises = statuses.map(status =>
+        api.getLeads({ ...baseParams, status, limit: KANBAN_COLUMN_LIMIT, page: 1 })
+      );
+
+      const responses = await Promise.all(promises);
+
+      // Combine all leads from all statuses
+      const allLeads = responses.flatMap(response =>
+        response.success ? (response.data.leads || []) : []
+      );
+
+      // Store real totals per status
+      const totals = {};
+      const loadedPages = {};
+      statuses.forEach((status, index) => {
+        const response = responses[index];
+        totals[status] = response.success ? (response.data.pagination?.total || 0) : 0;
+        loadedPages[status] = 1; // First page loaded
+      });
+
+      // Calculate total from all statuses
+      const total = Object.values(totals).reduce((sum, t) => sum + t, 0);
+
+      setLeads(allLeads);
+      setTotalLeads(total);
+      setTotalsByStatus(totals);
+      setLoadedPagesByStatus(loadedPages);
+    } catch (error) {
+      console.error('Erro ao carregar leads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load more leads for a specific status (infinite scroll)
+  const loadMoreLeadsForStatus = async (status) => {
+    try {
+      const currentPage = loadedPagesByStatus[status] || 1;
+      const nextPage = currentPage + 1;
+
+      const params = { status, limit: KANBAN_COLUMN_LIMIT, page: nextPage };
+      if (debouncedSearch) params.search = debouncedSearch;
+
+      // Save scroll position BEFORE fetch
+      const scrollEl = columnScrollRefs.current[status];
+      if (scrollEl) {
+        columnScrollPositions.current[status] = scrollEl.scrollTop;
+      }
+
+      const response = await api.getLeads(params);
+
+      if (response.success && response.data.leads?.length > 0) {
+        const savedPosition = columnScrollPositions.current[status];
+
+        // Use flushSync to make updates synchronous
+        flushSync(() => {
+          setLeads(prevLeads => [...prevLeads, ...response.data.leads]);
+          setLoadedPagesByStatus(prev => ({ ...prev, [status]: nextPage }));
+        });
+
+        // Multiple restoration attempts with different timings
+        // Add offset to show some of the newly loaded cards
+        const targetPosition = savedPosition + 80; // Show ~1 new card
+        const restore = () => {
+          const el = columnScrollRefs.current[status];
+          if (el && savedPosition !== undefined && savedPosition > 0) {
+            el.scrollTop = targetPosition;
+          }
+        };
+
+        // Immediate
+        restore();
+        // After microtask
+        Promise.resolve().then(restore);
+        // After RAF
+        requestAnimationFrame(restore);
+        // After double RAF
+        requestAnimationFrame(() => requestAnimationFrame(restore));
+        // After short timeout
+        setTimeout(restore, 0);
+        setTimeout(restore, 16);
+        setTimeout(restore, 50);
+        setTimeout(restore, 100);
+      }
+    } catch (error) {
+      console.error(`Erro ao carregar mais leads do status ${status}:`, error);
+    }
+  };
+
+  // Memoized leads by stage for Kanban (with limit per column)
+  const getLeadsByStage = useCallback((stage) => {
+    return leads
       .filter(lead => lead.status === stage)
       .sort((a, b) => {
         // Sort by display_order if exists, otherwise by created_at desc
@@ -183,7 +319,7 @@ const LeadsPage = () => {
         }
         return new Date(b.created_at) - new Date(a.created_at);
       });
-  };
+  }, [leads]);
 
   const handleDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
@@ -314,28 +450,10 @@ const LeadsPage = () => {
     }
   };
 
-  const sortedLeads = [...filteredLeads].sort((a, b) => {
-    let aVal = a[sortField];
-    let bVal = b[sortField];
+  // For list view, leads are already sorted by the server
+  // No need for client-side sorting
 
-    // Handle null/undefined values
-    if (!aVal) return 1;
-    if (!bVal) return -1;
-
-    // String comparison
-    if (typeof aVal === 'string') {
-      aVal = aVal.toLowerCase();
-      bVal = bVal?.toLowerCase() || '';
-    }
-
-    if (sortDirection === 'asc') {
-      return aVal > bVal ? 1 : -1;
-    } else {
-      return aVal < bVal ? 1 : -1;
-    }
-  });
-
-  // Lead Card Component - memoized for drag performance
+  // Lead Card Component - memoized with custom comparison for better performance
   const LeadCard = React.memo(({ lead, index }) => {
     const stage = pipelineStages[lead.status] || pipelineStages.leads;
     const profilePicture = lead.profile_picture || null;
@@ -349,6 +467,7 @@ const LeadsPage = () => {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
+            data-lead-id={lead.id}
             className={`bg-white dark:bg-gray-800 rounded-lg border p-3 cursor-move group overflow-hidden ${
               snapshot.isDragging
                 ? 'shadow-xl dark:shadow-gray-900/50 ring-2 ring-blue-400 border-blue-300'
@@ -365,6 +484,7 @@ const LeadsPage = () => {
                   <img
                     src={profilePicture}
                     alt={lead.name}
+                    loading="lazy"
                     className="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
                     onError={(e) => {
                       e.target.style.display = 'none';
@@ -589,6 +709,7 @@ const LeadsPage = () => {
                           : lead.responsible_avatar
                       }
                       alt={lead.responsible_name}
+                      loading="lazy"
                       className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                     />
                   ) : (
@@ -617,13 +738,64 @@ const LeadsPage = () => {
         )}
       </Draggable>
     );
+  }, (prevProps, nextProps) => {
+    // Custom comparison - only re-render if lead data actually changed
+    return prevProps.lead.id === nextProps.lead.id &&
+           prevProps.lead.status === nextProps.lead.status &&
+           prevProps.lead.updated_at === nextProps.lead.updated_at &&
+           prevProps.index === nextProps.index;
   });
 
-  // Kanban Column
+  // Kanban Column with infinite scroll pagination
   const KanbanColumn = ({ stage, stageKey }) => {
     const Icon = stage.icon;
+    const [loadingMore, setLoadingMore] = useState(false);
+    const loadMoreRef = useRef(null);
+    const loadingRef = useRef(false); // Prevent duplicate loads
+
+    // Get leads already loaded for this stage
     const stageLeads = getLeadsByStage(stageKey);
-    const count = stageLeads.length;
+
+    // Get real total from server
+    const realTotal = totalsByStatus[stageKey] || 0;
+
+    // Check if there are more leads to load
+    const hasMore = stageLeads.length < realTotal;
+
+    // Register scroll container ref in parent
+    const setScrollRef = useCallback((el) => {
+      if (el) {
+        columnScrollRefs.current[stageKey] = el;
+      }
+    }, [stageKey]);
+
+    // Infinite scroll with Intersection Observer
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        async (entries) => {
+          const [entry] = entries;
+          if (entry.isIntersecting && hasMore && !loadingRef.current) {
+            loadingRef.current = true;
+            setLoadingMore(true);
+            await loadMoreLeadsForStatus(stageKey);
+            setLoadingMore(false);
+            loadingRef.current = false;
+          }
+        },
+        { threshold: 0.1, rootMargin: '100px' }
+      );
+
+      const currentRef = loadMoreRef.current;
+      if (currentRef && hasMore) {
+        observer.observe(currentRef);
+      }
+
+      return () => {
+        if (currentRef) {
+          observer.unobserve(currentRef);
+        }
+      };
+    }, [hasMore, stageKey, stageLeads.length]);
 
     return (
       <div className="flex-1 min-w-[270px] max-w-[290px] flex flex-col">
@@ -635,7 +807,7 @@ const LeadsPage = () => {
               {stage.label}
             </h3>
             <span className={getStageBadgeClasses(stage.color)}>
-              {count}
+              {realTotal}
             </span>
           </div>
           <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded transition-colors">
@@ -643,41 +815,64 @@ const LeadsPage = () => {
           </button>
         </div>
 
-        {/* Droppable Area with Internal Scroll */}
-        <Droppable droppableId={stageKey}>
-          {(provided, snapshot) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className={`flex-1 rounded-lg p-2 overflow-y-auto scrollbar-thin ${
-                snapshot.isDraggingOver
-                  ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-300'
-                  : 'bg-gray-50 dark:bg-gray-900'
-              }`}
-              style={{
-                maxHeight: 'calc(100vh - 200px)',
-                minHeight: '400px'
-              }}
-            >
-              {stageLeads.length > 0 ? (
-                <div className="space-y-2">
-                  {stageLeads.map((lead, index) => (
-                    <LeadCard key={lead.id} lead={lead} index={index} />
-                  ))}
-                </div>
-              ) : (
-                <div className={`flex items-center justify-center h-32 text-sm border-2 border-dashed rounded-lg ${
+        {/* Scroll wrapper - controls scroll independently of Droppable */}
+        <div
+          ref={setScrollRef}
+          className="flex-1 rounded-lg overflow-y-auto scrollbar-thin bg-gray-50 dark:bg-gray-900"
+          style={{
+            maxHeight: 'calc(100vh - 200px)',
+            minHeight: '400px',
+            contain: 'strict',
+            overflowAnchor: 'none'
+          }}
+        >
+          <Droppable droppableId={stageKey}>
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={`min-h-full p-2 ${
                   snapshot.isDraggingOver
-                    ? 'border-blue-400 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-400'
-                }`}>
-                  {snapshot.isDraggingOver ? t('messages.dropHere') : t('messages.noLeads')}
-                </div>
-              )}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
+                    ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-300 ring-inset'
+                    : ''
+                }`}
+              >
+                {stageLeads.length > 0 ? (
+                  <div className="space-y-2">
+                    {stageLeads.map((lead, index) => (
+                      <LeadCard key={lead.id} lead={lead} index={index} />
+                    ))}
+                    {/* Infinite scroll sentinel - triggers load when visible */}
+                    {hasMore && (
+                      <div
+                        ref={loadMoreRef}
+                        className="w-full py-3 flex items-center justify-center"
+                      >
+                        {loadingMore ? (
+                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Carregando...</span>
+                          </div>
+                        ) : (
+                          <div className="w-full h-1" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`flex items-center justify-center h-32 text-sm border-2 border-dashed rounded-lg ${
+                    snapshot.isDraggingOver
+                      ? 'border-blue-400 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-400'
+                  }`}>
+                    {snapshot.isDraggingOver ? t('messages.dropHere') : t('messages.noLeads')}
+                  </div>
+                )}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </div>
       </div>
     );
   };
@@ -704,13 +899,14 @@ const LeadsPage = () => {
     );
   };
 
-  // List View Component
+  // List View Component - uses server-side pagination
   const ListView = () => {
-    // Calculate pagination
-    const totalPages = Math.ceil(sortedLeads.length / itemsPerPage);
+    // Pagination comes from server
+    const totalPages = Math.ceil(totalLeads / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedLeads = sortedLeads.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + itemsPerPage, totalLeads);
+    // Leads are already paginated from server
+    const paginatedLeads = leads;
 
     return (
       <div className="space-y-3">
@@ -745,6 +941,7 @@ const LeadsPage = () => {
                         <img
                           src={lead.profile_picture}
                           alt={lead.name}
+                          loading="lazy"
                           className="w-7 h-7 rounded-full object-cover flex-shrink-0"
                         />
                       ) : (
@@ -853,6 +1050,7 @@ const LeadsPage = () => {
                                 : lead.responsible_avatar
                             }
                             alt={lead.responsible_name}
+                            loading="lazy"
                             className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
                           />
                         ) : (
@@ -942,7 +1140,7 @@ const LeadsPage = () => {
                 <option value={100}>100</option>
               </select>
               <span className="text-[10px] text-gray-600 dark:text-gray-400">
-                Mostrando {startIndex + 1}-{Math.min(endIndex, sortedLeads.length)} de {sortedLeads.length}
+                Mostrando {startIndex + 1}-{endIndex} de {totalLeads}
               </span>
             </div>
 
@@ -1029,7 +1227,8 @@ const LeadsPage = () => {
     );
   };
 
-  if (loading) {
+  // Only show full-page loading spinner on initial load (no leads yet)
+  if (loading && leads.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">

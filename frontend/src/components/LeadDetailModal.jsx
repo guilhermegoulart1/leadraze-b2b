@@ -41,7 +41,9 @@ import {
   Loader,
   List,
   Package,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
+  Building2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -77,9 +79,21 @@ const getStatusDotClasses = (color) => {
   return colorMap[color] || colorMap.slate;
 };
 
+// Helper to safely parse JSON arrays
+const parseJsonArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated, onViewContact }) => {
   const { t } = useTranslation(['leads', 'contacts']);
-  const [activeTab, setActiveTab] = useState('details'); // details | contact | comments | tasks
+  const [activeTab, setActiveTab] = useState('details'); // details | intelligence | comments
   const [activeChannel, setActiveChannel] = useState(null);
   const [conversations, setConversations] = useState({});
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -101,6 +115,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [showWinDealModal, setShowWinDealModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [fullLeadData, setFullLeadData] = useState(null);
   const messagesEndRef = useRef(null);
 
   // Sync currentStatus when lead prop changes
@@ -241,8 +256,21 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       loadComments();
       loadTasks();
       loadAssignableUsers();
+      loadFullLeadData();
     }
   }, [lead?.id]); // Only reload when lead ID changes, not when lead object reference changes
+
+  // Load full lead data with IA fields
+  const loadFullLeadData = async () => {
+    try {
+      const response = await api.getLead(lead.id);
+      if (response.success) {
+        setFullLeadData(response.data.lead || response.data);
+      }
+    } catch (error) {
+      console.error('Error loading full lead data:', error);
+    }
+  };
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -947,14 +975,15 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   Detalhes
                 </button>
                 <button
-                  onClick={() => setActiveTab('contact')}
+                  onClick={() => setActiveTab('intelligence')}
                   className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                    activeTab === 'contact'
+                    activeTab === 'intelligence'
                       ? 'border-purple-600 text-purple-600 dark:text-purple-400'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                 >
-                  Contato
+                  <Sparkles className="w-4 h-4" />
+                  Inteligência IA
                 </button>
                 <button
                   onClick={() => setActiveTab('comments')}
@@ -1302,6 +1331,23 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       </div>
                     )}
 
+                    {/* Website */}
+                    {(fullLeadData?.website || lead.website) && (
+                      <div className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Website</span>
+                        <a
+                          href={(fullLeadData?.website || lead.website).startsWith('http') ? (fullLeadData?.website || lead.website) : `https://${fullLeadData?.website || lead.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium flex items-center gap-1 truncate"
+                        >
+                          {(fullLeadData?.website || lead.website).replace(/^https?:\/\//, '')}
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                        </a>
+                      </div>
+                    )}
+
                     {/* Etiquetas */}
                     <div className="flex items-start gap-2.5">
                       <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
@@ -1429,16 +1475,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                         <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sobre</h3>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed pl-6">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed pl-6">
                         {lead.about}
                       </p>
-                      <button
-                        onClick={() => setActiveTab('contact')}
-                        className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline mt-2 ml-6 inline-flex items-center gap-1 font-medium"
-                      >
-                        Ver mais
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
                     </div>
                   )}
 
@@ -1449,593 +1488,6 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                 </div>
               )}
 
-              {activeTab === 'contact' && (
-                <div className="p-6">
-                  {/* Contact Info Section - Compact Style */}
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 pb-5 border-b border-gray-200 dark:border-gray-700">
-                    {lead.name && (
-                      <div className="flex items-center gap-2.5">
-                        <UserCircle className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Nome</span>
-                        <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300">
-                          {lead.name}
-                        </span>
-                      </div>
-                    )}
-
-                    {lead.email && (
-                      <div className="flex items-center gap-2.5">
-                        <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Email</span>
-                        <a href={`mailto:${lead.email}`} className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium truncate">
-                          {lead.email}
-                        </a>
-                      </div>
-                    )}
-
-                    {(lead.phone || editingPhone) && (
-                      <div className="flex items-center gap-2.5">
-                        <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Telefone</span>
-                        {editingPhone ? (
-                          <div className="flex-1 flex items-center gap-2">
-                            <input
-                              type="tel"
-                              value={phoneValue}
-                              onChange={(e) => setPhoneValue(e.target.value)}
-                              onKeyDown={handlePhoneKeyDown}
-                              onBlur={handleSavePhone}
-                              autoFocus
-                              disabled={savingPhone}
-                              className="flex-1 px-2 py-0.5 text-xs bg-white dark:bg-gray-700 border border-purple-300 dark:border-purple-600 rounded text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                            />
-                            {savingPhone && <Loader className="w-3 h-3 animate-spin text-purple-600" />}
-                          </div>
-                        ) : (
-                          <span
-                            onClick={() => setEditingPhone(true)}
-                            className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium cursor-pointer"
-                          >
-                            {phoneValue || 'Adicionar telefone'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {lead.title && (
-                      <div className="flex items-center gap-2.5">
-                        <Briefcase className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Cargo</span>
-                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
-                          {lead.title}
-                        </span>
-                      </div>
-                    )}
-
-                    {lead.company && (
-                      <div className="flex items-center gap-2.5">
-                        <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Empresa</span>
-                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
-                          {lead.company}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Structured Address */}
-                    {(lead.city || lead.state || lead.country || lead.postal_code) ? (
-                      <div className="flex items-start gap-2.5">
-                        <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-1">Localização</span>
-                          <div className="grid grid-cols-2 gap-1 text-xs">
-                            {lead.city && (
-                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:city', 'Cidade')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.city}</span></div>
-                            )}
-                            {lead.state && (
-                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:state', 'Estado')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.state}</span></div>
-                            )}
-                            {lead.country && (
-                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:country', 'País')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.country}</span></div>
-                            )}
-                            {lead.postal_code && (
-                              <div><span className="text-gray-500 dark:text-gray-400">{t('contacts:postalCode', 'CEP')}:</span> <span className="text-gray-700 dark:text-gray-300">{lead.postal_code}</span></div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : lead.location && (
-                      <div className="flex items-center gap-2.5">
-                        <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Localização</span>
-                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
-                          {lead.location}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Mini Map */}
-                    {(lead.latitude && lead.longitude) && (
-                      <div className="mt-3">
-                        <LocationMiniMap
-                          latitude={lead.latitude}
-                          longitude={lead.longitude}
-                          height={200}
-                        />
-                      </div>
-                    )}
-
-                    {/* Website Button */}
-                    {lead.website && (
-                      <div className="mt-3">
-                        <a
-                          href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          {t('contacts:visitWebsite', 'Visitar Site')}
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Opening Hours */}
-                    {lead.opening_hours && (
-                      <div className="mt-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                            {t('contacts:openingHours', 'Horário de Funcionamento')}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-line bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 pl-6">
-                          {typeof lead.opening_hours === 'string'
-                            ? lead.opening_hours
-                            : Array.isArray(lead.opening_hours)
-                              ? lead.opening_hours.join('\n')
-                              : JSON.stringify(lead.opening_hours, null, 2)}
-                        </div>
-                      </div>
-                    )}
-
-                    {lead.industry && (
-                      <div className="flex items-center gap-2.5">
-                        <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Indústria</span>
-                        <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
-                          {lead.industry}
-                        </span>
-                      </div>
-                    )}
-
-                    {lead.public_identifier && (
-                      <div className="flex items-center gap-2.5">
-                        <Linkedin className="w-4 h-4 text-[#0A66C2] flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">LinkedIn</span>
-                        <a
-                          href={`https://linkedin.com/in/${lead.public_identifier}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 text-xs text-[#0A66C2] hover:underline font-medium flex items-center gap-1 truncate"
-                        >
-                          {lead.public_identifier}
-                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                        </a>
-                      </div>
-                    )}
-
-                    {lead.connections_count > 0 && (
-                      <div className="flex items-center gap-2.5">
-                        <Users className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Conexões</span>
-                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {lead.connections_count.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-
-                    {lead.follower_count > 0 && (
-                      <div className="flex items-center gap-2.5">
-                        <UserCheck className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Seguidores</span>
-                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {lead.follower_count.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* About */}
-                  {lead.about && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-3">
-                        <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sobre</h3>
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line leading-relaxed pl-6">
-                        {lead.about}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Company Intelligence (GPT Analysis) */}
-                  {(lead.company_description || lead.company_services || lead.pain_points) && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Zap className="w-4 h-4 text-purple-500" />
-                        <h3 className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wide">
-                          {t('modal.companyIntelligence')}
-                        </h3>
-                        <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded">
-                          IA
-                        </span>
-                      </div>
-
-                      {/* Company Description */}
-                      {lead.company_description && (
-                        <div className="pl-6 mb-4">
-                          <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-                            {lead.company_description}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Services */}
-                      {lead.company_services && Array.isArray(lead.company_services) && lead.company_services.length > 0 && (
-                        <div className="pl-6 mb-4">
-                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">{t('modal.services')}</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {lead.company_services.map((service, idx) => (
-                              <span
-                                key={idx}
-                                className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full"
-                              >
-                                {service}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Pain Points */}
-                      {lead.pain_points && Array.isArray(lead.pain_points) && lead.pain_points.length > 0 && (
-                        <div className="pl-6">
-                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
-                            <Target className="w-3 h-3" />
-                            {t('modal.painPoints')}
-                          </p>
-                          <div className="space-y-1.5">
-                            {lead.pain_points.map((pain, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-amber-50 dark:bg-amber-900/10 p-2 rounded-lg"
-                              >
-                                <span className="text-amber-500 mt-0.5">•</span>
-                                <span>{pain}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Team Members */}
-                  {lead.team_members && Array.isArray(lead.team_members) && lead.team_members.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Users className="w-4 h-4 text-indigo-500" />
-                        <h3 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
-                          {t('contacts:team.title', 'Equipe')} ({lead.team_members.length})
-                        </h3>
-                      </div>
-                      <div className="space-y-2 pl-6">
-                        {lead.team_members.map((member, idx) => (
-                          <div key={idx} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                            <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium text-gray-900 dark:text-gray-100">{member.name}</div>
-                              {member.role && (
-                                <div className="text-[11px] text-gray-500 dark:text-gray-400">{member.role}</div>
-                              )}
-                              <div className="flex items-center gap-2 mt-1">
-                                {member.email && (
-                                  <a href={`mailto:${member.email}`} className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline">
-                                    {member.email}
-                                  </a>
-                                )}
-                                {member.linkedin && (
-                                  <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#0A66C2] hover:underline flex items-center gap-0.5">
-                                    <Linkedin className="w-3 h-3" />
-                                    LinkedIn
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Multiple Contacts Data (emails, phones, social links) */}
-                  {(lead.contact_emails?.length > 0 || lead.contact_phones?.length > 0 || (lead.contact_social_links && Object.keys(lead.contact_social_links).length > 0)) && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Users className="w-4 h-4 text-emerald-500" />
-                        <h3 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                          {t('modal.contactChannels', 'Canais de Contato')}
-                        </h3>
-                      </div>
-
-                      {/* Multiple Emails */}
-                      {lead.contact_emails && Array.isArray(lead.contact_emails) && lead.contact_emails.length > 0 && (
-                        <div className="pl-6 mb-4">
-                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            Emails ({lead.contact_emails.length})
-                          </p>
-                          <div className="space-y-1.5">
-                            {lead.contact_emails.map((item, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <a
-                                  href={`mailto:${item.email}`}
-                                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                                >
-                                  {item.email}
-                                </a>
-                                {item.type && (
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                    item.type === 'personal' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                    item.type === 'commercial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                                  }`}>
-                                    {item.type}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Multiple Phones */}
-                      {lead.contact_phones && Array.isArray(lead.contact_phones) && lead.contact_phones.length > 0 && (
-                        <div className="pl-6 mb-4">
-                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            Telefones ({lead.contact_phones.length})
-                          </p>
-                          <div className="space-y-1.5">
-                            {lead.contact_phones.map((item, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <a
-                                  href={`tel:${item.phone}`}
-                                  className="text-xs text-gray-700 dark:text-gray-300 hover:text-blue-600"
-                                >
-                                  {item.phone}
-                                </a>
-                                {item.type && (
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                    item.type === 'whatsapp' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                    item.type === 'mobile' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                                  }`}>
-                                    {item.type === 'whatsapp' ? 'WhatsApp' : item.type === 'mobile' ? 'Celular' : 'Fixo'}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Social Links */}
-                      {lead.contact_social_links && Object.keys(lead.contact_social_links).length > 0 && (
-                        <div className="pl-6">
-                          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase flex items-center gap-1">
-                            <Globe className="w-3 h-3" />
-                            Redes Sociais
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(lead.contact_social_links).map(([network, url]) => (
-                              <a
-                                key={network}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
-                                  network === 'linkedin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                  network === 'instagram' ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' :
-                                  network === 'facebook' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
-                                  network === 'youtube' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                  network === 'twitter' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
-                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-                                }`}
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                {network.charAt(0).toUpperCase() + network.slice(1)}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Experience */}
-                  {lead.experience && Array.isArray(lead.experience) && lead.experience.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Briefcase className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Experiência</h3>
-                      </div>
-                      <div className="space-y-3 pl-6">
-                        {lead.experience.map((exp, idx) => (
-                          <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
-                            <div className="flex items-start gap-2">
-                              <Building className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{exp.title || exp.position}</p>
-                                {exp.company && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{exp.company}</p>}
-                                {(exp.start_date || exp.end_date) && (
-                                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
-                                    {exp.start_date} - {exp.end_date || 'Presente'}
-                                  </p>
-                                )}
-                                {exp.description && (
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">{exp.description}</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Education */}
-                  {lead.education && Array.isArray(lead.education) && lead.education.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <GraduationCap className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Educação</h3>
-                      </div>
-                      <div className="space-y-3 pl-6">
-                        {lead.education.map((edu, idx) => (
-                          <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
-                            <div className="flex items-start gap-2">
-                              <GraduationCap className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{edu.school || edu.institution}</p>
-                                {edu.degree && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{edu.degree}</p>}
-                                {edu.field_of_study && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{edu.field_of_study}</p>}
-                                {(edu.start_date || edu.end_date) && (
-                                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
-                                    {edu.start_date} - {edu.end_date}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Skills */}
-                  {lead.skills && Array.isArray(lead.skills) && lead.skills.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Award className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Habilidades</h3>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pl-6">
-                        {lead.skills.map((skill, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-[11px] font-medium rounded-md"
-                          >
-                            {typeof skill === 'string' ? skill : skill.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Certifications */}
-                  {lead.certifications && Array.isArray(lead.certifications) && lead.certifications.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Award className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Certificações</h3>
-                      </div>
-                      <div className="space-y-2 pl-6">
-                        {lead.certifications.map((cert, idx) => (
-                          <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2.5">
-                            <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{cert.name || cert.title}</p>
-                            {cert.issuer && <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">{cert.issuer}</p>}
-                            {cert.date && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{cert.date}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Languages */}
-                  {lead.languages && Array.isArray(lead.languages) && lead.languages.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Languages className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Idiomas</h3>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pl-6">
-                        {lead.languages.map((lang, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[11px] font-medium rounded-md"
-                          >
-                            {typeof lang === 'string' ? lang : `${lang.name}${lang.proficiency ? ` (${lang.proficiency})` : ''}`}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Websites */}
-                  {lead.websites && Array.isArray(lead.websites) && lead.websites.length > 0 && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Globe className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sites</h3>
-                      </div>
-                      <div className="space-y-2 pl-6">
-                        {lead.websites.map((website, idx) => (
-                          <a
-                            key={idx}
-                            href={website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 hover:underline"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            {website}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Empty state */}
-                  {!lead.about && !lead.experience?.length && !lead.education?.length && !lead.skills?.length && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="text-center py-8 text-gray-400 dark:text-gray-500">
-                        <UserCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p className="text-sm">Nenhuma informação de perfil disponível</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ver todos os dados - Link to full contact modal */}
-                  {lead.contact_id && onViewContact && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <button
-                        onClick={() => {
-                          onClose();
-                          onViewContact(lead.contact_id);
-                        }}
-                        className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm font-medium"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        {t('contacts:viewFullDetails', 'Ver dados completos')}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {activeTab === 'comments' && (
                 <div className="flex flex-col h-full">
@@ -2192,6 +1644,98 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   </div>
                 </div>
               )}
+
+              {/* Intelligence Tab */}
+              {activeTab === 'intelligence' && (() => {
+                // Use full lead data if available, otherwise use prop
+                const leadData = fullLeadData || lead;
+                return (
+                <div className="p-6 space-y-6">
+                  {/* Company Description */}
+                  {leadData.company_description && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                        <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        Sobre a Empresa
+                      </h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {leadData.company_description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Services */}
+                  {parseJsonArray(leadData.company_services).length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                        <Briefcase className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        Serviços Oferecidos
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parseJsonArray(leadData.company_services).map((service, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-md border border-blue-200 dark:border-blue-700"
+                          >
+                            {service}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pain Points */}
+                  {parseJsonArray(leadData.pain_points).length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                        <span className="text-amber-500">💡</span>
+                        Oportunidades de Venda
+                      </h4>
+                      <ul className="space-y-2">
+                        {parseJsonArray(leadData.pain_points).map((pain, idx) => (
+                          <li
+                            key={idx}
+                            className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
+                          >
+                            <span className="text-amber-500 mt-0.5">•</span>
+                            <span>{pain}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Website Link */}
+                  {leadData.website && (
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        Website Analisado
+                      </h4>
+                      <a
+                        href={leadData.website.startsWith('http') ? leadData.website : `https://${leadData.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                      >
+                        {leadData.website}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {!leadData.company_description &&
+                   parseJsonArray(leadData.company_services).length === 0 &&
+                   parseJsonArray(leadData.pain_points).length === 0 && (
+                    <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+                      <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">Nenhuma análise de IA disponível</p>
+                      <p className="text-xs mt-1">Os dados serão preenchidos após análise do site</p>
+                    </div>
+                  )}
+                </div>
+              );})()}
             </div>
           </div>
 

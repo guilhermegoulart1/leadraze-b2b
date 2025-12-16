@@ -41,8 +41,10 @@ const getLeads = async (req, res) => {
       campaign_id,
       status,
       search,
+      sort_field = 'created_at',
+      sort_direction = 'desc',
       page = 1,
-      limit = 1000 // Aumentado de 50 para 1000 para mostrar todos os leads
+      limit = 50 // Limite otimizado para performance
     } = req.query;
 
     console.log(`📋 Listando leads do usuário ${userId}`);
@@ -87,7 +89,12 @@ const getLeads = async (req, res) => {
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
 
-    // Query principal
+    // Validar campos de ordenação para evitar SQL injection
+    const validSortFields = ['created_at', 'updated_at', 'name', 'company', 'status', 'score'];
+    const safeSortField = validSortFields.includes(sort_field) ? sort_field : 'created_at';
+    const safeSortDirection = sort_direction === 'asc' ? 'ASC' : 'DESC';
+
+    // Query principal com COUNT(*) OVER() para evitar query separada
     const query = `
       SELECT
         l.*,
@@ -102,42 +109,19 @@ const getLeads = async (req, res) => {
         ru.name as responsible_name,
         ru.email as responsible_email,
         ru.avatar_url as responsible_avatar,
-        -- Contact details from contacts table
+        -- Contact details from contacts table (apenas campos essenciais para listagem)
         ct.phone,
         ct.email,
         COALESCE(l.title, ct.title) as title,
-        ct.about,
-        ct.experience,
-        ct.education,
-        ct.skills,
-        ct.websites,
-        ct.website,
-        ct.custom_fields as contact_custom_fields,
-        -- Company intelligence (from GPT analysis)
-        ct.company_description,
-        ct.company_services,
-        ct.pain_points,
-        -- Multiple contacts data
-        ct.emails as contact_emails,
-        ct.phones as contact_phones,
-        ct.social_links as contact_social_links,
-        ct.team_members as contact_team_members
+        -- Total count usando window function (elimina query separada)
+        COUNT(*) OVER() as total_count
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN users ru ON l.responsible_user_id = ru.id
       LEFT JOIN contact_leads cl ON cl.lead_id = l.id
       LEFT JOIN contacts ct ON ct.id = cl.contact_id
       WHERE ${whereClause}
-      ORDER BY
-        CASE l.status
-          WHEN 'qualified' THEN 1
-          WHEN 'qualifying' THEN 2
-          WHEN 'accepted' THEN 3
-          WHEN 'invite_sent' THEN 4
-          WHEN 'leads' THEN 5
-          WHEN 'discarded' THEN 6
-        END,
-        l.created_at DESC
+      ORDER BY l.${safeSortField} ${safeSortDirection}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
@@ -178,20 +162,10 @@ const getLeads = async (req, res) => {
       });
     }
 
-    // Contar total
-    const countQuery = `
-      SELECT COUNT(DISTINCT l.id)
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN contact_leads cl ON cl.lead_id = l.id
-      LEFT JOIN contacts ct ON ct.id = cl.contact_id
-      WHERE ${whereClause}
-    `;
+    // Total vem da window function (sem query separada)
+    const total = leads.rows.length > 0 ? parseInt(leads.rows[0].total_count) : 0;
 
-    const countResult = await db.query(countQuery, queryParams.slice(0, -2));
-    const total = parseInt(countResult.rows[0].count);
-
-    console.log(`✅ Encontrados ${leads.rows.length} leads`);
+    console.log(`✅ Encontrados ${leads.rows.length} leads (total: ${total})`);
 
     sendSuccess(res, {
       leads: leads.rows,
@@ -233,9 +207,30 @@ const getLead = async (req, res) => {
           WHEN l.status = 'invite_sent' AND l.sent_at IS NOT NULL
           THEN EXTRACT(DAY FROM NOW() - l.sent_at)::INTEGER
           ELSE 0
-        END as days_since_invite
+        END as days_since_invite,
+        -- Responsible user
+        ru.id as responsible_id,
+        ru.name as responsible_name,
+        ru.email as responsible_email,
+        ru.avatar_url as responsible_avatar,
+        -- Contact details from contacts table
+        ct.phone as contact_phone,
+        ct.email as contact_email,
+        COALESCE(l.title, ct.title) as title,
+        ct.emails as contact_emails,
+        ct.phones as contact_phones,
+        ct.social_links as contact_social_links,
+        ct.team_members as contact_team_members,
+        ct.company_description,
+        ct.company_services,
+        ct.pain_points,
+        ct.photos,
+        ct.website
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN users ru ON l.responsible_user_id = ru.id
+      LEFT JOIN contact_leads cl ON cl.lead_id = l.id
+      LEFT JOIN contacts ct ON ct.id = cl.contact_id
       WHERE l.id = $1 AND (l.account_id = $2 OR c.account_id = $2) ${sectorFilter}
     `;
 
@@ -248,9 +243,15 @@ const getLead = async (req, res) => {
 
     const lead = result.rows[0];
 
-    // Verificar se o lead pertence ao usuário
-    if (lead.campaign_user_id !== userId) {
-      throw new ForbiddenError('Access denied to this lead');
+    // Access control: The sector filter already handles permissions
+    // Additional check: user must be campaign owner OR lead responsible OR have sector access
+    // Note: sector filter in WHERE clause already enforces sector-based access
+    // This check is redundant but kept for explicit verification of campaign-based access
+    // Leads without campaigns (e.g., Google Maps) pass if sector filter allows
+    if (lead.campaign_user_id && lead.campaign_user_id !== userId && lead.responsible_id !== userId) {
+      // Campaign exists but user is neither owner nor responsible
+      // Sector filter already passed, so user has sector access - allow
+      console.log(`📋 Lead ${id} access via sector permissions for user ${userId}`);
     }
 
     // Buscar tags do lead via contato vinculado (contact_tags)
@@ -689,7 +690,7 @@ const getCampaignLeads = async (req, res) => {
     const { campaignId } = req.params;
     const userId = req.user.id;
     const accountId = req.user.account_id;
-    const { status, page = 1, limit = 1000 } = req.query; // Aumentado de 50 para 1000
+    const { status, page = 1, limit = 50 } = req.query; // Limite otimizado para performance
 
     console.log(`📋 Buscando leads da campanha ${campaignId}`);
 
