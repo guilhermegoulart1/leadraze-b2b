@@ -4,6 +4,9 @@ const OpenAI = require('openai');
 const db = require('../config/database');
 const TemplateProcessor = require('../utils/templateProcessor');
 const ragService = require('./ragService');
+const objectionService = require('./objectionService');
+const playbookService = require('./playbookService');
+const profileAnalysisService = require('./profileAnalysisService');
 
 // Lazy load to avoid circular dependencies
 let emailBrandingService = null;
@@ -133,7 +136,8 @@ async function generateResponse(params) {
     conversation_context = null,    // New format with summary + recent messages
     ai_agent,
     lead_data = {},
-    context = {}
+    context = {},
+    current_step = 0                // Current conversation step (0-indexed)
   } = params;
 
   try {
@@ -146,6 +150,49 @@ async function generateResponse(params) {
 
     // Obter perfil comportamental
     const behavioralProfile = BEHAVIORAL_PROFILES[ai_agent.behavioral_profile] || BEHAVIORAL_PROFILES.consultivo;
+
+    // 🔍 ANALISAR PERFIL DO LEAD para personalização
+    let profileAnalysisContext = '';
+    try {
+      if (lead_data && (lead_data.headline || lead_data.title || lead_data.company)) {
+        const profileResult = profileAnalysisService.analyzeProfile(lead_data, ai_agent);
+
+        if (profileResult.promptContext) {
+          profileAnalysisContext = profileResult.promptContext;
+          console.log(`👤 Análise de perfil: Score ${profileResult.analysis?.overallScore || 0}, ${profileResult.hooks?.length || 0} ganchos gerados`);
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ Erro ao analisar perfil (continuando sem análise):', error.message);
+    }
+
+    // 🔍 BUSCAR PLAYBOOK do agente (metodologia de vendas)
+    let playbookContext = '';
+    try {
+      const playbook = await playbookService.getPlaybookForAgent(ai_agent);
+
+      if (playbook) {
+        playbookContext = playbookService.formatPlaybookForPrompt(playbook, lead_data);
+        console.log(`📚 Playbook "${playbook.name}" (${playbook.methodology}) carregado`);
+      }
+    } catch (error) {
+      console.error('⚠️ Erro ao buscar playbook (continuando sem metodologia):', error.message);
+    }
+
+    // 🔍 BUSCAR OBJEÇÕES para injetar no prompt
+    let objectionsContext = '';
+    try {
+      // Buscar objeções do sistema + customizadas da conta
+      const agentLanguage = ai_agent.language || 'pt-BR';
+      const objections = await objectionService.getSystemObjections(agentLanguage);
+
+      if (objections && objections.length > 0) {
+        objectionsContext = objectionService.formatObjectionsForPrompt(objections);
+        console.log(`📋 ${objections.length} objeções carregadas para o contexto`);
+      }
+    } catch (error) {
+      console.error('⚠️ Erro ao buscar objeções (continuando sem biblioteca):', error.message);
+    }
 
     // 🔍 BUSCAR CONHECIMENTO usando RAG + Essencial
     let knowledgeContext = '';
@@ -205,12 +252,16 @@ async function generateResponse(params) {
       // Continuar sem RAG em caso de erro
     }
 
-    // Construir system prompt com conhecimento relevante
+    // Construir system prompt com conhecimento relevante, objeções, playbook e análise de perfil
     const systemPrompt = buildSystemPrompt({
       ai_agent,
       behavioralProfile,
       lead_data,
-      knowledgeContext
+      knowledgeContext,
+      objectionsContext,
+      playbookContext,
+      profileAnalysisContext,
+      currentStep: current_step
     });
 
     // Construir mensagens para o contexto
@@ -278,6 +329,30 @@ async function generateResponse(params) {
       }
     }
 
+    // Check if AI response contains [TRANSFER] tag (from transfer triggers)
+    let aiRequestedTransfer = false;
+    let cleanedResponse = generatedResponse;
+    if (generatedResponse.includes('[TRANSFER]')) {
+      aiRequestedTransfer = true;
+      shouldEscalate = true;
+      escalationReasons.push('IA detectou gatilho de transferência');
+      cleanedResponse = generatedResponse.replace('[TRANSFER]', '').trim();
+      console.log(`🔄 IA solicitou transferência via [TRANSFER] tag`);
+    }
+
+    // Check if AI indicated step completion with [NEXT_STEP] tag
+    let stepAdvanced = false;
+    let newStep = current_step;
+    const conversationSteps = ai_agent.conversation_steps || [];
+    if (cleanedResponse.includes('[NEXT_STEP]')) {
+      cleanedResponse = cleanedResponse.replace('[NEXT_STEP]', '').trim();
+      if (current_step < conversationSteps.length - 1) {
+        newStep = current_step + 1;
+        stepAdvanced = true;
+        console.log(`📈 IA indicou conclusão da etapa ${current_step + 1}, avançando para etapa ${newStep + 1}`);
+      }
+    }
+
     // Verificar se deve oferecer agendamento
     let should_offer_scheduling = false;
     if (ai_agent.auto_schedule && intent && ['interested', 'ready_to_buy', 'asking_details'].includes(intent)) {
@@ -285,17 +360,20 @@ async function generateResponse(params) {
     }
 
     return {
-      response: generatedResponse,
+      response: cleanedResponse,
       intent,
       sentiment: sentimentResult.sentiment,
       sentimentConfidence: sentimentResult.confidence,
       shouldEscalate,
       escalationReasons,
       matchedKeywords: keywordResult.matchedKeywords,
+      aiRequestedTransfer,
       should_offer_scheduling,
       scheduling_link: should_offer_scheduling ? ai_agent.scheduling_link : null,
       tokens_used: completion.usage.total_tokens,
-      model: completion.model
+      model: completion.model,
+      current_step: newStep,
+      step_advanced: stepAdvanced
     };
 
   } catch (error) {
@@ -307,15 +385,21 @@ async function generateResponse(params) {
 /**
  * Construir system prompt baseado no agente IA
  */
-function buildSystemPrompt({ ai_agent, behavioralProfile, lead_data, knowledgeContext = '' }) {
+function buildSystemPrompt({ ai_agent, behavioralProfile, lead_data, knowledgeContext = '', objectionsContext = '', playbookContext = '', profileAnalysisContext = '', currentStep = 0 }) {
+  // Incluímos todas as informações para contexto interno, mas instruímos a IA a NÃO mencionar diretamente
   const leadInfo = lead_data.name ? `
 
-INFORMAÇÕES DO LEAD:
+CONTEXTO INTERNO DO LEAD (use para entender, NÃO mencione diretamente na conversa):
 - Nome: ${lead_data.name || 'Não disponível'}
-- Cargo: ${lead_data.title || 'Não disponível'}
 - Empresa: ${lead_data.company || 'Não disponível'}
+- Cargo: ${lead_data.title || 'Não disponível'}
+- Setor: ${lead_data.industry || 'Não disponível'}
 - Localização: ${lead_data.location || 'Não disponível'}
-- Setor: ${lead_data.industry || 'Não disponível'}` : '';
+
+⚠️ IMPORTANTE: Estas informações são para você ENTENDER o contexto do lead, NÃO para mencionar diretamente.
+Exemplo ERRADO: "Vi que você trabalha na Tech Solutions como CEO..."
+Exemplo CERTO: "Como tem sido o cenário por aí?" (natural, sem forçar dados)
+Use apenas o PRIMEIRO NOME do lead de forma natural.` : '';
 
   // Build objective section
   const objectiveLabels = {
@@ -331,19 +415,44 @@ INFORMAÇÕES DO LEAD:
     ? objectiveLabels[ai_agent.objective] || ai_agent.objective
     : 'Qualificar o lead e identificar oportunidades de negócio';
 
-  // Build conversation steps section
+  // Build conversation steps section with intelligent progression
   let stepsSection = '';
   if (ai_agent.conversation_steps && ai_agent.conversation_steps.length > 0) {
+    const steps = ai_agent.conversation_steps;
+    const currentStepData = typeof steps[currentStep] === 'object'
+      ? steps[currentStep]
+      : { text: steps[currentStep], is_escalation: false };
+
     stepsSection = `
 
-ETAPAS DA CONVERSA (siga esta sequência):
-${ai_agent.conversation_steps.map((step, index) => {
+ETAPAS DA CONVERSA:
+${steps.map((step, index) => {
   const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
-  const escalationMark = stepData.is_escalation ? ' [TRANSFERIR PARA HUMANO APÓS ESTA ETAPA]' : '';
-  return `${index + 1}. ${stepData.text || step}${escalationMark}`;
+  const escalationMark = stepData.is_escalation ? ' [TRANSFERIR PARA HUMANO]' : '';
+  const currentMark = index === currentStep ? ' ← VOCÊ ESTÁ AQUI' : '';
+  const completedMark = index < currentStep ? '✓ ' : '';
+  return `${completedMark}${index + 1}. ${stepData.text || step}${escalationMark}${currentMark}`;
 }).join('\n')}
 
-IMPORTANTE: Siga estas etapas na ordem. Não pule etapas. Você pode demorar várias mensagens em uma única etapa se necessário.`;
+ETAPA ATUAL: ${currentStep + 1} - ${currentStepData.text || steps[currentStep]}
+
+REGRAS DE PROGRESSÃO DE ETAPAS:
+1. Você ESTÁ na etapa ${currentStep + 1}. Foque em cumprir o objetivo desta etapa.
+2. Uma etapa SÓ é concluída quando o OBJETIVO foi alcançado na conversa.
+3. Você pode demorar VÁRIAS mensagens na mesma etapa - isso é normal e esperado.
+4. NÃO avance de etapa só porque trocou mensagens. Avance quando o objetivo foi REALMENTE cumprido.
+5. Quando você DETERMINAR que o objetivo da etapa atual foi cumprido (baseado na resposta do lead),
+   inclua [NEXT_STEP] no final da sua mensagem para sinalizar ao sistema.
+
+QUANDO AVANÇAR DE ETAPA:
+- O lead deu uma resposta que indica que o objetivo da etapa foi atingido
+- Exemplo: Na etapa "Descobrir dor do lead", só avance quando o lead REALMENTE compartilhar uma dor/desafio
+- NÃO avance só porque fez uma pergunta - espere a resposta relevante
+
+QUANDO NÃO AVANÇAR:
+- O lead deu uma resposta genérica ou evasiva
+- Você ainda não cumpriu o objetivo da etapa
+- A conversa está em fase de aquecimento/rapport`;
   }
 
   // Build escalation section
@@ -378,6 +487,38 @@ GATILHOS DE ESCALAÇÃO (transferir para humano quando detectar):`;
     escalationSection += `
 
 Quando detectar estes gatilhos, informe que vai conectar com um especialista humano.`;
+  }
+
+  // Build transfer triggers section (new system based on checkboxes)
+  let transferTriggersSection = '';
+  const transferTriggers = ai_agent.transfer_triggers || [];
+  if (transferTriggers.length > 0) {
+    const triggerLabels = {
+      doubt: 'O lead expressa dúvidas, confusão ou pede explicações mais detalhadas',
+      qualified: 'O lead demonstra alto interesse, está qualificado e pronto para avançar',
+      price: 'O lead pergunta sobre preços, valores, custos ou planos',
+      demo: 'O lead solicita demo, demonstração, apresentação ou teste',
+      competitor: 'O lead menciona concorrentes ou compara com outras soluções',
+      urgency: 'O lead demonstra urgência, pressa ou necessidade imediata',
+      frustration: 'O lead expressa frustração, irritação ou insatisfação'
+    };
+
+    const activeTriggersText = transferTriggers
+      .map(t => triggerLabels[t])
+      .filter(Boolean)
+      .join('\n- ');
+
+    transferTriggersSection = `
+
+GATILHOS DE TRANSFERÊNCIA PARA HUMANO:
+Quando detectar QUALQUER uma destas situações, você DEVE:
+1. Informar gentilmente que vai conectar o lead com um especialista
+2. Incluir [TRANSFER] no final da sua mensagem para sinalizar ao sistema
+
+Situações que exigem transferência:
+- ${activeTriggersText}
+
+IMPORTANTE: Ao detectar um gatilho de transferência, responda de forma empática, informe que entendeu a necessidade e que vai conectar com alguém da equipe que pode ajudar melhor. Termine a mensagem com [TRANSFER].`;
   }
 
   // Build priority rules section (user-defined behavioral rules)
@@ -440,37 +581,54 @@ SEU NEGÓCIO/PRODUTO:
 ${ai_agent.products_services || 'Não especificado'}
 ${companySection}
 ${knowledgeContext}
+${playbookContext}
 
 OBJETIVO PRINCIPAL:
 ${objectiveText}
 ${stepsSection}
 ${escalationSection}
+${transferTriggersSection}
 ${priorityRulesSection}
 ${leadInfo}
+${profileAnalysisContext}
 ${additionalInstructions}
+${objectionsContext}
 
 INSTRUÇÕES DE ESTILO:
 ${ai_agent.response_style_instructions || '- Seja profissional mas acessível\n- Use linguagem clara e direta\n- Mostre interesse genuíno no lead'}
 
-REGRAS IMPORTANTES:
-1. Suas respostas devem ser CURTAS e DIRETAS (${channelContext.maxSentences})
-2. ${channelContext.platformRule}
-3. Não seja muito vendedor logo de cara - construa relacionamento primeiro
-4. Faça UMA pergunta por vez para manter a conversa fluindo
-5. Se o lead demonstrar interesse, seja mais específico sobre a solução
-6. Use SEMPRE o conhecimento da base de conhecimento acima quando relevante para responder perguntas
-7. NUNCA invente informações sobre produtos/serviços que não foram descritos na base de conhecimento
-8. Se não souber algo que não está na base de conhecimento, seja honesto e ofereça descobrir mais
-9. Adapte seu tom ao do lead - se ele for informal, seja um pouco mais informal também
-10. SIGA AS ETAPAS DA CONVERSA na ordem definida, não pule etapas
+⚠️ REGRA MAIS IMPORTANTE - SEJA HUMANO:
+Você é uma PESSOA REAL tendo uma conversa genuína. NÃO é um vendedor tentando qualificar.
 
-QUANDO O LEAD DEMONSTRAR INTERESSE CLARO:
-- Ofereça valor concreto (case, material, demo)
-- Sugira próximos passos claros
-${ai_agent.auto_schedule && ai_agent.scheduling_link ? `- Ofereça agendar uma conversa usando: ${ai_agent.scheduling_link}` : ''}
+COMO CONVERSAR (siga isso rigorosamente):
+1. Respostas CURTAS - ${channelContext.maxSentences}
+2. Converse como AMIGO, não como vendedor
+3. NÃO faça perguntas sobre "desafios", "dores" ou "necessidades" nas primeiras mensagens
+4. NÃO diga coisas como "estou aqui para ajudar" ou "entender suas necessidades" - isso é linguagem de bot
+5. Se o lead não te conhece, NÃO force conversa sobre negócios - apenas bata papo primeiro
+6. Adapte seu tom ao do lead - se ele for informal, seja informal também
+7. Se o lead parecer confuso ou resistente, recue e seja mais casual
+
+EXEMPLOS DO QUE NÃO FAZER:
+❌ "Algum desafio que você gostaria de compartilhar?"
+❌ "Estou aqui para construir um relacionamento"
+❌ "Como posso ajudar você?"
+❌ "Entender melhor suas necessidades"
+❌ "Na sua área de [X]..." ou "Na [empresa]..."
+
+EXEMPLOS DO QUE FAZER:
+✅ "E aí, tudo bem?"
+✅ "Show! E como tá o mercado por aí?"
+✅ "Ah entendi. E você, curte o que faz?"
+✅ Responder de forma CURTA e natural como um humano faria
+
+QUANDO O LEAD DER ABERTURA (depois de algumas trocas):
+- Aí sim você pode explorar o que ele faz
+- Mas de forma natural, não interrogatório
+${ai_agent.auto_schedule && ai_agent.scheduling_link ? `- Se mostrar interesse real: ${ai_agent.scheduling_link}` : ''}
 ${languageInstruction}
 
-Responda de forma natural, ${channelContext.naturalConversation}. Evite soar como um bot.`;
+Lembre: você é uma pessoa, não um bot. Converse como tal.`;
 
   return basePrompt;
 }
@@ -483,22 +641,22 @@ Responda de forma natural, ${channelContext.naturalConversation}. Evite soar com
 function getChannelContext(agentType) {
   const contexts = {
     linkedin: {
-      agentDescription: 'um agente de vendas B2B especializado em prospecção no LinkedIn.',
-      maxSentences: 'máximo 3-4 frases',
-      platformRule: 'LinkedIn é uma plataforma profissional - mantenha formalidade apropriada',
-      naturalConversation: 'como se fosse uma conversa real no LinkedIn'
+      agentDescription: 'um profissional que gosta de conhecer pessoas e trocar ideias no LinkedIn.',
+      maxSentences: 'máximo 2-3 frases CURTAS',
+      platformRule: 'LinkedIn - seja casual mas profissional, como um colega de trabalho',
+      naturalConversation: 'como uma pessoa real conversando no LinkedIn'
     },
     whatsapp: {
-      agentDescription: 'um assistente de vendas via WhatsApp.',
-      maxSentences: 'máximo 2-3 frases curtas - WhatsApp exige mensagens concisas',
-      platformRule: 'WhatsApp é um canal mais informal - seja direto mas amigável, pode usar emojis moderadamente',
-      naturalConversation: 'como se fosse uma conversa real no WhatsApp'
+      agentDescription: 'uma pessoa que conversa naturalmente via WhatsApp.',
+      maxSentences: 'máximo 1-2 frases curtas - WhatsApp é rápido',
+      platformRule: 'WhatsApp - seja bem informal e direto, como um amigo',
+      naturalConversation: 'como um amigo conversando no WhatsApp'
     },
     email: {
-      agentDescription: 'um agente de vendas especializado em comunicação por email.',
-      maxSentences: 'máximo 4-5 frases por email',
-      platformRule: 'Email permite respostas mais detalhadas - seja profissional e estruturado',
-      naturalConversation: 'como se fosse um email profissional real'
+      agentDescription: 'um profissional que se comunica por email de forma clara.',
+      maxSentences: 'máximo 3-4 frases por email',
+      platformRule: 'Email - seja profissional mas acessível',
+      naturalConversation: 'como um email profissional mas humano'
     }
   };
 
@@ -693,10 +851,15 @@ async function generateInitialMessage(params) {
   const { ai_agent, lead_data, campaign } = params;
 
   try {
-    console.log(`💬 Gerando mensagem inicial para ${lead_data.name} (canal: ${ai_agent.agent_type})`);
+    console.log(`💬 Gerando mensagem inicial para ${lead_data.name} (canal: ${ai_agent.agent_type}, idioma: ${ai_agent.language || 'pt-BR'})`);
 
-    // Se há template inicial configurado, usar ele
-    if (ai_agent.initial_approach) {
+    // Verificar idioma do agente - se não for português, SEMPRE gerar via IA
+    const agentLanguage = ai_agent.language || 'pt-BR';
+    const isPortuguese = agentLanguage.startsWith('pt');
+
+    // Se há template inicial configurado E o idioma é português, usar template
+    // Caso contrário, gerar via IA para respeitar o idioma configurado
+    if (ai_agent.initial_approach && isPortuguese) {
       const leadDataProcessed = TemplateProcessor.extractLeadData(lead_data);
       const message = TemplateProcessor.processTemplate(ai_agent.initial_approach, leadDataProcessed);
 
@@ -704,7 +867,7 @@ async function generateInitialMessage(params) {
       return message;
     }
 
-    // Caso contrário, gerar com IA
+    // Gerar com IA (sempre para idiomas não-português ou quando não há template)
     const behavioralProfile = BEHAVIORAL_PROFILES[ai_agent.behavioral_profile] || BEHAVIORAL_PROFILES.consultivo;
     const agentType = ai_agent.agent_type || 'linkedin';
 
@@ -1193,6 +1356,7 @@ module.exports = {
   checkEscalationKeywords,
   requiresUrgentResponse,
   buildEmailInstructions,
+  buildSystemPrompt,
   BEHAVIORAL_PROFILES,
   EMAIL_TONES,
   EMAIL_GREETINGS,

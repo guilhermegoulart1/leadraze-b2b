@@ -71,9 +71,13 @@ async function executeHandoff(conversationId, agent, reason) {
     }
 
     // 4. Send handoff message to lead (if not silent)
-    if (!agent.handoff_silent && agent.handoff_message) {
+    // Support both old (handoff_silent/handoff_message) and new (transfer_mode/transfer_message) field names
+    const isSilent = agent.transfer_mode === 'silent' || agent.handoff_silent;
+    const handoffMessage = agent.transfer_message || agent.handoff_message;
+
+    if (!isSilent && handoffMessage) {
       try {
-        await sendHandoffMessage(conversation, agent.handoff_message);
+        await sendHandoffMessage(conversation, handoffMessage);
         console.log(`✅ [HandoffService] Handoff message sent to lead`);
       } catch (error) {
         console.error(`⚠️ [HandoffService] Failed to send handoff message:`, error.message);
@@ -91,7 +95,7 @@ async function executeHandoff(conversationId, agent, reason) {
       conversationId,
       assignee,
       reason,
-      messageSent: !agent.handoff_silent && !!agent.handoff_message
+      messageSent: !isSilent && !!handoffMessage
     };
 
   } catch (error) {
@@ -153,7 +157,15 @@ async function createHandoffNotification(conversation, agent, assignee, reason) 
       'exchange_limit': 'atingiu o limite de trocas',
       'escalation_sentiment': 'detectou sentimento de escalação',
       'escalation_keyword': 'detectou palavra-chave de escalação',
-      'manual': 'foi transferida manualmente'
+      'manual': 'foi transferida manualmente',
+      'trigger_doubt': 'detectou dúvida do lead',
+      'trigger_qualified': 'identificou lead qualificado',
+      'trigger_price': 'lead perguntou sobre preço',
+      'trigger_demo': 'lead solicitou demonstração',
+      'trigger_competitor': 'lead mencionou concorrente',
+      'trigger_urgency': 'detectou urgência do lead',
+      'trigger_frustration': 'detectou frustração do lead',
+      'trigger_ai_requested': 'IA identificou necessidade de transferência'
     };
 
     const reasonText = reasonMessages[reason] || reason;
@@ -228,6 +240,7 @@ async function createHandoffNotification(conversation, agent, assignee, reason) 
  * @param {number} conversationId - The conversation ID
  * @param {number} limit - The exchange limit for handoff
  * @returns {Promise<boolean>}
+ * @deprecated Use checkTransferTriggers instead
  */
 async function shouldTriggerHandoff(conversationId, limit) {
   if (!limit || limit <= 0) {
@@ -241,6 +254,87 @@ async function shouldTriggerHandoff(conversationId, limit) {
   const exchangeCount = result.rows[0]?.exchange_count || 0;
 
   return exchangeCount >= limit;
+}
+
+/**
+ * Transfer trigger definitions with keywords and sentiment indicators
+ */
+const TRANSFER_TRIGGER_DEFINITIONS = {
+  doubt: {
+    keywords: ['não entendi', 'como funciona', 'dúvida', 'não sei', 'pode explicar', 'confuso', 'complexo'],
+    sentiment: 'confusion'
+  },
+  qualified: {
+    keywords: ['interessado', 'quero saber mais', 'me conta mais', 'parece bom', 'gostei', 'vamos conversar'],
+    sentiment: 'high_interest'
+  },
+  price: {
+    keywords: ['preço', 'quanto custa', 'valor', 'investimento', 'custo', 'orçamento', 'budget', 'pricing', 'planos']
+  },
+  demo: {
+    keywords: ['demo', 'demonstração', 'apresentação', 'mostrar', 'ver funcionando', 'teste', 'trial', 'experimentar']
+  },
+  competitor: {
+    keywords: ['concorrente', 'outra empresa', 'já uso', 'comparar', 'diferença entre', 'vs', 'versus']
+  },
+  urgency: {
+    keywords: ['urgente', 'preciso agora', 'rápido', 'prazo', 'deadline', 'imediato', 'hoje', 'amanhã'],
+    sentiment: 'urgency'
+  },
+  frustration: {
+    keywords: ['frustrado', 'irritado', 'problema', 'não funciona', 'péssimo', 'horrível', 'decepcionado', 'cansado'],
+    sentiment: 'frustration'
+  }
+};
+
+/**
+ * Check if a message should trigger handoff based on agent's transfer triggers
+ * @param {string} message - The lead's message content
+ * @param {object} agent - The AI agent configuration (must have transfer_triggers array)
+ * @returns {object} { shouldTransfer: boolean, matchedTriggers: string[], reason: string }
+ */
+function checkTransferTriggers(message, agent) {
+  const transferTriggers = agent.transfer_triggers || [];
+
+  if (!transferTriggers.length || !message) {
+    return { shouldTransfer: false, matchedTriggers: [], reason: null };
+  }
+
+  const messageLower = message.toLowerCase();
+  const matchedTriggers = [];
+
+  for (const triggerId of transferTriggers) {
+    const trigger = TRANSFER_TRIGGER_DEFINITIONS[triggerId];
+    if (!trigger) continue;
+
+    // Check keywords
+    if (trigger.keywords && trigger.keywords.some(keyword => messageLower.includes(keyword.toLowerCase()))) {
+      matchedTriggers.push(triggerId);
+    }
+  }
+
+  if (matchedTriggers.length > 0) {
+    const reasonMap = {
+      doubt: 'dúvida detectada',
+      qualified: 'lead qualificado',
+      price: 'pergunta sobre preço',
+      demo: 'solicitação de demo',
+      competitor: 'menção a concorrente',
+      urgency: 'urgência detectada',
+      frustration: 'frustração detectada'
+    };
+
+    const reasons = matchedTriggers.map(t => reasonMap[t] || t);
+
+    return {
+      shouldTransfer: true,
+      matchedTriggers,
+      reason: `trigger_${matchedTriggers[0]}`, // Primary reason for database
+      reasonText: reasons.join(', ')
+    };
+  }
+
+  return { shouldTransfer: false, matchedTriggers: [], reason: null };
 }
 
 /**
@@ -290,6 +384,8 @@ module.exports = {
   sendHandoffMessage,
   createHandoffNotification,
   shouldTriggerHandoff,
+  checkTransferTriggers,
   incrementExchangeCount,
-  getHandoffStats
+  getHandoffStats,
+  TRANSFER_TRIGGER_DEFINITIONS
 };

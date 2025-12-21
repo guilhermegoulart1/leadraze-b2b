@@ -53,6 +53,7 @@ import TagsPage from './pages/TagsPage';
 import ConfigPage from './pages/ConfigPage';
 import TeamPage from './pages/TeamPage';
 import SecretAgentPage from './pages/SecretAgentPage';
+import AIEmployeesPage from './pages/AIEmployeesPage';
 
 // Partner Pages
 import PartnerLoginPage from './pages/partner/PartnerLoginPage';
@@ -161,6 +162,7 @@ function AppRoutes() {
         <Route path="billing" element={<Navigate to="/my-account?tab=billing" replace />} />
         <Route path="affiliate" element={<Navigate to="/my-account?tab=affiliate" replace />} />
         <Route path="agents" element={<AgentsPage />} />
+        <Route path="aiemployees" element={<AIEmployeesPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="api-keys" element={<Navigate to="/config?tab=api-keys" replace />} />
         <Route path="channels" element={<Navigate to="/config?tab=channels" replace />} />

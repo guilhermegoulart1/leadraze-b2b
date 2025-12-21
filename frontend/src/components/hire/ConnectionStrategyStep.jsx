@@ -15,7 +15,9 @@ const ConnectionStrategyStep = ({
   selectedStrategy,
   onSelectStrategy,
   inviteMessage,
-  onChangeInviteMessage
+  onChangeInviteMessage,
+  postAcceptMessage,
+  onChangePostAcceptMessage
 }) => {
   const { t } = useTranslation('hire');
   const [showMessageEditor, setShowMessageEditor] = useState(
@@ -92,7 +94,7 @@ Aceita conectar?`,
         })}
         </div>
 
-        {/* Message Editor (expandable) */}
+        {/* Message Editor for with-intro and icebreaker */}
         {(selectedStrategy === 'with-intro' || selectedStrategy === 'icebreaker') && (
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
@@ -135,8 +137,63 @@ Aceita conectar?`,
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   {t('connection.charLimit')}
                 </p>
+
+                {/* Mensagem pós-aceite (opcional) */}
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('connection.postAcceptMessage', { defaultValue: 'Mensagem após aceite do convite (opcional)' })}
+                  </label>
+                  <textarea
+                    value={postAcceptMessage || ''}
+                    onChange={(e) => onChangePostAcceptMessage(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                    placeholder={t('connection.postAcceptPlaceholder', { defaultValue: 'Mensagem que o agente enviará após o lead aceitar o convite...' })}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {t('connection.postAcceptHint', { defaultValue: 'Se deixar vazio, o agente usará a IA para gerar uma mensagem de início de conversa.' })}
+                  </p>
+                </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Post-accept message for silent strategy */}
+        {selectedStrategy === 'silent' && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                {t('connection.silentInfo', { defaultValue: 'O convite será enviado sem mensagem. Após o aceite, se o lead não enviar mensagem, o agente iniciará a conversa.' })}
+              </p>
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {t('connection.silentPostAcceptMessage', { defaultValue: 'Mensagem para iniciar conversa após aceite (opcional)' })}
+            </label>
+            <textarea
+              value={postAcceptMessage || ''}
+              onChange={(e) => onChangePostAcceptMessage(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+              placeholder={t('connection.silentPostAcceptPlaceholder', { defaultValue: 'Oi {{first_name}}, obrigado por conectar! Vi que você trabalha na {{company}}...' })}
+            />
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">{t('connection.variables')}</span>
+              {['{{first_name}}', '{{company}}', '{{title}}', '{{location}}'].map((variable) => (
+                <button
+                  key={variable}
+                  type="button"
+                  onClick={() => onChangePostAcceptMessage((postAcceptMessage || '') + ` ${variable}`)}
+                  className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                >
+                  {variable}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              {t('connection.silentPostAcceptHint', { defaultValue: 'Se deixar vazio, o agente aguardará o lead iniciar a conversa ou usará a IA para gerar uma mensagem.' })}
+            </p>
           </div>
         )}
       </ChatMessage>

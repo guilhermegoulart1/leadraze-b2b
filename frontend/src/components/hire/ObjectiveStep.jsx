@@ -16,8 +16,6 @@ const ObjectiveStep = ({
   channel,
   selectedObjective,
   onSelect,
-  maxMessages,
-  onChangeMaxMessages,
   schedulingLink,
   onChangeSchedulingLink,
   conversionLink,
@@ -114,41 +112,6 @@ const ObjectiveStep = ({
                   )}
                 </div>
               </button>
-
-              {/* Extra options for qualify_transfer */}
-              {isSelected && objective.id === 'qualify_transfer' && (
-                <div className="mt-2 ml-10 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {t('objective.transferWhen')}
-                      </label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {t('objective.keywords')}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {t('objective.orAfter')}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={maxMessages || 3}
-                          onChange={(e) => onChangeMaxMessages(parseInt(e.target.value))}
-                          className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-                        >
-                          {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <option key={num} value={num}>{num}</option>
-                          ))}
-                        </select>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {t('objective.messageExchanges')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Scheduling link for schedule_meeting */}
               {isSelected && objective.id === 'schedule_meeting' && (

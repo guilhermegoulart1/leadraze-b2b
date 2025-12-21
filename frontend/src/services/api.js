@@ -182,6 +182,13 @@ class ApiService {
     });
   }
 
+  async reactivateCampaign(id, data) {
+    return this.request(`/campaigns/${id}/reactivate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async stopCampaign(id) {
     return this.request(`/campaigns/${id}/stop`, {
       method: 'POST',
@@ -566,6 +573,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async getAgentPromptPreview(agentId) {
+    return this.request(`/ai-agents/${agentId}/prompt-preview`);
   }
 
   // ================================
@@ -2651,6 +2662,85 @@ class ApiService {
   // Get latest coaching for a conversation
   async getLatestSecretAgentCoaching(conversationId) {
     return this.request(`/conversations/${conversationId}/secret-agent/latest`);
+  }
+
+  // ==========================================
+  // AI EMPLOYEES V2 (Templates, Smart Interview, Workflow Builder)
+  // ==========================================
+
+  // Templates
+  async getAIEmployeeTemplates(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/ai-employees/templates${query ? '?' + query : ''}`);
+  }
+
+  async getAIEmployeeTemplate(id) {
+    return this.request(`/ai-employees/templates/${id}`);
+  }
+
+  async createAIEmployeeTemplate(data) {
+    return this.request('/ai-employees/templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAIEmployeeTemplate(id, data) {
+    return this.request(`/ai-employees/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAIEmployeeTemplate(id) {
+    return this.request(`/ai-employees/templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async cloneAIEmployeeTemplate(id) {
+    return this.request(`/ai-employees/templates/${id}/clone`, {
+      method: 'POST',
+    });
+  }
+
+  async rateAIEmployeeTemplate(id, rating, review = null) {
+    return this.request(`/ai-employees/templates/${id}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, review }),
+    });
+  }
+
+  // Smart Interview
+  async getAIEmployeeNiches() {
+    return this.request('/ai-employees/niches');
+  }
+
+  async getAIEmployeeInterviewQuestion(data) {
+    return this.request('/ai-employees/interview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Generate Agent
+  async generateAIEmployee(data) {
+    return this.request('/ai-employees/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Admin (Templates moderation)
+  async getAIEmployeePendingTemplates() {
+    return this.request('/ai-employees/admin/pending');
+  }
+
+  async moderateAIEmployeeTemplate(id, action, reason = null) {
+    return this.request(`/ai-employees/admin/moderate/${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ action, reason }),
+    });
   }
 
 }

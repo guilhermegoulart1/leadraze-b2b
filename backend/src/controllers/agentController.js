@@ -150,7 +150,13 @@ const getAgents = async (req, res) => {
         intent_detection_enabled,
         response_style_instructions,
         priority_rules,
-        linkedin_variables
+        linkedin_variables,
+        post_accept_message,
+        transfer_triggers,
+        conversation_steps,
+        transfer_mode,
+        transfer_message,
+        objective_instructions
       FROM ai_agents
       WHERE account_id = $1
     `;
@@ -677,6 +683,34 @@ const deleteAgent = async (req, res) => {
       throw new ForbiddenError('You do not have access to this agent');
     }
 
+    // Check for associated campaigns and pause them
+    const campaignsResult = await db.query(
+      `SELECT id, name, status FROM campaigns
+       WHERE ai_agent_id = $1 AND account_id = $2`,
+      [id, accountId]
+    );
+
+    const associatedCampaigns = campaignsResult.rows;
+    let pausedCount = 0;
+
+    if (associatedCampaigns.length > 0) {
+      // Pause all associated campaigns with reason 'agent_deleted'
+      const pauseResult = await db.query(
+        `UPDATE campaigns
+         SET status = 'paused',
+             automation_active = false,
+             ai_agent_id = NULL,
+             paused_reason = 'agent_deleted',
+             paused_at = NOW()
+         WHERE ai_agent_id = $1 AND account_id = $2
+         RETURNING id`,
+        [id, accountId]
+      );
+
+      pausedCount = pauseResult.rowCount;
+      console.log(`⏸️ Paused ${pausedCount} campaigns associated with agent ${id}`);
+    }
+
     // Delete agent
     await db.query(
       `DELETE FROM ai_agents WHERE id = $1 AND account_id = $2`,
@@ -685,7 +719,10 @@ const deleteAgent = async (req, res) => {
 
     console.log(`✅ Deleted ${agent.agent_type} agent:`, agent.id);
 
-    sendSuccess(res, { message: 'Agent deleted successfully' });
+    sendSuccess(res, {
+      message: 'Agent deleted successfully',
+      paused_campaigns: pausedCount
+    });
 
   } catch (error) {
     console.error('Error in deleteAgent:', error);
@@ -825,7 +862,7 @@ const testAgentResponse = async (req, res) => {
   try {
     const { id } = req.params;
     const accountId = req.user.account_id;
-    const { message, conversation_history = [], lead_data = {} } = req.body;
+    const { message, conversation_history = [], lead_data = {}, current_step = 0 } = req.body;
 
     if (!message) {
       throw new ValidationError('Test message is required');
@@ -854,7 +891,8 @@ const testAgentResponse = async (req, res) => {
       conversation_history,
       ai_agent: adaptedAgent,
       lead_data,
-      context: { is_test: true }
+      context: { is_test: true },
+      current_step  // Pass current step for intelligent progression
     });
 
     sendSuccess(res, {
@@ -867,7 +905,9 @@ const testAgentResponse = async (req, res) => {
       matched_keywords: result.matchedKeywords,
       should_offer_scheduling: result.should_offer_scheduling,
       scheduling_link: result.scheduling_link,
-      tokens_used: result.tokens_used
+      tokens_used: result.tokens_used,
+      current_step: result.current_step,    // Return updated step
+      step_advanced: result.step_advanced   // Indicate if step advanced
     });
 
   } catch (error) {

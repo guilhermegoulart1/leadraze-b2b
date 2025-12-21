@@ -5,6 +5,10 @@ New Features
 Automatic Default Sector: New accounts now automatically get a "General" sector created. All new users are automatically assigned to this sector upon creation.
 Multi-language Support for Sectors: Default sector name adapts to user's language preference (Geral/General).
 
+Improvements
+
+Campaigns that finished collection without finding any leads are now correctly displayed as "Completed" instead of "Review"
+
 Bug Fixes
 
 Fixed sector assignment: Resolved 400 error when assigning users to sectors from the permissions modal.

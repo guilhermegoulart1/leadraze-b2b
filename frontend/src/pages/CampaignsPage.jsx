@@ -5,7 +5,7 @@ import {
   Plus, Play, Pause, BarChart3, Users, Target, Calendar, Trophy, XCircle,
   Sparkles, Edit, Trash2, Rocket, RefreshCw, CheckCircle, Clock, Loader,
   Eye, TrendingUp, Activity,
-  Send, UserCheck, Zap, FolderOpen
+  Send, UserCheck, Zap, FolderOpen, AlertTriangle, UserPlus
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -34,6 +34,11 @@ const CampaignsPage = () => {
     totalPages: 0,
   });
   const [reviewCount, setReviewCount] = useState(0);
+
+  // Estado para reativação de campanha (após exclusão de agente)
+  const [reactivateCampaign, setReactivateCampaign] = useState(null);
+  const [availableAgents, setAvailableAgents] = useState([]);
+  const [selectedAgentId, setSelectedAgentId] = useState(null);
 
   // Usar ref para manter referência atualizada de campaigns
   const campaignsRef = useRef(campaigns);
@@ -232,6 +237,37 @@ const CampaignsPage = () => {
     }
   };
 
+  // Handler para abrir modal de reativação (campanha sem agente)
+  const handleOpenReactivate = async (campaign) => {
+    try {
+      // Carregar agentes disponíveis
+      const response = await api.getAgents();
+      if (response.success) {
+        setAvailableAgents(response.data || []);
+      }
+      setSelectedAgentId(null);
+      setReactivateCampaign(campaign);
+    } catch (error) {
+      alert(error.message || 'Erro ao carregar agentes');
+    }
+  };
+
+  // Handler para confirmar reativação com novo agente
+  const handleConfirmReactivate = async () => {
+    if (!reactivateCampaign || !selectedAgentId) return;
+
+    try {
+      setLoadingActions({ ...loadingActions, [reactivateCampaign.id]: 'reactivating' });
+      await api.reactivateCampaign(reactivateCampaign.id, { ai_agent_id: selectedAgentId });
+      setReactivateCampaign(null);
+      setSelectedAgentId(null);
+      await loadCampaigns();
+    } catch (error) {
+      alert(error.message || t('messages.errorReactivate', 'Erro ao reativar campanha'));
+    } finally {
+      setLoadingActions({ ...loadingActions, [reactivateCampaign?.id]: null });
+    }
+  };
 
   const getStatusBadge = (campaign) => {
     const collectionStatus = collectionStatuses[campaign.id];
@@ -260,6 +296,19 @@ const CampaignsPage = () => {
         };
       }
       if (collectionStatus.status === 'completed' && campaign.status === 'draft') {
+        // Se 0 leads coletados, mostrar como "Concluída"
+        if (collectionStatus.collected_count === 0) {
+          return {
+            label: t('status.completed'),
+            color: 'bg-gray-500',
+            textColor: 'text-gray-700 dark:text-gray-300',
+            bgColor: 'bg-gray-50 dark:bg-gray-900',
+            borderColor: 'border-gray-200 dark:border-gray-700',
+            icon: CheckCircle,
+            iconClass: ''
+          };
+        }
+        // Se tem leads, mostrar "Revisar"
         return {
           label: t('statusBadges.review'),
           color: 'bg-yellow-500',
@@ -284,6 +333,18 @@ const CampaignsPage = () => {
           iconClass: ''
         };
       case 'paused':
+        // Verificar se está pausada por exclusão de agente
+        if (campaign.paused_reason === 'agent_deleted') {
+          return {
+            label: t('status.needsAgent', 'Sem Agente'),
+            color: 'bg-amber-500',
+            textColor: 'text-amber-700 dark:text-amber-300',
+            bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+            borderColor: 'border-amber-200 dark:border-amber-700',
+            icon: AlertTriangle,
+            iconClass: ''
+          };
+        }
         return {
           label: t('status.paused'),
           color: 'bg-orange-500',
@@ -573,7 +634,25 @@ const CampaignsPage = () => {
                             </>
                           )}
 
-                          {campaign.status === 'paused' && (
+                          {campaign.status === 'paused' && campaign.paused_reason === 'agent_deleted' && (
+                            <>
+                              <button
+                                onClick={() => handleOpenReactivate(campaign)}
+                                disabled={isActionLoading === 'reactivating'}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors text-xs font-medium"
+                                title={t('info.assignAgent', 'Vincular novo agente')}
+                              >
+                                {isActionLoading === 'reactivating' ? (
+                                  <Loader className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <UserPlus className="w-3.5 h-3.5" />
+                                )}
+                                {t('buttons.assignAgent', 'Vincular Agente')}
+                              </button>
+                            </>
+                          )}
+
+                          {campaign.status === 'paused' && campaign.paused_reason !== 'agent_deleted' && (
                             <>
                               <button
                                 onClick={() => navigate(`/campaigns/${campaign.id}/report`)}
@@ -726,6 +805,85 @@ const CampaignsPage = () => {
                   <>
                     <Trash2 className="w-4 h-4" />
                     {t('deleteCampaign')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reactivate Campaign Modal (assign new agent) */}
+      {reactivateCampaign && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                <UserPlus className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  {t('reactivateCampaign', 'Vincular Novo Agente')}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('messages.agentDeletedInfo', 'O agente desta campanha foi excluído. Selecione um novo agente para reativar a campanha:')}
+                </p>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-2">
+                  {t('campaign', 'Campanha')}: <strong>"{reactivateCampaign.name}"</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Agent Selection */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('selectAgent', 'Selecionar Agente')}
+              </label>
+              {availableAgents.length > 0 ? (
+                <select
+                  value={selectedAgentId || ''}
+                  onChange={(e) => setSelectedAgentId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">{t('selectAgentPlaceholder', '-- Selecione um agente --')}</option>
+                  {availableAgents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} ({agent.agent_type})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  {t('noAgentsAvailable', 'Nenhum agente disponível. Crie um agente primeiro.')}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setReactivateCampaign(null);
+                  setSelectedAgentId(null);
+                }}
+                disabled={loadingActions[reactivateCampaign.id] === 'reactivating'}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors font-medium disabled:opacity-50"
+              >
+                {t('common:buttons.cancel')}
+              </button>
+              <button
+                onClick={handleConfirmReactivate}
+                disabled={!selectedAgentId || loadingActions[reactivateCampaign.id] === 'reactivating'}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {loadingActions[reactivateCampaign.id] === 'reactivating' ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    {t('messages.reactivating', 'Vinculando...')}
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    {t('buttons.confirmAssign', 'Vincular e Reativar')}
                   </>
                 )}
               </button>

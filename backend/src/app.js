@@ -497,6 +497,14 @@ try {
   console.error('❌ Error loading secret agent routes:', error.message);
 }
 
+// AI Employees V2 (templates, smart interview, workflow builder)
+try {
+  app.use('/api/ai-employees', require('./routes/aiEmployees'));
+  console.log('✅ AI Employees V2 routes loaded');
+} catch (error) {
+  console.error('❌ Error loading AI Employees routes:', error.message);
+}
+
 // ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================

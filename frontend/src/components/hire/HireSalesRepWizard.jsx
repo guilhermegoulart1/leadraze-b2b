@@ -75,6 +75,7 @@ import ConnectionStrategyStep from './ConnectionStrategyStep';
 import ConversationStyleStep from './ConversationStyleStep';
 import SalesMethodologyStep from './SalesMethodologyStep';
 import ObjectiveStep from './ObjectiveStep';
+import TransferTriggersStep from './TransferTriggersStep';
 import ContractSummary from './ContractSummary';
 import PostHireDialog from './PostHireDialog';
 import RulesEditor from './RulesEditor';
@@ -92,6 +93,7 @@ const STEPS = {
   STYLE: 'style',
   METHODOLOGY: 'methodology',
   OBJECTIVE: 'objective',
+  TRANSFER: 'transfer',
   SUMMARY: 'summary'
 };
 
@@ -113,6 +115,7 @@ const getStepOrder = (channel) => {
       STEPS.STYLE,
       STEPS.METHODOLOGY,
       STEPS.OBJECTIVE,
+      STEPS.TRANSFER,
       STEPS.SUMMARY
     ];
   }
@@ -123,6 +126,7 @@ const getStepOrder = (channel) => {
     STEPS.STYLE,
     STEPS.METHODOLOGY,
     STEPS.OBJECTIVE,
+    STEPS.TRANSFER,
     STEPS.SUMMARY
   ];
 };
@@ -175,10 +179,11 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
     },
     connectionStrategy: 'with-intro',
     inviteMessage: '',
+    postAcceptMessage: '',
     conversationStyle: 'consultivo',
     methodology: null,
     objective: 'qualify_transfer',
-    maxMessages: 3,
+    transferTriggers: ['qualified', 'price', 'demo'], // Default triggers
     schedulingLink: '',
     agentName: '',
     priorityRules: [],
@@ -241,10 +246,11 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
         targetAudience,
         connectionStrategy: agent.connection_strategy || 'with-intro',
         inviteMessage: agent.invite_message || agent.initial_approach || '',
+        postAcceptMessage: agent.post_accept_message || '',
         conversationStyle: agent.behavioral_profile || 'consultivo',
         methodology: agentConfig.methodology_template_id || null,
         objective: agentConfig.objective || 'qualify_transfer',
-        maxMessages: agentConfig.max_messages_before_escalation || 3,
+        transferTriggers: agent.transfer_triggers || agentConfig.transfer_triggers || ['qualified', 'price', 'demo'],
         schedulingLink: agent.scheduling_link || '',
         agentName: agent.name || ''
       });
@@ -410,12 +416,14 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
         target_audience: formData.targetAudience,
         connection_strategy: formData.connectionStrategy,
         invite_message: formData.inviteMessage,
+        post_accept_message: formData.postAcceptMessage || null,
         initial_approach: formData.inviteMessage || null,
         scheduling_link: formData.schedulingLink,
         priority_rules: formData.priorityRules || [],
         wait_time_after_accept: formData.waitTimeAfterAccept || 5,
         require_lead_reply: formData.requireLeadReply || false,
         avatar_url: formData.customAvatar || formData.candidate?.avatar || null,
+        transfer_triggers: formData.transferTriggers || [],
 
         // 3. Config JSON with wizard settings (merge with any candidate config)
         config: {
@@ -423,16 +431,16 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
           methodology_template_id: formData.methodology,
           objective: formData.objective,
           channel: formData.channel,
-          max_messages_before_escalation: formData.maxMessages || 3,
-          escalate_on_price_question: formData.objective === 'qualify_transfer',
-          escalate_on_specific_feature: true,
-          escalate_keywords: ['preço', 'quanto custa', 'demo', 'reunião', 'proposta'],
+          transfer_triggers: formData.transferTriggers || [],
           candidate_template_id: formData.candidate?.id
         }
       };
 
       console.log('Final agentData being sent:', {
         behavioral_profile: agentData.behavioral_profile,
+        post_accept_message: agentData.post_accept_message,
+        connection_strategy: agentData.connection_strategy,
+        language: agentData.language,
         config: agentData.config
       });
 
@@ -521,13 +529,17 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
       targetAudience: { roles: [], companySizes: [], industry: '' },
       connectionStrategy: 'with-intro',
       inviteMessage: '',
+      postAcceptMessage: '',
       conversationStyle: 'consultivo',
       methodology: null,
       objective: 'qualify_transfer',
-      maxMessages: 3,
+      transferTriggers: ['qualified', 'price', 'demo'],
       schedulingLink: '',
       conversionLink: '',
-      agentName: ''
+      agentName: '',
+      priorityRules: [],
+      waitTimeAfterAccept: 5,
+      requireLeadReply: false
     });
     setAnsweredSteps({});
     setError('');
@@ -730,6 +742,8 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
               onSelectStrategy={(strategy) => updateFormData('connectionStrategy', strategy)}
               inviteMessage={formData.inviteMessage}
               onChangeInviteMessage={(msg) => updateFormData('inviteMessage', msg)}
+              postAcceptMessage={formData.postAcceptMessage}
+              onChangePostAcceptMessage={(msg) => updateFormData('postAcceptMessage', msg)}
             />
           )}
 
@@ -759,12 +773,18 @@ const HireSalesRepWizard = ({ isOpen, onClose, onAgentCreated, agent = null }) =
               channel={formData.channel}
               selectedObjective={formData.objective}
               onSelect={(obj) => updateFormData('objective', obj)}
-              maxMessages={formData.maxMessages}
-              onChangeMaxMessages={(num) => updateFormData('maxMessages', num)}
               schedulingLink={formData.schedulingLink}
               onChangeSchedulingLink={(link) => updateFormData('schedulingLink', link)}
               conversionLink={formData.conversionLink}
               onChangeConversionLink={(link) => updateFormData('conversionLink', link)}
+            />
+          )}
+
+          {currentStep === STEPS.TRANSFER && (
+            <TransferTriggersStep
+              candidate={displayCandidate}
+              transferTriggers={formData.transferTriggers}
+              onChangeTransferTriggers={(triggers) => updateFormData('transferTriggers', triggers)}
             />
           )}
 

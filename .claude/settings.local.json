@@ -68,7 +68,9 @@
       "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && head -5 {}')",
       "Bash(tag \")",
       "Bash(git checkout:*)",
-      "Bash(npm run migrate:*)"
+      "Bash(npm run migrate:*)",
+      "Bash(node check-webhooks.js:*)",
+      "Bash(node check-webhook-payload.js:*)"
     ],
     "deny": [],
     "ask": []

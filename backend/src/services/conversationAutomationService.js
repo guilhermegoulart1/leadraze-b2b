@@ -127,7 +127,9 @@ async function processIncomingMessage(params) {
                 `(summary: ${conversationContext.stats.hasSummary ? 'YES' : 'NO'})`);
 
     // Gerar resposta usando IA
-    console.log(`🤖 Gerando resposta IA...`);
+    // Usar current_step da conversa para tracking de etapas
+    const currentStep = conversation.current_step || 0;
+    console.log(`🤖 Gerando resposta IA... (etapa atual: ${currentStep + 1})`);
 
     const aiResponse = await aiResponseService.generateResponse({
       conversation_id,
@@ -135,6 +137,7 @@ async function processIncomingMessage(params) {
       conversation_context: conversationContext, // New format with summary
       ai_agent: conversation.ai_agent,
       lead_data: conversation.lead_data,
+      current_step: currentStep, // Pass current step for stage tracking
       context: {
         campaign: conversation.campaign_name
       }
@@ -160,15 +163,36 @@ async function processIncomingMessage(params) {
       sent_at: new Date()
     });
 
-    // Atualizar conversa
-    await db.update(
-      'conversations',
-      {
-        last_message_at: new Date(),
-        last_message_preview: aiResponse.response.substring(0, 100)
-      },
-      { id: conversation_id }
-    );
+    // Atualizar conversa (incluindo step se avançou)
+    const conversationUpdate = {
+      last_message_at: new Date(),
+      last_message_preview: aiResponse.response.substring(0, 100)
+    };
+
+    // Persistir current_step se houve avanço de etapa
+    if (aiResponse.step_advanced) {
+      conversationUpdate.current_step = aiResponse.current_step;
+      conversationUpdate.step_advanced_at = new Date();
+
+      // Atualizar step_history
+      const stepHistoryEntry = {
+        from_step: currentStep,
+        to_step: aiResponse.current_step,
+        advanced_at: new Date().toISOString(),
+        trigger: 'ai_detected_completion'
+      };
+
+      await db.query(
+        `UPDATE conversations
+         SET step_history = COALESCE(step_history, '[]'::jsonb) || $1::jsonb
+         WHERE id = $2`,
+        [JSON.stringify([stepHistoryEntry]), conversation_id]
+      );
+
+      console.log(`📈 Etapa avançada: ${currentStep + 1} → ${aiResponse.current_step + 1}`);
+    }
+
+    await db.update('conversations', conversationUpdate, { id: conversation_id });
 
     // Atualizar status do lead baseado na intenção
     if (aiResponse.intent) {
@@ -202,8 +226,26 @@ async function processIncomingMessage(params) {
     // Increment exchange count (1 exchange = lead message + AI response)
     const newExchangeCount = await handoffService.incrementExchangeCount(conversation_id);
 
-    // Check if handoff should be triggered
-    if (agent && agent.handoff_after_exchanges) {
+    // Priority 1: Check if AI requested transfer via [TRANSFER] tag
+    if (aiResponse.aiRequestedTransfer) {
+      console.log(`🔄 Handoff triggered: AI detected transfer trigger and requested transfer`);
+      await handoffService.executeHandoff(conversation_id, agent, 'trigger_ai_requested');
+      handoffExecuted = true;
+    }
+
+    // Priority 2: Check transfer triggers from lead's message (new system)
+    if (!handoffExecuted && agent && agent.transfer_triggers && agent.transfer_triggers.length > 0) {
+      const triggerResult = handoffService.checkTransferTriggers(message_content, agent);
+
+      if (triggerResult.shouldTransfer) {
+        console.log(`🔄 Handoff triggered: ${triggerResult.reasonText} (triggers: ${triggerResult.matchedTriggers.join(', ')})`);
+        await handoffService.executeHandoff(conversation_id, agent, triggerResult.reason);
+        handoffExecuted = true;
+      }
+    }
+
+    // Priority 3: Check legacy handoff_after_exchanges (for backward compatibility)
+    if (!handoffExecuted && agent && agent.handoff_after_exchanges) {
       const shouldHandoff = await handoffService.shouldTriggerHandoff(
         conversation_id,
         agent.handoff_after_exchanges
@@ -217,7 +259,7 @@ async function processIncomingMessage(params) {
       }
     }
 
-    // Also check for escalation triggers (sentiment/keywords)
+    // Priority 4: Check for escalation triggers (sentiment/keywords - legacy system)
     if (!handoffExecuted && aiResponse.shouldEscalate) {
       const escalationReason = aiResponse.escalationReasons?.[0] || 'escalation_detected';
       console.log(`🔄 Escalation handoff triggered: ${escalationReason}`);
@@ -317,7 +359,41 @@ async function processInviteAccepted(params) {
 
     // Verificar se deve enviar mensagem inicial automática
     if (aiAgent && campaign.automation_active) {
-      console.log(`💬 Gerando mensagem inicial automática...`);
+      const connectionStrategy = aiAgent.connection_strategy || 'silent';
+      console.log(`💬 Processando convite aceito com estratégia: ${connectionStrategy}`);
+
+      // ESTRATÉGIA SILENCIOSA: Se tiver post_accept_message, enviar. Senão, aguardar lead iniciar
+      if (connectionStrategy === 'silent') {
+        // Se não tem post_accept_message, aguardar lead iniciar
+        if (!aiAgent.post_accept_message) {
+          console.log(`🔇 Estratégia silenciosa: aguardando lead iniciar conversa`);
+          return {
+            processed: true,
+            conversation_id: conversationId,
+            initial_message_sent: false,
+            reason: 'silent_strategy'
+          };
+        }
+        // Se tem post_accept_message, prosseguir para enviar (vai usar a lógica de with-intro abaixo)
+        console.log(`🔇 Estratégia silenciosa com mensagem pós-aceite configurada`);
+      }
+
+      // ESTRATÉGIA ICEBREAKER COM require_lead_reply: Aguardar lead responder
+      // (O convite já foi enviado com mensagem curta, agora aguarda resposta do lead)
+      if (connectionStrategy === 'icebreaker') {
+        // Para icebreaker, o convite já tinha uma mensagem curta
+        // Aguardamos o lead responder antes de enviar mais mensagens
+        console.log(`❄️ Estratégia icebreaker: aguardando lead responder ao convite`);
+        return {
+          processed: true,
+          conversation_id: conversationId,
+          initial_message_sent: false,
+          reason: 'icebreaker_awaiting_reply'
+        };
+      }
+
+      // ESTRATÉGIA WITH-INTRO ou SILENT com post_accept_message: Enviar mensagem pós-aceite
+      console.log(`📝 Estratégia ${connectionStrategy}: gerando mensagem pós-aceite...`);
 
       // Buscar account_id do usuário
       const userResult = await db.query(
@@ -340,23 +416,37 @@ async function processInviteAccepted(params) {
         }
       }
 
-      // Gerar mensagem inicial
-      const initialMessage = await aiResponseService.generateInitialMessage({
-        ai_agent: aiAgent,
-        lead_data: leadData,
-        campaign
-      });
+      // Determinar a mensagem a enviar:
+      // 1. Se há post_accept_message configurado, usar ele
+      // 2. Caso contrário, gerar com IA (diferente do convite)
+      let postAcceptMessage = aiAgent.post_accept_message;
 
-      console.log(`✅ Mensagem gerada: "${initialMessage.substring(0, 50)}..."`);
+      if (!postAcceptMessage) {
+        // Gerar mensagem com IA (garantindo que seja diferente do convite)
+        postAcceptMessage = await aiResponseService.generateInitialMessage({
+          ai_agent: aiAgent,
+          lead_data: leadData,
+          campaign
+        });
+      } else {
+        // Processar variáveis no template
+        const TemplateProcessor = require('../utils/templateProcessor');
+        const leadDataProcessed = TemplateProcessor.extractLeadData(leadData);
+        postAcceptMessage = TemplateProcessor.processTemplate(postAcceptMessage, leadDataProcessed);
+      }
 
-      // Aguardar 3-8 segundos (comportamento mais humano)
-      const delay = 3000 + Math.random() * 5000;
+      console.log(`✅ Mensagem pós-aceite: "${postAcceptMessage.substring(0, 50)}..."`);
+
+      // Aguardar tempo configurado (mais longo para with-intro: 30-60 segundos)
+      // Isso simula comportamento humano de não responder imediatamente
+      const delay = 30000 + Math.random() * 30000; // 30-60 segundos
+      console.log(`⏳ Aguardando ${Math.round(delay/1000)}s antes de enviar (comportamento humano)...`);
       await new Promise(resolve => setTimeout(resolve, delay));
 
-      // Enviar mensagem inicial
+      // Enviar mensagem pós-aceite
       await sendAutomatedReply({
         conversation_id: conversationId,
-        response: initialMessage,
+        response: postAcceptMessage,
         unipile_account_id: linkedinAccount.unipile_account_id,
         lead_unipile_id: lead_unipile_id
       });
@@ -365,7 +455,7 @@ async function processInviteAccepted(params) {
       await saveMessage({
         conversation_id: conversationId,
         sender_type: 'ai',
-        content: initialMessage,
+        content: postAcceptMessage,
         ai_intent: 'initial_contact',
         sent_at: new Date()
       });
@@ -375,7 +465,7 @@ async function processInviteAccepted(params) {
         'conversations',
         {
           last_message_at: new Date(),
-          last_message_preview: initialMessage.substring(0, 100)
+          last_message_preview: postAcceptMessage.substring(0, 100)
         },
         { id: conversationId }
       );
@@ -388,7 +478,7 @@ async function processInviteAccepted(params) {
           aiAgent.id,
           conversationId,
           campaign.user_id,
-          `Initial AI message sent to ${leadData.name}`
+          `Post-accept AI message sent to ${leadData.name}`
         );
 
         if (consumed) {
@@ -396,13 +486,14 @@ async function processInviteAccepted(params) {
         }
       }
 
-      console.log(`✅ Mensagem inicial enviada automaticamente`);
+      console.log(`✅ Mensagem pós-aceite enviada automaticamente`);
 
       return {
         processed: true,
         conversation_id: conversationId,
         initial_message_sent: true,
-        message: initialMessage
+        message: postAcceptMessage,
+        connection_strategy: connectionStrategy
       };
     }
 
@@ -425,6 +516,9 @@ async function getConversationDetails(conversationId) {
   const result = await db.query(
     `SELECT
       conv.*,
+      conv.current_step,
+      conv.step_history,
+      conv.step_advanced_at,
       l.id as lead_id,
       l.name as lead_name,
       l.title as lead_title,
@@ -457,7 +551,10 @@ async function getConversationDetails(conversationId) {
       aa.conversation_steps,
       aa.knowledge_similarity_threshold,
       aa.max_messages_before_transfer,
-      aa.handoff_after_exchanges
+      aa.handoff_after_exchanges,
+      aa.connection_strategy,
+      aa.post_accept_message,
+      aa.transfer_triggers
     FROM conversations conv
     JOIN leads l ON conv.lead_id = l.id
     JOIN campaigns c ON conv.campaign_id = c.id
@@ -497,7 +594,10 @@ async function getConversationDetails(conversationId) {
       conversation_steps: row.conversation_steps,
       knowledge_similarity_threshold: row.knowledge_similarity_threshold,
       max_messages_before_transfer: row.max_messages_before_transfer,
-      handoff_after_exchanges: row.handoff_after_exchanges
+      handoff_after_exchanges: row.handoff_after_exchanges,
+      connection_strategy: row.connection_strategy,
+      post_accept_message: row.post_accept_message,
+      transfer_triggers: row.transfer_triggers || []
     } : null,
     lead_data: {
       name: row.lead_name,

@@ -263,6 +263,106 @@ export const OBJECTIVES = [
   }
 ];
 
+// Gatilhos de transferência para o humano
+export const TRANSFER_TRIGGERS = [
+  {
+    id: 'doubt',
+    label: 'Transferir em caso de dúvidas',
+    description: 'Quando o lead tiver dúvidas que o agente não consegue responder',
+    keywords: ['dúvida', 'não entendi', 'como funciona', 'não sei', 'explica'],
+    sentiment: 'confusion'
+  },
+  {
+    id: 'qualified',
+    label: 'Transferir quando cliente qualificado',
+    description: 'Quando o lead demonstrar que está pronto para avançar',
+    keywords: ['quero', 'preciso', 'interesse', 'vamos', 'fechar'],
+    sentiment: 'high_interest'
+  },
+  {
+    id: 'price',
+    label: 'Transferir quando pedir preço',
+    description: 'Quando o lead perguntar sobre valores ou preços',
+    keywords: ['preço', 'quanto custa', 'valor', 'orçamento', 'investimento', 'quanto é']
+  },
+  {
+    id: 'demo',
+    label: 'Transferir quando solicitar demo',
+    description: 'Quando o lead quiser ver uma demonstração',
+    keywords: ['demo', 'demonstração', 'apresentação', 'mostrar', 'ver funcionando']
+  },
+  {
+    id: 'competitor',
+    label: 'Transferir quando mencionar concorrente',
+    description: 'Quando o lead mencionar produtos ou empresas concorrentes',
+    keywords: [] // Configurável pelo usuário
+  },
+  {
+    id: 'urgency',
+    label: 'Transferir quando detectar urgência',
+    description: 'Quando o lead demonstrar pressa ou urgência',
+    keywords: ['urgente', 'agora', 'hoje', 'rápido', 'imediato', 'prazo'],
+    sentiment: 'urgency'
+  },
+  {
+    id: 'frustration',
+    label: 'Transferir quando detectar frustração',
+    description: 'Quando o lead parecer frustrado ou irritado',
+    keywords: ['problema', 'não funciona', 'ruim', 'péssimo', 'insatisfeito'],
+    sentiment: 'frustration'
+  }
+];
+
+// Templates de etapas da conversa por objetivo
+export const CONVERSATION_STEP_TEMPLATES = {
+  qualify_transfer: [
+    { order: 1, text: 'Quebrar gelo e criar rapport', is_escalation: false },
+    { order: 2, text: 'Entender a dor/problema do lead', is_escalation: false },
+    { order: 3, text: 'Apresentar solução brevemente', is_escalation: false },
+    { order: 4, text: 'Qualificar interesse e fit', is_escalation: false },
+    { order: 5, text: 'Propor próximo passo e transferir', is_escalation: true }
+  ],
+  schedule_meeting: [
+    { order: 1, text: 'Criar rapport e conexão inicial', is_escalation: false },
+    { order: 2, text: 'Despertar interesse com insight relevante', is_escalation: false },
+    { order: 3, text: 'Demonstrar valor da solução', is_escalation: false },
+    { order: 4, text: 'Propor reunião/demonstração', is_escalation: false },
+    { order: 5, text: 'Confirmar agendamento', is_escalation: true }
+  ],
+  sell_direct: [
+    { order: 1, text: 'Criar rapport e identificar necessidade', is_escalation: false },
+    { order: 2, text: 'Apresentar produto/serviço', is_escalation: false },
+    { order: 3, text: 'Lidar com objeções', is_escalation: false },
+    { order: 4, text: 'Enviar link de compra/conversão', is_escalation: false },
+    { order: 5, text: 'Confirmar conversão', is_escalation: true }
+  ],
+  connect_only: [] // Sem etapas - transfere imediatamente
+};
+
+// Templates de mensagem de transferência
+export const TRANSFER_MESSAGE_TEMPLATES = [
+  {
+    id: 'specialist',
+    label: 'Conectar com especialista',
+    template: 'Que ótimo seu interesse! Vou te conectar com nosso especialista que pode te ajudar melhor com isso.'
+  },
+  {
+    id: 'team',
+    label: 'Passar para equipe',
+    template: 'Perfeito! Vou passar sua conversa para nossa equipe comercial que vai entrar em contato em breve.'
+  },
+  {
+    id: 'manager',
+    label: 'Passar para gerente',
+    template: 'Entendo! Vou te conectar com nosso gerente de contas que pode discutir os detalhes com você.'
+  },
+  {
+    id: 'custom',
+    label: 'Mensagem personalizada',
+    template: ''
+  }
+];
+
 export const SALES_METHODOLOGIES = [
   {
     id: 'spin-selling',

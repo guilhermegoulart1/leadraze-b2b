@@ -60,4 +60,7 @@ router.post('/:id/clone', aiAgentController.cloneAIAgent);
 // Obter estatísticas
 router.get('/:id/stats', aiAgentController.getAIAgentStats);
 
+// Preview do prompt do agente
+router.get('/:id/prompt-preview', aiAgentController.getAgentPromptPreview);
+
 module.exports = router;

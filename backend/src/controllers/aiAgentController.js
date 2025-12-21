@@ -2,6 +2,7 @@
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { buildSystemPrompt } = require('../services/aiResponseService');
 
 // PERFIS COMPORTAMENTAIS DISPONÍVEIS
 const BEHAVIORAL_PROFILES = {
@@ -82,9 +83,21 @@ const createAIAgent = async (req, res) => {
       // Connection strategy fields
       connection_strategy,
       invite_message,
+      post_accept_message,
       wait_time_after_accept,
-      require_lead_reply
+      require_lead_reply,
+      // Language and transfer triggers
+      language = 'pt-BR',
+      transfer_triggers
     } = req.body;
+
+    console.log('🆕 Creating AI agent with data:', {
+      name,
+      post_accept_message,
+      connection_strategy,
+      language,
+      transfer_triggers
+    });
 
     if (!name || !products_services || !behavioral_profile) {
       throw new ValidationError('Nome, produtos/serviços e perfil são obrigatórios');
@@ -135,6 +148,7 @@ const createAIAgent = async (req, res) => {
     }
 
     // MULTI-TENANCY: Include account_id when creating AI agent
+    console.log('📝 Inserting ai_agent with post_accept_message:', post_accept_message);
     const agent = await db.insert('ai_agents', {
       user_id: userId,
       account_id: accountId,
@@ -160,10 +174,15 @@ const createAIAgent = async (req, res) => {
       // Connection strategy fields
       connection_strategy: finalStrategy,
       invite_message: invite_message || null,
+      post_accept_message: post_accept_message || null,
       wait_time_after_accept: wait_time_after_accept ?? strategyDefaults.wait_time,
-      require_lead_reply: require_lead_reply ?? strategyDefaults.require_reply
+      require_lead_reply: require_lead_reply ?? strategyDefaults.require_reply,
+      // Language and transfer triggers
+      language: language || 'pt-BR',
+      transfer_triggers: Array.isArray(transfer_triggers) ? transfer_triggers : []
     });
 
+    console.log('✅ Agent created successfully with id:', agent.id, 'post_accept_message:', agent.post_accept_message);
     sendSuccess(res, agent, 'Agente criado com sucesso', 201);
   } catch (error) {
     sendError(res, error);
@@ -247,8 +266,37 @@ const updateAIAgent = async (req, res) => {
     if (typeof updateData.priority_rules === 'object' && updateData.priority_rules !== null) {
       updateData.priority_rules = JSON.stringify(updateData.priority_rules);
     }
+    // Ensure transfer_triggers is an array
+    if (updateData.transfer_triggers !== undefined) {
+      updateData.transfer_triggers = Array.isArray(updateData.transfer_triggers)
+        ? updateData.transfer_triggers
+        : [];
+    }
+    // Convert config to JSON string
+    if (typeof updateData.config === 'object' && updateData.config !== null) {
+      updateData.config = JSON.stringify(updateData.config);
+    }
+    // Convert conversation_steps to JSON string
+    if (typeof updateData.conversation_steps === 'object' && updateData.conversation_steps !== null) {
+      updateData.conversation_steps = JSON.stringify(updateData.conversation_steps);
+    }
+
+    console.log('🔄 Updating AI agent with data:', {
+      post_accept_message: updateData.post_accept_message,
+      connection_strategy: updateData.connection_strategy,
+      language: updateData.language,
+      transfer_triggers: updateData.transfer_triggers,
+      transfer_mode: updateData.transfer_mode,
+      conversation_steps: updateData.conversation_steps,
+      objective_instructions: updateData.objective_instructions
+    });
 
     const updated = await db.update('ai_agents', updateData, { id: req.params.id });
+    console.log('✅ Agent updated successfully:', {
+      conversation_steps: updated.conversation_steps,
+      transfer_mode: updated.transfer_mode,
+      objective_instructions: updated.objective_instructions
+    });
     updated.linkedin_variables = typeof updated.linkedin_variables === 'string'
       ? JSON.parse(updated.linkedin_variables)
       : updated.linkedin_variables;
@@ -371,7 +419,7 @@ const testAIAgentResponse = async (req, res) => {
     }
 
     const agent = agentCheck.rows[0];
-    const { message, conversation_history = [], lead_data = {} } = req.body;
+    const { message, conversation_history = [], lead_data = {}, current_step = 0 } = req.body;
 
     if (!message) {
       throw new ValidationError('Mensagem de teste obrigatória');
@@ -386,15 +434,23 @@ const testAIAgentResponse = async (req, res) => {
       conversation_history,
       ai_agent: agent,
       lead_data,
-      context: { is_test: true }
+      context: { is_test: true },
+      current_step  // Pass current step for intelligent progression
     });
 
     sendSuccess(res, {
       response: result.response,
       intent: result.intent,
+      sentiment: result.sentiment,
+      sentiment_confidence: result.sentimentConfidence,
+      should_escalate: result.shouldEscalate,
+      escalation_reasons: result.escalationReasons,
+      matched_keywords: result.matchedKeywords,
       should_offer_scheduling: result.should_offer_scheduling,
       scheduling_link: result.scheduling_link,
-      tokens_used: result.tokens_used
+      tokens_used: result.tokens_used,
+      current_step: result.current_step,    // Return updated step
+      step_advanced: result.step_advanced   // Indicate if step advanced
     });
   } catch (error) {
     console.error('Erro ao testar resposta do agente:', error);
@@ -462,6 +518,68 @@ const getAIAgentStats = async (req, res) => {
   }
 };
 
+/**
+ * Get prompt preview for an agent
+ */
+const getAgentPromptPreview = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const agentId = req.params.id;
+
+    // MULTI-TENANCY: Filter by account_id
+    const agentResult = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [agentId, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agente não encontrado');
+    }
+
+    const agent = agentResult.rows[0];
+
+    // Parse JSON fields
+    if (typeof agent.conversation_steps === 'string') {
+      try {
+        agent.conversation_steps = JSON.parse(agent.conversation_steps);
+      } catch {
+        agent.conversation_steps = [];
+      }
+    }
+
+    if (typeof agent.priority_rules === 'string') {
+      try {
+        agent.priority_rules = JSON.parse(agent.priority_rules);
+      } catch {
+        agent.priority_rules = [];
+      }
+    }
+
+    // Get behavioral profile
+    const behavioralProfile = BEHAVIORAL_PROFILES[agent.behavioral_profile] || BEHAVIORAL_PROFILES.consultivo;
+
+    // Generate prompt with sample lead data
+    const sampleLeadData = {
+      name: 'João Silva',
+      title: 'CEO',
+      company: 'TechCorp',
+      location: 'São Paulo, SP',
+      industry: 'Tecnologia'
+    };
+
+    const prompt = buildSystemPrompt({
+      ai_agent: agent,
+      behavioralProfile,
+      lead_data: sampleLeadData,
+      knowledgeContext: ''
+    });
+
+    sendSuccess(res, { prompt });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getBehavioralProfiles,
   createAIAgent,
@@ -473,5 +591,6 @@ module.exports = {
   testAIAgentInitialMessage,
   testAIAgentResponse,
   cloneAIAgent,
-  getAIAgentStats
+  getAIAgentStats,
+  getAgentPromptPreview
 };

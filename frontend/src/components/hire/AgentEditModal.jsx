@@ -33,8 +33,12 @@ import {
   CONNECTION_STRATEGIES,
   CONVERSATION_STYLES,
   OBJECTIVES,
-  SALES_METHODOLOGIES
+  SALES_METHODOLOGIES,
+  TRANSFER_TRIGGERS,
+  CONVERSATION_STEP_TEMPLATES,
+  TRANSFER_MESSAGE_TEMPLATES
 } from './salesRepTemplates';
+import { ArrowRightLeft, ListOrdered, Settings, ChevronDown, ChevronUp, Plus, Trash2, ArrowUp, ArrowDown, Copy, Eye } from 'lucide-react';
 
 const SECTIONS = {
   PROFILE: 'profile',
@@ -44,8 +48,10 @@ const SECTIONS = {
   STYLE: 'style',
   METHODOLOGY: 'methodology',
   OBJECTIVE: 'objective',
+  STEPS: 'steps',
+  TRANSFER: 'transfer',
   LINKEDIN: 'linkedin',
-  RULES: 'rules'
+  ADVANCED: 'advanced'
 };
 
 // Unsplash professional portrait photo IDs for random selection
@@ -87,15 +93,22 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
     schedulingLink: '',
     connectionStrategy: 'with-intro',
     inviteMessage: '',
+    postAcceptMessage: '',
     priorityRules: [],
     waitTimeAfterAccept: 5,
-    requireLeadReply: false
+    requireLeadReply: false,
+    transferTriggers: ['qualified', 'price', 'demo'],
+    conversationSteps: [],
+    objectiveInstructions: '',
+    transferMode: 'notify',
+    transferMessage: ''
   });
 
   // Populate form when agent changes
   useEffect(() => {
     if (isOpen && agent) {
       console.log('Loading agent data:', agent);
+      console.log('🔍 post_accept_message from agent:', agent.post_accept_message);
       // Parse products_services
       let productService = { categories: [], description: '' };
       if (agent.products_services) {
@@ -154,6 +167,22 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
       }
       console.log('Parsed agentConfig:', agentConfig);
 
+      // Parse conversation_steps
+      let conversationSteps = [];
+      console.log('📥 Loading agent conversation_steps raw:', agent.conversation_steps);
+      if (agent.conversation_steps) {
+        if (typeof agent.conversation_steps === 'string') {
+          try {
+            conversationSteps = JSON.parse(agent.conversation_steps);
+          } catch {
+            conversationSteps = [];
+          }
+        } else {
+          conversationSteps = agent.conversation_steps;
+        }
+      }
+      console.log('📥 Parsed conversation_steps:', conversationSteps);
+
       setFormData({
         name: agent.name || '',
         avatarUrl: agent.avatar_url || null,
@@ -167,9 +196,15 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
         schedulingLink: agent.scheduling_link || '',
         connectionStrategy: agent.connection_strategy || 'with-intro',
         inviteMessage: agent.invite_message || agent.initial_approach || '',
+        postAcceptMessage: agent.post_accept_message || '',
         priorityRules,
         waitTimeAfterAccept: agent.wait_time_after_accept || 5,
-        requireLeadReply: agent.require_lead_reply || false
+        requireLeadReply: agent.require_lead_reply || false,
+        transferTriggers: agent.transfer_triggers || agentConfig.transfer_triggers || ['qualified', 'price', 'demo'],
+        conversationSteps,
+        objectiveInstructions: agent.objective_instructions || '',
+        transferMode: agent.transfer_mode || 'notify',
+        transferMessage: agent.transfer_message || ''
       });
       setHasChanges(false);
       setActiveSection(SECTIONS.PROFILE);
@@ -196,23 +231,32 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
         target_audience: formData.targetAudience,
         connection_strategy: formData.connectionStrategy,
         invite_message: formData.inviteMessage,
+        post_accept_message: formData.postAcceptMessage || null,
         initial_approach: formData.inviteMessage || null,
         scheduling_link: formData.schedulingLink,
         priority_rules: formData.priorityRules,
         wait_time_after_accept: formData.waitTimeAfterAccept || 5,
         require_lead_reply: formData.requireLeadReply || false,
+        transfer_triggers: formData.transferTriggers || [],
+        conversation_steps: formData.conversationSteps || [],
+        objective_instructions: formData.objectiveInstructions || null,
+        transfer_mode: formData.transferMode || 'notify',
+        transfer_message: formData.transferMessage || null,
         // Store methodology, objective and other wizard settings in config JSON
         config: {
           methodology_template_id: formData.methodology,
           objective: formData.objective,
           max_messages_before_escalation: formData.maxMessages || 3,
+          transfer_triggers: formData.transferTriggers || [],
           escalate_on_price_question: formData.objective === 'qualify_transfer',
           escalate_on_specific_feature: true,
           escalate_keywords: ['preço', 'quanto custa', 'demo', 'reunião', 'proposta']
         }
       };
 
-      await api.updateAIAgent(agent.id, agentData);
+      console.log('🔄 Saving agent with conversation_steps:', agentData.conversation_steps);
+      const result = await api.updateAIAgent(agent.id, agentData);
+      console.log('✅ Agent saved, response:', result.data?.conversation_steps);
       setHasChanges(false);
       onSaved?.();
       onClose();
@@ -237,9 +281,11 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
     { id: SECTIONS.STYLE, icon: MessageSquare, label: 'Estilo' },
     { id: SECTIONS.METHODOLOGY, icon: BookOpen, label: 'Metodologia' },
     { id: SECTIONS.OBJECTIVE, icon: Check, label: 'Objetivo' },
+    { id: SECTIONS.STEPS, icon: ListOrdered, label: 'Etapas' },
+    { id: SECTIONS.TRANSFER, icon: ArrowRightLeft, label: 'Transferência' },
     // Only show LinkedIn section for LinkedIn agents
     ...(isLinkedIn ? [{ id: SECTIONS.LINKEDIN, icon: Linkedin, label: 'LinkedIn' }] : []),
-    { id: SECTIONS.RULES, icon: Shield, label: 'Regras' }
+    { id: SECTIONS.ADVANCED, icon: Settings, label: 'Avançado' }
   ];
 
   if (!isOpen || !agent) return null;
@@ -360,18 +406,37 @@ const AgentEditModal = ({ isOpen, onClose, agent, onSaved }) => {
               />
             )}
 
-            {isLinkedIn && activeSection === SECTIONS.LINKEDIN && (
-              <LinkedInSection
-                connectionStrategy={formData.connectionStrategy}
-                inviteMessage={formData.inviteMessage}
+            {activeSection === SECTIONS.STEPS && (
+              <ConversationStepsSection
+                steps={formData.conversationSteps}
+                objective={formData.objective}
+                onChange={(value) => updateFormData('conversationSteps', value)}
+              />
+            )}
+
+            {activeSection === SECTIONS.TRANSFER && (
+              <TransferSection
+                transferTriggers={formData.transferTriggers}
+                transferMode={formData.transferMode}
+                transferMessage={formData.transferMessage}
                 onChange={(key, value) => updateFormData(key, value)}
               />
             )}
 
-            {activeSection === SECTIONS.RULES && (
-              <RulesSection
-                rules={formData.priorityRules}
-                onChange={(value) => updateFormData('priorityRules', value)}
+            {isLinkedIn && activeSection === SECTIONS.LINKEDIN && (
+              <LinkedInSection
+                connectionStrategy={formData.connectionStrategy}
+                inviteMessage={formData.inviteMessage}
+                postAcceptMessage={formData.postAcceptMessage}
+                onChange={(key, value) => updateFormData(key, value)}
+              />
+            )}
+
+            {activeSection === SECTIONS.ADVANCED && (
+              <AdvancedSection
+                objectiveInstructions={formData.objectiveInstructions}
+                agentId={agent?.id}
+                onChange={(value) => updateFormData('objectiveInstructions', value)}
               />
             )}
           </div>
@@ -1019,7 +1084,7 @@ const ObjectiveSection = ({ selected, maxMessages, schedulingLink, onChange }) =
   );
 };
 
-const LinkedInSection = ({ connectionStrategy, inviteMessage, onChange }) => {
+const LinkedInSection = ({ connectionStrategy, inviteMessage, postAcceptMessage, onChange }) => {
   const iconMap = {
     UserPlus: UserPlus,
     MessageSquarePlus: MessageSquarePlus,
@@ -1103,7 +1168,7 @@ Aceita conectar?`,
         </div>
       </div>
 
-      {/* Invite Message */}
+      {/* Invite Message for with-intro and icebreaker */}
       {(connectionStrategy === 'with-intro' || connectionStrategy === 'icebreaker') && (
         <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1132,8 +1197,418 @@ Aceita conectar?`,
               Limite: 300 caracteres
             </span>
           </div>
+
+          {/* Post-accept message for with-intro and icebreaker */}
+          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Mensagem após aceite do convite (opcional)
+            </label>
+            <textarea
+              value={postAcceptMessage || ''}
+              onChange={(e) => onChange('postAcceptMessage', e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+              placeholder="Mensagem que o agente enviará após o lead aceitar o convite..."
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Se deixar vazio, o agente usará a IA para gerar uma mensagem de início de conversa.
+            </p>
+          </div>
         </div>
       )}
+
+      {/* Post-accept message for silent strategy */}
+      {connectionStrategy === 'silent' && (
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-3">
+            <p className="text-xs text-blue-800 dark:text-blue-200">
+              O convite será enviado sem mensagem. Após o aceite, se o lead não enviar mensagem, o agente pode iniciar a conversa.
+            </p>
+          </div>
+
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Mensagem para iniciar conversa após aceite (opcional)
+          </label>
+          <textarea
+            value={postAcceptMessage || ''}
+            onChange={(e) => onChange('postAcceptMessage', e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+            placeholder="Oi {{first_name}}, obrigado por conectar! Vi que você trabalha na {{company}}..."
+          />
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <span className="text-xs text-gray-500">Variáveis:</span>
+            {['{{first_name}}', '{{company}}', '{{title}}'].map((variable) => (
+              <button
+                key={variable}
+                type="button"
+                onClick={() => onChange('postAcceptMessage', (postAcceptMessage || '') + ` ${variable}`)}
+                className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                {variable}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Se deixar vazio, o agente aguardará o lead iniciar ou usará a IA para gerar uma mensagem.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ConversationStepsSection = ({ steps = [], objective, onChange }) => {
+  const [localSteps, setLocalSteps] = useState(steps);
+
+  useEffect(() => {
+    setLocalSteps(steps);
+  }, [steps]);
+
+  const loadTemplate = (objectiveId) => {
+    const template = CONVERSATION_STEP_TEMPLATES[objectiveId] || [];
+    const newSteps = template.map((step, idx) => ({
+      order: idx + 1,
+      text: step.text,
+      is_escalation: step.is_escalation
+    }));
+    setLocalSteps(newSteps);
+    onChange(newSteps);
+  };
+
+  const addStep = () => {
+    const newStep = {
+      order: localSteps.length + 1,
+      text: '',
+      is_escalation: false
+    };
+    const updated = [...localSteps, newStep];
+    setLocalSteps(updated);
+    onChange(updated);
+  };
+
+  const updateStep = (index, field, value) => {
+    const updated = localSteps.map((step, i) =>
+      i === index ? { ...step, [field]: value } : step
+    );
+    setLocalSteps(updated);
+    onChange(updated);
+  };
+
+  const removeStep = (index) => {
+    const updated = localSteps
+      .filter((_, i) => i !== index)
+      .map((step, i) => ({ ...step, order: i + 1 }));
+    setLocalSteps(updated);
+    onChange(updated);
+  };
+
+  const moveStep = (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= localSteps.length) return;
+
+    const updated = [...localSteps];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    const reordered = updated.map((step, i) => ({ ...step, order: i + 1 }));
+    setLocalSteps(reordered);
+    onChange(reordered);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+          Etapas da Conversa
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Configure a sequência de passos que o agente segue durante a conversa.
+        </p>
+      </div>
+
+      {/* Load template dropdown */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+          Carregar template
+        </label>
+        <select
+          value=""
+          onChange={(e) => e.target.value && loadTemplate(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+        >
+          <option value="">Selecione um template...</option>
+          <option value="qualify_transfer">Qualificar e Transferir</option>
+          <option value="schedule_meeting">Agendar Reunião</option>
+          <option value="sell_direct">Vender Direto</option>
+        </select>
+      </div>
+
+      {/* Steps list */}
+      <div className="space-y-2">
+        {localSteps.map((step, index) => (
+          <div
+            key={index}
+            className={`flex items-center gap-2 p-2 rounded-lg border ${
+              step.is_escalation
+                ? 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'
+                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+            }`}
+          >
+            <span className="w-6 h-6 flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-bold flex-shrink-0">
+              {index + 1}
+            </span>
+
+            <input
+              type="text"
+              value={step.text}
+              onChange={(e) => updateStep(index, 'text', e.target.value)}
+              className="flex-1 px-2 py-1 text-sm border-0 bg-transparent text-gray-900 dark:text-white focus:ring-0 focus:outline-none"
+              placeholder="Descreva esta etapa..."
+            />
+
+            <label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={step.is_escalation}
+                onChange={(e) => updateStep(index, 'is_escalation', e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+              />
+              <ArrowRightLeft className="w-3 h-3" />
+            </label>
+
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => moveStep(index, -1)}
+                disabled={index === 0}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveStep(index, 1)}
+                disabled={index === localSteps.length - 1}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => removeStep(index)}
+                className="p-1 text-gray-400 hover:text-red-500"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add step button */}
+      <button
+        type="button"
+        onClick={addStep}
+        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-purple-600 dark:text-purple-400 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+      >
+        <Plus className="w-4 h-4" />
+        Adicionar etapa
+      </button>
+
+      {/* Legend */}
+      <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+          <ArrowRightLeft className="w-3.5 h-3.5 text-orange-500" />
+          Etapas marcadas indicam ponto de transferência para humano
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const TransferSection = ({ transferTriggers = [], transferMode = 'notify', transferMessage = '', onChange }) => {
+  const toggleTrigger = (triggerId) => {
+    const current = transferTriggers || [];
+    if (current.includes(triggerId)) {
+      onChange('transferTriggers', current.filter(t => t !== triggerId));
+    } else {
+      onChange('transferTriggers', [...current, triggerId]);
+    }
+  };
+
+  const handleModeChange = (mode) => {
+    onChange('transferMode', mode);
+    if (mode === 'silent') {
+      onChange('transferMessage', '');
+    }
+  };
+
+  const handleTemplateSelect = (templateId) => {
+    const template = TRANSFER_MESSAGE_TEMPLATES.find(t => t.id === templateId);
+    if (template) {
+      onChange('transferMessage', template.template);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+          Configurações de Transferência
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Configure quando e como o agente deve transferir a conversa.
+        </p>
+      </div>
+
+      {/* Transfer triggers */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Gatilhos de Transferência
+        </label>
+        <div className="space-y-2">
+          {TRANSFER_TRIGGERS.map((trigger) => {
+            const isSelected = transferTriggers?.includes(trigger.id) || false;
+
+            return (
+              <button
+                key={trigger.id}
+                type="button"
+                onClick={() => toggleTrigger(trigger.id)}
+                className={`w-full text-left p-3 rounded-lg border transition-all ${
+                  isSelected
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`
+                    w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5
+                    ${isSelected
+                      ? 'bg-purple-500 border-purple-500'
+                      : 'border-gray-300 dark:border-gray-600'
+                    }
+                  `}>
+                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm text-gray-900 dark:text-white">
+                      {trigger.label}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {trigger.description}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Transfer mode */}
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Como comunicar a transferência?
+        </label>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => handleModeChange('silent')}
+            className={`w-full text-left p-3 rounded-lg border transition-all ${
+              transferMode === 'silent'
+                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`
+                w-4 h-4 rounded-full border-2 flex items-center justify-center
+                ${transferMode === 'silent' ? 'border-purple-500' : 'border-gray-300 dark:border-gray-600'}
+              `}>
+                {transferMode === 'silent' && <div className="w-2 h-2 rounded-full bg-purple-500" />}
+              </div>
+              <div>
+                <h4 className="font-medium text-sm text-gray-900 dark:text-white">
+                  Transferir silenciosamente
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Não avisa o lead, apenas transfere a conversa
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleModeChange('notify')}
+            className={`w-full text-left p-3 rounded-lg border transition-all ${
+              transferMode === 'notify'
+                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`
+                w-4 h-4 rounded-full border-2 flex items-center justify-center
+                ${transferMode === 'notify' ? 'border-purple-500' : 'border-gray-300 dark:border-gray-600'}
+              `}>
+                {transferMode === 'notify' && <div className="w-2 h-2 rounded-full bg-purple-500" />}
+              </div>
+              <div>
+                <h4 className="font-medium text-sm text-gray-900 dark:text-white">
+                  Avisar antes de transferir
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Envia uma mensagem ao lead antes de transferir
+                </p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Transfer message (only when notify mode) */}
+      {transferMode === 'notify' && (
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+            Mensagem de transferência
+          </label>
+
+          {/* Template buttons */}
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {TRANSFER_MESSAGE_TEMPLATES.filter(t => t.id !== 'custom').map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => handleTemplateSelect(template.id)}
+                className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                {template.label}
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={transferMessage}
+            onChange={(e) => onChange('transferMessage', e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            placeholder="Ex: Que ótimo seu interesse! Vou te conectar com nosso especialista..."
+          />
+        </div>
+      )}
+
+      {/* Selected count indicator */}
+      <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+          <ArrowRightLeft className="w-4 h-4" />
+          {transferTriggers.length === 0
+            ? 'Nenhum gatilho selecionado - o agente não transferirá automaticamente'
+            : `${transferTriggers.length} gatilho(s) de transferência selecionado(s)`
+          }
+        </p>
+      </div>
     </div>
   );
 };
@@ -1225,6 +1700,137 @@ const RulesSection = ({ rules, onChange }) => {
             Adicionar
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const AdvancedSection = ({ objectiveInstructions, agentId, onChange }) => {
+  const [showPreview, setShowPreview] = useState(false);
+  const [promptPreview, setPromptPreview] = useState('');
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const loadPromptPreview = async () => {
+    if (!agentId) return;
+    setIsLoadingPreview(true);
+    try {
+      const response = await api.getAgentPromptPreview(agentId);
+      setPromptPreview(response.data?.prompt || 'Não foi possível carregar o preview.');
+    } catch (err) {
+      console.error('Error loading prompt preview:', err);
+      setPromptPreview('Erro ao carregar preview. Salve as alterações e tente novamente.');
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleTogglePreview = () => {
+    if (!showPreview && !promptPreview) {
+      loadPromptPreview();
+    }
+    setShowPreview(!showPreview);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(promptPreview);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+          Configurações Avançadas
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Instruções customizadas e preview do prompt.
+        </p>
+      </div>
+
+      {/* Custom instructions */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+          Instruções Customizadas
+        </label>
+        <textarea
+          value={objectiveInstructions || ''}
+          onChange={(e) => onChange(e.target.value)}
+          rows={5}
+          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono"
+          placeholder="Adicione instruções específicas que serão incluídas no prompt do agente...
+
+Ex:
+- Sempre mencione que a primeira consulta é gratuita
+- Foque em empresas de tecnologia com mais de 50 funcionários
+- Nunca mencione concorrentes pelo nome"
+        />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Estas instruções são adicionadas ao prompt do agente e têm alta prioridade.
+        </p>
+      </div>
+
+      {/* Prompt Preview */}
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={handleTogglePreview}
+          className="flex items-center justify-between w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Preview do Prompt
+            </span>
+          </div>
+          {showPreview ? (
+            <ChevronUp className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          )}
+        </button>
+
+        {showPreview && (
+          <div className="mt-2 space-y-2">
+            {isLoadingPreview ? (
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm">Carregando preview...</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="p-3 bg-gray-900 dark:bg-gray-950 rounded-lg max-h-60 overflow-y-auto">
+                  <pre className="text-xs text-green-400 whitespace-pre-wrap font-mono">
+                    {promptPreview || 'Clique em "Atualizar" para ver o prompt.'}
+                  </pre>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={loadPromptPreview}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Atualizar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copyToClipboard}
+                    disabled={!promptPreview}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copiar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          Salve as alterações para ver o prompt atualizado.
+        </p>
       </div>
     </div>
   );

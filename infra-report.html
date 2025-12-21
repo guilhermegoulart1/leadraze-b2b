@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GetRaze B2B - Relatorio de Infraestrutura</title>
+    <style>
+        body { font-family: monospace; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        h1, h2, h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #f5f5f5; }
+        pre { background: #f5f5f5; padding: 15px; overflow-x: auto; }
+        code { background: #f5f5f5; padding: 2px 5px; }
+        .section { margin: 30px 0; }
+    </style>
+</head>
+<body>
+
+<h1>LeadRaze B2B - Relatorio de Infraestrutura</h1>
+<p><strong>Gerado em:</strong> 18/12/2024</p>
+
+<div class="section">
+<h2>1. RESUMO EXECUTIVO</h2>
+<table>
+    <tr><th>Item</th><th>Valor</th></tr>
+    <tr><td>Arquitetura</td><td>Monolito Node.js + SPA React</td></tr>
+    <tr><td>Modelo</td><td>Multi-tenant com autenticacao JWT</td></tr>
+    <tr><td>Total de Migrations</td><td>89 arquivos SQL</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>2. STACK TECNOLOGICA</h2>
+
+<h3>Backend</h3>
+<table>
+    <tr><th>Tecnologia</th><th>Versao</th><th>Funcao</th></tr>
+    <tr><td>Node.js</td><td>18+</td><td>Runtime JavaScript</td></tr>
+    <tr><td>Express.js</td><td>4.18.2</td><td>Framework HTTP</td></tr>
+    <tr><td>PostgreSQL</td><td>-</td><td>Database principal</td></tr>
+    <tr><td>Redis</td><td>-</td><td>Cache + Filas (via ioredis 5.8.2)</td></tr>
+    <tr><td>Bull</td><td>4.16.5</td><td>Job queue (11 filas)</td></tr>
+    <tr><td>Socket.io</td><td>4.8.1</td><td>Comunicacao real-time</td></tr>
+    <tr><td>Winston</td><td>3.18.3</td><td>Logging</td></tr>
+    <tr><td>Passport.js</td><td>0.7.0</td><td>Autenticacao</td></tr>
+    <tr><td>Helmet</td><td>7.1.0</td><td>Seguranca HTTP</td></tr>
+    <tr><td>Nodemailer</td><td>7.0.10</td><td>Envio de emails</td></tr>
+</table>
+<p><strong>Total de dependencias de producao:</strong> 61</p>
+
+<h3>Frontend</h3>
+<table>
+    <tr><th>Tecnologia</th><th>Versao</th><th>Funcao</th></tr>
+    <tr><td>React</td><td>18.2.0</td><td>Framework UI</td></tr>
+    <tr><td>Vite</td><td>5.0.8</td><td>Build tool</td></tr>
+    <tr><td>Tailwind CSS</td><td>3.4.17</td><td>Styling</td></tr>
+    <tr><td>Socket.io-client</td><td>4.8.1</td><td>WebSocket client</td></tr>
+    <tr><td>i18next</td><td>25.6.3</td><td>Internacionalizacao</td></tr>
+    <tr><td>React Router</td><td>6.20.0</td><td>Roteamento SPA</td></tr>
+    <tr><td>Recharts</td><td>2.10.3</td><td>Graficos</td></tr>
+    <tr><td>TipTap</td><td>3.11.0</td><td>Editor rich text</td></tr>
+</table>
+<p><strong>Total de dependencias de producao:</strong> 38</p>
+</div>
+
+<div class="section">
+<h2>3. SERVICOS EXTERNOS E CUSTOS</h2>
+<table>
+    <tr><th>Servico</th><th>Funcao</th><th>Modelo de Custo</th></tr>
+    <tr><td>Railway</td><td>PostgreSQL + Redis hosting</td><td>~$5-20/mes por servico</td></tr>
+    <tr><td>Cloudflare R2</td><td>Object storage (S3-compativel)</td><td>$0.015/GB armazenado, egress gratis</td></tr>
+    <tr><td>Stripe</td><td>Pagamentos e subscriptions</td><td>2.9% + $0.30/transacao</td></tr>
+    <tr><td>Unipile</td><td>LinkedIn/WhatsApp/Instagram API</td><td>Subscription mensal (varia por plano)</td></tr>
+    <tr><td>OpenAI</td><td>GPT API (IA principal)</td><td>~$0.002/1K tokens (GPT-4o-mini)</td></tr>
+    <tr><td>Google Gemini</td><td>AI (fallback para contexto grande)</td><td>Pay-per-use (gemini-2.5-flash)</td></tr>
+    <tr><td>SerpApi</td><td>Google Maps scraping</td><td>$0.00275/query</td></tr>
+    <tr><td>Google OAuth</td><td>Autenticacao social</td><td>Gratuito</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>4. REQUISITOS DE INFRAESTRUTURA</h2>
+
+<h3>Database (PostgreSQL)</h3>
+<table>
+    <tr><th>Parametro</th><th>Valor</th></tr>
+    <tr><td>Pool minimo</td><td>10 conexoes</td></tr>
+    <tr><td>Pool maximo</td><td>50 conexoes</td></tr>
+    <tr><td>Idle timeout</td><td>30 segundos</td></tr>
+    <tr><td>Connection timeout</td><td>10 segundos</td></tr>
+    <tr><td>Statement timeout</td><td>30 segundos</td></tr>
+    <tr><td>SSL</td><td>Obrigatorio em producao</td></tr>
+    <tr><td>Migrations</td><td>89 arquivos SQL</td></tr>
+</table>
+
+<h3>Redis</h3>
+<table>
+    <tr><th>Parametro</th><th>Valor</th></tr>
+    <tr><td>Uso principal</td><td>Bull job queues</td></tr>
+    <tr><td>Numero de filas</td><td>11</td></tr>
+    <tr><td>Max retry attempts</td><td>10</td></tr>
+    <tr><td>Connection timeout</td><td>10 segundos</td></tr>
+</table>
+
+<h3>Node.js</h3>
+<table>
+    <tr><th>Parametro</th><th>Valor</th></tr>
+    <tr><td>Versao minima</td><td>18+</td></tr>
+    <tr><td>Porta backend</td><td>3005 (configuravel via PORT)</td></tr>
+    <tr><td>Porta frontend dev</td><td>5173</td></tr>
+    <tr><td>Workers</td><td>11 (um por fila Bull)</td></tr>
+</table>
+
+<h3>Storage (Cloudflare R2)</h3>
+<table>
+    <tr><th>Bucket/Pasta</th><th>Uso</th><th>Limite</th></tr>
+    <tr><td>profiles/</td><td>Fotos de perfil</td><td>5MB</td></tr>
+    <tr><td>accounts/</td><td>Logos de empresas</td><td>2MB</td></tr>
+    <tr><td>signatures/</td><td>Assinaturas de email</td><td>1MB</td></tr>
+    <tr><td>attachments/</td><td>Anexos de email</td><td>25MB</td></tr>
+    <tr><td>templates/</td><td>Templates</td><td>-</td></tr>
+    <tr><td>contacts/</td><td>Dados de contatos</td><td>-</td></tr>
+</table>
+
+<h3>Networking</h3>
+<table>
+    <tr><th>Requisito</th><th>Detalhes</th></tr>
+    <tr><td>WebSocket</td><td>Obrigatorio (Socket.io)</td></tr>
+    <tr><td>CORS</td><td>Multiplas origens configuradas</td></tr>
+    <tr><td>Health check</td><td>GET /health</td></tr>
+    <tr><td>Webhooks entrada</td><td>/api/webhooks/unipile, /api/billing/webhook</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>5. VARIAVEIS DE AMBIENTE</h2>
+<p><strong>Total:</strong> 96 variaveis</p>
+
+<h3>Criticas para Producao</h3>
+<pre>
+# Database
+DB_HOST=
+DB_PORT=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+
+# Redis
+REDIS_URL=
+
+# URLs
+FRONTEND_URL=
+BACKEND_URL=
+WEBHOOK_URL=
+
+# Autenticacao
+JWT_SECRET=
+JWT_EXPIRES_IN=90d
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=
+
+# Stripe (Pagamentos)
+STRIPE_SECRET_KEY=
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_CHANNEL_EXTRA=
+STRIPE_PRICE_USER_EXTRA=
+STRIPE_PRICE_CREDITS_500=
+STRIPE_PRICE_CREDITS_1000=
+STRIPE_PRICE_CREDITS_2500=
+STRIPE_PRICE_CREDITS_5000=
+
+# Unipile (LinkedIn/WhatsApp)
+UNIPILE_DSN=
+UNIPILE_ACCESS_TOKEN=
+
+# IA
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+
+# Google Maps Scraping (um dos dois)
+SERPAPI_KEY=
+OUTSCRAPER_API_KEY=
+
+# Intelligence (opcionais)
+TAVILY_API_KEY=
+EXA_API_KEY=
+
+# Storage (Cloudflare R2)
+R2_ENDPOINT=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=
+R2_PUBLIC_URL=
+
+# Email SMTP
+SMTP_HOST=
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=
+SMTP_PASSWORD=
+EMAIL_FROM_NAME=
+EMAIL_FROM_ADDRESS=
+EMAIL_REPLY_TO=
+</pre>
+</div>
+
+<div class="section">
+<h2>6. ARQUITETURA</h2>
+<pre>
++-------------------------------------------------------------+
+|                        FRONTEND                              |
+|  React 18 + Vite + Tailwind (Static hosting/CDN)            |
+|  Port: 5173 (dev) / PORT env (prod)                         |
++-----------------------------+-------------------------------+
+                              | HTTPS/WSS
++-----------------------------v-------------------------------+
+|                        BACKEND                               |
+|  Node.js + Express (Port 3005)                              |
+|  +-- REST API (/api/*)                                      |
+|  +-- WebSocket (Socket.io)                                  |
+|  +-- Webhooks (/api/webhooks/*, /api/billing/webhook)       |
+|  +-- Bull Board (/admin/queues)                             |
++-------+--------------+--------------+-----------------------+
+        |              |              |
++-------v------+ +-----v-----+ +------v------+
+|  PostgreSQL  | |   Redis   | | Cloudflare  |
+|   (Railway)  | | (Railway) | |     R2      |
+|   50 conn    | | 11 queues | |   Storage   |
++--------------+ +-----------+ +-------------+
+
+Servicos Externos:
++-- Stripe (pagamentos)
++-- Unipile (LinkedIn/WhatsApp/Instagram)
++-- OpenAI/Gemini (IA)
++-- SerpApi/Outscraper (Google Maps)
++-- Tavily/Exa (intelligence)
++-- SMTP Hostinger (emails)
++-- Google OAuth (autenticacao)
+</pre>
+</div>
+
+<div class="section">
+<h2>7. BACKGROUND JOBS (Bull Queues)</h2>
+<table>
+    <tr><th>Fila</th><th>Prioridade</th><th>Funcao</th><th>Rate Limit</th></tr>
+    <tr><td>webhooks</td><td>Alta</td><td>Processa webhooks Unipile</td><td>-</td></tr>
+    <tr><td>campaigns</td><td>Media</td><td>Envio de mensagens de campanha</td><td>50 msgs/dia/conta</td></tr>
+    <tr><td>emails</td><td>Alta</td><td>Emails transacionais</td><td>100/seg</td></tr>
+    <tr><td>billing</td><td>Media</td><td>Processamento de billing</td><td>-</td></tr>
+    <tr><td>linkedin-invites</td><td>Media</td><td>Convites LinkedIn</td><td>100/dia/conta</td></tr>
+    <tr><td>connection-messages</td><td>Media</td><td>Mensagens diretas LinkedIn</td><td>150/dia/conta</td></tr>
+    <tr><td>google-maps-agents</td><td>Baixa</td><td>Coleta automatizada GMaps</td><td>20 leads/dia</td></tr>
+    <tr><td>bulk-collection</td><td>Baixa</td><td>Coleta em massa</td><td>-</td></tr>
+    <tr><td>secret-agent</td><td>Media</td><td>Investigacoes intelligence</td><td>-</td></tr>
+    <tr><td>delayed-conversation</td><td>Baixa</td><td>Auto-inicio de conversas</td><td>-</td></tr>
+    <tr><td>conversation-sync</td><td>-</td><td>Sync backup (desabilitado)</td><td>-</td></tr>
+</table>
+<p><strong>Monitoramento:</strong> Bull Board disponivel em <code>/admin/queues</code> (requer autenticacao em producao)</p>
+</div>
+
+<div class="section">
+<h2>8. ENDPOINTS PRINCIPAIS</h2>
+<table>
+    <tr><th>Endpoint</th><th>Metodo</th><th>Funcao</th></tr>
+    <tr><td>/health</td><td>GET</td><td>Health check</td></tr>
+    <tr><td>/api</td><td>GET</td><td>Lista de endpoints disponiveis</td></tr>
+    <tr><td>/api/auth/*</td><td>*</td><td>Autenticacao (login, register, Google OAuth)</td></tr>
+    <tr><td>/api/campaigns/*</td><td>*</td><td>Gerenciamento de campanhas</td></tr>
+    <tr><td>/api/leads/*</td><td>*</td><td>Gerenciamento de leads</td></tr>
+    <tr><td>/api/conversations/*</td><td>*</td><td>Conversas e mensagens</td></tr>
+    <tr><td>/api/billing/*</td><td>*</td><td>Billing e subscriptions</td></tr>
+    <tr><td>/api/billing/webhook</td><td>POST</td><td>Webhook Stripe (raw body)</td></tr>
+    <tr><td>/api/webhooks/unipile</td><td>POST</td><td>Webhook Unipile</td></tr>
+    <tr><td>/admin/queues</td><td>GET</td><td>Bull Board dashboard</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>9. CONSIDERACOES DE ESCALA</h2>
+
+<h3>Pontos de Atencao</h3>
+<ul>
+    <li><strong>Pool PostgreSQL:</strong> Maximo 50 conexoes - considerar PgBouncer para escala</li>
+    <li><strong>Rate limits LinkedIn:</strong> 100 convites/dia, 150 msgs/dia por conta</li>
+    <li><strong>Rate limit email:</strong> 100/seg, 1000/hora</li>
+    <li><strong>Redis memory:</strong> Depende do volume de jobs na fila</li>
+    <li><strong>WebSocket connections:</strong> Cada usuario conectado = 1 socket</li>
+</ul>
+
+</div>
+
+</body>
+</html>

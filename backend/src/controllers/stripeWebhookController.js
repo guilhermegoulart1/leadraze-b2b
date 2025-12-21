@@ -596,6 +596,19 @@ async function handleInvoicePaymentFailed(invoice) {
       );
     }
 
+    // Block account and all users due to payment failure
+    await db.query(
+      'UPDATE accounts SET is_active = false WHERE id = $1',
+      [accountId]
+    );
+
+    const blockedUsers = await db.query(
+      'UPDATE users SET is_active = false WHERE account_id = $1 RETURNING email',
+      [accountId]
+    );
+
+    console.log(`🚫 Blocked account ${accountId} and ${blockedUsers.rowCount} user(s) due to payment failure`);
+
     // Send payment failed email
     const adminUser = await getAccountAdmin(accountId);
     if (adminUser) {
@@ -624,12 +637,40 @@ async function handleInvoicePaymentSucceeded(invoice) {
 
   // Get account
   const accountResult = await db.query(
-    'SELECT id FROM accounts WHERE stripe_customer_id = $1',
+    'SELECT id, is_active, subscription_status FROM accounts WHERE stripe_customer_id = $1',
     [invoice.customer]
   );
 
-  const accountId = accountResult.rows[0]?.id;
+  const account = accountResult.rows[0];
+  const accountId = account?.id;
+
   if (accountId) {
+    // Reactivate account and users if they were blocked due to payment failure
+    if (!account.is_active || account.subscription_status === 'past_due') {
+      // Reactivate account
+      await db.query(
+        `UPDATE accounts SET is_active = true, subscription_status = 'active' WHERE id = $1`,
+        [accountId]
+      );
+
+      // Reactivate all users
+      const reactivatedUsers = await db.query(
+        'UPDATE users SET is_active = true WHERE account_id = $1 RETURNING email',
+        [accountId]
+      );
+
+      // Update subscription status
+      if (invoice.subscription) {
+        await db.query(
+          `UPDATE subscriptions SET status = 'active', updated_at = NOW()
+           WHERE stripe_subscription_id = $1`,
+          [invoice.subscription]
+        );
+      }
+
+      console.log(`✅ Reactivated account ${accountId} and ${reactivatedUsers.rowCount} user(s) after successful payment`);
+    }
+
     // Send payment success email for subscription invoices
     if (invoice.subscription && invoice.billing_reason !== 'subscription_create') {
       const subscription = await subscriptionService.getByStripeId(invoice.subscription);

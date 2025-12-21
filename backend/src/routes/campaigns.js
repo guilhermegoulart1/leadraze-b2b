@@ -43,6 +43,9 @@ router.post('/:id/pause', campaignController.pauseCampaign);
 // Retomar campanha pausada
 router.post('/:id/resume', campaignController.resumeCampaign);
 
+// Reativar campanha (após exclusão de agente) com novo agente
+router.post('/:id/reactivate', campaignController.reactivateCampaign);
+
 // Parar campanha definitivamente
 router.post('/:id/stop', campaignController.stopCampaign);
 

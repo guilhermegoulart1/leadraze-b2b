@@ -71,9 +71,29 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
   const [escalationTriggered, setEscalationTriggered] = useState(false);
   const [escalationReason, setEscalationReason] = useState(null);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // Obter etapas da conversa do agente
-  const conversationSteps = agent?.config?.conversation_steps || [];
+  // Estados para simulação de fluxo de convite LinkedIn
+  const [inviteState, setInviteState] = useState('none'); // 'none', 'pending', 'accepted'
+  const [showAcceptOptions, setShowAcceptOptions] = useState(false);
+
+  // Obter etapas da conversa do agente (pode estar em agent.conversation_steps ou agent.config)
+  const getConversationSteps = () => {
+    // Primeiro tenta do campo direto (novo formato)
+    if (agent?.conversation_steps) {
+      if (typeof agent.conversation_steps === 'string') {
+        try {
+          return JSON.parse(agent.conversation_steps);
+        } catch {
+          return [];
+        }
+      }
+      return agent.conversation_steps;
+    }
+    // Fallback para config (formato antigo)
+    return agent?.config?.conversation_steps || [];
+  };
+  const conversationSteps = getConversationSteps();
   const escalationSentiments = agent?.config?.escalation_sentiments || [];
   const escalationKeywords = agent?.config?.escalation_keywords || '';
 
@@ -101,8 +121,44 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
   useEffect(() => {
     if (isOpen && agent) {
-      // Adicionar mensagem inicial do agente quando abrir
-      addInitialMessage();
+      // Resetar estados
+      setMessages([]);
+      setEscalationTriggered(false);
+      setEscalationReason(null);
+      setInviteState('none');
+      setShowAcceptOptions(false);
+
+      // Verificar estratégia de conexão do agente
+      const strategy = agent.connection_strategy || agent.config?.connection_strategy;
+
+      if (agent.agent_type === 'linkedin' && strategy) {
+        if (strategy === 'silent') {
+          // Conexão Silenciosa: não mostrar mensagem inicial, aguardar usuário
+          setInviteState('accepted'); // Já aceito (sem convite)
+          // Não chamar addInitialMessage - usuário deve iniciar
+        } else if (strategy === 'with-intro' || strategy === 'icebreaker') {
+          // Mostrar convite pendente
+          setInviteState('pending');
+
+          // Mostrar mensagem do convite
+          const inviteMsg = agent.invite_message || agent.config?.invite_message || agent.initial_approach;
+          if (inviteMsg) {
+            setMessages([{
+              id: Date.now(),
+              sender: 'bot',
+              content: processTemplate(inviteMsg, testLeadData),
+              isInvite: true,
+              timestamp: new Date()
+            }]);
+          }
+        } else {
+          // Estratégia não reconhecida, comportamento padrão
+          addInitialMessage();
+        }
+      } else {
+        // Não é LinkedIn ou sem estratégia definida - comportamento padrão
+        addInitialMessage();
+      }
     }
   }, [isOpen, agent]);
 
@@ -158,8 +214,87 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
     }
   };
 
+  // Handler para aceitar convite (simulação)
+  const handleAcceptInvite = () => {
+    setInviteState('accepted');
+    setShowAcceptOptions(true);
+  };
+
+  // Handler para recusar convite (simulação)
+  const handleRejectInvite = () => {
+    setMessages(prev => [...prev, {
+      id: Date.now(),
+      sender: 'system',
+      content: '❌ Convite recusado pelo lead.',
+      isSystem: true,
+      timestamp: new Date()
+    }]);
+    setInviteState('none');
+  };
+
+  // Handler quando usuário escolhe deixar o agente iniciar após aceitar
+  const handleAgentStartsConversation = async () => {
+    setShowAcceptOptions(false);
+    setIsLoading(true);
+
+    // Usar post_accept_message se disponível, senão gerar via IA
+    const postAcceptMsg = agent.post_accept_message || agent.config?.post_accept_message;
+
+    if (postAcceptMsg) {
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'bot',
+        content: processTemplate(postAcceptMsg, testLeadData),
+        timestamp: new Date()
+      }]);
+      setIsLoading(false);
+    } else {
+      // Gerar mensagem inicial via IA (diferente da mensagem do convite)
+      try {
+        let response;
+        try {
+          response = await api.testAgentInitialMessage(agent.id, {
+            lead_data: testLeadData,
+            context: 'post_accept' // Indica que é após aceite
+          });
+        } catch (error) {
+          response = await api.testAIAgentInitialMessage(agent.id, {
+            lead_data: testLeadData
+          });
+        }
+
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'bot',
+          content: response.data.message,
+          timestamp: new Date()
+        }]);
+      } catch (error) {
+        console.error('Erro ao gerar mensagem pós-aceite:', error);
+        // Fallback para mensagem genérica
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'bot',
+          content: processTemplate('Olá {{first_name}}! Que bom que conectamos! Como posso ajudar você hoje?', testLeadData),
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Handler quando usuário escolhe enviar mensagem (ele digita como lead)
+  const handleUserStartsConversation = () => {
+    setShowAcceptOptions(false);
+    // Apenas habilita o input para o usuário digitar
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
+
+    // Esconder opções de aceite quando usuário envia mensagem
+    setShowAcceptOptions(false);
 
     // Verificar palavras-chave de escalação na mensagem do usuário
     const keywordFound = checkEscalationKeywords(inputMessage);
@@ -190,7 +325,8 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
             sender_type: m.sender === 'user' ? 'lead' : 'ai',
             content: m.content
           })),
-          lead_data: testLeadData
+          lead_data: testLeadData,
+          current_step: currentStep  // Pass current step to backend for intelligent progression
         });
       } catch (error) {
         // Fallback to old system if agent is from ai_agents table
@@ -201,7 +337,8 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
             sender_type: m.sender === 'user' ? 'lead' : 'ai',
             content: m.content
           })),
-          lead_data: testLeadData
+          lead_data: testLeadData,
+          current_step: currentStep  // Pass current step to backend for intelligent progression
         });
       }
 
@@ -224,20 +361,27 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         setEscalationReason({ type: 'keyword', value: matchedKeywords.join(', ') });
       }
 
-      // Atualizar etapa se necessário
+      // Atualizar etapa baseado na análise inteligente do backend
+      // O backend analisa a conversa e determina se deve avançar de etapa
+      // usando a tag [NEXT_STEP] quando a IA determina que o objetivo da etapa foi cumprido
+      let newStep = currentStep;
       if (response.data.current_step !== undefined) {
-        setCurrentStep(response.data.current_step);
-      } else if (conversationSteps.length > 0) {
-        // Avançar etapa automaticamente baseado no número de interações
-        const botMessages = messages.filter(m => m.sender === 'bot').length;
-        const newStep = Math.min(botMessages + 1, conversationSteps.length - 1);
+        newStep = response.data.current_step;
         setCurrentStep(newStep);
 
-        // Verificar se a nova etapa é de escalação
+        // Log step advancement for debugging
+        if (response.data.step_advanced) {
+          console.log(`📈 Etapa avançou: ${currentStep + 1} → ${newStep + 1}`);
+        }
+      }
+
+      // Verificar se a nova etapa é de escalação
+      if (conversationSteps.length > 0 && newStep < conversationSteps.length) {
         const currentStepData = conversationSteps[newStep];
-        if (currentStepData?.is_escalation && !escalationTriggered) {
+        const stepData = typeof currentStepData === 'object' ? currentStepData : { text: currentStepData, is_escalation: false };
+        if (stepData.is_escalation && !escalationTriggered) {
           setEscalationTriggered(true);
-          setEscalationReason({ type: 'step', value: currentStepData.text || `Etapa ${newStep + 1}` });
+          setEscalationReason({ type: 'step', value: stepData.text || `Etapa ${newStep + 1}` });
         }
       }
 
@@ -246,6 +390,14 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         setEscalationTriggered(true);
         setEscalationReason({ type: 'ai', value: escalationInfo || 'Decisão da IA' });
       }
+
+      // Get current step info for the message (use newStep que acabamos de calcular)
+      const messageStep = conversationSteps.length > 0 ? newStep : null;
+      const messageStepData = messageStep !== null ? (
+        typeof conversationSteps[messageStep] === 'object'
+          ? conversationSteps[messageStep]
+          : { text: conversationSteps[messageStep], is_escalation: false }
+      ) : null;
 
       const botMessage = {
         id: Date.now() + 1,
@@ -256,6 +408,9 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         shouldEscalate,
         matchedKeywords,
         escalationInfo,
+        stepNumber: messageStep !== null ? messageStep + 1 : null,
+        stepText: messageStepData?.text || null,
+        stepIsEscalation: messageStepData?.is_escalation || false,
         timestamp: new Date()
       };
 
@@ -419,53 +574,38 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
         {/* Status Panel - Etapas e Escalação */}
         {conversationSteps.length > 0 && (
-          <div className="px-6 py-3 bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              {/* Etapas da Conversa */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Etapa:</span>
-                <div className="flex items-center gap-1">
-                  {conversationSteps.map((step, index) => {
-                    const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
-                    const isActive = index === currentStep;
-                    const isPast = index < currentStep;
-                    const isEscalation = stepData.is_escalation;
-
-                    return (
-                      <div
-                        key={index}
-                        className={`relative group`}
-                      >
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
-                            isActive
-                              ? isEscalation
-                                ? 'bg-orange-500 text-white ring-2 ring-orange-300'
-                                : 'bg-purple-600 text-white ring-2 ring-purple-300'
-                              : isPast
-                              ? 'bg-green-500 text-white'
-                              : isEscalation
-                              ? 'bg-orange-100 text-orange-600 border border-orange-300'
-                              : 'bg-gray-200 text-gray-500'
-                          }`}
-                        >
-                          {isPast ? (
-                            <CheckCircle className="w-3.5 h-3.5" />
-                          ) : isEscalation ? (
-                            <UserX className="w-3 h-3" />
-                          ) : (
-                            index + 1
-                          )}
-                        </div>
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          {stepData.text || `Etapa ${index + 1}`}
-                          {isEscalation && <span className="text-orange-300 ml-1">(Escalação)</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
+          <div className="px-6 py-3 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-b border-purple-200 dark:border-purple-700">
+            {/* Current Step Display */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {currentStep + 1}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">ETAPA ATUAL</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {(() => {
+                        const step = conversationSteps[currentStep];
+                        const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
+                        return stepData.text || `Etapa ${currentStep + 1}`;
+                      })()}
+                    </p>
+                  </div>
                 </div>
+                {(() => {
+                  const step = conversationSteps[currentStep];
+                  const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
+                  if (stepData.is_escalation) {
+                    return (
+                      <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs font-medium flex items-center gap-1">
+                        <UserX className="w-3 h-3" />
+                        Ponto de transferência
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Status de Escalação */}
@@ -474,22 +614,75 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                   <UserX className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                   <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
                     Transferência ativada
-                    {escalationReason && (
-                      <span className="ml-1 text-orange-600 dark:text-orange-400">
-                        ({escalationReason.type === 'keyword' && `palavra: "${escalationReason.value}"`}
-                        {escalationReason.type === 'sentiment' && `sentimento: ${escalationReason.value}`}
-                        {escalationReason.type === 'step' && `etapa de escalação`}
-                        {escalationReason.type === 'ai' && `decisão da IA`})
-                      </span>
-                    )}
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <Bot className="w-4 h-4 text-gray-400" />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Agente em operação</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+                  <Bot className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <span className="text-xs text-green-700 dark:text-green-300 font-medium">IA respondendo</span>
                 </div>
               )}
+            </div>
+
+            {/* Steps Progress Bar */}
+            <div className="flex items-center gap-1">
+              {conversationSteps.map((step, index) => {
+                const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
+                const isActive = index === currentStep;
+                const isPast = index < currentStep;
+                const isEscalation = stepData.is_escalation;
+
+                return (
+                  <div key={index} className="flex items-center flex-1">
+                    <div className={`relative group flex-1`}>
+                      {/* Progress line */}
+                      <div
+                        className={`h-1.5 rounded-full transition-all ${
+                          isPast
+                            ? 'bg-green-500'
+                            : isActive
+                            ? isEscalation
+                              ? 'bg-orange-500'
+                              : 'bg-purple-500'
+                            : isEscalation
+                            ? 'bg-orange-200 dark:bg-orange-800'
+                            : 'bg-gray-200 dark:bg-gray-700'
+                        }`}
+                      />
+                      {/* Step indicator dot */}
+                      <div
+                        className={`absolute -top-1 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 transition-all ${
+                          isPast
+                            ? 'bg-green-500 border-green-600'
+                            : isActive
+                            ? isEscalation
+                              ? 'bg-orange-500 border-orange-600 ring-2 ring-orange-200'
+                              : 'bg-purple-500 border-purple-600 ring-2 ring-purple-200'
+                            : isEscalation
+                            ? 'bg-orange-100 border-orange-300 dark:bg-orange-900 dark:border-orange-600'
+                            : 'bg-white border-gray-300 dark:bg-gray-800 dark:border-gray-600'
+                        }`}
+                      >
+                        {isPast && <CheckCircle className="w-2.5 h-2.5 text-white absolute top-0 left-0" />}
+                        {isEscalation && !isPast && (
+                          <UserX className="w-2 h-2 text-orange-500 dark:text-orange-400 absolute top-0 left-0.5" />
+                        )}
+                      </div>
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-[200px] text-center">
+                        <span className="font-semibold">{index + 1}.</span> {stepData.text || `Etapa ${index + 1}`}
+                        {isEscalation && <span className="block text-orange-300 text-[10px] mt-0.5">Ponto de transferência</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Step labels below */}
+            <div className="flex items-center justify-between mt-1 px-1">
+              <span className="text-[10px] text-gray-500 dark:text-gray-400">Início</span>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400">{conversationSteps.length} etapas</span>
             </div>
           </div>
         )}
@@ -557,8 +750,21 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
 
-                {/* Indicadores de Escalação */}
+                {/* Indicadores de Etapa e Escalação */}
                 <div className="flex flex-wrap gap-1">
+                  {/* Step indicator for bot messages */}
+                  {message.sender === 'bot' && message.stepNumber && (
+                    <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+                      message.stepIsEscalation
+                        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-700'
+                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-300 dark:border-purple-700'
+                    }`}>
+                      <span className="font-semibold">Etapa {message.stepNumber}</span>
+                      {message.stepText && <span className="opacity-75">• {message.stepText.substring(0, 30)}{message.stepText.length > 30 ? '...' : ''}</span>}
+                      {message.stepIsEscalation && <UserX className="w-3 h-3 ml-1" />}
+                    </div>
+                  )}
+
                   {message.keywordTrigger && (
                     <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-700">
                       <AlertTriangle className="w-3 h-3" />
@@ -613,6 +819,101 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
             </div>
           ))}
 
+          {/* Indicador de Conexão Silenciosa com opções */}
+          {inviteState === 'accepted' && messages.length === 0 && agent.agent_type === 'linkedin' && (agent.connection_strategy === 'silent' || agent.config?.connection_strategy === 'silent') && (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mx-4">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    Modo Conexão Silenciosa
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 mb-3">
+                    O lead acabou de aceitar a conexão sem mensagem. O que você quer testar?
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => inputRef.current?.focus()}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 text-left transition-colors"
+                    >
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Lead envia mensagem primeiro</span>
+                      <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Digite "Oi" ou outra mensagem no campo abaixo
+                      </span>
+                    </button>
+                    <button
+                      onClick={handleAgentStartsConversation}
+                      disabled={isLoading}
+                      className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-left transition-colors"
+                    >
+                      <span className="font-medium">Agente inicia a conversa</span>
+                      <span className="block text-xs text-purple-200 mt-0.5">
+                        {(agent.post_accept_message || agent.config?.post_accept_message)
+                          ? 'Testar a mensagem pós-aceite configurada'
+                          : 'Ver o que a IA gera para iniciar (após timeout)'
+                        }
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Botões de Aceitar/Recusar Convite */}
+          {inviteState === 'pending' && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700 mx-4">
+              <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+                O lead recebeu seu convite de conexão. Simule a resposta:
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAcceptInvite}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Aceitar convite
+                </button>
+                <button
+                  onClick={handleRejectInvite}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
+                >
+                  Recusar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Opções após aceitar convite */}
+          {showAcceptOptions && (
+            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700 mx-4">
+              <p className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-3">
+                ✓ Lead aceitou a conexão! O que acontece agora?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleUserStartsConversation}
+                  className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-purple-300 dark:border-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 text-left transition-colors"
+                >
+                  <span className="font-medium text-gray-900 dark:text-gray-100">Enviar uma mensagem</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Você digita como se fosse o lead
+                  </span>
+                </button>
+                <button
+                  onClick={handleAgentStartsConversation}
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-left transition-colors"
+                >
+                  <span className="font-medium">Deixar o agente iniciar</span>
+                  <span className="block text-xs text-purple-200 mt-0.5">
+                    Agente envia mensagem pós-aceite
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {isLoading && (
             <div className="flex gap-3 justify-start">
               {agent.avatar_url ? (
@@ -642,6 +943,7 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="flex gap-3">
             <input
+              ref={inputRef}
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}

@@ -731,6 +731,72 @@ const resumeCampaign = async (req, res) => {
 };
 
 // ================================
+// 7.1.1 REATIVAR CAMPANHA (após exclusão de agente)
+// ================================
+const reactivateCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ai_agent_id } = req.body;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`🔄 Reativando campanha ${id} com novo agente ${ai_agent_id}`);
+
+    // Validar que ai_agent_id foi fornecido
+    if (!ai_agent_id) {
+      throw new ValidationError('AI Agent is required to reactivate campaign');
+    }
+
+    // Get sector filter
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+
+    // Verificar se campanha existe e está pausada por falta de agente
+    const campaignResult = await db.query(
+      `SELECT * FROM campaigns c WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    const campaign = campaignResult.rows[0];
+
+    if (campaign.paused_reason !== 'agent_deleted') {
+      throw new ValidationError('Campaign is not paused due to agent deletion. Use resume instead.');
+    }
+
+    // Verificar se novo agente existe e pertence à conta
+    const agentResult = await db.query(
+      `SELECT id, name FROM ai_agents WHERE id = $1 AND account_id = $2`,
+      [ai_agent_id, accountId]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('AI Agent not found in your account');
+    }
+
+    // Atualizar campanha com novo agente
+    const updatedCampaign = await db.update('campaigns', {
+      ai_agent_id,
+      status: CAMPAIGN_STATUS.PAUSED, // Volta para pausada, usuário decide se quer ativar
+      paused_reason: null,
+      paused_at: null
+    }, { id });
+
+    console.log(`✅ Campanha ${id} reativada com agente ${agentResult.rows[0].name}`);
+
+    sendSuccess(res, {
+      ...updatedCampaign,
+      ai_agent_name: agentResult.rows[0].name
+    }, 'Campaign reactivated with new agent');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
 // 7.2 PARAR CAMPANHA DEFINITIVAMENTE
 // ================================
 const stopCampaign = async (req, res) => {
@@ -1390,6 +1456,7 @@ module.exports = {
   startCampaign,
   pauseCampaign,
   resumeCampaign,
+  reactivateCampaign,
   stopCampaign,
   getCampaignStats,
   startCollection,
