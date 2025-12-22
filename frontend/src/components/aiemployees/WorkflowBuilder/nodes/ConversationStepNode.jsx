@@ -59,8 +59,27 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, nodeName }) => {
   );
 };
 
+// Check if step configuration is complete
+const checkStepComplete = (data) => {
+  const issues = [];
+
+  if (!data.instructions || data.instructions.trim() === '') {
+    issues.push('Adicione instrucoes para a IA');
+  }
+
+  if (!data.objective || data.objective.trim() === '') {
+    issues.push('Defina o objetivo da etapa');
+  }
+
+  return issues;
+};
+
 const ConversationStepNode = ({ id, data, selected }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Check if configuration is complete
+  const configIssues = checkStepComplete(data);
+  const isIncomplete = configIssues.length > 0;
 
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -86,12 +105,24 @@ const ConversationStepNode = ({ id, data, selected }) => {
       <div
         className={`
           w-[300px] rounded-xl shadow-lg border-2 overflow-hidden relative group
-          ${selected
-            ? 'border-purple-500 shadow-purple-500/20 shadow-xl'
-            : 'border-purple-400/50 hover:border-purple-400'}
+          ${isIncomplete
+            ? 'border-amber-400 dark:border-amber-500'
+            : selected
+              ? 'border-purple-500 shadow-purple-500/20 shadow-xl'
+              : 'border-purple-400/50 hover:border-purple-400'}
           transition-all duration-200
         `}
       >
+        {/* Incomplete configuration warning badge */}
+        {isIncomplete && (
+          <div
+            className="absolute -top-2 -right-2 z-20 p-1.5 bg-amber-500 rounded-full shadow-lg cursor-help"
+            title={configIssues.join('\n')}
+          >
+            <AlertTriangle className="w-4 h-4 text-white" />
+          </div>
+        )}
+
         {/* Action buttons - appears on hover */}
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
           <button

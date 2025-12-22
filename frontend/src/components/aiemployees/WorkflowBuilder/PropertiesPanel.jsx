@@ -2,7 +2,7 @@
 // Panel for editing node properties
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag } from 'lucide-react';
+import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw } from 'lucide-react';
 import api from '../../../services/api';
 
 // Cores pré-definidas para tags (mesmo do TagsPage)
@@ -102,6 +102,10 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#9333ea');
 
+  // State for follow-up flows
+  const [followUpFlows, setFollowUpFlows] = useState([]);
+  const [loadingFollowUpFlows, setLoadingFollowUpFlows] = useState(false);
+
   useEffect(() => {
     setLocalData(node.data);
   }, [node]);
@@ -113,12 +117,43 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
     }
   }, [node.type, localData.actionType]);
 
-  // Load tags when add_tag action is selected
+  // Load tags when add_tag or remove_tag action is selected
   useEffect(() => {
-    if (node.type === 'action' && localData.actionType === 'add_tag') {
+    if (node.type === 'action' && (localData.actionType === 'add_tag' || localData.actionType === 'remove_tag')) {
       loadTags();
     }
   }, [node.type, localData.actionType]);
+
+  // Load follow-up flows when conversationStep is selected
+  useEffect(() => {
+    if (node.type === 'conversationStep') {
+      loadFollowUpFlows();
+    }
+  }, [node.type]);
+
+  const loadFollowUpFlows = async () => {
+    try {
+      setLoadingFollowUpFlows(true);
+      // Try to load follow-up flows from API
+      // For now, this may return empty if the API endpoint doesn't exist yet
+      const response = await api.getFollowUpFlows?.() || { data: [] };
+      let flowsData = [];
+      if (Array.isArray(response)) {
+        flowsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        flowsData = response.data;
+      } else if (response?.flows && Array.isArray(response.flows)) {
+        flowsData = response.flows;
+      }
+      setFollowUpFlows(flowsData);
+    } catch (error) {
+      // API may not exist yet - that's ok, just set empty array
+      console.log('Follow-up flows API not available yet');
+      setFollowUpFlows([]);
+    } finally {
+      setLoadingFollowUpFlows(false);
+    }
+  };
 
   const loadTags = async () => {
     try {
@@ -574,6 +609,68 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           </button>
         </div>
       </div>
+
+      {/* Follow-up Configuration */}
+      <div className="space-y-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-orange-700 dark:text-orange-400">
+            <RotateCcw className="w-3 h-3" />
+            Follow-up
+          </div>
+          <button
+            type="button"
+            onClick={() => handleChange('followUpEnabled', !localData.followUpEnabled)}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              localData.followUpEnabled ? 'bg-orange-500' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                localData.followUpEnabled ? 'translate-x-4' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {localData.followUpEnabled && (
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Fluxo de Follow-up
+            </label>
+            {loadingFollowUpFlows ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                Carregando...
+              </div>
+            ) : followUpFlows.length > 0 ? (
+              <select
+                value={localData.followUpFlowId || ''}
+                onChange={(e) => handleChange('followUpFlowId', e.target.value || null)}
+                className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:text-white text-[11px]"
+              >
+                <option value="">Selecione um fluxo...</option>
+                {followUpFlows.map((flow) => (
+                  <option key={flow.id} value={flow.id}>
+                    {flow.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="p-2 bg-white dark:bg-gray-700 rounded border border-dashed border-gray-300 dark:border-gray-600">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                  Nenhum fluxo de follow-up criado ainda.
+                </p>
+                <p className="text-[10px] text-orange-600 dark:text-orange-400 text-center mt-1">
+                  Crie fluxos na aba "Follow-up"
+                </p>
+              </div>
+            )}
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+              Ativado quando lead nao responde nesta etapa
+            </p>
+          </div>
+        )}
+      </div>
     </>
   );
 
@@ -925,6 +1022,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           <option value="schedule">Agendar Reuniao</option>
           <option value="send_message">Enviar Mensagem</option>
           <option value="add_tag">Adicionar Tag</option>
+          <option value="remove_tag">Remover Tag</option>
           <option value="close_positive">Encerrar (Positivo)</option>
           <option value="close_negative">Encerrar (Negativo)</option>
           <option value="pause">Pausar</option>
@@ -934,6 +1032,140 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
 
       {/* Transfer Configuration */}
       {localData.actionType === 'transfer' && renderTransferConfig()}
+
+      {/* Schedule Configuration */}
+      {localData.actionType === 'schedule' && (
+        <div className="space-y-3 p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-indigo-700 dark:text-indigo-400">
+            <Clock className="w-3 h-3" />
+            Configurar Agendamento
+          </div>
+
+          {/* Scheduling Type */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Tipo de Calendário
+            </label>
+            <select
+              value={localData.params?.schedulingType || 'custom_link'}
+              onChange={(e) => handleChange('params', { ...localData.params, schedulingType: e.target.value })}
+              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:text-white text-[11px]"
+            >
+              <option value="calendly">Calendly</option>
+              <option value="google_calendar">Google Calendar</option>
+              <option value="custom_link">Link Customizado</option>
+            </select>
+          </div>
+
+          {/* Scheduling Link */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Link do Calendário
+            </label>
+            <input
+              type="url"
+              value={localData.params?.schedulingLink || ''}
+              onChange={(e) => handleChange('params', { ...localData.params, schedulingLink: e.target.value })}
+              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:text-white text-[11px]"
+              placeholder={
+                localData.params?.schedulingType === 'calendly'
+                  ? 'https://calendly.com/seu-usuario/30min'
+                  : localData.params?.schedulingType === 'google_calendar'
+                  ? 'https://calendar.google.com/...'
+                  : 'https://...'
+              }
+            />
+          </div>
+
+          {/* Meeting Duration */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Duração da Reunião
+            </label>
+            <select
+              value={localData.params?.meetingDuration || 30}
+              onChange={(e) => handleChange('params', { ...localData.params, meetingDuration: parseInt(e.target.value) })}
+              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:text-white text-[11px]"
+            >
+              <option value={15}>15 minutos</option>
+              <option value={30}>30 minutos</option>
+              <option value={45}>45 minutos</option>
+              <option value={60}>60 minutos</option>
+            </select>
+          </div>
+
+          {/* Meeting Title */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Título da Reunião
+            </label>
+            <div className="flex flex-wrap gap-1 mb-1">
+              {MESSAGE_VARIABLES.slice(0, 4).map((v) => (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => {
+                    const currentTitle = localData.params?.meetingTitle || '';
+                    handleChange('params', {
+                      ...localData.params,
+                      meetingTitle: currentTitle + `{{${v.key}}}`
+                    });
+                  }}
+                  className="inline-flex items-center px-1 py-0.5 text-[9px] font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded hover:bg-indigo-200 transition-colors cursor-pointer"
+                >
+                  {`{{${v.key}}}`}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={localData.params?.meetingTitle || ''}
+              onChange={(e) => handleChange('params', { ...localData.params, meetingTitle: e.target.value })}
+              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:text-white text-[11px]"
+              placeholder="Reunião com {{company}}"
+            />
+          </div>
+
+          {/* Send Confirmation Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Enviar Confirmação
+            </label>
+            <button
+              type="button"
+              onClick={() => handleChange('params', {
+                ...localData.params,
+                sendConfirmation: !localData.params?.sendConfirmation
+              })}
+              className={`relative w-9 h-5 rounded-full transition-colors ${
+                localData.params?.sendConfirmation ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  localData.params?.sendConfirmation ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Confirmation Message */}
+          {localData.params?.sendConfirmation && (
+            <div className="space-y-1">
+              <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                Mensagem de Confirmação
+              </label>
+              <textarea
+                value={localData.params?.confirmationMessage || ''}
+                onChange={(e) => handleChange('params', { ...localData.params, confirmationMessage: e.target.value })}
+                rows={2}
+                className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:text-white text-[11px] resize-none"
+                placeholder="Perfeito! Te enviei o link para agendar. Fico no aguardo!"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {['transfer', 'send_message', 'close_positive', 'close_negative'].includes(localData.actionType) && (
         <div className="space-y-1.5">
@@ -1036,7 +1268,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
                             handleChange('params', { ...localData.params, tags: newTags });
                           }}
                           className={`px-2 py-0.5 text-[11px] font-medium rounded border-2 transition-all ${
-                            isSelected ? 'border-white shadow-[0_0_0_2px_rgba(147,51,234,1)]' : 'hover:opacity-80'
+                            isSelected ? 'ring-2 ring-purple-500 ring-offset-1 dark:ring-offset-gray-800' : 'hover:opacity-80'
                           }`}
                           style={tagStyles}
                         >
@@ -1183,6 +1415,129 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {localData.actionType === 'remove_tag' && (
+        <div className="space-y-2">
+          <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
+            <MinusCircle className="w-3 h-3 inline mr-0.5" />
+            Remover Tags
+            <span className="text-[10px] text-gray-400 ml-1">(clique para selecionar)</span>
+          </label>
+
+          {loadingTags ? (
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+              <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              Carregando...
+            </div>
+          ) : (
+            <>
+              {/* Remove All Toggle */}
+              <div className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <label className="text-[11px] font-medium text-red-700 dark:text-red-300">
+                  Remover todas as tags
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleChange('params', {
+                    ...localData.params,
+                    removeAll: !localData.params?.removeAll,
+                    tags: localData.params?.removeAll ? localData.params?.tags : []
+                  })}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${
+                    localData.params?.removeAll ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                      localData.params?.removeAll ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Tags list - seleção múltipla (disabled if removeAll) */}
+              {!localData.params?.removeAll && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {tags.map((tag) => {
+                      const selectedTags = localData.params?.tags || [];
+                      const isSelected = selectedTags.some(t => t.name === tag.name);
+                      const tagStyles = getTagStyles(tag.color);
+                      return (
+                        <button
+                          key={tag.id || tag.name}
+                          type="button"
+                          onClick={() => {
+                            const currentTags = localData.params?.tags || [];
+                            let newTags;
+                            if (isSelected) {
+                              newTags = currentTags.filter(t => t.name !== tag.name);
+                            } else {
+                              newTags = [...currentTags, { name: tag.name, color: tag.color }];
+                            }
+                            handleChange('params', { ...localData.params, tags: newTags });
+                          }}
+                          className={`px-2 py-0.5 text-[11px] font-medium rounded border-2 transition-all ${
+                            isSelected ? 'ring-2 ring-red-500 ring-offset-1 dark:ring-offset-gray-800 line-through' : 'hover:opacity-80'
+                          }`}
+                          style={tagStyles}
+                        >
+                          {isSelected && <span className="mr-0.5">✕</span>}
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                    {tags.length === 0 && (
+                      <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        Nenhuma tag cadastrada
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tags selecionadas para remoção */}
+                  {(localData.params?.tags?.length > 0) && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                          {localData.params.tags.length} tag(s) a remover:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleChange('params', { ...localData.params, tags: [] })}
+                          className="text-[10px] text-red-500 hover:text-red-600 transition-colors"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {localData.params.tags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border line-through"
+                            style={getTagStyles(tag.color)}
+                          >
+                            {tag.name}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTags = localData.params.tags.filter((_, i) => i !== idx);
+                                handleChange('params', { ...localData.params, tags: newTags });
+                              }}
+                              className="hover:opacity-70"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>

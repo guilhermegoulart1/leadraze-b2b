@@ -113,13 +113,14 @@ const getAgents = async (req, res) => {
     // Query params
     const { agent_type, is_active, limit = 50, offset = 0 } = req.query;
 
-    // Build query - includes all fields from migrations 066, 067, 068
+    // Build query - includes all fields from migrations 066, 067, 068, 098
     let query = `
       SELECT
         id,
         account_id,
         user_id,
         sector_id,
+        folder_id,
         name,
         description,
         avatar_url,

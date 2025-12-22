@@ -2743,6 +2743,139 @@ class ApiService {
     });
   }
 
+  // ==========================================
+  // FOLLOW-UP FLOWS
+  // ==========================================
+
+  async getFollowUpFlows(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/follow-up-flows${query ? '?' + query : ''}`);
+  }
+
+  async getFollowUpFlow(id) {
+    return this.request(`/follow-up-flows/${id}`);
+  }
+
+  async createFollowUpFlow(data) {
+    return this.request('/follow-up-flows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateFollowUpFlow(id, data) {
+    return this.request(`/follow-up-flows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFollowUpFlow(id) {
+    return this.request(`/follow-up-flows/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async cloneFollowUpFlow(id) {
+    return this.request(`/follow-up-flows/${id}/clone`, {
+      method: 'POST',
+    });
+  }
+
+  async toggleFollowUpFlowActive(id) {
+    return this.request(`/follow-up-flows/${id}/toggle-active`, {
+      method: 'POST',
+    });
+  }
+
+  // ==========================================
+  // FOLDERS (for organizing AI Employees and Follow-up Flows)
+  // ==========================================
+
+  /**
+   * Get folders tree with item counts
+   * @param {string} type - 'agents' or 'followup'
+   */
+  async getFolders(type) {
+    return this.request(`/folders?type=${type}`);
+  }
+
+  /**
+   * Get a single folder
+   * @param {string} id - Folder UUID
+   */
+  async getFolder(id) {
+    return this.request(`/folders/${id}`);
+  }
+
+  /**
+   * Create a new folder
+   * @param {Object} data - { name, color, parent_folder_id, folder_type }
+   */
+  async createFolder(data) {
+    return this.request('/folders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Update a folder
+   * @param {string} id - Folder UUID
+   * @param {Object} data - { name, color, parent_folder_id, display_order }
+   */
+  async updateFolder(id, data) {
+    return this.request(`/folders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Delete a folder
+   * @param {string} id - Folder UUID
+   */
+  async deleteFolder(id) {
+    return this.request(`/folders/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Move an agent to a folder
+   * @param {number} agentId - Agent ID
+   * @param {string|null} folderId - Target folder ID (null for no folder)
+   */
+  async moveAgentToFolder(agentId, folderId) {
+    return this.request('/folders/move-agent', {
+      method: 'PUT',
+      body: JSON.stringify({ agent_id: agentId, folder_id: folderId }),
+    });
+  }
+
+  /**
+   * Move a follow-up flow to a folder
+   * @param {string} flowId - Flow UUID
+   * @param {string|null} folderId - Target folder ID (null for no folder)
+   */
+  async moveFlowToFolder(flowId, folderId) {
+    return this.request('/folders/move-flow', {
+      method: 'PUT',
+      body: JSON.stringify({ flow_id: flowId, folder_id: folderId }),
+    });
+  }
+
+  /**
+   * Reorder folders
+   * @param {Array} folderOrders - Array of { id, displayOrder }
+   */
+  async reorderFolders(folderOrders) {
+    return this.request('/folders/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ folder_orders: folderOrders }),
+    });
+  }
+
 }
 
 export default new ApiService();

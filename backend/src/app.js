@@ -505,6 +505,22 @@ try {
   console.error('❌ Error loading AI Employees routes:', error.message);
 }
 
+// Follow-Up Flows (for AI Employees follow-up automation)
+try {
+  app.use('/api/follow-up-flows', require('./routes/followUpFlows'));
+  console.log('✅ Follow-Up Flows routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Follow-Up Flows routes:', error.message);
+}
+
+// Folders (for organizing AI Employees and Follow-up Flows)
+try {
+  app.use('/api/folders', require('./routes/folders'));
+  console.log('✅ Folders routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Folders routes:', error.message);
+}
+
 // ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================

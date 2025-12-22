@@ -8,6 +8,7 @@ import {
   Calendar,
   Send,
   Tag,
+  MinusCircle,
   XCircle,
   CheckCircle,
   UserPlus,
@@ -49,6 +50,12 @@ const actionConfigs = {
   add_tag: {
     icon: Tag,
     label: 'Adicionar Tag',
+    color: 'orange',
+    hasOutput: true
+  },
+  remove_tag: {
+    icon: MinusCircle,
+    label: 'Remover Tag',
     color: 'orange',
     hasOutput: true
   },
@@ -235,11 +242,56 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, nodeName }) => {
   );
 };
 
+// Check if action configuration is complete
+const checkActionComplete = (data) => {
+  const issues = [];
+
+  if (data.actionType === 'transfer') {
+    if (!data.transferMode) {
+      issues.push('Selecione modo de transferencia');
+    } else if (data.transferMode === 'user' && !data.transferUserId) {
+      issues.push('Selecione um usuario');
+    } else if (data.transferMode === 'sector' && !data.transferSectorId) {
+      issues.push('Selecione um setor');
+    }
+  }
+
+  if (data.actionType === 'schedule') {
+    if (!data.params?.schedulingLink) {
+      issues.push('Configure o link de agendamento');
+    }
+  }
+
+  if (data.actionType === 'send_message') {
+    if (!data.message || data.message.trim() === '') {
+      issues.push('Digite a mensagem');
+    }
+  }
+
+  if (data.actionType === 'add_tag' || data.actionType === 'remove_tag') {
+    if (!data.params?.removeAll && (!data.params?.tags || data.params.tags.length === 0)) {
+      issues.push('Selecione pelo menos uma tag');
+    }
+  }
+
+  if (data.actionType === 'webhook') {
+    if (!data.params?.url) {
+      issues.push('Configure a URL do webhook');
+    }
+  }
+
+  return issues;
+};
+
 const ActionNode = ({ id, data, selected }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const config = actionConfigs[data.actionType] || actionConfigs.send_message;
   const Icon = config.icon;
   const colors = colorClasses[config.color] || colorClasses.blue;
+
+  // Check if configuration is complete
+  const configIssues = checkActionComplete(data);
+  const isIncomplete = configIssues.length > 0;
 
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -265,10 +317,20 @@ const ActionNode = ({ id, data, selected }) => {
       <div
         className={`
           w-[260px] rounded-xl shadow-lg border-2 overflow-hidden relative group
-          ${selected ? `${colors.borderSelected} shadow-xl` : colors.border}
+          ${isIncomplete ? 'border-amber-400 dark:border-amber-500' : selected ? `${colors.borderSelected} shadow-xl` : colors.border}
           transition-all duration-200
         `}
       >
+        {/* Incomplete configuration warning badge */}
+        {isIncomplete && (
+          <div
+            className="absolute -top-2 -right-2 z-20 p-1.5 bg-amber-500 rounded-full shadow-lg cursor-help"
+            title={configIssues.join('\n')}
+          >
+            <AlertTriangle className="w-4 h-4 text-white" />
+          </div>
+        )}
+
         {/* Action buttons - appears on hover */}
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
           <button
@@ -417,9 +479,36 @@ const ActionNode = ({ id, data, selected }) => {
                   className="px-2 py-0.5 text-xs font-medium rounded border"
                   style={getTagStyles(tag.color)}
                 >
+                  + {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Remove Tag - Display tags to remove */}
+          {data.actionType === 'remove_tag' && data.params?.tags?.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {data.params.tags.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 text-xs font-medium rounded border line-through opacity-75"
+                  style={getTagStyles(tag.color)}
+                >
                   {tag.name}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Remove All Tags indicator */}
+          {data.actionType === 'remove_tag' && data.params?.removeAll && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-2 text-sm">
+                <MinusCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                <span className="text-red-700 dark:text-red-300 font-medium">
+                  Remover todas as tags
+                </span>
+              </div>
             </div>
           )}
 

@@ -24,7 +24,7 @@ import DeletableEdge from './edges/DeletableEdge';
 import Sidebar from './Sidebar';
 import PropertiesPanel from './PropertiesPanel';
 
-import { Play, Save, Eye, Trash2, Check, Loader2, AlertCircle } from 'lucide-react';
+import { Play, Save, Eye, Trash2, Check, Loader2, AlertCircle, XCircle } from 'lucide-react';
 
 // Define custom node types
 const nodeTypes = {
@@ -394,13 +394,202 @@ const WorkflowBuilderInner = ({
   const lastSavedRef = useRef({ nodes: initialWorkflow.nodes, edges: initialWorkflow.edges });
   const performSaveRef = useRef(null);
 
-  // Handle edge connections
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+
+  // Validate workflow before saving
+  const validateWorkflow = useCallback((nodesToValidate, edgesToValidate) => {
+    const errors = [];
+
+    // 1. Check for exactly 1 trigger
+    const triggers = nodesToValidate.filter(n => n.type === 'trigger');
+    if (triggers.length === 0) {
+      errors.push({ type: 'error', message: 'Workflow deve ter um trigger de inicio' });
+    } else if (triggers.length > 1) {
+      errors.push({ type: 'error', message: `Workflow deve ter apenas 1 trigger (encontrados: ${triggers.length})` });
+    }
+
+    // 2. Check for at least 1 conversation step
+    const steps = nodesToValidate.filter(n => n.type === 'conversationStep');
+    if (steps.length === 0) {
+      errors.push({ type: 'warning', message: 'Workflow nao tem etapas de conversa' });
+    }
+
+    // 3. Check that all nodes are connected (except if only trigger exists)
+    if (nodesToValidate.length > 1) {
+      const connectedNodeIds = new Set();
+      edgesToValidate.forEach(edge => {
+        connectedNodeIds.add(edge.source);
+        connectedNodeIds.add(edge.target);
+      });
+
+      const orphanNodes = nodesToValidate.filter(n => !connectedNodeIds.has(n.id));
+      if (orphanNodes.length > 0) {
+        orphanNodes.forEach(n => {
+          errors.push({
+            type: 'error',
+            message: `No "${n.data.label || n.type}" nao esta conectado`,
+            nodeId: n.id
+          });
+        });
+      }
+    }
+
+    // 4. Check conditions have both yes/no paths
+    const conditions = nodesToValidate.filter(n => n.type === 'condition');
+    conditions.forEach(condition => {
+      const yesEdge = edgesToValidate.find(e => e.source === condition.id && e.sourceHandle === 'yes');
+      const noEdge = edgesToValidate.find(e => e.source === condition.id && e.sourceHandle === 'no');
+
+      if (!yesEdge) {
+        errors.push({
+          type: 'warning',
+          message: `Condicao "${condition.data.label}" sem caminho SIM`,
+          nodeId: condition.id
+        });
+      }
+      if (!noEdge) {
+        errors.push({
+          type: 'warning',
+          message: `Condicao "${condition.data.label}" sem caminho NAO`,
+          nodeId: condition.id
+        });
+      }
+    });
+
+    // 5. Check required configurations
+    nodesToValidate.forEach(node => {
+      if (node.type === 'conversationStep') {
+        if (!node.data.instructions || node.data.instructions.trim() === '') {
+          errors.push({
+            type: 'warning',
+            message: `Etapa "${node.data.label}" sem instrucoes`,
+            nodeId: node.id
+          });
+        }
+        if (!node.data.objective || node.data.objective.trim() === '') {
+          errors.push({
+            type: 'warning',
+            message: `Etapa "${node.data.label}" sem objetivo`,
+            nodeId: node.id
+          });
+        }
+      }
+
+      if (node.type === 'action') {
+        if (node.data.actionType === 'transfer') {
+          if (!node.data.transferMode) {
+            errors.push({
+              type: 'warning',
+              message: `Acao "${node.data.label}" sem modo de transferencia`,
+              nodeId: node.id
+            });
+          } else if (node.data.transferMode === 'user' && !node.data.transferUserId) {
+            errors.push({
+              type: 'warning',
+              message: `Acao "${node.data.label}" sem usuario selecionado`,
+              nodeId: node.id
+            });
+          } else if (node.data.transferMode === 'sector' && !node.data.transferSectorId) {
+            errors.push({
+              type: 'warning',
+              message: `Acao "${node.data.label}" sem setor selecionado`,
+              nodeId: node.id
+            });
+          }
+        }
+
+        if (node.data.actionType === 'schedule') {
+          if (!node.data.params?.schedulingLink) {
+            errors.push({
+              type: 'warning',
+              message: `Acao "${node.data.label}" sem link de agendamento`,
+              nodeId: node.id
+            });
+          }
+        }
+
+        if (node.data.actionType === 'send_message') {
+          if (!node.data.message || node.data.message.trim() === '') {
+            errors.push({
+              type: 'warning',
+              message: `Acao "${node.data.label}" sem mensagem`,
+              nodeId: node.id
+            });
+          }
+        }
+
+        if ((node.data.actionType === 'add_tag' || node.data.actionType === 'remove_tag') && !node.data.params?.removeAll) {
+          if (!node.data.params?.tags || node.data.params.tags.length === 0) {
+            errors.push({
+              type: 'warning',
+              message: `Acao "${node.data.label}" sem tags selecionadas`,
+              nodeId: node.id
+            });
+          }
+        }
+      }
+    });
+
+    // 6. Check for self-connections (node connected to itself)
+    edgesToValidate.forEach(edge => {
+      if (edge.source === edge.target) {
+        const node = nodesToValidate.find(n => n.id === edge.source);
+        errors.push({
+          type: 'error',
+          message: `No "${node?.data.label || 'desconhecido'}" conectado a si mesmo`,
+          nodeId: edge.source
+        });
+      }
+    });
+
+    return errors;
+  }, []);
+
+  // Handle edge connections with validation
   const onConnect = useCallback((params) => {
+    // Rule 1: Prevent self-connections
+    if (params.source === params.target) {
+      console.warn('Conexao para si mesmo nao permitida');
+      return;
+    }
+
+    // Get source and target nodes
+    const sourceNode = nodes.find(n => n.id === params.source);
+    const targetNode = nodes.find(n => n.id === params.target);
+
+    if (!sourceNode || !targetNode) return;
+
+    // Rule 2: Triggers can only be sources, never targets
+    if (targetNode.type === 'trigger') {
+      console.warn('Triggers so podem ser origem, nao destino');
+      return;
+    }
+
+    // Rule 3: Prevent duplicate connections from same source handle
+    const existingEdge = edges.find(
+      e => e.source === params.source && e.sourceHandle === params.sourceHandle
+    );
+    if (existingEdge) {
+      // Remove existing edge before adding new one (replace behavior)
+      setEdges((eds) => eds.filter(e => e.id !== existingEdge.id));
+    }
+
+    // Rule 4: Terminal actions (close_positive, close_negative) should not have outputs
+    // But we allow it since the action might be reconfigured later
+
+    // Rule 5: Actions with hasOutput=false shouldn't connect to targets
+    // Currently handled by not having output handles on those nodes
+
     setEdges((eds) => addEdge({
       ...params,
-      ...defaultEdgeOptions
+      ...defaultEdgeOptions,
+      // Add label for condition edges
+      ...(params.sourceHandle === 'yes' ? { label: 'Sim' } : {}),
+      ...(params.sourceHandle === 'no' ? { label: 'Nao' } : {})
     }, eds));
-  }, [setEdges]);
+  }, [setEdges, nodes, edges]);
 
   // Handle node click for properties panel
   const onNodeClick = useCallback((event, node) => {
@@ -439,12 +628,8 @@ const WorkflowBuilderInner = ({
     const eventLabels = {
       invite_sent: 'Convite Enviado',
       invite_accepted: 'Convite Aceito',
-      invite_ignored: 'Convite Ignorado',
       message_received: 'Mensagem Recebida',
-      profile_viewed: 'Perfil Visualizado',
-      post_engagement: 'Engajamento',
-      inmail_received: 'InMail Recebido',
-      no_response: 'Sem Resposta',
+      connection_request_received: 'Pedido de Conexão',
       first_contact: 'Primeiro Contato',
       media_received: 'Midia Recebida',
       button_clicked: 'Botao Clicado',
@@ -581,7 +766,40 @@ const WorkflowBuilderInner = ({
   }, [nodes, edges]);
 
   // Perform save (can be async if onSave returns a promise)
-  const performSave = useCallback(async () => {
+  const performSave = useCallback(async (skipValidation = false) => {
+    if (!onSave) return;
+
+    // Run validation
+    const errors = validateWorkflow(nodes, edges);
+    const criticalErrors = errors.filter(e => e.type === 'error');
+
+    // If there are critical errors and not skipping validation, show modal
+    if (!skipValidation && criticalErrors.length > 0) {
+      setValidationErrors(errors);
+      setShowValidationModal(true);
+      setSaveStatus('error');
+      return;
+    }
+
+    // Store warnings for display but continue saving
+    if (errors.length > 0 && !skipValidation) {
+      setValidationErrors(errors);
+    }
+
+    setSaveStatus('saving');
+    try {
+      const workflow = buildWorkflow();
+      await onSave(workflow);
+      lastSavedRef.current = { nodes, edges };
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      setSaveStatus('error');
+    }
+  }, [buildWorkflow, onSave, nodes, edges, validateWorkflow]);
+
+  // Force save ignoring validation (for auto-save)
+  const performAutoSave = useCallback(async () => {
     if (!onSave) return;
 
     setSaveStatus('saving');
@@ -596,10 +814,10 @@ const WorkflowBuilderInner = ({
     }
   }, [buildWorkflow, onSave, nodes, edges]);
 
-  // Keep ref updated with latest performSave
+  // Keep ref updated with latest performAutoSave (for debounced saves)
   useEffect(() => {
-    performSaveRef.current = performSave;
-  }, [performSave]);
+    performSaveRef.current = performAutoSave;
+  }, [performAutoSave]);
 
   // Manual save (immediate)
   const handleSave = useCallback(() => {
@@ -696,6 +914,7 @@ const WorkflowBuilderInner = ({
       {/* Sidebar with draggable nodes */}
       <Sidebar
         channel={channel}
+        agentType={agentType}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
@@ -854,6 +1073,76 @@ const WorkflowBuilderInner = ({
           onDelete={deleteNode}
           onClose={() => setSelectedNode(null)}
         />
+      )}
+
+      {/* Validation Modal */}
+      {showValidationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <h3 className="font-semibold text-red-700 dark:text-red-400">
+                  Problemas no Workflow
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowValidationModal(false)}
+                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"
+              >
+                <XCircle className="w-5 h-5 text-red-500" />
+              </button>
+            </div>
+
+            <div className="p-4 max-h-80 overflow-y-auto">
+              <div className="space-y-2">
+                {validationErrors.map((error, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start gap-2 p-2 rounded-lg ${
+                      error.type === 'error'
+                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                        : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+                    }`}
+                  >
+                    {error.type === 'error' ? (
+                      <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    )}
+                    <span className={`text-sm ${
+                      error.type === 'error'
+                        ? 'text-red-700 dark:text-red-400'
+                        : 'text-amber-700 dark:text-amber-400'
+                    }`}>
+                      {error.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+              <button
+                onClick={() => setShowValidationModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Corrigir
+              </button>
+              {validationErrors.filter(e => e.type === 'error').length === 0 && (
+                <button
+                  onClick={() => {
+                    setShowValidationModal(false);
+                    performSave(true); // Skip validation and save
+                  }}
+                  className="px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                >
+                  Salvar Mesmo Assim
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

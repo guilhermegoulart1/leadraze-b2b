@@ -1,75 +1,33 @@
-// frontend/src/components/aiemployees/WorkflowBuilder/Sidebar.jsx
-// Sidebar with draggable node types - channel aware
+// frontend/src/components/aiemployees/FollowUpBuilder/Sidebar.jsx
+// Sidebar with draggable node types for Follow-Up flows
 
-import React, { useMemo } from 'react';
-import {
-  Zap, MessageCircle, GitBranch, PhoneCall, Calendar, Send,
-  XCircle, CheckCircle, Tag, MinusCircle, Pause, UserCheck, UserX, Eye,
-  Heart, Mail, Clock, UserPlus, Image, MousePointer, List,
-  Globe, LogOut, Reply
-} from 'lucide-react';
+import React from 'react';
+import { Clock, Send, Tag, MinusCircle, XCircle, PhoneCall, Mail, Sparkles } from 'lucide-react';
 
-// Channel-specific triggers by agent type
-// Prospecção (ativo): invite_sent - você vai atrás do lead
-// Atendimento (passivo): message_received, connection_request_received - lead vem até você
-const CHANNEL_TRIGGERS = {
-  // LinkedIn triggers separados por tipo de agente
-  linkedin_prospeccao: [
-    { event: 'invite_sent', label: 'Convite Enviado', description: 'Ao enviar convite', icon: Send }
-  ],
-  linkedin_atendimento: [
-    { event: 'message_received', label: 'Msg Recebida', description: 'Lead te envia msg', icon: MessageCircle },
-    { event: 'connection_request_received', label: 'Pedido Conexão', description: 'Lead pede conexão', icon: UserPlus }
-  ],
-  // Fallback para compatibilidade (usa prospecção como padrão)
-  linkedin: [
-    { event: 'invite_sent', label: 'Convite Enviado', description: 'Ao enviar convite', icon: Send }
-  ],
-  whatsapp: [
-    { event: 'message_received', label: 'Msg Recebida', description: 'Nova mensagem', icon: MessageCircle },
-    { event: 'first_contact', label: '1o Contato', description: 'Novo contato', icon: UserPlus },
-    { event: 'media_received', label: 'Midia', description: 'Foto/video/audio', icon: Image },
-    { event: 'button_clicked', label: 'Botao', description: 'Clicou botao', icon: MousePointer },
-    { event: 'list_selected', label: 'Lista', description: 'Selecionou opcao', icon: List }
-  ],
-  email: [
-    { event: 'email_sent', label: 'Email Enviado', description: 'Ao enviar email', icon: Send },
-    { event: 'email_opened', label: 'Email Aberto', description: 'Lead abriu', icon: Eye },
-    { event: 'email_clicked', label: 'Link Clicado', description: 'Clicou no link', icon: MousePointer },
-    { event: 'email_replied', label: 'Respondeu', description: 'Lead respondeu', icon: Reply },
-    { event: 'email_bounced', label: 'Rejeitado', description: 'Nao entregue', icon: XCircle }
-  ],
-  webchat: [
-    { event: 'chat_started', label: 'Chat Iniciado', description: 'Visitante inicia', icon: MessageCircle },
-    { event: 'message_received', label: 'Msg Recebida', description: 'Nova mensagem', icon: MessageCircle },
-    { event: 'page_visited', label: 'Pagina', description: 'Visitou pagina', icon: Globe },
-    { event: 'time_on_page', label: 'Tempo', description: 'X segundos', icon: Clock },
-    { event: 'exit_intent', label: 'Saindo', description: 'Vai fechar', icon: LogOut }
-  ]
-};
-
-// Base node categories (non-trigger)
-const baseCategories = [
+// Follow-up specific node types
+const nodeCategories = [
   {
-    title: 'Conversa',
+    title: 'Triggers',
     nodes: [
       {
-        type: 'conversationStep',
-        label: 'Etapa IA',
-        description: 'Etapa da conversa',
-        icon: MessageCircle,
-        color: 'purple'
+        type: 'trigger',
+        event: 'no_response',
+        label: 'Sem Resposta',
+        description: 'Quando lead nao responde',
+        icon: Clock,
+        color: 'green'
       }
     ]
   },
   {
-    title: 'Logica',
+    title: 'Tempo',
     nodes: [
       {
-        type: 'condition',
-        label: 'Condicao',
-        description: 'IF/ELSE',
-        icon: GitBranch,
+        type: 'action',
+        subtype: 'wait',
+        label: 'Aguardar',
+        description: 'Esperar X tempo',
+        icon: Clock,
         color: 'amber'
       }
     ]
@@ -79,27 +37,27 @@ const baseCategories = [
     nodes: [
       {
         type: 'action',
-        subtype: 'transfer',
-        label: 'Transferir',
-        description: 'Para humano',
-        icon: PhoneCall,
-        color: 'blue'
-      },
-      {
-        type: 'action',
-        subtype: 'schedule',
-        label: 'Agendar',
-        description: 'Reuniao',
-        icon: Calendar,
-        color: 'indigo'
-      },
-      {
-        type: 'action',
         subtype: 'send_message',
         label: 'Mensagem',
-        description: 'Enviar texto',
+        description: 'Texto fixo',
         icon: Send,
         color: 'cyan'
+      },
+      {
+        type: 'action',
+        subtype: 'ai_message',
+        label: 'Msg com IA',
+        description: 'IA gera mensagem',
+        icon: Sparkles,
+        color: 'purple'
+      },
+      {
+        type: 'action',
+        subtype: 'send_email',
+        label: 'Email',
+        description: 'Enviar email',
+        icon: Mail,
+        color: 'blue'
       },
       {
         type: 'action',
@@ -119,27 +77,19 @@ const baseCategories = [
       },
       {
         type: 'action',
-        subtype: 'close_positive',
-        label: 'Encerrar +',
-        description: 'Fim positivo',
-        icon: CheckCircle,
-        color: 'green'
+        subtype: 'transfer',
+        label: 'Transferir',
+        description: 'Para humano',
+        icon: PhoneCall,
+        color: 'blue'
       },
       {
         type: 'action',
         subtype: 'close_negative',
-        label: 'Encerrar -',
-        description: 'Fim negativo',
+        label: 'Encerrar',
+        description: 'Fechar como perdido',
         icon: XCircle,
         color: 'red'
-      },
-      {
-        type: 'action',
-        subtype: 'pause',
-        label: 'Pausar',
-        description: 'Aguardar',
-        icon: Pause,
-        color: 'gray'
       }
     ]
   }
@@ -147,11 +97,10 @@ const baseCategories = [
 
 const colorClasses = {
   green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 group-hover:bg-green-200 dark:group-hover:bg-green-900/50',
-  purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50',
   amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50',
   blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50',
-  indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50',
   cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-200 dark:group-hover:bg-cyan-900/50',
+  purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50',
   orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50',
   red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 group-hover:bg-red-200 dark:group-hover:bg-red-900/50',
   gray: 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-900/50'
@@ -193,32 +142,7 @@ const DraggableNode = ({ node }) => {
   );
 };
 
-const Sidebar = ({ channel, agentType = 'prospeccao', collapsed = false, onToggle }) => {
-  // Build categories with channel-specific triggers based on agent type
-  const nodeCategories = useMemo(() => {
-    // Para LinkedIn, usa triggers específicos por tipo de agente
-    let triggerKey = channel;
-    if (channel === 'linkedin') {
-      triggerKey = `linkedin_${agentType}`;
-    }
-
-    const triggers = CHANNEL_TRIGGERS[triggerKey] || CHANNEL_TRIGGERS[channel] || CHANNEL_TRIGGERS.linkedin;
-
-    const triggerCategory = {
-      title: 'Triggers',
-      nodes: triggers.map(t => ({
-        type: 'trigger',
-        event: t.event,
-        label: t.label,
-        description: t.description,
-        icon: t.icon,
-        color: 'green'
-      }))
-    };
-
-    return [triggerCategory, ...baseCategories];
-  }, [channel, agentType]);
-
+const Sidebar = ({ collapsed = false, onToggle }) => {
   if (collapsed) {
     return (
       <div className="w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-3 gap-2">
@@ -285,20 +209,6 @@ const Sidebar = ({ channel, agentType = 'prospeccao', collapsed = false, onToggl
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Channel indicator */}
-      <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
-          Canal
-        </div>
-        <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          {channel === 'linkedin' && 'LinkedIn'}
-          {channel === 'whatsapp' && 'WhatsApp'}
-          {channel === 'email' && 'Email'}
-          {channel === 'webchat' && 'Chat do Site'}
-          {!channel && 'Nao definido'}
-        </div>
       </div>
 
       {/* Tips */}
