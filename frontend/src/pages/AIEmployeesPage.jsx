@@ -4,7 +4,7 @@ import {
   Users, Target, Headphones, ArrowLeft, Plus, Search, Filter, Star,
   Sparkles, MessageSquare, Bot, ChevronRight, Loader, PlayCircle, RotateCcw,
   Pencil, Trash2, X, AlertTriangle, Linkedin, Mail, FolderPlus, Folder,
-  FolderOpen, ChevronDown, MoreVertical, Move, Edit2
+  FolderOpen, ChevronDown, MoreVertical, Move, Edit2, GitBranch, Settings
 } from 'lucide-react';
 import api from '../services/api';
 import AgentTypeSelector from '../components/aiemployees/AgentTypeSelector';
@@ -64,6 +64,15 @@ const AIEmployeesPage = () => {
   const [newFlowName, setNewFlowName] = useState('');
   const [showDeleteFlowModal, setShowDeleteFlowModal] = useState(false);
   const [flowToDelete, setFlowToDelete] = useState(null);
+
+  // Agent editing state
+  const [editingAgent, setEditingAgent] = useState(null); // Agent being edited
+  const [editingAgentWorkflow, setEditingAgentWorkflow] = useState(null); // Agent for workflow editing
+
+  // Agent delete state
+  const [showDeleteAgentModal, setShowDeleteAgentModal] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState(null);
+  const [deletingAgent, setDeletingAgent] = useState(false);
 
   // Folder state
   const [agentFolders, setAgentFolders] = useState({ tree: [], flatList: [], totalCount: 0, noFolderCount: 0 });
@@ -363,21 +372,30 @@ const AIEmployeesPage = () => {
 
     if (!draggedItem) return;
 
+    // Skip if already in the same folder
+    const currentFolderId = draggedItem.item.folder_id || null;
+    if (currentFolderId === targetFolderId) {
+      setDraggedItem(null);
+      return;
+    }
+
     try {
       let response;
       if (draggedItem.type === 'agent') {
         response = await api.moveAgentToFolder(draggedItem.item.id, targetFolderId);
+        if (response?.success) {
+          // Update local state instead of reloading all data
+          setEmployees(prev => prev.map(emp =>
+            emp.id === draggedItem.item.id ? { ...emp, folder_id: targetFolderId } : emp
+          ));
+        }
       } else {
         response = await api.moveFlowToFolder(draggedItem.item.id, targetFolderId);
-      }
-
-      if (response?.success) {
-        if (draggedItem.type === 'agent') {
-          await loadEmployees();
-          await loadAgentFolders();
-        } else {
-          await loadFollowUpFlows();
-          await loadFollowUpFolders();
+        if (response?.success) {
+          // Update local state instead of reloading all data
+          setFollowUpFlows(prev => prev.map(flow =>
+            flow.id === draggedItem.item.id ? { ...flow, folder_id: targetFolderId } : flow
+          ));
         }
       }
     } catch (error) {
@@ -520,6 +538,12 @@ const AIEmployeesPage = () => {
 
   // Go back
   const handleBack = () => {
+    // If editing, going back should return to list
+    if (editingAgent || editingAgentWorkflow) {
+      handleReset();
+      return;
+    }
+
     switch (currentStep) {
       case STEPS.SELECT_CHANNEL:
         setCurrentStep(STEPS.SELECT_TYPE);
@@ -560,12 +584,42 @@ const AIEmployeesPage = () => {
     setAgentProfile(null);
     setInterviewAnswers({});
     setWorkflowDefinition(null);
+    setEditingAgent(null);
+    setEditingAgentWorkflow(null);
   };
 
-  // Create AI Employee
+  // Delete AI Employee
+  const handleDeleteAgent = async () => {
+    if (!agentToDelete) return;
+
+    try {
+      setDeletingAgent(true);
+      const response = await api.deleteAgent(agentToDelete.id);
+
+      if (response.success) {
+        // Remove from local state
+        setEmployees(prev => prev.filter(emp => emp.id !== agentToDelete.id));
+        // Close modal
+        setShowDeleteAgentModal(false);
+        setAgentToDelete(null);
+        // Reload folders to update counts
+        loadAgentFolders();
+      }
+    } catch (error) {
+      console.error('Error deleting agent:', error);
+    } finally {
+      setDeletingAgent(false);
+    }
+  };
+
+  // Create or Update AI Employee
   const handleCreateAgent = async () => {
     try {
       setLoading(true);
+
+      // Check if we're editing an existing agent
+      const isEditing = editingAgent || editingAgentWorkflow;
+      const existingAgentId = editingAgent?.id || editingAgentWorkflow?.id;
 
       // Channel display names
       const channelNames = {
@@ -575,20 +629,78 @@ const AIEmployeesPage = () => {
         webchat: 'WebChat'
       };
 
-      // Generate agent config from interview + workflow
-      const agentConfig = {
-        name: agentProfile?.name || `AI ${agentType === 'prospeccao' ? 'SDR' : 'Atendente'} - ${channelNames[channel] || channel}`,
-        agent_type: channel, // Use the selected channel
-        category: agentType, // 'prospeccao' or 'atendimento'
-        template_id: selectedTemplate?.id !== 'scratch' ? selectedTemplate?.id : null,
-        agent_profile: agentProfile, // Identidade + Base de Conhecimento
-        interview_answers: interviewAnswers,
-        workflow_definition: workflowDefinition,
-        is_active: true
-      };
+      let response;
+      if (isEditing && existingAgentId) {
+        // Update existing agent - use updateAgent endpoint
+        // Preserve existing config and merge with new data
+        const existingConfig = editingAgent?.config || editingAgentWorkflow?.config || {};
+        const existingAgentType = editingAgent?.agent_type || editingAgentWorkflow?.agent_type;
 
-      // Call API to generate and create agent
-      const response = await api.generateAIEmployee(agentConfig);
+        // Build new config preserving required fields based on agent type
+        const newConfig = {
+          ...existingConfig, // Preserve all existing config (including initial_message, behavioral_profile, etc.)
+          // Update with new profile data
+          tone: agentProfile?.tone || existingConfig.tone,
+          objective: agentProfile?.objective || existingConfig.objective,
+          personality: agentProfile?.personality || existingConfig.personality,
+          rules: agentProfile?.rules || existingConfig.rules,
+          company: agentProfile?.company || existingConfig.company,
+          product: agentProfile?.product || existingConfig.product,
+          faq: agentProfile?.faq || existingConfig.faq,
+          objections: agentProfile?.objections || existingConfig.objections,
+          workflow: workflowDefinition || existingConfig.workflow
+        };
+
+        // Ensure required fields exist based on agent type
+        if ((existingAgentType === 'whatsapp' || existingAgentType === 'email') && !newConfig.initial_message) {
+          newConfig.initial_message = existingConfig.initial_message || 'Olá! Como posso ajudar?';
+        }
+        if (existingAgentType === 'linkedin' && !newConfig.behavioral_profile) {
+          newConfig.behavioral_profile = existingConfig.behavioral_profile || 'professional';
+        }
+
+        const updateData = {
+          name: agentProfile?.name,
+          description: agentProfile?.description,
+          avatar_url: agentProfile?.avatarUrl,
+          response_length: agentProfile?.responseLength || 'medium',
+          config: newConfig,
+          is_active: editingAgent?.is_active ?? editingAgentWorkflow?.is_active ?? true
+        };
+        response = await api.updateAgent(existingAgentId, updateData);
+      } else {
+        // Create new agent - use generate endpoint
+        // Build answers from agentProfile for the generate endpoint
+        const answers = {
+          agent_name: agentProfile?.name || `AI ${agentType === 'prospeccao' ? 'SDR' : 'Atendente'} - ${channelNames[channel] || channel}`,
+          avatar_url: agentProfile?.avatarUrl,
+          tone: agentProfile?.tone || 'consultivo',
+          objective: agentProfile?.objective || 'qualify',
+          personality: agentProfile?.personality || [],
+          rules: agentProfile?.rules || [],
+          company_name: agentProfile?.company?.name || '',
+          company_website: agentProfile?.company?.website || '',
+          company_description: agentProfile?.company?.description || '',
+          company_sector: agentProfile?.company?.sector || '',
+          product_name: agentProfile?.product?.name || '',
+          product_description: agentProfile?.product?.description || '',
+          product_benefits: agentProfile?.product?.benefits || [],
+          product_differentials: agentProfile?.product?.differentials || [],
+          faq: agentProfile?.faq || [],
+          objections: agentProfile?.objections || [],
+          response_length: agentProfile?.responseLength || 'medium',
+          ...interviewAnswers
+        };
+
+        const generateData = {
+          agent_type: channel,
+          niche: agentType,
+          template_id: selectedTemplate?.id !== 'scratch' ? selectedTemplate?.id : null,
+          answers: answers,
+          workflow_definition: workflowDefinition
+        };
+        response = await api.generateAIEmployee(generateData);
+      }
 
       if (response.success) {
         // Reload employees list
@@ -596,10 +708,10 @@ const AIEmployeesPage = () => {
         // Reset wizard and go back to list
         handleReset();
         // Show success (you could add a toast notification here)
-        console.log('AI Employee created successfully:', response.data);
+        console.log(isEditing ? 'AI Employee updated successfully:' : 'AI Employee created successfully:', response.data);
       }
     } catch (error) {
-      console.error('Error creating AI Employee:', error);
+      console.error('Error creating/updating AI Employee:', error);
       // Handle error (you could add a toast notification here)
     } finally {
       setLoading(false);
@@ -1018,21 +1130,61 @@ const AIEmployeesPage = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1">
                                 <button
                                   onClick={() => {
-                                    // TODO: Edit employee
-                                    console.log('Edit employee:', employee.id);
+                                    // Open agent config editor (profile, knowledge base, rules)
+                                    setEditingAgent(employee);
+                                    setAgentType(employee.category || (employee.agent_type === 'linkedin' ? 'prospeccao' : 'atendimento'));
+                                    setChannel(employee.agent_type);
+                                    // Build profile from employee data - use avatarUrl (camelCase)
+                                    const config = employee.config || {};
+                                    setAgentProfile({
+                                      name: employee.name,
+                                      avatarUrl: employee.avatar_url, // camelCase for AgentProfileStep
+                                      tone: config.tone || 'consultivo',
+                                      objective: config.objective || 'qualify',
+                                      personality: config.personality || [],
+                                      rules: config.rules || [],
+                                      company: config.company || {},
+                                      product: config.product || {},
+                                      faq: config.faq || [],
+                                      objections: config.objections || [],
+                                      responseLength: employee.response_length || 'medium',
+                                      ...config
+                                    });
+                                    setCurrentStep(STEPS.AGENT_PROFILE);
+                                    setShowCreator(true);
                                   }}
-                                  className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                                  title="Editar"
+                                  className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                  title="Editar Configuracoes"
                                 >
-                                  <Pencil className="w-4 h-4" />
+                                  <Settings className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => {
-                                    // TODO: Delete employee
-                                    console.log('Delete employee:', employee.id);
+                                    // Open workflow editor
+                                    setEditingAgentWorkflow(employee);
+                                    setWorkflowDefinition(employee.config?.workflow || { nodes: [], edges: [] });
+                                    const config = employee.config || {};
+                                    setAgentProfile({
+                                      name: employee.name,
+                                      avatarUrl: employee.avatar_url, // camelCase for AgentProfileStep
+                                      responseLength: employee.response_length || 'medium',
+                                      ...config
+                                    });
+                                    setCurrentStep(STEPS.WORKFLOW_BUILDER);
+                                    setShowCreator(true);
+                                  }}
+                                  className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                                  title="Editar Workflow"
+                                >
+                                  <GitBranch className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setAgentToDelete(employee);
+                                    setShowDeleteAgentModal(true);
                                   }}
                                   className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                   title="Excluir"
@@ -1541,6 +1693,65 @@ const AIEmployeesPage = () => {
           </div>
         )}
 
+        {/* Delete Agent Confirmation Modal */}
+        {showDeleteAgentModal && agentToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50" onClick={() => !deletingAgent && setShowDeleteAgentModal(false)} />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 z-10">
+              <button
+                onClick={() => !deletingAgent && setShowDeleteAgentModal(false)}
+                className="absolute top-3 right-3 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                disabled={deletingAgent}
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Excluir AI Employee
+                </h3>
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                Tem certeza que deseja excluir <span className="font-medium text-gray-900 dark:text-white">"{agentToDelete.name}"</span>?
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                Esta acao nao pode ser desfeita. Todas as configuracoes e historico de conversas serao perdidos.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteAgentModal(false);
+                    setAgentToDelete(null);
+                  }}
+                  disabled={deletingAgent}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteAgent}
+                  disabled={deletingAgent}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deletingAgent ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Excluindo...
+                    </>
+                  ) : (
+                    'Excluir'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Move to Folder Modal */}
         {showMoveToFolderModal && itemToMove && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1653,35 +1864,47 @@ const AIEmployeesPage = () => {
             </button>
             <div>
               <h1 className="text-base font-semibold text-gray-900 dark:text-white">
-                Criar AI Employee
+                {(editingAgent || editingAgentWorkflow) ? 'Editar AI Employee' : 'Criar AI Employee'}
               </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Passo {getStepNumber()} de {getTotalSteps()}
-              </p>
+              {!(editingAgent || editingAgentWorkflow) && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Passo {getStepNumber()} de {getTotalSteps()}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="hidden md:flex items-center gap-1.5">
-            {Object.values(STEPS).map((step, index) => (
-              <div
-                key={step}
-                className={`h-1.5 w-12 rounded-full transition-colors ${
-                  index < getStepNumber()
-                    ? 'bg-purple-600'
-                    : 'bg-gray-200 dark:bg-gray-700'
-                }`}
-              />
-            ))}
-          </div>
+          {/* Progress bar - hide when editing */}
+          {!(editingAgent || editingAgentWorkflow) && (
+            <div className="hidden md:flex items-center gap-1.5">
+              {Object.values(STEPS).map((step, index) => (
+                <div
+                  key={step}
+                  className={`h-1.5 w-12 rounded-full transition-colors ${
+                    index < getStepNumber()
+                      ? 'bg-purple-600'
+                      : 'bg-gray-200 dark:bg-gray-700'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             {currentStep === STEPS.WORKFLOW_BUILDER && (
               <button
-                onClick={() => setCurrentStep(STEPS.REVIEW)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                onClick={handleCreateAgent}
+                disabled={loading}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:opacity-50 flex items-center gap-2"
               >
-                Continuar para Revisao
+                {loading ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    {(editingAgent || editingAgentWorkflow) ? 'Salvando...' : 'Criando...'}
+                  </>
+                ) : (
+                  (editingAgent || editingAgentWorkflow) ? 'Salvar Alteracoes' : 'Concluir'
+                )}
               </button>
             )}
             <button
@@ -1727,6 +1950,7 @@ const AIEmployeesPage = () => {
             initialData={agentProfile}
             onComplete={handleProfileComplete}
             onBack={handleBack}
+            isEditing={!!(editingAgent || editingAgentWorkflow)}
           />
         )}
 
@@ -1736,6 +1960,8 @@ const AIEmployeesPage = () => {
             channel={channel}
             template={selectedTemplate}
             agentProfile={agentProfile}
+            initialWorkflow={workflowDefinition}
+            isEditing={!!(editingAgent || editingAgentWorkflow)}
             onSave={(workflow) => {
               // Auto-save: apenas salva os dados, nao navega
               setWorkflowDefinition(workflow);
@@ -1749,7 +1975,7 @@ const AIEmployeesPage = () => {
         {currentStep === STEPS.REVIEW && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-              Revisao do AI Employee
+              {(editingAgent || editingAgentWorkflow) ? 'Atualizar AI Employee' : 'Revisao do AI Employee'}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -1869,12 +2095,12 @@ const AIEmployeesPage = () => {
                 {loading ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    Criando...
+                    {(editingAgent || editingAgentWorkflow) ? 'Atualizando...' : 'Criando...'}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Criar AI Employee
+                    {(editingAgent || editingAgentWorkflow) ? 'Atualizar AI Employee' : 'Criar AI Employee'}
                   </>
                 )}
               </button>

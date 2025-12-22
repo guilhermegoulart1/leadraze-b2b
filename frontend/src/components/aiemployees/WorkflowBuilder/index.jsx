@@ -349,6 +349,8 @@ const WorkflowBuilderInner = ({
   channel = 'linkedin',
   template = null,
   interviewAnswers = {},
+  initialWorkflow: providedWorkflow = null,
+  isEditing = false,
   onSave,
   onPreview
 }) => {
@@ -357,7 +359,11 @@ const WorkflowBuilderInner = ({
 
   // Generate initial workflow based on source
   const getInitialWorkflow = () => {
-    // Priority: template > interview answers > empty
+    // Priority: providedWorkflow (editing) > template > interview answers > empty
+    if (providedWorkflow?.nodes?.length > 0) {
+      return providedWorkflow;
+    }
+
     if (template?.workflow_definition?.nodes?.length > 0) {
       return template.workflow_definition;
     }
@@ -960,34 +966,9 @@ const WorkflowBuilderInner = ({
             />
           )}
 
-          {/* Top toolbar */}
+          {/* Top toolbar - save status only */}
           <Panel position="top-right" className="flex gap-2">
-            <button
-              onClick={() => setShowMiniMap(!showMiniMap)}
-              className={`p-2 rounded-lg shadow border transition-colors ${
-                showMiniMap
-                  ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-600'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-              title="Minimapa"
-            >
-              <Eye className={`w-4 h-4 ${showMiniMap ? 'text-purple-600' : 'text-gray-600 dark:text-gray-300'}`} />
-            </button>
-            <button
-              onClick={clearWorkflow}
-              className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              title="Limpar workflow"
-            >
-              <Trash2 className="w-4 h-4 text-gray-600 dark:text-gray-300 hover:text-red-500" />
-            </button>
-            <button
-              onClick={() => onPreview?.(nodes, edges)}
-              className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Play className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Preview</span>
-            </button>
-            {/* Save status indicator */}
+            {/* Save status indicator - text only */}
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow border transition-all ${
               saveStatus === 'saved'
                 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
@@ -1022,23 +1003,6 @@ const WorkflowBuilderInner = ({
                 </>
               )}
             </div>
-            <button
-              onClick={handleSave}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow transition-colors ${
-                saveStatus === 'saving'
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-700'
-              } text-white`}
-              disabled={saveStatus === 'saving'}
-              title="Salvar agora (Ctrl+S)"
-            >
-              {saveStatus === 'saving' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              <span className="text-sm">Salvar</span>
-            </button>
           </Panel>
 
           {/* Compact Legend - inline at bottom */}

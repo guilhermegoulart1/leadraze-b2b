@@ -114,18 +114,32 @@ const typeLabels = {
   atendimento: 'Atendimento'
 };
 
-const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData = null }) => {
+const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData = null, isEditing = false }) => {
   const [activeTab, setActiveTab] = useState('identity');
+  const initializedRef = React.useRef(false);
   const [profile, setProfile] = useState(() => {
     const base = initialData || initialProfile;
-    // Se nao tem avatar, gera um aleatorio
-    if (!base.avatarUrl) {
+    // Se nao tem avatar E nao estamos editando, gera um aleatorio
+    // Se estamos editando, mantem o avatar que veio (mesmo se undefined)
+    if (!base.avatarUrl && !isEditing) {
       return { ...base, avatarUrl: getRandomUnsplashUrl() };
     }
     return base;
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Update profile when initialData changes (for editing) - only once
+  React.useEffect(() => {
+    if (initialData && isEditing && !initializedRef.current) {
+      initializedRef.current = true;
+      setProfile(prev => ({
+        ...initialProfile, // Reset to defaults first
+        ...initialData,    // Then apply initial data
+        avatarUrl: initialData.avatarUrl || getRandomUnsplashUrl() // Only generate if really missing
+      }));
+    }
+  }, [initialData, isEditing]);
 
   const updateProfile = (key, value) => {
     setProfile(prev => ({ ...prev, [key]: value }));
@@ -226,10 +240,14 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {profile.name || 'Novo AI Employee'}
+                {profile.name || (isEditing ? 'Editando AI Employee' : 'Novo AI Employee')}
               </h2>
-              <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-medium rounded-full">
-                Configurando
+              <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                isEditing
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                  : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+              }`}>
+                {isEditing ? 'Editando' : 'Configurando'}
               </span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -237,13 +255,15 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
             </p>
           </div>
 
-          {/* Progress indicator */}
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <span className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-semibold">
-              4
-            </span>
-            <span>de 6</span>
-          </div>
+          {/* Progress indicator - hide when editing */}
+          {!isEditing && (
+            <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <span className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-semibold">
+                4
+              </span>
+              <span>de 6</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -330,7 +350,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
               }
             `}
           >
-            Continuar para Workflow
+            {isEditing ? 'Salvar e Continuar' : 'Continuar para Workflow'}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

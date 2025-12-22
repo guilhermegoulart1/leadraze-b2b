@@ -166,6 +166,7 @@ async function generateAgentConfig(options) {
     account_id: accountId,
     user_id: userId,
     name: agentName,
+    avatar_url: answers.avatar_url || null,
     description: `AI Employee - ${agentType === 'prospeccao' ? 'Prospecção' : 'Atendimento'}${niche ? ` - ${niche}` : ''}`,
     agent_type: agentType === 'prospeccao' ? 'linkedin' : 'whatsapp',
     products_services: productsServices,
@@ -186,11 +187,11 @@ async function generateAgentConfig(options) {
   // Create the agent
   const insertQuery = `
     INSERT INTO ai_agents (
-      account_id, user_id, name, description, agent_type, products_services,
+      account_id, user_id, name, avatar_url, description, agent_type, products_services,
       behavioral_profile, target_audience, conversation_steps, transfer_triggers,
       language, is_active, config, created_at, updated_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
     )
     RETURNING *
   `;
@@ -199,6 +200,7 @@ async function generateAgentConfig(options) {
     agentData.account_id,
     agentData.user_id,
     agentData.name,
+    agentData.avatar_url,
     agentData.description,
     agentData.agent_type,
     agentData.products_services,
@@ -223,6 +225,11 @@ async function generateAgentConfig(options) {
  * Generate a creative agent name
  */
 async function generateAgentName(agentType, answers) {
+  // Use provided agent_name if available
+  if (answers.agent_name) {
+    return answers.agent_name;
+  }
+
   const companyName = answers.company_name || answers.clinic_name || 'Empresa';
 
   // Simple names based on type
