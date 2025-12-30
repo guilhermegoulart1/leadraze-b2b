@@ -53,6 +53,8 @@ import LeadChecklists from './LeadChecklists';
 import LocationMiniMap from './LocationMiniMap';
 import WinDealModal from './WinDealModal';
 import DiscardLeadModal from './DiscardLeadModal';
+import ProfileEnrichmentSection, { ProfileBadges } from './ProfileEnrichmentSection';
+import CompanyDataTab from './CompanyDataTab';
 
 // Helper functions for dynamic Tailwind classes
 const getStageClasses = (color) => {
@@ -93,7 +95,7 @@ const parseJsonArray = (value) => {
 
 const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated, onViewContact }) => {
   const { t } = useTranslation(['leads', 'contacts']);
-  const [activeTab, setActiveTab] = useState('details'); // details | intelligence | comments
+  const [activeTab, setActiveTab] = useState('details'); // details | intelligence | comments | company
   const [activeChannel, setActiveChannel] = useState(null);
   const [conversations, setConversations] = useState({});
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -117,6 +119,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [reactivating, setReactivating] = useState(false);
   const [fullLeadData, setFullLeadData] = useState(null);
   const messagesEndRef = useRef(null);
+  const [linkedinAccounts, setLinkedinAccounts] = useState([]);
+  const [selectedLinkedinAccountId, setSelectedLinkedinAccountId] = useState(null);
 
   // Sync currentStatus when lead prop changes
   useEffect(() => {
@@ -257,6 +261,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       loadTasks();
       loadAssignableUsers();
       loadFullLeadData();
+      loadLinkedinAccounts();
     }
   }, [lead?.id]); // Only reload when lead ID changes, not when lead object reference changes
 
@@ -269,6 +274,23 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       }
     } catch (error) {
       console.error('Error loading full lead data:', error);
+    }
+  };
+
+  // Load LinkedIn accounts for company tab
+  const loadLinkedinAccounts = async () => {
+    try {
+      const response = await api.getLinkedInAccounts();
+      if (response.success && response.data?.length > 0) {
+        setLinkedinAccounts(response.data);
+        // Auto-select the first active account
+        const activeAccount = response.data.find(a => a.status === 'active');
+        if (activeAccount) {
+          setSelectedLinkedinAccountId(activeAccount.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading LinkedIn accounts:', error);
     }
   };
 
@@ -906,6 +928,23 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         <span className="text-blue-200 text-xs font-medium">Creator</span>
                       </div>
                     )}
+                    {/* Open to Work / Hiring Badges */}
+                    {(fullLeadData?.is_open_to_work || fullLeadData?.is_hiring || lead.is_open_to_work || lead.is_hiring) && (
+                      <>
+                        {(fullLeadData?.is_open_to_work || lead.is_open_to_work) && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-green-400/20 border border-green-400/40 rounded-full">
+                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                            <span className="text-green-200 text-xs font-medium">Open to Work</span>
+                          </div>
+                        )}
+                        {(fullLeadData?.is_hiring || lead.is_hiring) && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-400/20 border border-blue-400/40 rounded-full">
+                            <Briefcase className="w-3 h-3 text-blue-300" />
+                            <span className="text-blue-200 text-xs font-medium">Hiring</span>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {lead.title && (
@@ -1000,6 +1039,20 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     </span>
                   )}
                 </button>
+                {/* Company Tab - show if lead has company */}
+                {lead?.company && (
+                  <button
+                    onClick={() => setActiveTab('company')}
+                    className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                      activeTab === 'company'
+                        ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Empresa
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1485,6 +1538,11 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   <div className="mt-5 pt-5">
                     <LeadChecklists leadId={lead?.id} sectorId={lead?.sector_id} />
                   </div>
+
+                  {/* Enrichment Data (Skills, Certifications, Languages, etc.) */}
+                  <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                    <ProfileEnrichmentSection profile={fullLeadData || lead} />
+                  </div>
                 </div>
               )}
 
@@ -1642,6 +1700,36 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Company Tab */}
+              {activeTab === 'company' && lead?.company && (
+                <div className="p-6 space-y-4">
+                  {/* LinkedIn Account Selector (if multiple accounts) */}
+                  {linkedinAccounts.length > 1 && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <Linkedin className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Conta:</span>
+                      <select
+                        value={selectedLinkedinAccountId || ''}
+                        onChange={(e) => setSelectedLinkedinAccountId(e.target.value)}
+                        className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      >
+                        {linkedinAccounts.map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.profile_name || account.linkedin_username}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <CompanyDataTab
+                    companyIdentifier={lead.company}
+                    linkedinAccountId={selectedLinkedinAccountId}
+                    cnpjData={null}
+                  />
                 </div>
               )}
 

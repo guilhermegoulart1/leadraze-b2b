@@ -6,10 +6,11 @@ const conversationAutomationService = require('../services/conversationAutomatio
 const conversationSummaryService = require('../services/conversationSummaryService');
 const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
 const { scheduleDelayedConversation, cancelDelayedConversation } = require('../workers/delayedConversationWorker');
-const axios = require('axios');
 const { publishNewMessage, publishNewConversation } = require('../services/socketService');
 const unipileClient = require('../config/unipile');
 const storageService = require('../services/storageService');
+// @guilhermegoulart1/relay-core - webhook parsing
+const { parseWebhook } = require('@guilhermegoulart1/relay-core');
 
 // ================================
 // HELPER: PROCESSAR E SALVAR ATTACHMENTS NO R2
@@ -111,24 +112,10 @@ async function getUnipileAccountId(linkedinAccountId) {
 // HELPER: BUSCAR DADOS DO PERFIL VIA UNIPILE API
 // ================================
 async function fetchUserProfileFromUnipile(accountId, userProviderId) {
-  const dsn = process.env.UNIPILE_DSN;
-  const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
-
-  if (!dsn || !token) return null;
+  if (!unipileClient.isInitialized()) return null;
 
   try {
-    const url = `https://${dsn}/api/v1/users/${userProviderId}`;
-    const response = await axios({
-      method: 'GET',
-      url,
-      headers: {
-        'X-API-KEY': token,
-        'Accept': 'application/json'
-      },
-      params: { account_id: accountId },
-      timeout: 10000
-    });
-    return response.data;
+    return await unipileClient.users.getOne(accountId, userProviderId);
   } catch (error) {
     return null;
   }
@@ -137,46 +124,72 @@ async function fetchUserProfileFromUnipile(accountId, userProviderId) {
 // ================================
 // HELPER: DETECTAR TIPO DE EVENTO E NORMALIZAR PAYLOAD
 // ================================
-// A Unipile envia o tipo como chave do objeto, ex: { "AccountStatus": { ... } }
-// Precisamos detectar isso e normalizar para um formato consistente
-function parseUnipileWebhook(rawPayload) {
-  // Mapeamento de chaves do Unipile para tipos de evento internos
-  const EVENT_KEY_MAP = {
-    'AccountStatus': 'account_status',
-    'AccountCreated': 'account_connected',
-    'AccountDeleted': 'account_disconnected',
-    'MessageReceived': 'message_received',
-    'MessageSent': 'message_sent',
-    'MessageDelivered': 'message_delivered',
-    'MessageRead': 'message_read',
-    'MessageEdited': 'message_edited',
-    'MessageDeleted': 'message_deleted',
-    'MessageReaction': 'message_reaction',
-    'NewRelation': 'new_relation',
-    'RelationCreated': 'new_relation',
-  };
+// Usa parseWebhook do @relay/core e converte para formato interno do LeadRaze
+function parseUnipileWebhookLocal(rawPayload) {
+  try {
+    // Usar parseWebhook do @relay/core
+    const normalizedEvent = parseWebhook('unipile', rawPayload);
 
-  // Verificar se é o formato com chave de evento (ex: { "AccountStatus": { ... } })
-  const eventKeys = Object.keys(rawPayload);
-  for (const key of eventKeys) {
-    if (EVENT_KEY_MAP[key]) {
-      const eventData = rawPayload[key];
-      return {
-        eventType: EVENT_KEY_MAP[key],
-        payload: {
-          ...eventData,
-          _original_event_key: key
-        }
-      };
+    // Mapear tipos do Relay para tipos internos do LeadRaze
+    const RELAY_TO_LEADRAZE_TYPE = {
+      'message.received': 'message_received',
+      'message.sent': 'message_sent',
+      'message.delivered': 'message_delivered',
+      'message.read': 'message_read',
+      'message.edited': 'message_edited',
+      'message.deleted': 'message_deleted',
+      'message.reaction': 'message_reaction',
+      'relation.created': 'new_relation',
+      'relation.removed': 'relation_removed',
+      'account.connected': 'account_connected',
+      'account.disconnected': 'account_disconnected',
+      'account.status_changed': 'account_status'
+    };
+
+    const eventType = RELAY_TO_LEADRAZE_TYPE[normalizedEvent.type] || normalizedEvent.type;
+
+    // Reconstruir payload no formato esperado pelo código existente
+    const payload = {
+      ...normalizedEvent.raw,
+      account_id: normalizedEvent.accountId,
+      chat_id: normalizedEvent.chatId,
+      message_id: normalizedEvent.messageId,
+      account_type: normalizedEvent.providerType,
+      _normalized_event: normalizedEvent // Guardar evento normalizado para uso futuro
+    };
+
+    return { eventType, payload };
+  } catch (error) {
+    // Fallback: formato antigo se relay falhar
+    const EVENT_KEY_MAP = {
+      'AccountStatus': 'account_status',
+      'AccountCreated': 'account_connected',
+      'AccountDeleted': 'account_disconnected',
+      'MessageReceived': 'message_received',
+      'MessageSent': 'message_sent',
+      'MessageDelivered': 'message_delivered',
+      'MessageRead': 'message_read',
+      'MessageEdited': 'message_edited',
+      'MessageDeleted': 'message_deleted',
+      'MessageReaction': 'message_reaction',
+      'NewRelation': 'new_relation',
+      'RelationCreated': 'new_relation',
+    };
+
+    const eventKeys = Object.keys(rawPayload);
+    for (const key of eventKeys) {
+      if (EVENT_KEY_MAP[key]) {
+        const eventData = rawPayload[key];
+        return {
+          eventType: EVENT_KEY_MAP[key],
+          payload: { ...eventData, _original_event_key: key }
+        };
+      }
     }
-  }
 
-  // Fallback: formato antigo com payload.event ou payload.type
-  const eventType = rawPayload.event || rawPayload.type;
-  return {
-    eventType,
-    payload: rawPayload
-  };
+    const eventType = rawPayload.event || rawPayload.type;
+    return { eventType, payload: rawPayload };
+  }
 }
 
 // ================================
@@ -198,8 +211,8 @@ const receiveWebhook = async (req, res) => {
       console.log('📥 ═══════════════════════════════════════════════════════════════');
     }
 
-    // Detectar tipo de evento e normalizar payload
-    const { eventType, payload } = parseUnipileWebhook(rawPayload);
+    // Detectar tipo de evento e normalizar payload (usando @relay/core)
+    const { eventType, payload } = parseUnipileWebhookLocal(rawPayload);
 
     // Log adicional para new_relation
     if (eventType === 'new_relation') {
@@ -682,16 +695,11 @@ async function handleMessageReceived(payload) {
       // Se não temos attendees suficientes no payload, buscar via API
       if (attendeesData.length < 2 && isOwnMessage) {
         try {
-          const chatUrl = `https://${process.env.UNIPILE_DSN}/api/v1/chats/${chat_id}?account_id=${account_id}`;
-          const axios = require('axios');
-          const chatResponse = await axios.get(chatUrl, {
-            headers: {
-              'X-API-KEY': process.env.UNIPILE_ACCESS_TOKEN,
-              'Accept': 'application/json'
-            },
-            timeout: 10000
+          const chatData = await unipileClient.messaging.getChat({
+            account_id: account_id,
+            chat_id: chat_id
           });
-          attendeesData = chatResponse.data?.attendees || attendeesData;
+          attendeesData = chatData?.attendees || attendeesData;
         } catch (apiError) {
           // Silent fail
         }
@@ -1075,23 +1083,31 @@ async function handleNewRelation(payload) {
       };
     }
 
-    // Busca lead com status pendente
+    // Busca lead com status pendente - incluindo leads SEM campanha (criados da busca)
+    // Nota: contact_id é obtido via junction table contact_leads
     const leadQuery = `
-      SELECT l.*, c.user_id, c.ai_agent_id, c.automation_active, c.name as campaign_name,
-             c.account_id,
+      SELECT l.*,
+             c.user_id as campaign_user_id,
+             c.ai_agent_id,
+             c.automation_active,
+             c.name as campaign_name,
+             COALESCE(c.account_id, l.account_id) as account_id,
              crc.sector_id, crc.round_robin_users, crc.ai_initiate_delay_min, crc.ai_initiate_delay_max,
-             aa.connection_strategy, aa.wait_time_after_accept, aa.require_lead_reply
+             aa.connection_strategy, aa.wait_time_after_accept, aa.require_lead_reply,
+             cl.contact_id as linked_contact_id
       FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
+      LEFT JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
-      WHERE c.linkedin_account_id = $1
+      LEFT JOIN linkedin_accounts la ON la.id = c.linkedin_account_id OR la.account_id = l.account_id
+      LEFT JOIN contact_leads cl ON cl.lead_id = l.id
+      WHERE (c.linkedin_account_id = $1 OR la.unipile_account_id = $5)
       AND (
         l.provider_id = $2
         OR l.linkedin_profile_id = $3
         OR l.profile_url LIKE $4
       )
-      AND l.status IN ('invite_sent', 'invite_queued')
+      AND l.status IN ('invite_sent', 'invite_queued', 'invited')
       LIMIT 1
     `;
 
@@ -1100,13 +1116,15 @@ async function handleNewRelation(payload) {
     console.log('🔔   - provider_id:', user_provider_id);
     console.log('🔔   - linkedin_profile_id:', user_public_identifier);
     console.log('🔔   - profile_url LIKE:', `%${user_public_identifier}%`);
-    console.log('🔔   - status IN: (invite_sent, invite_queued)');
+    console.log('🔔   - unipile_account_id:', account_id);
+    console.log('🔔   - status IN: (invite_sent, invite_queued, invited)');
 
     const leadResult = await db.query(leadQuery, [
       linkedinAccount.id,
       user_provider_id,
       user_public_identifier,
-      `%${user_public_identifier}%`
+      `%${user_public_identifier}%`,
+      account_id
     ]);
 
     console.log('🔔 [NEW_RELATION] Resultado da busca:', leadResult.rows.length, 'lead(s) encontrado(s)');
@@ -1169,6 +1187,7 @@ async function handleNewRelation(payload) {
     };
 
     if (fullProfile) {
+      console.log('🔄 [NEW_RELATION] Enriquecendo com perfil COMPLETO de conexão de 1º grau...');
 
       // Dados básicos
       if (fullProfile.first_name) leadUpdateData.first_name = fullProfile.first_name;
@@ -1178,12 +1197,14 @@ async function handleNewRelation(payload) {
       if (fullProfile.location) leadUpdateData.location = fullProfile.location;
       if (fullProfile.industry) leadUpdateData.industry = fullProfile.industry;
 
-      // Foto de perfil
-      if (fullProfile.picture_url || fullProfile.profile_picture_url) {
-        leadUpdateData.profile_picture = fullProfile.picture_url || fullProfile.profile_picture_url;
-      }
+      // Foto de perfil (preferir a maior disponível)
+      const profilePic = fullProfile.profile_picture_url_large ||
+                        fullProfile.profile_picture_url ||
+                        fullProfile.picture_url ||
+                        fullProfile.profile_picture;
+      if (profilePic) leadUpdateData.profile_picture = profilePic;
 
-      // Dados ricos (JSON)
+      // Dados ricos (JSON) - MÁXIMO de informações
       if (fullProfile.experience && Array.isArray(fullProfile.experience)) {
         leadUpdateData.experience = JSON.stringify(fullProfile.experience);
       }
@@ -1199,14 +1220,56 @@ async function handleNewRelation(payload) {
       if (fullProfile.languages && Array.isArray(fullProfile.languages)) {
         leadUpdateData.languages = JSON.stringify(fullProfile.languages);
       }
+      if (fullProfile.certifications && Array.isArray(fullProfile.certifications)) {
+        leadUpdateData.certifications = JSON.stringify(fullProfile.certifications);
+      }
+      if (fullProfile.publications && Array.isArray(fullProfile.publications)) {
+        leadUpdateData.publications = JSON.stringify(fullProfile.publications);
+      }
+      if (fullProfile.volunteer_experience && Array.isArray(fullProfile.volunteer_experience)) {
+        leadUpdateData.volunteer_experience = JSON.stringify(fullProfile.volunteer_experience);
+      }
+      if (fullProfile.honors_awards && Array.isArray(fullProfile.honors_awards)) {
+        leadUpdateData.honors_awards = JSON.stringify(fullProfile.honors_awards);
+      }
+      if (fullProfile.projects && Array.isArray(fullProfile.projects)) {
+        leadUpdateData.projects = JSON.stringify(fullProfile.projects);
+      }
+      if (fullProfile.courses && Array.isArray(fullProfile.courses)) {
+        leadUpdateData.courses = JSON.stringify(fullProfile.courses);
+      }
+      if (fullProfile.patents && Array.isArray(fullProfile.patents)) {
+        leadUpdateData.patents = JSON.stringify(fullProfile.patents);
+      }
+      if (fullProfile.recommendations && Array.isArray(fullProfile.recommendations)) {
+        leadUpdateData.recommendations = JSON.stringify(fullProfile.recommendations);
+      }
 
-      // Contatos (se disponíveis)
+      // Contatos (se disponíveis - MUITO importante para conexões de 1º grau!)
       if (fullProfile.email) leadUpdateData.email = fullProfile.email;
       if (fullProfile.phone) leadUpdateData.phone = fullProfile.phone;
 
-      // Conexões
+      // Conexões e seguidores
       if (fullProfile.connections_count) leadUpdateData.connections_count = fullProfile.connections_count;
       if (fullProfile.follower_count) leadUpdateData.follower_count = fullProfile.follower_count;
+
+      // Status e flags
+      if (fullProfile.is_premium !== undefined) leadUpdateData.is_premium = fullProfile.is_premium;
+      if (fullProfile.is_creator !== undefined) leadUpdateData.is_creator = fullProfile.is_creator;
+      if (fullProfile.is_influencer !== undefined) leadUpdateData.is_influencer = fullProfile.is_influencer;
+      if (fullProfile.is_open_to_work !== undefined) leadUpdateData.is_open_to_work = fullProfile.is_open_to_work;
+      if (fullProfile.is_hiring !== undefined) leadUpdateData.is_hiring = fullProfile.is_hiring;
+
+      // Identificadores
+      if (fullProfile.public_identifier) leadUpdateData.public_identifier = fullProfile.public_identifier;
+      if (fullProfile.member_urn) leadUpdateData.member_urn = fullProfile.member_urn;
+      if (fullProfile.primary_locale) leadUpdateData.primary_locale = JSON.stringify(fullProfile.primary_locale);
+
+      // Marcar que foi enriquecido
+      leadUpdateData.full_profile_fetched_at = new Date();
+      leadUpdateData.network_distance = 'FIRST_DEGREE';
+
+      console.log('✅ [NEW_RELATION] Dados enriquecidos:', Object.keys(leadUpdateData).length, 'campos');
     }
 
     // Distribuição via Round Robin
@@ -1243,6 +1306,109 @@ async function handleNewRelation(payload) {
     console.log('✅ [NEW_RELATION] Lead atualizado para status ACCEPTED!');
     console.log('✅ [NEW_RELATION] Lead ID:', lead.id, '| Novo status: accepted');
 
+    // ========== ATUALIZAR CONTATO ASSOCIADO COM DADOS ENRIQUECIDOS ==========
+    if (fullProfile && lead.linked_contact_id) {
+      console.log('🔄 [NEW_RELATION] Atualizando contato associado:', lead.linked_contact_id);
+      try {
+        const contactUpdateData = {};
+
+        // Dados básicos
+        if (fullProfile.first_name) contactUpdateData.first_name = fullProfile.first_name;
+        if (fullProfile.last_name) contactUpdateData.last_name = fullProfile.last_name;
+        if (fullProfile.headline) contactUpdateData.headline = fullProfile.headline;
+        if (fullProfile.about || fullProfile.summary) contactUpdateData.about = fullProfile.about || fullProfile.summary;
+        if (fullProfile.location) contactUpdateData.location = fullProfile.location;
+        if (fullProfile.industry) contactUpdateData.industry = fullProfile.industry;
+
+        // Foto de perfil
+        const profilePic = fullProfile.profile_picture_url_large ||
+                          fullProfile.profile_picture_url ||
+                          fullProfile.picture_url;
+        if (profilePic) contactUpdateData.profile_picture = profilePic;
+
+        // Dados ricos (JSON)
+        if (fullProfile.experience && Array.isArray(fullProfile.experience)) {
+          contactUpdateData.experience = JSON.stringify(fullProfile.experience);
+        }
+        if (fullProfile.education && Array.isArray(fullProfile.education)) {
+          contactUpdateData.education = JSON.stringify(fullProfile.education);
+        }
+        if (fullProfile.skills && Array.isArray(fullProfile.skills)) {
+          contactUpdateData.skills = JSON.stringify(fullProfile.skills);
+        }
+        if (fullProfile.websites && Array.isArray(fullProfile.websites)) {
+          contactUpdateData.websites = JSON.stringify(fullProfile.websites);
+        }
+        if (fullProfile.languages && Array.isArray(fullProfile.languages)) {
+          contactUpdateData.languages = JSON.stringify(fullProfile.languages);
+        }
+        if (fullProfile.certifications && Array.isArray(fullProfile.certifications)) {
+          contactUpdateData.certifications = JSON.stringify(fullProfile.certifications);
+        }
+
+        // Contatos (MUITO importante para conexões de 1º grau!)
+        if (fullProfile.email) contactUpdateData.email = fullProfile.email;
+        if (fullProfile.phone) contactUpdateData.phone = fullProfile.phone;
+
+        // Conexões
+        if (fullProfile.connections_count) contactUpdateData.connections_count = fullProfile.connections_count;
+        if (fullProfile.is_premium !== undefined) contactUpdateData.is_premium = fullProfile.is_premium;
+
+        contactUpdateData.updated_at = new Date();
+
+        await db.update('contacts', contactUpdateData, { id: lead.linked_contact_id });
+        console.log('✅ [NEW_RELATION] Contato atualizado com', Object.keys(contactUpdateData).length, 'campos');
+      } catch (contactError) {
+        console.error('⚠️ [NEW_RELATION] Erro ao atualizar contato:', contactError.message);
+        // Silent fail - não interromper o fluxo
+      }
+    } else if (fullProfile && !lead.linked_contact_id) {
+      // Lead sem contato associado - tentar encontrar ou criar
+      console.log('🔍 [NEW_RELATION] Lead sem contact_id, buscando contato...');
+      try {
+        const existingContact = await db.query(
+          `SELECT id FROM contacts WHERE account_id = $1 AND (linkedin_profile_id = $2 OR profile_url LIKE $3) LIMIT 1`,
+          [lead.account_id, user_provider_id, `%${user_public_identifier}%`]
+        );
+
+        if (existingContact.rows.length > 0) {
+          const contactId = existingContact.rows[0].id;
+          console.log('✅ [NEW_RELATION] Contato encontrado:', contactId);
+
+          // Criar relação contact_leads (N:N)
+          await db.query(
+            `INSERT INTO contact_leads (contact_id, lead_id, role)
+             VALUES ($1, $2, 'primary')
+             ON CONFLICT (contact_id, lead_id) DO NOTHING`,
+            [contactId, lead.id]
+          );
+          console.log('🔗 [NEW_RELATION] Lead vinculado ao contato via contact_leads');
+
+          // Atualizar contato com dados enriquecidos
+          const contactUpdateData = {
+            first_name: fullProfile.first_name || null,
+            last_name: fullProfile.last_name || null,
+            headline: fullProfile.headline || null,
+            about: fullProfile.about || fullProfile.summary || null,
+            location: fullProfile.location || null,
+            industry: fullProfile.industry || null,
+            updated_at: new Date()
+          };
+
+          if (fullProfile.email) contactUpdateData.email = fullProfile.email;
+          if (fullProfile.phone) contactUpdateData.phone = fullProfile.phone;
+          if (fullProfile.experience) contactUpdateData.experience = JSON.stringify(fullProfile.experience);
+          if (fullProfile.education) contactUpdateData.education = JSON.stringify(fullProfile.education);
+          if (fullProfile.skills) contactUpdateData.skills = JSON.stringify(fullProfile.skills);
+
+          await db.update('contacts', contactUpdateData, { id: contactId });
+          console.log('✅ [NEW_RELATION] Contato atualizado com dados enriquecidos');
+        }
+      } catch (contactSearchError) {
+        console.error('⚠️ [NEW_RELATION] Erro ao buscar/atualizar contato:', contactSearchError.message);
+      }
+    }
+
     // Marcar convite como aceito na fila
     try {
       await inviteQueueService.markInviteAsAccepted(lead.id);
@@ -1262,41 +1428,45 @@ async function handleNewRelation(payload) {
       // Silent fail
     }
 
-    // Atualizar contadores da campanha
-    await db.query(
-      `UPDATE campaigns
-       SET leads_sent = GREATEST(0, leads_sent - 1),
-           leads_accepted = leads_accepted + 1,
-           pending_invites_count = GREATEST(0, pending_invites_count - 1)
-       WHERE id = $1`,
-      [lead.campaign_id]
-    );
+    // Atualizar contadores da campanha (apenas se tiver campaign_id)
+    if (lead.campaign_id) {
+      await db.query(
+        `UPDATE campaigns
+         SET leads_sent = GREATEST(0, leads_sent - 1),
+             leads_accepted = leads_accepted + 1,
+             pending_invites_count = GREATEST(0, pending_invites_count - 1)
+         WHERE id = $1`,
+        [lead.campaign_id]
+      );
+    }
 
     // Criar notificação na plataforma
-    const notifyUserId = responsibleUserId || lead.user_id;
+    // Para leads sem campanha, usar o responsible_id do lead ou o dono da conta LinkedIn
+    const leadUserId = lead.campaign_user_id || lead.responsible_id || linkedinAccount.user_id;
+    const notifyUserId = responsibleUserId || leadUserId;
     try {
       await notificationService.notifyInviteAccepted({
         accountId: lead.account_id,
         userId: notifyUserId,
         leadName: lead.name || user_full_name || 'Lead',
         leadId: lead.id,
-        campaignId: lead.campaign_id,
-        campaignName: lead.campaign_name
+        campaignId: lead.campaign_id || null,
+        campaignName: lead.campaign_name || 'Busca LinkedIn'
       });
     } catch (notifError) {
       // Silent fail
     }
 
     // IA ativa somente se campanha tem automação ativa
-    const shouldActivateAI = lead.automation_active === true;
+    const shouldActivateAI = lead.campaign_id && lead.automation_active === true;
 
     // Criar conversa automaticamente
     const conversationData = {
-      user_id: lead.user_id,
+      user_id: leadUserId,
       account_id: lead.account_id,
       linkedin_account_id: linkedinAccount.id,
       lead_id: lead.id,
-      campaign_id: lead.campaign_id,
+      campaign_id: lead.campaign_id || null,
       unipile_chat_id: `temp_chat_${lead.id}`,
       status: shouldActivateAI ? 'ai_active' : 'manual',
       ai_active: shouldActivateAI,
@@ -1746,10 +1916,7 @@ async function handleAccountStatus(payload) {
     // Conta não existe - tentar buscar dados via API Unipile e criar
     console.log('⚠️ Conta não encontrada no banco - buscando dados via API Unipile...');
 
-    const dsn = process.env.UNIPILE_DSN;
-    const token = process.env.UNIPILE_API_KEY || process.env.UNIPILE_ACCESS_TOKEN;
-
-    if (!dsn || !token) {
+    if (!unipileClient.isInitialized()) {
       console.log('⚠️ Unipile não configurado, não é possível criar conta automaticamente');
       return {
         handled: true,
@@ -1758,18 +1925,8 @@ async function handleAccountStatus(payload) {
       };
     }
 
-    // Buscar detalhes da conta na Unipile
-    const accountResponse = await axios({
-      method: 'GET',
-      url: `https://${dsn}/api/v1/accounts/${account_id}`,
-      headers: {
-        'X-API-KEY': token,
-        'Accept': 'application/json'
-      },
-      timeout: 10000
-    });
-
-    const accountData = accountResponse.data;
+    // Buscar detalhes da conta na Unipile (usando @relay/core)
+    const accountData = await unipileClient.account.getAccountById(account_id);
     console.log('✅ Dados da conta obtidos via API:', accountData);
 
     // Verificar se temos user_id associado (precisamos saber qual usuário associar)

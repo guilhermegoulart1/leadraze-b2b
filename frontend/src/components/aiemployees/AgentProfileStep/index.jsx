@@ -2,9 +2,10 @@
 // Container principal com header estilo Artisan + tabs
 
 import React, { useState, useRef } from 'react';
-import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera } from 'lucide-react';
+import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield } from 'lucide-react';
 import IdentityTab from './IdentityTab';
 import KnowledgeTab from './KnowledgeTab';
+import RulesTab from './RulesTab';
 import ConfigTab from './ConfigTab';
 
 // Unsplash professional portrait photo IDs
@@ -99,6 +100,7 @@ const initialProfile = {
 const tabs = [
   { id: 'identity', label: 'Perfil', icon: User },
   { id: 'knowledge', label: 'Base Conhecimento', icon: BookOpen },
+  { id: 'rules', label: 'Regras', icon: Shield },
   { id: 'config', label: 'Config', icon: Settings }
 ];
 
@@ -188,7 +190,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-w-5xl mx-auto">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden max-w-5xl mx-auto shadow-sm">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -244,7 +246,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
               </h2>
               <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                 isEditing
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                   : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
               }`}>
                 {isEditing ? 'Editando' : 'Configurando'}
@@ -258,7 +260,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
           {/* Progress indicator - hide when editing */}
           {!isEditing && (
             <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <span className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-semibold">
+              <span className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center font-semibold">
                 4
               </span>
               <span>de 6</span>
@@ -268,7 +270,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+      <div className="flex border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900/50">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -306,6 +308,12 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
             onNestedChange={updateNestedProfile}
           />
         )}
+        {activeTab === 'rules' && (
+          <RulesTab
+            profile={profile}
+            onChange={updateProfile}
+          />
+        )}
         {activeTab === 'config' && (
           <ConfigTab
             profile={profile}
@@ -315,7 +323,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
+      <div className="p-4 border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900/50 flex items-center justify-between">
         <button
           onClick={onBack}
           className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -343,9 +351,9 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
             onClick={handleContinue}
             disabled={!isValidProfile()}
             className={`
-              flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all
+              flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors
               ${isValidProfile()
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-500/25'
+                ? 'bg-purple-600 hover:bg-purple-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               }
             `}

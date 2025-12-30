@@ -11,6 +11,8 @@ import api from '../services/api';
 import ContactAvatar from './ContactAvatar';
 import LocationMiniMap from './LocationMiniMap';
 import OfficialDataTab from './OfficialDataTab';
+import ProfileEnrichmentSection, { ProfileBadges } from './ProfileEnrichmentSection';
+import CompanyDataTab from './CompanyDataTab';
 
 const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation }) => {
   const { t } = useTranslation();
@@ -23,6 +25,8 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
   const [addingNote, setAddingNote] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const noteInputRef = useRef(null);
+  const [linkedinAccounts, setLinkedinAccounts] = useState([]);
+  const [selectedLinkedinAccountId, setSelectedLinkedinAccountId] = useState(null);
 
   // Form state for inline editing
   const [formData, setFormData] = useState({
@@ -42,8 +46,26 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     if (isOpen && contactId) {
       loadContactFull();
       loadTags();
+      loadLinkedinAccounts();
     }
   }, [isOpen, contactId]);
+
+  // Load LinkedIn accounts for company tab
+  const loadLinkedinAccounts = async () => {
+    try {
+      const response = await api.getLinkedInAccounts();
+      if (response.success && response.data?.length > 0) {
+        setLinkedinAccounts(response.data);
+        // Auto-select the first active account
+        const activeAccount = response.data.find(a => a.status === 'active');
+        if (activeAccount) {
+          setSelectedLinkedinAccountId(activeAccount.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading LinkedIn accounts:', error);
+    }
+  };
 
   useEffect(() => {
     if (data?.contact) {
@@ -279,13 +301,17 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                     size="lg"
                   />
                   <div>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="text-xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:outline-none px-1 -ml-1"
-                      placeholder="Nome do contato"
-                    />
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        className="text-xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:outline-none px-1 -ml-1"
+                        placeholder="Nome do contato"
+                      />
+                      {/* Open to Work / Hiring Badges */}
+                      <ProfileBadges profile={contact} />
+                    </div>
                     {/* Channel Badges */}
                     <div className="flex gap-2 mt-2">
                       {activeChannelTypes.map(type => {
@@ -411,6 +437,20 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       >
                         <FileText className="w-3.5 h-3.5" />
                         {t('contacts.officialData.title')}
+                      </button>
+                    )}
+                    {/* Company Tab - show if contact has company */}
+                    {contact && contact.company && (
+                      <button
+                        onClick={() => setActiveTab('company')}
+                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                          activeTab === 'company'
+                            ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        <Building2 className="w-3.5 h-3.5" />
+                        Empresa
                       </button>
                     )}
                   </div>
@@ -675,6 +715,11 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                           </div>
                         </div>
                       )}
+
+                      {/* Enrichment Data (Skills, Certifications, Languages, etc.) */}
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <ProfileEnrichmentSection profile={contact} />
+                      </div>
                     </div>
                   )}
 
@@ -904,6 +949,36 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                       cnpj={contact.cnpj}
                       cnpjData={contact.cnpj_data}
                     />
+                  )}
+
+                  {/* Company Tab */}
+                  {activeTab === 'company' && contact?.company && (
+                    <div className="space-y-4">
+                      {/* LinkedIn Account Selector (if multiple accounts) */}
+                      {linkedinAccounts.length > 1 && (
+                        <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                          <Linkedin className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Conta:</span>
+                          <select
+                            value={selectedLinkedinAccountId || ''}
+                            onChange={(e) => setSelectedLinkedinAccountId(e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                          >
+                            {linkedinAccounts.map(account => (
+                              <option key={account.id} value={account.id}>
+                                {account.profile_name || account.linkedin_username}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <CompanyDataTab
+                        companyIdentifier={contact.company}
+                        linkedinAccountId={selectedLinkedinAccountId}
+                        cnpjData={contact.cnpj_data || null}
+                      />
+                    </div>
                   )}
                 </div>
 

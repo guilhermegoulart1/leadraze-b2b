@@ -292,6 +292,21 @@ const deleteLinkedInAccount = async (req, res) => {
       }
     }
 
+    // Remover conta do webhook da aplicação
+    if (account.unipile_account_id && process.env.WEBHOOK_URL && unipileClient.isInitialized()) {
+      try {
+        console.log('🔗 Removendo conta do webhook da aplicação...');
+        const result = await unipileClient.webhooks.removeAccountFromWebhook(
+          process.env.WEBHOOK_URL,
+          account.unipile_account_id,
+          'messaging'
+        );
+        console.log(`✅ Conta ${result.removed ? 'removida do webhook' : 'não estava no webhook'}`);
+      } catch (webhookError) {
+        console.warn('⚠️ Erro ao remover conta do webhook (continuando exclusão):', webhookError.message);
+      }
+    }
+
     // Deletar histórico de conversas (messages e conversations)
     // NOTA: Leads são preservados conforme regra de negócio
     console.log('🗑️ Removendo histórico de conversas...');
@@ -670,27 +685,46 @@ const searchProfiles = async (req, res) => {
 const searchProfilesAdvanced = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { 
+    const {
       keywords,
       api = 'classic',
       category = 'people',
-      location, 
+      location,
       industries,
       job_titles,
       companies,
       linkedin_account_id,
       cursor = null,
-      limit = 25
+      limit = 25,
+      // Novos filtros avançados (v1.3.0)
+      first_name,
+      last_name,
+      skills,
+      school,
+      past_companies,
+      network_distance,
+      tenure,
+      years_experience,
+      profile_language
     } = req.body;
 
     console.log('🔍 === BUSCA AVANÇADA DE PERFIS ===');
     console.log('📋 Parâmetros:', {
       keywords,
       api,
+      first_name,
+      last_name,
       locations: Array.isArray(location) ? location.length : 0,
       industries: Array.isArray(industries) ? industries.length : 0,
       job_titles: Array.isArray(job_titles) ? job_titles.length : 0,
       companies: Array.isArray(companies) ? companies.length : 0,
+      skills: Array.isArray(skills) ? skills.length : 0,
+      school,
+      past_companies: Array.isArray(past_companies) ? past_companies.length : 0,
+      network_distance,
+      tenure,
+      years_experience,
+      profile_language,
       has_cursor: !!cursor
     });
 
@@ -730,8 +764,28 @@ const searchProfilesAdvanced = async (req, res) => {
       searchParams.cursor = cursor;
     } else {
       // Nova busca - adicionar filtros
+
+      // ✅ CORREÇÃO: LinkedIn Classic API não suporta first_name/last_name separados
+      // Precisamos combinar nome + keywords no campo keywords
+      let combinedKeywords = [];
+
+      // Adicionar nome ao início das keywords se fornecido
+      if (first_name && first_name.trim()) {
+        combinedKeywords.push(first_name.trim());
+      }
+      if (last_name && last_name.trim()) {
+        combinedKeywords.push(last_name.trim());
+      }
+
+      // Adicionar keywords do usuário
       if (keywords && keywords.trim()) {
-        searchParams.keywords = keywords.trim();
+        combinedKeywords.push(keywords.trim());
+      }
+
+      // Combinar tudo em keywords
+      if (combinedKeywords.length > 0) {
+        searchParams.keywords = combinedKeywords.join(' ');
+        console.log('🔑 Keywords combinadas:', searchParams.keywords);
       }
 
       if (location && Array.isArray(location) && location.length > 0) {
@@ -748,6 +802,37 @@ const searchProfilesAdvanced = async (req, res) => {
 
       if (companies && Array.isArray(companies) && companies.length > 0) {
         searchParams.companies = companies;
+      }
+
+      // Nota: first_name e last_name já foram combinados em keywords acima
+      // O LinkedIn Classic API não suporta esses campos separadamente
+
+      if (skills && Array.isArray(skills) && skills.length > 0) {
+        searchParams.skills = skills;
+      }
+
+      if (school && school.trim()) {
+        searchParams.school = school.trim();
+      }
+
+      if (past_companies && Array.isArray(past_companies) && past_companies.length > 0) {
+        searchParams.past_companies = past_companies;
+      }
+
+      if (network_distance) {
+        searchParams.network_distance = network_distance;
+      }
+
+      if (tenure) {
+        searchParams.tenure = tenure;
+      }
+
+      if (years_experience) {
+        searchParams.years_experience = years_experience;
+      }
+
+      if (profile_language) {
+        searchParams.profile_language = profile_language;
       }
     }
 
@@ -821,6 +906,21 @@ const searchProfilesAdvanced = async (req, res) => {
                      profile.occupation ||
                      null;
 
+        // Determinar se é conexão de 1º grau
+        // Unipile pode retornar: "DISTANCE_1", "FIRST_DEGREE", 1, "F", ou is_relationship=true
+        const networkDist = profile.network_distance ||
+                           profile.connection_degree ||
+                           profile.distance ||
+                           null;
+
+        const isFirstDegree = profile.is_relationship ||
+                             profile.is_connection ||
+                             networkDist === 'DISTANCE_1' ||
+                             networkDist === 'FIRST_DEGREE' ||
+                             networkDist === 'F' ||
+                             networkDist === 1 ||
+                             networkDist === '1';
+
         return {
           id: profileId || `temp_${index}`,
           provider_id: profile.provider_id || profile.id,
@@ -841,7 +941,13 @@ const searchProfilesAdvanced = async (req, res) => {
           can_get_details: true,
           profile_score: calculateProfileScore(profile),
           // Incluir current_positions para debug no frontend
-          current_positions: profile.current_positions || null
+          current_positions: profile.current_positions || null,
+          // Network distance - para diferenciar conexões de 1º grau
+          network_distance: networkDist,
+          is_connection: isFirstDegree,
+          // Open to work / Hiring badges
+          is_open_to_work: profile.is_open_to_work || profile.open_to_work || false,
+          is_hiring: profile.is_hiring || profile.hiring || false
         };
       })
     );
@@ -1562,6 +1668,22 @@ const handleAuthNotify = async (req, res) => {
 
     console.log(`✅ Canal ${providerType} conectado com sucesso! ID: ${savedChannel.id}`);
 
+    // Adicionar conta ao webhook da aplicação (se configurado)
+    if (process.env.WEBHOOK_URL && unipileClient.isInitialized()) {
+      try {
+        console.log('🔗 Adicionando conta ao webhook da aplicação...');
+        const webhookResult = await unipileClient.webhooks.addAccountToWebhook(
+          process.env.WEBHOOK_URL,
+          unipileAccountId,
+          'messaging'
+        );
+        console.log(`✅ Webhook ${webhookResult.added ? 'atualizado' : 'já incluía esta conta'}:`, webhookResult.webhook?.id);
+      } catch (webhookError) {
+        // Log mas não falhar a conexão por causa do webhook
+        console.warn('⚠️ Erro ao adicionar conta ao webhook (conta conectada mesmo assim):', webhookError.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: `${providerType} channel connected successfully`,
@@ -1771,6 +1893,309 @@ const getChannelTypes = async (req, res) => {
   }
 };
 
+// ================================
+// ENVIAR CONVITE DA BUSCA (v1.3.0)
+// ================================
+const sendInviteFromSearch = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const {
+      linkedin_account_id,
+      profile_id,
+      profile_data,
+      message,
+      include_in_crm,
+      enrich_data,
+      responsible_id
+    } = req.body;
+
+    console.log('📨 === ENVIAR CONVITE DA BUSCA ===');
+    console.log('👤 Profile ID:', profile_id);
+    console.log('📋 Incluir no CRM:', include_in_crm);
+    console.log('🔄 Enriquecer dados:', enrich_data);
+
+    // Validações
+    if (!linkedin_account_id || !profile_id) {
+      throw new ValidationError('linkedin_account_id and profile_id are required');
+    }
+
+    // Buscar conta LinkedIn
+    const account = await db.findOne('linkedin_accounts', {
+      id: linkedin_account_id,
+      user_id: userId,
+      account_id: accountId
+    });
+
+    if (!account) {
+      throw new NotFoundError('LinkedIn account not found');
+    }
+
+    if (account.status !== 'active') {
+      throw new ValidationError('LinkedIn account is not active');
+    }
+
+    // Verificar limite diário
+    const limitCheck = await inviteService.canSendInvite(linkedin_account_id);
+    if (!limitCheck.canSend) {
+      throw new ForbiddenError(
+        `Daily invitation limit reached (${limitCheck.sent}/${limitCheck.limit}). ` +
+        `${limitCheck.remaining} invites remaining today.`
+      );
+    }
+
+    // Substituir variáveis na mensagem
+    let finalMessage = message || '';
+    if (finalMessage && profile_data) {
+      const firstName = profile_data.name?.split(' ')[0] || '';
+      const lastName = profile_data.name?.split(' ').slice(1).join(' ') || '';
+
+      finalMessage = finalMessage
+        .replace(/\{\{first_name\}\}/g, firstName)
+        .replace(/\{\{last_name\}\}/g, lastName)
+        .replace(/\{\{full_name\}\}/g, profile_data.name || '')
+        .replace(/\{\{company\}\}/g, profile_data.company || '')
+        .replace(/\{\{title\}\}/g, profile_data.title || '')
+        .replace(/\{\{location\}\}/g, profile_data.location || '');
+    }
+
+    // Enviar convite via Unipile
+    console.log('📡 Enviando convite via Unipile...');
+    let inviteResult;
+    try {
+      inviteResult = await unipileClient.users.sendConnectionRequest({
+        account_id: account.unipile_account_id,
+        user_id: profile_id,
+        message: finalMessage || undefined
+      });
+      console.log('✅ Convite enviado com sucesso');
+    } catch (unipileError) {
+      console.error('❌ Erro ao enviar convite:', unipileError);
+
+      // Registrar falha
+      await inviteService.logInviteSent({
+        linkedinAccountId: linkedin_account_id,
+        campaignId: null,
+        status: 'failed'
+      });
+
+      // Tratar erros específicos da Unipile
+      const errorData = unipileError.response?.data;
+      const errorType = errorData?.type;
+
+      if (errorType === 'errors/already_invited_recently') {
+        throw new ValidationError('Você já enviou um convite para esta pessoa recentemente. Aguarde alguns dias antes de tentar novamente.');
+      }
+
+      if (errorType === 'errors/already_connected') {
+        throw new ValidationError('Você já está conectado com esta pessoa.');
+      }
+
+      if (errorType === 'errors/invitation_limit_reached') {
+        throw new ForbiddenError('Limite de convites do LinkedIn atingido. Tente novamente amanhã.');
+      }
+
+      throw new UnipileError('Falha ao enviar convite: ' + (errorData?.detail || unipileError.message));
+    }
+
+    // Registrar envio bem-sucedido
+    await inviteService.logInviteSent({
+      linkedinAccountId: linkedin_account_id,
+      campaignId: null,
+      status: 'sent'
+    });
+
+    let contactCreated = false;
+    let leadCreated = false;
+    let contactId = null;
+    let leadId = null;
+
+    // Criar contato e lead se solicitado
+    if (include_in_crm) {
+      console.log('📊 Criando contato e lead no CRM...');
+      try {
+        // Verificar se já existe contato com este linkedin_profile_id
+        const existingContact = await db.query(
+          `SELECT id FROM contacts WHERE account_id = $1 AND linkedin_profile_id = $2 LIMIT 1`,
+          [accountId, profile_id]
+        );
+
+        if (existingContact.rows.length > 0) {
+          console.log('⚠️ Contato já existe para este perfil');
+          contactId = existingContact.rows[0].id;
+        } else {
+          // Criar contato
+          const firstName = profile_data?.name?.split(' ')[0] || '';
+          const lastName = profile_data?.name?.split(' ').slice(1).join(' ') || '';
+
+          const contactData = {
+            user_id: userId,
+            account_id: accountId,
+            name: profile_data?.name || 'Nome não disponível',
+            first_name: firstName || null,
+            last_name: lastName || null,
+            title: profile_data?.title || null,
+            company: profile_data?.company || null,
+            location: profile_data?.location || null,
+            linkedin_profile_id: profile_id,
+            profile_url: profile_data?.profile_url || null,
+            profile_picture: profile_data?.profile_picture || null,
+            source: 'linkedin_search'
+          };
+
+          const newContact = await db.insert('contacts', contactData);
+          contactId = newContact.id;
+          contactCreated = true;
+          console.log('✅ Contato criado:', contactId);
+        }
+
+        // Verificar se já existe lead para este contato
+        const existingLead = await db.query(
+          `SELECT id FROM leads WHERE linkedin_profile_id = $1 AND account_id = $2 LIMIT 1`,
+          [profile_id, accountId]
+        );
+
+        if (existingLead.rows.length > 0) {
+          console.log('⚠️ Lead já existe para este perfil');
+          leadId = existingLead.rows[0].id;
+
+          // Garantir que a relação contact_leads existe
+          if (contactId) {
+            await db.query(
+              `INSERT INTO contact_leads (contact_id, lead_id, role)
+               VALUES ($1, $2, 'primary')
+               ON CONFLICT (contact_id, lead_id) DO NOTHING`,
+              [contactId, leadId]
+            );
+          }
+        } else {
+          // Criar lead (sem campaign_id - relação com contato via contact_leads)
+          const leadData = {
+            account_id: accountId,
+            linkedin_profile_id: profile_id,
+            provider_id: profile_id,
+            name: profile_data?.name || 'Nome não disponível',
+            title: profile_data?.title || null,
+            company: profile_data?.company || null,
+            location: profile_data?.location || null,
+            profile_url: profile_data?.profile_url || null,
+            profile_picture: profile_data?.profile_picture || null,
+            source: 'linkedin_search',
+            status: 'invited',
+            responsible_id: responsible_id || userId
+          };
+
+          const newLead = await db.insert('leads', leadData);
+          leadId = newLead.id;
+          leadCreated = true;
+          console.log('✅ Lead criado:', leadId);
+
+          // Criar relação contact_leads (N:N)
+          if (contactId) {
+            await db.query(
+              `INSERT INTO contact_leads (contact_id, lead_id, role)
+               VALUES ($1, $2, 'primary')
+               ON CONFLICT (contact_id, lead_id) DO NOTHING`,
+              [contactId, leadId]
+            );
+            console.log('🔗 Lead vinculado ao contato via contact_leads');
+          }
+        }
+
+        // Enriquecer dados se solicitado
+        if (enrich_data && leadId) {
+          console.log('🔄 Iniciando enriquecimento de dados...');
+          try {
+            const leadEnrichmentService = require('../services/leadEnrichmentService');
+
+            // Buscar perfil completo via Unipile
+            const fullProfile = await leadEnrichmentService.fetchFullProfile(profile_id, account.unipile_account_id);
+
+            // Atualizar lead com dados enriquecidos
+            const enrichUpdateQuery = `
+              UPDATE leads SET
+                first_name = COALESCE($1, first_name),
+                last_name = COALESCE($2, last_name),
+                connections_count = COALESCE($3, connections_count),
+                follower_count = COALESCE($4, follower_count),
+                is_premium = COALESCE($5, is_premium),
+                is_creator = COALESCE($6, is_creator),
+                is_influencer = COALESCE($7, is_influencer),
+                network_distance = COALESCE($8, network_distance),
+                public_identifier = COALESCE($9, public_identifier),
+                member_urn = COALESCE($10, member_urn),
+                full_profile_fetched_at = NOW(),
+                updated_at = NOW()
+              WHERE id = $11
+            `;
+
+            await db.query(enrichUpdateQuery, [
+              fullProfile.first_name || null,
+              fullProfile.last_name || null,
+              fullProfile.connections_count || null,
+              fullProfile.follower_count || null,
+              fullProfile.is_premium || null,
+              fullProfile.is_creator || null,
+              fullProfile.is_influencer || null,
+              fullProfile.network_distance || null,
+              fullProfile.public_identifier || null,
+              fullProfile.member_urn || null,
+              leadId
+            ]);
+
+            // Atualizar contato com dados enriquecidos
+            if (contactId) {
+              await db.query(`
+                UPDATE contacts SET
+                  first_name = COALESCE($1, first_name),
+                  last_name = COALESCE($2, last_name),
+                  headline = COALESCE($3, headline),
+                  about = COALESCE($4, about),
+                  industry = COALESCE($5, industry),
+                  updated_at = NOW()
+                WHERE id = $6
+              `, [
+                fullProfile.first_name || null,
+                fullProfile.last_name || null,
+                fullProfile.headline || null,
+                fullProfile.about || null,
+                fullProfile.industry || null,
+                contactId
+              ]);
+            }
+
+            console.log('✅ Dados enriquecidos com sucesso');
+          } catch (enrichError) {
+            console.error('⚠️ Erro ao enriquecer dados (contato/lead já criados):', enrichError.message);
+            // Não lançar erro - o contato e lead já foram criados
+          }
+        }
+      } catch (crmError) {
+        console.error('⚠️ Erro ao criar contato/lead (convite já foi enviado):', crmError.message);
+        // Não lançar erro - o convite já foi enviado
+      }
+    }
+
+    console.log('✅ === FIM DO ENVIO ===');
+
+    sendSuccess(res, {
+      invite_sent: true,
+      contact_created: contactCreated,
+      contact_id: contactId,
+      lead_created: leadCreated,
+      lead_id: leadId,
+      invites_remaining: limitCheck.remaining - 1,
+      daily_limit: limitCheck.limit
+    }, include_in_crm && (contactCreated || leadCreated)
+      ? 'Invite sent and contact/lead created successfully'
+      : 'Invite sent successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar convite da busca:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   connectLinkedInAccount,
   getHostedAuthLink,
@@ -1796,5 +2221,7 @@ module.exports = {
   handleAuthNotify,
   handleHostedAuthCallback,
   updateChannelSettings,
-  getChannelTypes
+  getChannelTypes,
+  // ✅ v1.3.0
+  sendInviteFromSearch
 };

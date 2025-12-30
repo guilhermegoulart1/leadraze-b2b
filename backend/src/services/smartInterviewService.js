@@ -176,11 +176,43 @@ async function generateAgentConfig(options) {
     transfer_triggers: transferTriggers,
     language: 'pt-BR',
     is_active: true,
+    response_length: answers.response_length || 'medium',
     config: JSON.stringify({
       source: 'ai_employees_v2',
       template_id: templateId,
       niche: niche,
-      interview_answers: answers
+      interview_answers: answers,
+      workflow: workflowDefinition || null,
+      // Profile fields - saved directly for easy access on edit
+      tone: answers.tone || 'consultivo',
+      objective: answers.objective || 'qualify',
+      customObjective: answers.customObjective || '',
+      personality: answers.personality || [],
+      rules: answers.rules || [],
+      // Knowledge base fields
+      company: {
+        name: answers.company_name || '',
+        website: answers.company_website || '',
+        description: answers.company_description || '',
+        sector: answers.company_sector || '',
+        avgTicket: answers.avg_ticket || '',
+        icp: answers.target_audience || ''
+      },
+      product: {
+        name: answers.product_name || '',
+        description: answers.product_description || '',
+        benefits: answers.product_benefits || [],
+        differentials: answers.product_differentials || []
+      },
+      faq: answers.faq || [],
+      objections: answers.objections || [],
+      // Config fields
+      formality: answers.formality || 50,
+      assertiveness: answers.assertiveness || 50,
+      responseLength: answers.response_length || 'medium',
+      language: answers.language || 'pt-BR',
+      latency: answers.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' },
+      workingHours: answers.workingHours || { enabled: false }
     })
   };
 
@@ -189,9 +221,9 @@ async function generateAgentConfig(options) {
     INSERT INTO ai_agents (
       account_id, user_id, name, avatar_url, description, agent_type, products_services,
       behavioral_profile, target_audience, conversation_steps, transfer_triggers,
-      language, is_active, config, created_at, updated_at
+      language, is_active, response_length, config, created_at, updated_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()
     )
     RETURNING *
   `;
@@ -210,6 +242,7 @@ async function generateAgentConfig(options) {
     agentData.transfer_triggers,
     agentData.language,
     agentData.is_active,
+    agentData.response_length,
     agentData.config
   ]);
 

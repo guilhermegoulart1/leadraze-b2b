@@ -715,6 +715,13 @@ class ApiService {
     });
   }
 
+  async sendInviteFromSearch(params) {
+    return this.request('/profiles/send-invite-from-search', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
   async getInviteStats(accountId) {
     return this.request(`/profiles/linkedin-accounts/${accountId}/invite-stats`);
   }
@@ -815,6 +822,24 @@ class ApiService {
       limit
     });
     return this.request(`/unipile/companies?${params}`);
+  }
+
+  async searchSkills(query, accountId, limit = 20) {
+    const params = new URLSearchParams({
+      query,
+      account_id: accountId,
+      limit
+    });
+    return this.request(`/unipile/skills?${params}`);
+  }
+
+  async searchSchools(query, accountId, limit = 20) {
+    const params = new URLSearchParams({
+      query,
+      account_id: accountId,
+      limit
+    });
+    return this.request(`/unipile/schools?${params}`);
   }
 
   async getProfileDetails(profileId, accountId) {
@@ -1478,6 +1503,102 @@ class ApiService {
 
   async getGoogleMapsAgentLogs(agentId) {
     return this.request(`/google-maps-agents/${agentId}/logs`);
+  }
+
+  // ================================
+  // COMPANIES (LinkedIn via Unipile)
+  // ================================
+
+  async getCompanyDetails(identifier, linkedinAccountId) {
+    const params = new URLSearchParams({ linkedin_account_id: linkedinAccountId });
+    return this.request(`/companies/${encodeURIComponent(identifier)}?${params}`);
+  }
+
+  async searchCompanies(filters) {
+    return this.request('/companies/search', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  }
+
+  async getCompanyPosts(identifier, linkedinAccountId, options = {}) {
+    const params = new URLSearchParams({
+      linkedin_account_id: linkedinAccountId,
+      limit: options.limit || 10,
+      ...(options.cursor && { cursor: options.cursor })
+    });
+    return this.request(`/companies/${encodeURIComponent(identifier)}/posts?${params}`);
+  }
+
+  async getCompanyEmployees(identifier, linkedinAccountId, options = {}) {
+    const params = new URLSearchParams({
+      linkedin_account_id: linkedinAccountId,
+      limit: options.limit || 25,
+      ...(options.cursor && { cursor: options.cursor })
+    });
+    return this.request(`/companies/${encodeURIComponent(identifier)}/employees?${params}`);
+  }
+
+  // ================================
+  // POSTS (LinkedIn via Unipile)
+  // ================================
+
+  async searchPosts(filters) {
+    return this.request('/posts/search', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  }
+
+  async getPost(postId, linkedinAccountId) {
+    const params = new URLSearchParams({ linkedin_account_id: linkedinAccountId });
+    return this.request(`/posts/${postId}?${params}`);
+  }
+
+  async getUserPosts(userId, linkedinAccountId, options = {}) {
+    const params = new URLSearchParams({
+      linkedin_account_id: linkedinAccountId,
+      limit: options.limit || 10,
+      ...(options.cursor && { cursor: options.cursor })
+    });
+    return this.request(`/posts/user/${userId}?${params}`);
+  }
+
+  async addPostAuthorsToCampaign(campaignId, authors, linkedinAccountId) {
+    return this.request('/posts/add-to-campaign', {
+      method: 'POST',
+      body: JSON.stringify({
+        campaign_id: campaignId,
+        authors,
+        linkedin_account_id: linkedinAccountId
+      }),
+    });
+  }
+
+  async getPostComments(postId, linkedinAccountId, options = {}) {
+    const params = new URLSearchParams({
+      linkedin_account_id: linkedinAccountId,
+      limit: options.limit || 50,
+      ...(options.cursor && { cursor: options.cursor })
+    });
+    return this.request(`/posts/${postId}/comments?${params}`);
+  }
+
+  async getPostReactions(postId, linkedinAccountId, options = {}) {
+    const params = new URLSearchParams({
+      linkedin_account_id: linkedinAccountId,
+      limit: options.limit || 50,
+      ...(options.cursor && { cursor: options.cursor })
+    });
+    return this.request(`/posts/${postId}/reactions?${params}`);
+  }
+
+  async getPostEngagedProfiles(postId, linkedinAccountId, options = {}) {
+    const params = new URLSearchParams({
+      linkedin_account_id: linkedinAccountId,
+      limit: options.limit || 100
+    });
+    return this.request(`/posts/${postId}/engaged?${params}`);
   }
 
   // ================================

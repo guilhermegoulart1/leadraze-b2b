@@ -447,13 +447,10 @@ queues.forEach((queue) => {
     console.error(`[${queue.name}] Queue error:`, error.message);
   });
 
-  queue.on('waiting', (jobId) => {
-    console.log(`[${queue.name}] Job ${jobId} is waiting`);
-  });
-
-  queue.on('active', (job) => {
-    console.log(`[${queue.name}] Job ${job.id} started processing`);
-  });
+  // Removed verbose 'waiting' and 'active' logs to reduce noise
+  // Uncomment for debugging:
+  // queue.on('waiting', (jobId) => console.log(`[${queue.name}] Job ${jobId} is waiting`));
+  // queue.on('active', (job) => console.log(`[${queue.name}] Job ${job.id} started processing`));
 
   queue.on('stalled', (job) => {
     console.warn(`[${queue.name}] Job ${job.id} has stalled`);

@@ -937,7 +937,7 @@ const AIEmployeesPage = () => {
             {activeTab === TABS.AGENTS ? (
               <button
                 onClick={() => setShowCreator(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
                 <Sparkles className="w-5 h-5" />
                 Criar AI Employee
@@ -945,7 +945,7 @@ const AIEmployeesPage = () => {
             ) : (
               <button
                 onClick={() => setShowCreateFlowModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/25"
+                className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
                 <Plus className="w-5 h-5" />
                 Criar Fluxo de Follow-up
@@ -959,7 +959,7 @@ const AIEmployeesPage = () => {
               onClick={() => setActiveTab(TABS.AGENTS)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === TABS.AGENTS
-                  ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
@@ -970,7 +970,7 @@ const AIEmployeesPage = () => {
               onClick={() => setActiveTab(TABS.FOLLOWUP)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === TABS.FOLLOWUP
-                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
@@ -987,7 +987,7 @@ const AIEmployeesPage = () => {
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
-                    <Loader className="w-12 h-12 text-purple-600 dark:text-purple-400 animate-spin mx-auto mb-4" />
+                    <Loader className="w-12 h-12 text-gray-600 dark:text-gray-400 animate-spin mx-auto mb-4" />
                     <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
                   </div>
                 </div>
@@ -1002,7 +1002,7 @@ const AIEmployeesPage = () => {
                   </p>
                   <button
                     onClick={() => setShowCreator(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     Criar AI Employee
@@ -1082,8 +1082,8 @@ const AIEmployeesPage = () => {
                                     className="w-10 h-10 rounded-full"
                                   />
                                 ) : (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                                    <Bot className="w-5 h-5 text-white" />
+                                  <div className="w-10 h-10 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center">
+                                    <Bot className="w-5 h-5 text-white dark:text-gray-900" />
                                   </div>
                                 )}
                                 <div>
@@ -1140,18 +1140,37 @@ const AIEmployeesPage = () => {
                                     // Build profile from employee data - use avatarUrl (camelCase)
                                     const config = employee.config || {};
                                     setAgentProfile({
+                                      // Identity
                                       name: employee.name,
                                       avatarUrl: employee.avatar_url, // camelCase for AgentProfileStep
                                       tone: config.tone || 'consultivo',
                                       objective: config.objective || 'qualify',
+                                      customObjective: config.customObjective || '',
                                       personality: config.personality || [],
                                       rules: config.rules || [],
-                                      company: config.company || {},
-                                      product: config.product || {},
+                                      // Knowledge base
+                                      company: config.company || {
+                                        website: '',
+                                        description: '',
+                                        sector: '',
+                                        avgTicket: '',
+                                        icp: ''
+                                      },
+                                      product: config.product || {
+                                        name: '',
+                                        description: '',
+                                        benefits: [],
+                                        differentials: []
+                                      },
                                       faq: config.faq || [],
                                       objections: config.objections || [],
-                                      responseLength: employee.response_length || 'medium',
-                                      ...config
+                                      // Config
+                                      formality: config.formality ?? 50,
+                                      assertiveness: config.assertiveness ?? 50,
+                                      responseLength: config.responseLength || employee.response_length || 'medium',
+                                      language: config.language || 'pt-BR',
+                                      latency: config.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' },
+                                      workingHours: config.workingHours || { enabled: false, timezone: 'America/Sao_Paulo', startTime: '09:00', endTime: '18:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'], outsideBehavior: 'queue', awayMessage: '' }
                                     });
                                     setCurrentStep(STEPS.AGENT_PROFILE);
                                     setShowCreator(true);
@@ -1167,11 +1186,29 @@ const AIEmployeesPage = () => {
                                     setEditingAgentWorkflow(employee);
                                     setWorkflowDefinition(employee.config?.workflow || { nodes: [], edges: [] });
                                     const config = employee.config || {};
+                                    setAgentType(employee.category || (employee.agent_type === 'linkedin' ? 'prospeccao' : 'atendimento'));
+                                    setChannel(employee.agent_type);
                                     setAgentProfile({
+                                      // Identity
                                       name: employee.name,
-                                      avatarUrl: employee.avatar_url, // camelCase for AgentProfileStep
-                                      responseLength: employee.response_length || 'medium',
-                                      ...config
+                                      avatarUrl: employee.avatar_url,
+                                      tone: config.tone || 'consultivo',
+                                      objective: config.objective || 'qualify',
+                                      customObjective: config.customObjective || '',
+                                      personality: config.personality || [],
+                                      rules: config.rules || [],
+                                      // Knowledge base
+                                      company: config.company || {},
+                                      product: config.product || {},
+                                      faq: config.faq || [],
+                                      objections: config.objections || [],
+                                      // Config
+                                      formality: config.formality ?? 50,
+                                      assertiveness: config.assertiveness ?? 50,
+                                      responseLength: config.responseLength || employee.response_length || 'medium',
+                                      language: config.language || 'pt-BR',
+                                      latency: config.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' },
+                                      workingHours: config.workingHours || { enabled: false }
                                     });
                                     setCurrentStep(STEPS.WORKFLOW_BUILDER);
                                     setShowCreator(true);
@@ -1478,7 +1515,7 @@ const AIEmployeesPage = () => {
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     placeholder="Ex: Leads Quentes"
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:text-white"
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 dark:text-white"
                     autoFocus
                   />
                 </div>
@@ -1493,7 +1530,7 @@ const AIEmployeesPage = () => {
                         key={color.id}
                         onClick={() => setNewFolderColor(color.id)}
                         className={`w-8 h-8 rounded-full ${color.bg} ${
-                          newFolderColor === color.id ? 'ring-2 ring-offset-2 ring-purple-500 dark:ring-offset-gray-800' : ''
+                          newFolderColor === color.id ? 'ring-2 ring-offset-2 ring-gray-500 dark:ring-offset-gray-800' : ''
                         } transition-all`}
                         title={color.label}
                       />
@@ -1508,7 +1545,7 @@ const AIEmployeesPage = () => {
                   <select
                     value={newFolderParent || ''}
                     onChange={(e) => setNewFolderParent(e.target.value || null)}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:text-white"
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 dark:text-white"
                   >
                     <option value="">Nenhuma (pasta raiz)</option>
                     {currentFolders.flatList.map((folder) => (
@@ -1535,7 +1572,7 @@ const AIEmployeesPage = () => {
                 <button
                   onClick={handleCreateFolder}
                   disabled={!newFolderName.trim()}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Criar Pasta
                 </button>
@@ -1895,7 +1932,7 @@ const AIEmployeesPage = () => {
               <button
                 onClick={handleCreateAgent}
                 disabled={loading}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-sm font-medium disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <>
@@ -2090,7 +2127,7 @@ const AIEmployeesPage = () => {
               <button
                 onClick={handleCreateAgent}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50"
               >
                 {loading ? (
                   <>

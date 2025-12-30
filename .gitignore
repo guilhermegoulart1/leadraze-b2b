@@ -15,6 +15,12 @@ pnpm-debug.log*
 .env.production
 .env*.local
 
+# NPM auth tokens (contém secrets)
+.npmrc
+
+# Claude Code local settings (pode conter secrets)
+.claude/settings.local.json
+
 # Build e cache
 dist/
 build/

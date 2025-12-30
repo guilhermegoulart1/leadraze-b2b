@@ -37,9 +37,6 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
     };
   }
 
-  console.log(`[webhookWorker] Processing job ${job.id} - Event: ${eventType}`);
-  console.log(`[webhookWorker] Webhook log ID: ${webhookLogId}`);
-
   const startTime = Date.now();
 
   try {
@@ -80,7 +77,6 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
 
       // ✅ Handler para mensagem enviada (usa mesmo handler de received)
       case 'message_sent':
-        console.log('[webhookWorker] Processing message_sent as message_received');
         result = await webhookController.handleMessageReceived(payload);
         break;
 
@@ -117,14 +113,21 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
     );
 
     const duration = Date.now() - startTime;
-    console.log(`[webhookWorker] ✅ Job ${job.id} completed in ${duration}ms`);
-    console.log(`[webhookWorker] Result:`, result);
+
+    // Only log details for non-skipped jobs to reduce noise
+    if (!result?.skipped) {
+      console.log(`[webhookWorker] ✅ Job ${job.id} (${eventType}) completed in ${duration}ms`);
+      if (result) {
+        console.log(`[webhookWorker] Result:`, result);
+      }
+    }
 
     return {
       success: true,
       eventType,
       result,
       duration,
+      skipped: result?.skipped || false,
       processedAt: new Date().toISOString()
     };
 
@@ -155,10 +158,11 @@ webhookQueue.process(10, async (job) => {  // Process up to 10 jobs concurrently
  * Event Handlers
  */
 
-// Job completed successfully
+// Job completed successfully - only log non-skipped jobs to reduce noise
 webhookQueue.on('completed', (job, result) => {
-  console.log(`[webhookWorker] ✅ Completed: ${job.name} (Job ${job.id})`);
-  console.log(`[webhookWorker] Duration: ${result.duration}ms`);
+  if (!result?.skipped) {
+    console.log(`[webhookWorker] ✅ Completed: ${job.name} (Job ${job.id}) in ${result.duration}ms`);
+  }
 });
 
 // Job failed

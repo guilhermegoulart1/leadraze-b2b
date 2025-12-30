@@ -113,7 +113,7 @@ const ConfigTab = ({ profile, onChange }) => {
                 p-4 rounded-lg border-2 text-center transition-all
                 ${profile.responseLength === option.value
                   ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500'
                 }
               `}
             >

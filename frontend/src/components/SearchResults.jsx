@@ -16,7 +16,11 @@ import {
   MoreVertical,
   Crown,
   BadgeCheck,
-  Users
+  Users,
+  UserPlus,
+  Briefcase,
+  MessageCircle,
+  UserCheck
 } from 'lucide-react';
 
 const SearchResults = ({
@@ -27,10 +31,51 @@ const SearchResults = ({
   hasMoreResults = false,
   loadingMore = false,
   onLoadMore,
-  onBulkCollection
+  onBulkCollection,
+  onSendInvite,
+  onStartConversation
 }) => {
   const { t } = useTranslation('search');
   const [viewMode, setViewMode] = useState('table'); // 'table' ou 'grid'
+
+  // Helper para determinar o Network Distance
+  const getNetworkDistanceInfo = (profile) => {
+    const dist = profile.network_distance;
+    const isConnection = profile.is_connection;
+
+    // 1º Grau (conexão direta)
+    if (isConnection || dist === 1 || dist === '1' || dist === 'F' || dist === 'DISTANCE_1' || dist === 'FIRST_DEGREE') {
+      return {
+        label: '1º',
+        isFirstDegree: true,
+        bgColor: 'bg-green-100 dark:bg-green-900/30',
+        textColor: 'text-green-700 dark:text-green-300'
+      };
+    }
+
+    // 2º Grau
+    if (dist === 2 || dist === '2' || dist === 'S' || dist === 'DISTANCE_2' || dist === 'SECOND_DEGREE') {
+      return {
+        label: '2º',
+        isFirstDegree: false,
+        bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+        textColor: 'text-blue-700 dark:text-blue-300'
+      };
+    }
+
+    // 3º Grau ou mais
+    if (dist === 3 || dist === '3' || dist === 'O' || dist === 'DISTANCE_3' || dist === 'THIRD_DEGREE' || dist === 'OUT_OF_NETWORK') {
+      return {
+        label: '3º+',
+        isFirstDegree: false,
+        bgColor: 'bg-gray-100 dark:bg-gray-700',
+        textColor: 'text-gray-600 dark:text-gray-400'
+      };
+    }
+
+    // Se não tiver informação, não mostrar badge
+    return null;
+  };
 
   // Card View Component
   const ProfileCard = ({ profile }) => {
@@ -120,6 +165,18 @@ const SearchResults = ({
                   {profile.verified && (
                     <BadgeCheck className="w-4 h-4 text-blue-500 flex-shrink-0" title={t('table.verifiedProfile')} />
                   )}
+                  {(profile.is_open_to_work || profile.open_to_work) && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 rounded-full flex-shrink-0" title="Open to Work">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                      <span className="text-[10px] font-medium text-green-700 dark:text-green-300">Open</span>
+                    </div>
+                  )}
+                  {(profile.is_hiring || profile.hiring) && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded-full flex-shrink-0" title="Hiring">
+                      <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      <span className="text-[10px] font-medium text-blue-700 dark:text-blue-300">Hiring</span>
+                    </div>
+                  )}
                 </div>
 
                 {title && (
@@ -169,6 +226,50 @@ const SearchResults = ({
 
               {/* Actions */}
               <div className="flex items-center gap-2 ml-3">
+                {/* Badge de Network Distance - sempre mostrar se disponível */}
+                {(() => {
+                  const networkInfo = getNetworkDistanceInfo(profile);
+                  if (!networkInfo) return null;
+
+                  return (
+                    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${networkInfo.bgColor} ${networkInfo.textColor}`}>
+                      {networkInfo.isFirstDegree && <UserCheck className="w-3 h-3" />}
+                      {networkInfo.label}
+                    </span>
+                  );
+                })()}
+
+                {/* Se é conexão de 1º grau, mostrar "Iniciar Conversa", senão "Enviar Convite" */}
+                {getNetworkDistanceInfo(profile)?.isFirstDegree ? (
+                  // Já é conexão - mostrar "Iniciar Conversa"
+                  onStartConversation && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStartConversation(profile);
+                      }}
+                      className="p-2 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors group"
+                      title={t('table.startConversation', 'Iniciar Conversa')}
+                    >
+                      <MessageCircle className="w-5 h-5 text-blue-600 group-hover:text-blue-700 dark:group-hover:text-blue-400" />
+                    </button>
+                  )
+                ) : (
+                  // Não é conexão de 1º grau - mostrar "Enviar Convite"
+                  onSendInvite && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSendInvite(profile);
+                      }}
+                      className="p-2 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition-colors group"
+                      title={t('table.sendInvite', 'Enviar Convite')}
+                    >
+                      <UserPlus className="w-5 h-5 text-purple-600 group-hover:text-purple-700 dark:group-hover:text-purple-400" />
+                    </button>
+                  )
+                )}
+
                 {linkedinUrl && (
                   <a
                     href={linkedinUrl}
@@ -275,6 +376,17 @@ const SearchResults = ({
                 {profile.verified && (
                   <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" title={t('table.verifiedProfile')} />
                 )}
+                {(profile.is_open_to_work || profile.open_to_work) && (
+                  <div className="flex items-center gap-0.5 px-1 py-0.5 bg-green-100 dark:bg-green-900/30 rounded flex-shrink-0" title="Open to Work">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    <span className="text-[9px] font-medium text-green-700 dark:text-green-300">Open</span>
+                  </div>
+                )}
+                {(profile.is_hiring || profile.hiring) && (
+                  <div className="flex items-center gap-0.5 px-1 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded flex-shrink-0" title="Hiring">
+                    <Briefcase className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                )}
               </div>
               {title && (
                 <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{title}</div>
@@ -319,19 +431,64 @@ const SearchResults = ({
         </td>
 
         {/* Ações */}
-        <td className="px-4 py-3 text-right" style={{ width: '100px' }}>
-          {linkedinUrl && (
-            <a
-              href={linkedinUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center justify-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title={t('table.viewOnLinkedin')}
-            >
-              <Linkedin className="w-4 h-4 text-blue-600" />
-            </a>
-          )}
+        <td className="px-4 py-3 text-right" style={{ width: '160px' }}>
+          <div className="flex items-center justify-end gap-1">
+            {/* Badge de Network Distance - sempre mostrar se disponível */}
+            {(() => {
+              const networkInfo = getNetworkDistanceInfo(profile);
+              if (!networkInfo) return null;
+
+              return (
+                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] mr-1 ${networkInfo.bgColor} ${networkInfo.textColor}`}>
+                  {networkInfo.isFirstDegree && <UserCheck className="w-3 h-3" />}
+                  {networkInfo.label}
+                </span>
+              );
+            })()}
+
+            {/* Se é conexão de 1º grau, mostrar "Iniciar Conversa", senão "Enviar Convite" */}
+            {getNetworkDistanceInfo(profile)?.isFirstDegree ? (
+              // Já é conexão - mostrar botão de conversa
+              onStartConversation && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartConversation(profile);
+                  }}
+                  className="inline-flex items-center justify-center p-2 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors group"
+                  title={t('table.startConversation', 'Iniciar Conversa')}
+                >
+                  <MessageCircle className="w-4 h-4 text-blue-600 group-hover:text-blue-700 dark:group-hover:text-blue-400" />
+                </button>
+              )
+            ) : (
+              // Não é conexão de 1º grau - mostrar "Enviar Convite"
+              onSendInvite && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSendInvite(profile);
+                  }}
+                  className="inline-flex items-center justify-center p-2 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition-colors group"
+                  title={t('table.sendInvite', 'Enviar Convite')}
+                >
+                  <UserPlus className="w-4 h-4 text-purple-600 group-hover:text-purple-700 dark:group-hover:text-purple-400" />
+                </button>
+              )
+            )}
+            {linkedinUrl && (
+              <a
+                href={linkedinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center justify-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title={t('table.viewOnLinkedin')}
+              >
+                <Linkedin className="w-4 h-4 text-blue-600" />
+              </a>
+            )}
+          </div>
         </td>
       </tr>
     );
@@ -445,7 +602,7 @@ const SearchResults = ({
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '180px' }}>
                   {t('table.connections')}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '100px' }}>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ width: '140px' }}>
                   {t('table.actions')}
                 </th>
               </tr>

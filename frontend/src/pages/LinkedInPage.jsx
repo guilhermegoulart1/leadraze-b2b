@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Award, Search, Users } from 'lucide-react';
+import { Award, Search, Users, FileText } from 'lucide-react';
 import CampaignsPage from './CampaignsPage';
 import SearchPage from './SearchPage';
 import MyConnectionsPage from './MyConnectionsPage';
+import SearchPostsPage from './SearchPostsPage';
 
 const LinkedInPage = () => {
   const [activeTab, setActiveTab] = useState('campaigns');
@@ -10,6 +11,7 @@ const LinkedInPage = () => {
   const tabs = [
     { id: 'campaigns', label: 'Campanhas', icon: Award },
     { id: 'search', label: 'Buscar Perfis', icon: Search },
+    { id: 'posts', label: 'Buscar Posts', icon: FileText },
     { id: 'connections', label: 'Minhas Conexões', icon: Users },
   ];
 
@@ -19,6 +21,8 @@ const LinkedInPage = () => {
         return <CampaignsPage />;
       case 'search':
         return <SearchPage />;
+      case 'posts':
+        return <SearchPostsPage />;
       case 'connections':
         return <MyConnectionsPage />;
       default:

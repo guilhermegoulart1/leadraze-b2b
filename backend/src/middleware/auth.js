@@ -92,5 +92,6 @@ const optionalAuth = (req, res, next) => {
 
 module.exports = {
   authenticateToken,
+  authenticate: authenticateToken, // Alias para compatibilidade
   optionalAuth
 };

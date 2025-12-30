@@ -54,6 +54,7 @@ import ConfigPage from './pages/ConfigPage';
 import TeamPage from './pages/TeamPage';
 import SecretAgentPage from './pages/SecretAgentPage';
 import AIEmployeesPage from './pages/AIEmployeesPage';
+import SearchPostsPage from './pages/SearchPostsPage';
 
 // Partner Pages
 import PartnerLoginPage from './pages/partner/PartnerLoginPage';
@@ -134,6 +135,7 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="search/posts" element={<SearchPostsPage />} />
         <Route path="google-maps-search" element={<GoogleMapsSearchPage />} />
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
         <Route path="google-maps-agents/:id" element={<GoogleMapsAgentDetailPage />} />

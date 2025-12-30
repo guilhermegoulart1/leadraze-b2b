@@ -96,4 +96,7 @@ router.get('/:profileId/details', profileController.getProfileDetails);
 // Enviar convite
 router.post('/linkedin/invite', profileController.sendInvitation);
 
+// ✅ v1.3.0: Enviar convite da busca com opção de criar lead
+router.post('/send-invite-from-search', profileController.sendInviteFromSearch);
+
 module.exports = router;

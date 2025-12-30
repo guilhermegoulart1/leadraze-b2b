@@ -2,8 +2,7 @@
 // Tab de Identidade - vai no Prompt (sempre carregado)
 
 import React from 'react';
-import { User, MessageSquare, Target, Sparkles, Shield } from 'lucide-react';
-import RulesList from './components/RulesList';
+import { User, MessageSquare, Target, Sparkles } from 'lucide-react';
 
 const toneOptions = [
   { value: 'casual', label: 'Casual', description: 'Descontraido e amigavel' },
@@ -70,7 +69,7 @@ const IdentityTab = ({ profile, onChange }) => {
                 p-3 rounded-lg border-2 text-left transition-all
                 ${profile.tone === option.value
                   ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500'
                 }
               `}
             >
@@ -109,7 +108,7 @@ const IdentityTab = ({ profile, onChange }) => {
                 p-3 rounded-lg border-2 text-left transition-all
                 ${profile.objective === option.value
                   ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500'
                 }
               `}
             >
@@ -168,22 +167,6 @@ const IdentityTab = ({ profile, onChange }) => {
             );
           })}
         </div>
-      </div>
-
-      {/* Regras de Comportamento */}
-      <div>
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          <Shield className="w-4 h-4" />
-          Regras de Comportamento
-        </label>
-        <RulesList
-          rules={profile.rules || []}
-          onChange={(rules) => onChange('rules', rules)}
-          placeholder="Ex: Nunca mencionar precos, Sempre confirmar interesse..."
-        />
-        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-          Diretrizes que o agente deve sempre seguir
-        </p>
       </div>
     </div>
   );

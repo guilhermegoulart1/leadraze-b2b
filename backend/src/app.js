@@ -513,6 +513,22 @@ try {
   console.error('❌ Error loading Follow-Up Flows routes:', error.message);
 }
 
+// Companies (LinkedIn company data via Unipile)
+try {
+  app.use('/api/companies', require('./routes/companies'));
+  console.log('✅ Companies routes loaded');
+} catch (error) {
+  console.error('❌ Error loading companies routes:', error.message);
+}
+
+// Posts (LinkedIn posts search via Unipile)
+try {
+  app.use('/api/posts', require('./routes/posts'));
+  console.log('✅ Posts routes loaded');
+} catch (error) {
+  console.error('❌ Error loading posts routes:', error.message);
+}
+
 // Folders (for organizing AI Employees and Follow-up Flows)
 try {
   app.use('/api/folders', require('./routes/folders'));
