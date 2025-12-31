@@ -9,7 +9,7 @@ import SubscribeModal from './SubscribeModal';
 const FEATURE_INFO = {
   api_keys: {
     title: 'API Keys',
-    description: 'Gere chaves de API para integrar o LeadRaze com suas ferramentas existentes e automatizar seu fluxo de trabalho.',
+    description: 'Gere chaves de API para integrar o GetRaze com suas ferramentas existentes e automatizar seu fluxo de trabalho.',
     benefits: [
       'Conecte com seu CRM',
       'Construa integrações personalizadas',

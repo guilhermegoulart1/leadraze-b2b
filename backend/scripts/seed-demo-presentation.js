@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'leadraze',
+  database: process.env.DB_NAME || 'getraze',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -163,7 +163,7 @@ const CONVERSATION_TEMPLATES = [
     messages: [
       { sender: 'user', content: 'Olá {name}! Vi seu perfil e achei muito interessante sua experiência na {company}. Estamos desenvolvendo uma solução de automação para prospecção B2B que pode ser muito útil para vocês.' },
       { sender: 'lead', content: 'Oi! Obrigado pelo contato. Realmente estamos buscando formas de otimizar nosso processo de vendas. Pode me contar mais?' },
-      { sender: 'ai', content: 'Claro! O LeadRaze é uma plataforma que utiliza IA para automatizar a prospecção no LinkedIn, qualificando leads automaticamente e agendando reuniões. Já temos cases de empresas que aumentaram em 3x suas conversões.' },
+      { sender: 'ai', content: 'Claro! O GetRaze é uma plataforma que utiliza IA para automatizar a prospecção no LinkedIn, qualificando leads automaticamente e agendando reuniões. Já temos cases de empresas que aumentaram em 3x suas conversões.' },
       { sender: 'lead', content: 'Interessante! Vocês têm algum material que eu possa ver? E quanto tempo leva para implementar?' },
       { sender: 'ai', content: 'A implementação é bem rápida, em média 2 semanas. Vou te enviar nosso case study por aqui mesmo. Podemos agendar uma demo de 30 min para você ver a plataforma funcionando?' },
       { sender: 'lead', content: 'Pode ser sim! Tenho disponibilidade na quinta-feira às 14h ou sexta às 10h.' },
@@ -174,9 +174,9 @@ const CONVERSATION_TEMPLATES = [
     messages: [
       { sender: 'user', content: 'Olá {name}! Notei que você lidera a área de {title} na {company}. Gostaria de apresentar uma solução que pode ajudar a escalar seus resultados de prospecção.' },
       { sender: 'lead', content: 'Olá! Interessante, mas já usamos algumas ferramentas aqui. O que vocês fazem de diferente?' },
-      { sender: 'ai', content: 'Entendo! O diferencial do LeadRaze é a combinação de IA avançada com automação inteligente. Diferente de ferramentas tradicionais, nós qualificamos leads automaticamente e personalizamos cada abordagem. Posso perguntar quais ferramentas vocês usam atualmente?' },
+      { sender: 'ai', content: 'Entendo! O diferencial do GetRaze é a combinação de IA avançada com automação inteligente. Diferente de ferramentas tradicionais, nós qualificamos leads automaticamente e personalizamos cada abordagem. Posso perguntar quais ferramentas vocês usam atualmente?' },
       { sender: 'lead', content: 'Usamos o LinkedIn Sales Navigator e o HubSpot. O processo ainda é muito manual...' },
-      { sender: 'ai', content: 'Faz total sentido! O LeadRaze se integra tanto com o Sales Navigator quanto com o HubSpot. A grande diferença é que automatizamos a parte manual, mantendo a personalização. Quantas pessoas no seu time fazem prospecção ativa hoje?' },
+      { sender: 'ai', content: 'Faz total sentido! O GetRaze se integra tanto com o Sales Navigator quanto com o HubSpot. A grande diferença é que automatizamos a parte manual, mantendo a personalização. Quantas pessoas no seu time fazem prospecção ativa hoje?' },
     ]
   },
   {
@@ -186,16 +186,16 @@ const CONVERSATION_TEMPLATES = [
       { sender: 'lead', content: 'Olá. Agradeço o contato, mas no momento não estamos buscando novas ferramentas.' },
       { sender: 'ai', content: 'Entendo perfeitamente! Posso perguntar se é uma questão de momento ou se já têm uma solução que está funcionando bem?' },
       { sender: 'lead', content: 'É mais uma questão de budget mesmo. Estamos focados em outras prioridades agora.' },
-      { sender: 'ai', content: 'Faz sentido. Muitas empresas nos procuram justamente porque o LeadRaze tem um ROI muito rápido - em média 3 meses. Temos planos flexíveis também. Posso te enviar um material sobre isso para avaliar quando fizer sentido?' },
+      { sender: 'ai', content: 'Faz sentido. Muitas empresas nos procuram justamente porque o GetRaze tem um ROI muito rápido - em média 3 meses. Temos planos flexíveis também. Posso te enviar um material sobre isso para avaliar quando fizer sentido?' },
       { sender: 'lead', content: 'Pode enviar sim, vou dar uma olhada quando tiver mais tempo.' },
     ]
   },
   {
     type: 'scheduled',
     messages: [
-      { sender: 'user', content: 'Olá {name}! Sou da LeadRaze e vi seu perfil na {company}. Desenvolvemos uma plataforma de prospecção com IA que está ajudando empresas a triplicar seus resultados de vendas.' },
+      { sender: 'user', content: 'Olá {name}! Sou da GetRaze e vi seu perfil na {company}. Desenvolvemos uma plataforma de prospecção com IA que está ajudando empresas a triplicar seus resultados de vendas.' },
       { sender: 'lead', content: 'Oi! Que legal, já ouvi falar de vocês. Conta mais!' },
-      { sender: 'ai', content: 'Que bom que já nos conhece! Basicamente, o LeadRaze automatiza todo o processo de prospecção no LinkedIn usando IA para qualificar leads e personalizar mensagens. Já ajudamos mais de 500 empresas a aumentar suas conversões.' },
+      { sender: 'ai', content: 'Que bom que já nos conhece! Basicamente, o GetRaze automatiza todo o processo de prospecção no LinkedIn usando IA para qualificar leads e personalizar mensagens. Já ajudamos mais de 500 empresas a aumentar suas conversões.' },
       { sender: 'lead', content: 'Interessante! Aqui na {company} a gente está exatamente buscando escalar nossa operação de vendas. Quanto custa?' },
       { sender: 'ai', content: 'O investimento varia de acordo com o tamanho do time, mas começa em R$497/mês por usuário. O mais legal é que oferecemos um trial de 14 dias. Que tal agendarmos uma demo para você ver funcionando na prática?' },
       { sender: 'lead', content: 'Perfeito! Pode ser amanhã às 15h?' },
@@ -206,15 +206,15 @@ const CONVERSATION_TEMPLATES = [
   {
     type: 'won',
     messages: [
-      { sender: 'user', content: 'Olá {name}! Gostaria de apresentar o LeadRaze para você. Somos uma plataforma de automação de vendas B2B com IA.' },
+      { sender: 'user', content: 'Olá {name}! Gostaria de apresentar o GetRaze para você. Somos uma plataforma de automação de vendas B2B com IA.' },
       { sender: 'lead', content: 'Oi! Interessante, pode me contar mais?' },
-      { sender: 'ai', content: 'Claro! O LeadRaze automatiza a prospecção no LinkedIn, qualifica leads com IA e agenda reuniões automaticamente. Empresas como a sua estão aumentando em média 3x suas conversões.' },
+      { sender: 'ai', content: 'Claro! O GetRaze automatiza a prospecção no LinkedIn, qualifica leads com IA e agenda reuniões automaticamente. Empresas como a sua estão aumentando em média 3x suas conversões.' },
       { sender: 'lead', content: 'Isso é exatamente o que precisamos! Como funciona o pricing?' },
       { sender: 'ai', content: 'Temos planos a partir de R$497/mês. Mas antes de falar de preço, que tal uma demo para você ver o valor na prática? Tenho horários essa semana.' },
       { sender: 'lead', content: 'Pode ser quarta às 14h!' },
       { sender: 'ai', content: 'Perfeito! Confirmado para quarta às 14h. Te envio o link!' },
       { sender: 'lead', content: 'Ótimo! Fizemos a demo e adoramos! Quero contratar o plano Pro para 5 usuários.' },
-      { sender: 'ai', content: 'Excelente escolha! Vou passar para nosso time de CS finalizar os detalhes com você. Seja bem-vindo ao LeadRaze! 🚀' },
+      { sender: 'ai', content: 'Excelente escolha! Vou passar para nosso time de CS finalizar os detalhes com você. Seja bem-vindo ao GetRaze! 🚀' },
       { sender: 'lead', content: 'Obrigado! Ansiosos para começar a usar!' },
     ]
   },
@@ -368,7 +368,7 @@ async function seedDemoData() {
         `INSERT INTO ai_agents (account_id, user_id, name, description, is_active)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-        [accountId, userId, 'LeadRaze AI Assistant', 'Assistente de vendas inteligente para qualificação de leads', true]
+        [accountId, userId, 'GetRaze AI Assistant', 'Assistente de vendas inteligente para qualificação de leads', true]
       );
       agentId = agentResult.rows[0].id;
       console.log('✅ AI Agent criado\n');

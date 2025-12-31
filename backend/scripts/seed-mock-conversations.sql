@@ -1,5 +1,5 @@
 -- Script para criar conversas mock para visualização do layout
--- Execute: psql -U seu_usuario -d leadraze_db -f backend/scripts/seed-mock-conversations.sql
+-- Execute: psql -U seu_usuario -d getraze_db -f backend/scripts/seed-mock-conversations.sql
 
 BEGIN;
 

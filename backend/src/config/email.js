@@ -32,10 +32,10 @@ module.exports = {
    */
   defaults: {
     from: {
-      name: process.env.EMAIL_FROM_NAME || 'LeadRaze',
-      email: process.env.EMAIL_FROM_ADDRESS || 'noreply@leadraze.com'
+      name: process.env.EMAIL_FROM_NAME || 'GetRaze',
+      email: process.env.EMAIL_FROM_ADDRESS || 'noreply@getraze.com'
     },
-    replyTo: process.env.EMAIL_REPLY_TO || 'support@leadraze.com'
+    replyTo: process.env.EMAIL_REPLY_TO || 'support@getraze.com'
   },
 
   /**

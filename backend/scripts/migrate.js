@@ -7,7 +7,7 @@ const fs = require('fs');
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'leadraze',
+  database: process.env.DB_NAME || 'getraze',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -54,7 +54,7 @@ async function runMigrations() {
       console.log('\n🔧 Connection failed. Please check:');
       console.log('   - PostgreSQL is running');
       console.log('   - Database connection settings in .env');
-      console.log('   - Database exists (CREATE DATABASE leadraze;)');
+      console.log('   - Database exists (CREATE DATABASE getraze;)');
     }
 
     process.exit(1);
@@ -82,7 +82,7 @@ async function testConnection() {
 }
 
 async function main() {
-  console.log('\n🚀 LeadRaze - Database Setup\n');
+  console.log('\n🚀 GetRaze - Database Setup\n');
   console.log('========================================\n');
 
   // Test connection first
@@ -91,7 +91,7 @@ async function main() {
   if (!connectionOk) {
     console.log('\n📋 To fix connection issues:');
     console.log('1. Make sure PostgreSQL is installed and running');
-    console.log('2. Create database: CREATE DATABASE leadraze;');
+    console.log('2. Create database: CREATE DATABASE getraze;');
     console.log('3. Check your .env file settings\n');
     process.exit(1);
   }

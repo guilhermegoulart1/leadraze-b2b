@@ -303,7 +303,7 @@ const SubscriptionBlockOverlay = ({ children }) => {
             {/* Support link */}
             <p className="text-center text-gray-400 text-xs mt-6">
               Precisa de ajuda?{' '}
-              <a href="mailto:suporte@leadraze.com" className="text-purple-600 hover:underline font-medium">
+              <a href="mailto:suporte@getraze.com" className="text-purple-600 hover:underline font-medium">
                 Fale conosco
               </a>
             </p>

@@ -120,7 +120,7 @@ const CanceledOverlay = () => {
           {/* Support link */}
           <p className="text-xs text-gray-400 mt-6">
             Precisa de ajuda?{' '}
-            <a href="mailto:suporte@leadraze.com" className="text-purple-600 hover:underline font-medium">
+            <a href="mailto:suporte@getraze.com" className="text-purple-600 hover:underline font-medium">
               Fale conosco
             </a>
           </p>

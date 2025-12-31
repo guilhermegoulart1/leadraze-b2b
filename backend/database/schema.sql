@@ -1,4 +1,4 @@
--- LeadRaze B2B - Database Schema
+-- GetRaze B2B - Database Schema
 -- PostgreSQL Database
 
 -- Enable UUID extension

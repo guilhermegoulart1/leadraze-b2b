@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS agent_templates (
   -- Example: { behavioral_profile: "consultivo", response_length: "short", ... }
 
   -- Status
-  is_official BOOLEAN DEFAULT false, -- Official templates from LeadRaze
+  is_official BOOLEAN DEFAULT false, -- Official templates from GetRaze
   is_public BOOLEAN DEFAULT false, -- Visible to community
   is_approved BOOLEAN DEFAULT false, -- Approved by admin
   approval_status VARCHAR(20) DEFAULT 'draft' CHECK (approval_status IN ('draft', 'pending', 'approved', 'rejected')),
@@ -64,7 +64,7 @@ COMMENT ON TABLE agent_templates IS 'Reusable AI employee templates with communi
 COMMENT ON COLUMN agent_templates.agent_type IS 'Type: prospeccao (outbound) or atendimento (inbound)';
 COMMENT ON COLUMN agent_templates.niche_parameters IS 'JSON array of parameters to collect during smart interview';
 COMMENT ON COLUMN agent_templates.workflow_definition IS 'React Flow nodes and edges for visual workflow';
-COMMENT ON COLUMN agent_templates.is_official IS 'Official templates created by LeadRaze team';
+COMMENT ON COLUMN agent_templates.is_official IS 'Official templates created by GetRaze team';
 COMMENT ON COLUMN agent_templates.approval_status IS 'For community templates: draft, pending, approved, rejected';
 
 -- =====================================================

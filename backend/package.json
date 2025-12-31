@@ -1,7 +1,7 @@
 {
-  "name": "leadraze-backend",
+  "name": "getraze-backend",
   "version": "1.0.0",
-  "description": "LeadRaze - B2B Lead Generation Platform Backend",
+  "description": "GetRaze - B2B Lead Generation Platform Backend",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -15,7 +15,7 @@
     "automation",
     "crm"
   ],
-  "author": "LeadRaze Team",
+  "author": "GetRaze Team",
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.940.0",

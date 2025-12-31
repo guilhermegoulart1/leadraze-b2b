@@ -32,7 +32,7 @@ const server = http.createServer(app);
 // Test database connection before starting server
 async function startServer() {
   try {
-    console.log('🔄 Starting LeadRaze API Server...\n');
+    console.log('🔄 Starting GetRaze API Server...\n');
 
     // Test database connection
     await db.query('SELECT NOW()');
@@ -73,7 +73,7 @@ async function startServer() {
     // Start server
     server.listen(PORT, () => {
       console.log('\n🚀 ========================================');
-      console.log(`   LeadRaze API Server`);
+      console.log(`   GetRaze API Server`);
       console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`   Port: ${PORT}`);
       console.log(`   API: http://localhost:${PORT}/api`);

@@ -19,7 +19,7 @@ router.use('/opportunities', require('./opportunities'));
 router.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'LeadRaze External API v1',
+    message: 'GetRaze External API v1',
     version: '1.0.0',
     endpoints: {
       contacts: {

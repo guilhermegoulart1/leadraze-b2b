@@ -191,7 +191,7 @@ export default function ApiKeysPage() {
       <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-6">
         <h3 className="font-medium text-blue-900 dark:text-blue-200 mb-2">Como usar a API</h3>
         <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-          Use suas API Keys para integrar sistemas externos com o LeadRaze. Todas as requisicoes devem incluir o header:
+          Use suas API Keys para integrar sistemas externos com o GetRaze. Todas as requisicoes devem incluir o header:
         </p>
         <code className="block bg-blue-100 dark:bg-blue-800 px-3 py-2 rounded text-sm text-blue-900 dark:text-blue-200 font-mono">
           X-API-Key: lr_live_xxxxxxxxxxxxx
@@ -217,7 +217,7 @@ export default function ApiKeysPage() {
             Nenhuma API Key criada
           </h3>
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-            Crie sua primeira API Key para integrar sistemas externos com o LeadRaze
+            Crie sua primeira API Key para integrar sistemas externos com o GetRaze
           </p>
           <button
             onClick={() => setShowCreateModal(true)}

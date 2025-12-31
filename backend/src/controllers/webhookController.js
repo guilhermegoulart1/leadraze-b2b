@@ -124,14 +124,14 @@ async function fetchUserProfileFromUnipile(accountId, userProviderId) {
 // ================================
 // HELPER: DETECTAR TIPO DE EVENTO E NORMALIZAR PAYLOAD
 // ================================
-// Usa parseWebhook do @relay/core e converte para formato interno do LeadRaze
+// Usa parseWebhook do @relay/core e converte para formato interno do GetRaze
 function parseUnipileWebhookLocal(rawPayload) {
   try {
     // Usar parseWebhook do @relay/core
     const normalizedEvent = parseWebhook('unipile', rawPayload);
 
-    // Mapear tipos do Relay para tipos internos do LeadRaze
-    const RELAY_TO_LEADRAZE_TYPE = {
+    // Mapear tipos do Relay para tipos internos do GetRaze
+    const RELAY_TO_GETRAZE_TYPE = {
       'message.received': 'message_received',
       'message.sent': 'message_sent',
       'message.delivered': 'message_delivered',
@@ -146,7 +146,7 @@ function parseUnipileWebhookLocal(rawPayload) {
       'account.status_changed': 'account_status'
     };
 
-    const eventType = RELAY_TO_LEADRAZE_TYPE[normalizedEvent.type] || normalizedEvent.type;
+    const eventType = RELAY_TO_GETRAZE_TYPE[normalizedEvent.type] || normalizedEvent.type;
 
     // Reconstruir payload no formato esperado pelo código existente
     const payload = {

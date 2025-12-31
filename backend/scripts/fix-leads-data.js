@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'leadraze',
+  database: process.env.DB_NAME || 'getraze',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -158,7 +158,7 @@ async function fixLeadsData() {
     // 1. Buscar usuário "Usuário Teste"
     const userResult = await client.query(
       `SELECT id FROM users WHERE name = $1 OR email = $2 LIMIT 1`,
-      ['Usuário Teste', 'teste@leadraze.com']
+      ['Usuário Teste', 'teste@getraze.com']
     );
 
     if (userResult.rows.length === 0) {

@@ -184,6 +184,6 @@ CREATE TRIGGER trigger_email_templates_custom_updated_at
 -- ============================================================================
 -- GRANTS (if using separate database users)
 -- ============================================================================
--- GRANT SELECT, INSERT, UPDATE, DELETE ON email_signatures TO leadraze_app;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON email_templates_custom TO leadraze_app;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON email_attachments TO leadraze_app;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON email_signatures TO getraze_app;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON email_templates_custom TO getraze_app;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON email_attachments TO getraze_app;

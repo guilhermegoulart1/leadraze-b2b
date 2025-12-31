@@ -14,7 +14,7 @@ if (!provider.isInitialized()) {
   console.error('❌ Unipile Init Error:', provider.getError());
 }
 
-// Wrapper para manter compatibilidade retroativa com a API existente do LeadRaze
+// Wrapper para manter compatibilidade retroativa com a API existente do GetRaze
 const unipileClient = {
   // Verificar se está inicializado
   isInitialized: () => provider.isInitialized(),
@@ -25,7 +25,7 @@ const unipileClient = {
   // ================================
   account: {
     getHostedAuthLink: async (options = {}) => {
-      // Adicionar URLs padrão do LeadRaze se não fornecidas
+      // Adicionar URLs padrão do GetRaze se não fornecidas
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return provider.account.getHostedAuthLink({
         ...options,

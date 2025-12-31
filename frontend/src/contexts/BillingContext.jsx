@@ -320,7 +320,7 @@ export const BillingProvider = ({ children }) => {
       case 'trial_expired':
         return {
           title: 'Trial Expired',
-          message: 'Your free trial has ended. Subscribe now to continue using LeadRaze.',
+          message: 'Your free trial has ended. Subscribe now to continue using GetRaze.',
           action: 'Choose a Plan',
           type: 'error'
         };

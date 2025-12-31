@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'leadraze',
+  database: process.env.DB_NAME || 'getraze',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -184,11 +184,11 @@ async function seedDatabase() {
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (email) DO UPDATE SET name = $3
        RETURNING id`,
-      ['demo@leadraze.com', passwordHash, 'Usuário Demo', 'LeadRaze Demo']
+      ['demo@getraze.com', passwordHash, 'Usuário Demo', 'GetRaze Demo']
     );
 
     const userId = userResult.rows[0].id;
-    console.log(`✅ Usuário criado: demo@leadraze.com (senha: demo123)`);
+    console.log(`✅ Usuário criado: demo@getraze.com (senha: demo123)`);
 
     // 2. Criar campanha de exemplo
     console.log('\n📊 Criando campanha de exemplo...');
@@ -297,7 +297,7 @@ async function seedDatabase() {
          VALUES ($1, $2, $3, $4, $5)`,
         [
           userId,
-          'Assistente Virtual LeadRaze',
+          'Assistente Virtual GetRaze',
           'Assistente virtual para qualificação e engajamento de leads',
           'pt-BR',
           true
@@ -318,7 +318,7 @@ async function seedDatabase() {
     console.log(`   - ${leadsCreated} leads inseridos`);
     console.log(`   - 1 AI agent criado\n`);
     console.log('🔐 Credenciais de acesso:');
-    console.log('   Email: demo@leadraze.com');
+    console.log('   Email: demo@getraze.com');
     console.log('   Senha: demo123\n');
 
   } catch (error) {

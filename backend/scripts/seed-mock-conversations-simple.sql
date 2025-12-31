@@ -1,5 +1,5 @@
 -- Script para criar conversas mock para visualização do layout
--- Execute direto no banco: psql -U seu_usuario -d leadraze_db -f backend/scripts/seed-mock-conversations-simple.sql
+-- Execute direto no banco: psql -U seu_usuario -d getraze_db -f backend/scripts/seed-mock-conversations-simple.sql
 -- Ou copie e cole no seu cliente PostgreSQL
 
 BEGIN;

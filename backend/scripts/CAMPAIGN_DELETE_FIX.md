@@ -39,7 +39,7 @@ Este script irá:
 Se preferir executar SQL diretamente:
 
 ```bash
-psql -U postgres -d leadraze -f backend/scripts/fix-campaign-delete-issue.sql
+psql -U postgres -d getraze -f backend/scripts/fix-campaign-delete-issue.sql
 ```
 
 ## Soluções

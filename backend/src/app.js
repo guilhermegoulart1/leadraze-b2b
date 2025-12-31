@@ -108,7 +108,7 @@ app.use(middleware.handle(i18next));
 app.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'LeadRaze API is running',
+    message: 'GetRaze API is running',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -117,7 +117,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     success: true,
-    message: 'LeadRaze API v1.0.0',
+    message: 'GetRaze API v1.0.0',
     endpoints: {
       auth: '/api/auth',
       profiles: '/api/profiles',

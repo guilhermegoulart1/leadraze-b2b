@@ -6,7 +6,7 @@ const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 // Required headers for Nominatim
 const HEADERS = {
   'Accept': 'application/json',
-  'User-Agent': 'LeadRaze-B2B/1.0' // Required by Nominatim usage policy
+  'User-Agent': 'GetRaze-B2B/1.0' // Required by Nominatim usage policy
 };
 
 /**

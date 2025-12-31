@@ -1,6 +1,6 @@
 # 🔗 Gerenciamento de Webhooks Unipile
 
-Guia completo para gerenciar webhooks do Unipile no LeadRaze.
+Guia completo para gerenciar webhooks do Unipile no GetRaze.
 
 ---
 
@@ -86,14 +86,14 @@ node backend/scripts/update-webhook.js {webhook_id} {nova_url}
 
 **Exemplo:**
 ```bash
-node backend/scripts/update-webhook.js Pca406ioQG-O2sKRGzoDEw https://app.leadraze.com/api/webhooks/unipile
+node backend/scripts/update-webhook.js Pca406ioQG-O2sKRGzoDEw https://app.getraze.com/api/webhooks/unipile
 ```
 
 **Saída:**
 ```
 🔄 Atualizando Webhook do Unipile
 🎯 Webhook ID: Pca406ioQG-O2sKRGzoDEw
-🔗 Nova URL: https://app.leadraze.com/api/webhooks/unipile
+🔗 Nova URL: https://app.getraze.com/api/webhooks/unipile
 
 ✅ Webhook atualizado com sucesso!
 ```
@@ -161,8 +161,8 @@ node backend/scripts/list-webhooks.js
 # 2. Copiar os IDs dos 2 webhooks
 
 # 3. Atualizar cada webhook
-node backend/scripts/update-webhook.js Pca406ioQG-O2sKRGzoDEw https://app.leadraze.com/api/webhooks/unipile
-node backend/scripts/update-webhook.js 4cycoVzYTBWRxxxbCICBVA https://app.leadraze.com/api/webhooks/unipile
+node backend/scripts/update-webhook.js Pca406ioQG-O2sKRGzoDEw https://app.getraze.com/api/webhooks/unipile
+node backend/scripts/update-webhook.js 4cycoVzYTBWRxxxbCICBVA https://app.getraze.com/api/webhooks/unipile
 
 # 4. Verificar
 node backend/scripts/list-webhooks.js
@@ -178,7 +178,7 @@ node backend/scripts/delete-webhook.js Pca406ioQG-O2sKRGzoDEw
 node backend/scripts/delete-webhook.js 4cycoVzYTBWRxxxbCICBVA
 
 # 3. Atualizar .env
-# WEBHOOK_URL=https://app.leadraze.com/api/webhooks/unipile
+# WEBHOOK_URL=https://app.getraze.com/api/webhooks/unipile
 
 # 4. Registrar novos webhooks
 node backend/scripts/register-webhooks.js
@@ -278,12 +278,12 @@ A URL deve começar com `http://` ou `https://`.
 
 **Correto:**
 ```
-https://app.leadraze.com/api/webhooks/unipile
+https://app.getraze.com/api/webhooks/unipile
 ```
 
 **Incorreto:**
 ```
-app.leadraze.com/api/webhooks/unipile  ❌ (falta https://)
+app.getraze.com/api/webhooks/unipile  ❌ (falta https://)
 ```
 
 ---
