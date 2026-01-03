@@ -111,9 +111,11 @@ async function generateAgentConfig(options) {
     workflowDefinition
   } = options;
 
-  // Get template if using one
+  // Get template if using one (only if it's a valid UUID)
   let template = null;
-  if (templateId) {
+  const isValidUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+  if (templateId && isValidUUID(templateId)) {
     const templateResult = await db.query(
       'SELECT * FROM agent_templates WHERE id = $1',
       [templateId]
@@ -177,6 +179,9 @@ async function generateAgentConfig(options) {
     language: 'pt-BR',
     is_active: true,
     response_length: answers.response_length || 'medium',
+    // Workflow fields - save the workflow definition and enable it if provided
+    workflow_definition: workflowDefinition ? JSON.stringify(workflowDefinition) : null,
+    workflow_enabled: workflowDefinition ? true : false,
     config: JSON.stringify({
       source: 'ai_employees_v2',
       template_id: templateId,
@@ -221,9 +226,10 @@ async function generateAgentConfig(options) {
     INSERT INTO ai_agents (
       account_id, user_id, name, avatar_url, description, agent_type, products_services,
       behavioral_profile, target_audience, conversation_steps, transfer_triggers,
-      language, is_active, response_length, config, created_at, updated_at
+      language, is_active, response_length, config, workflow_definition, workflow_enabled,
+      created_at, updated_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
     )
     RETURNING *
   `;
@@ -243,7 +249,9 @@ async function generateAgentConfig(options) {
     agentData.language,
     agentData.is_active,
     agentData.response_length,
-    agentData.config
+    agentData.config,
+    agentData.workflow_definition,
+    agentData.workflow_enabled
   ]);
 
   return {

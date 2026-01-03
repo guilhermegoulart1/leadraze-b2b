@@ -2,7 +2,7 @@
 // Container principal com header estilo Artisan + tabs
 
 import React, { useState, useRef } from 'react';
-import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield } from 'lucide-react';
+import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield, Loader2 } from 'lucide-react';
 import IdentityTab from './IdentityTab';
 import KnowledgeTab from './KnowledgeTab';
 import RulesTab from './RulesTab';
@@ -116,8 +116,9 @@ const typeLabels = {
   atendimento: 'Atendimento'
 };
 
-const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData = null, isEditing = false }) => {
+const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, initialData = null, isEditing = false }) => {
   const [activeTab, setActiveTab] = useState('identity');
+  const [saving, setSaving] = useState(false);
   const initializedRef = React.useRef(false);
   const [profile, setProfile] = useState(() => {
     const base = initialData || initialProfile;
@@ -180,8 +181,19 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
     }));
   };
 
-  const handleContinue = () => {
-    onComplete(profile);
+  const handleContinue = async () => {
+    if (isEditing && onSave) {
+      // When editing, just save without going to workflow
+      setSaving(true);
+      try {
+        await onSave(profile);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // When creating, continue to workflow
+      onComplete(profile);
+    }
   };
 
   const isValidProfile = () => {
@@ -201,7 +213,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
       />
 
       {/* Header estilo Artisan */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="flex items-center gap-4">
           {/* Avatar com hover actions */}
           <div className="relative group">
@@ -244,11 +256,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {profile.name || (isEditing ? 'Editando AI Employee' : 'Novo AI Employee')}
               </h2>
-              <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                isEditing
-                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                  : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-              }`}>
+              <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
                 {isEditing ? 'Editando' : 'Configurando'}
               </span>
             </div>
@@ -270,7 +278,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900/50">
+      <div className="flex border-b border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -294,7 +302,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
       </div>
 
       {/* Tab Content */}
-      <div className="p-6 min-h-[400px] max-h-[60vh] overflow-y-auto">
+      <div className="p-6">
         {activeTab === 'identity' && (
           <IdentityTab
             profile={profile}
@@ -323,7 +331,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900/50 flex items-center justify-between">
+      <div className="p-4 border-t border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 flex items-center justify-between">
         <button
           onClick={onBack}
           className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -349,17 +357,26 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onBack, initialData 
 
           <button
             onClick={handleContinue}
-            disabled={!isValidProfile()}
+            disabled={!isValidProfile() || saving}
             className={`
               flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors
-              ${isValidProfile()
+              ${isValidProfile() && !saving
                 ? 'bg-purple-600 hover:bg-purple-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               }
             `}
           >
-            {isEditing ? 'Salvar e Continuar' : 'Continuar para Workflow'}
-            <ArrowRight className="w-4 h-4" />
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                {isEditing ? 'Salvar Alterações' : 'Continuar para Workflow'}
+                {!isEditing && <ArrowRight className="w-4 h-4" />}
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -438,9 +438,43 @@ const secretAgentQueue = new Bull('secret-agent', {
 });
 
 /**
+ * Follow-Up Actions Queue - Medium Priority
+ *
+ * Processes scheduled workflow actions
+ * - Resume paused workflows
+ * - Check for no_response conditions
+ * - Execute follow-up flows
+ * - Jobs added: when workflow pause action executed
+ * - Jobs processed: with delay based on pause duration
+ */
+const followUpQueue = new Bull('follow-up-actions', {
+  redis: bullRedisConfig,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000 // 5s, 10s, 20s
+    },
+    removeOnComplete: {
+      age: 7 * 24 * 3600, // 7 days
+      count: 1000
+    },
+    removeOnFail: {
+      age: 30 * 24 * 3600, // 30 days
+      count: 5000
+    }
+  },
+  settings: {
+    stalledInterval: 60000, // 1 minute
+    maxStalledCount: 2,
+    lockDuration: 120000 // 2 minutes
+  }
+});
+
+/**
  * Global error handler for all queues
  */
-const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue, secretAgentQueue];
+const queues = [webhookQueue, campaignQueue, bulkCollectionQueue, conversationSyncQueue, googleMapsAgentQueue, emailQueue, billingQueue, linkedinInviteQueue, connectionMessageQueue, delayedConversationQueue, secretAgentQueue, followUpQueue];
 
 queues.forEach((queue) => {
   queue.on('error', (error) => {
@@ -483,5 +517,6 @@ module.exports = {
   connectionMessageQueue,
   delayedConversationQueue,
   secretAgentQueue,
+  followUpQueue,
   closeAllQueues
 };

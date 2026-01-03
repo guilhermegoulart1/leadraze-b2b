@@ -57,4 +57,32 @@ router.get('/admin/pending', aiEmployeesController.getPendingTemplates);
 // Approve or reject a template (admin only)
 router.post('/admin/moderate/:id', aiEmployeesController.moderateTemplate);
 
+// ===========================================
+// TEST SESSION ROUTES
+// ===========================================
+
+// Get active test sessions
+router.get('/test/sessions', aiEmployeesController.getActiveSessions);
+
+// Start a test session for an agent
+router.post('/:agentId/test/start', aiEmployeesController.startTestSession);
+
+// Get test session state
+router.get('/test/:sessionId', aiEmployeesController.getTestSession);
+
+// Send a test message
+router.post('/test/:sessionId/message', aiEmployeesController.sendTestMessage);
+
+// Get test session logs
+router.get('/test/:sessionId/logs', aiEmployeesController.getTestLogs);
+
+// End a test session
+router.post('/test/:sessionId/end', aiEmployeesController.endTestSession);
+
+// Reset a test session
+router.post('/test/:sessionId/reset', aiEmployeesController.resetTestSession);
+
+// Update lead simulation
+router.put('/test/:sessionId/lead', aiEmployeesController.updateTestLead);
+
 module.exports = router;

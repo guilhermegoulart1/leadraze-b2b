@@ -27,8 +27,8 @@ const NavItem = ({ category, isActive, count, onClick }) => {
       className={`
         w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all
         ${isActive
-          ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+          ? 'bg-purple-600 text-white'
+          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
         }
       `}
     >
@@ -38,8 +38,8 @@ const NavItem = ({ category, isActive, count, onClick }) => {
         <span className={`
           px-1.5 py-0.5 text-xs rounded-full font-medium
           ${isActive
-            ? 'bg-white/20 text-white dark:bg-gray-900/20 dark:text-gray-900'
-            : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+            ? 'bg-white/20 text-white'
+            : 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300'
           }
         `}>
           {count}

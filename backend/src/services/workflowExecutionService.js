@@ -1,0 +1,1036 @@
+// backend/src/services/workflowExecutionService.js
+
+/**
+ * Workflow Execution Service
+ *
+ * Main orchestrator for workflow execution. Handles:
+ * - Workflow initialization
+ * - Event processing
+ * - Node execution (trigger, conversation, condition, action)
+ * - Navigation through workflow edges
+ */
+
+const db = require('../config/database');
+const workflowStateService = require('./workflowStateService');
+const workflowLogService = require('./workflowLogService');
+const workflowConditionEvaluator = require('./workflowConditionEvaluator');
+const workflowActionExecutors = require('./workflowActionExecutors');
+const aiResponseService = require('./aiResponseService');
+const ragService = require('./ragService');
+
+/**
+ * Initialize workflow for a new conversation
+ * @param {string} conversationId - Conversation UUID
+ * @param {number} agentId - AI Agent ID
+ * @param {string} triggerEvent - Initial trigger event type
+ * @returns {Promise<object>} Initial workflow state
+ */
+async function initializeWorkflow(conversationId, agentId, triggerEvent = null) {
+  try {
+    console.log(`🚀 Initializing workflow for conversation ${conversationId}, agent ${agentId}`);
+
+    // Fetch agent with workflow definition
+    const agentResult = await db.query(
+      `SELECT id, name, workflow_definition, workflow_enabled,
+              products_services, behavioral_profile, language, tone
+       FROM ai_agents WHERE id = $1`,
+      [agentId]
+    );
+
+    if (!agentResult.rows || agentResult.rows.length === 0) {
+      throw new Error(`Agent ${agentId} not found`);
+    }
+
+    const agent = agentResult.rows[0];
+
+    if (!agent.workflow_enabled || !agent.workflow_definition) {
+      console.log(`⚠️ Agent ${agentId} does not have workflow enabled`);
+      return { workflowEnabled: false };
+    }
+
+    const workflowDef = agent.workflow_definition;
+
+    // Find the appropriate trigger node
+    let triggerNode = null;
+    if (workflowDef.nodes) {
+      triggerNode = workflowDef.nodes.find(n =>
+        n.type === 'trigger' &&
+        (!triggerEvent || n.data?.event === triggerEvent)
+      );
+
+      // Fallback to any trigger if specific not found
+      if (!triggerNode) {
+        triggerNode = workflowDef.nodes.find(n => n.type === 'trigger');
+      }
+    }
+
+    const initialNodeId = triggerNode?.id || null;
+
+    // Initialize state
+    const state = await workflowStateService.initializeWorkflowState(
+      conversationId,
+      agentId,
+      workflowDef,
+      initialNodeId
+    );
+
+    // Log workflow start
+    await workflowLogService.logWorkflowStarted({
+      conversationId,
+      agentId,
+      nodeId: initialNodeId,
+      inputData: { triggerEvent },
+      outputData: { stateId: state.id }
+    });
+
+    return {
+      workflowEnabled: true,
+      state,
+      triggerNode
+    };
+  } catch (error) {
+    console.error('❌ Error initializing workflow:', error);
+    throw error;
+  }
+}
+
+/**
+ * Process an event in the workflow
+ * @param {string} conversationId - Conversation UUID
+ * @param {string} event - Event type (message_received, invite_accepted, etc.)
+ * @param {object} payload - Event payload
+ * @param {object} options - Additional options
+ * @returns {Promise<object>} Processing result
+ */
+async function processEvent(conversationId, event, payload = {}, options = {}) {
+  const startTime = Date.now();
+
+  try {
+    console.log(`📨 Processing event: ${event} for conversation ${conversationId}`);
+
+    // Get current workflow state
+    const state = await workflowStateService.getWorkflowState(conversationId);
+
+    if (!state) {
+      console.log(`⚠️ No workflow state found for conversation ${conversationId}`);
+      return { processed: false, reason: 'no_workflow_state' };
+    }
+
+    // Check if workflow is active
+    if (state.status === 'paused') {
+      // Check if it's time to resume
+      if (await workflowStateService.shouldResume(conversationId)) {
+        await workflowStateService.resumeWorkflow(conversationId);
+      } else {
+        console.log(`⏸️ Workflow is paused until ${state.pausedUntil}`);
+        return { processed: false, reason: 'workflow_paused' };
+      }
+    }
+
+    if (state.status !== 'active') {
+      console.log(`⚠️ Workflow is ${state.status}, not processing`);
+      return { processed: false, reason: `workflow_${state.status}` };
+    }
+
+    const workflowDef = state.workflowDefinition;
+
+    // Build execution context
+    const context = await buildExecutionContext(conversationId, state, event, payload, options);
+
+    // Find the node to execute
+    let currentNode = findNodeById(workflowDef, state.currentNodeId);
+
+    // If no current node, find trigger for this event
+    if (!currentNode) {
+      currentNode = findTriggerForEvent(workflowDef, event);
+    }
+
+    if (!currentNode) {
+      console.log(`⚠️ No node to execute for event ${event}`);
+      return { processed: false, reason: 'no_node_for_event' };
+    }
+
+    // Execute the workflow from current node
+    const result = await executeFromNode(currentNode, workflowDef, context);
+
+    const durationMs = Date.now() - startTime;
+    console.log(`✅ Workflow processing complete (${durationMs}ms)`);
+
+    return {
+      processed: true,
+      ...result,
+      durationMs
+    };
+  } catch (error) {
+    console.error('❌ Error processing workflow event:', error);
+
+    // Log error
+    await workflowLogService.logError({
+      conversationId,
+      agentId: options.agentId,
+      eventType: 'workflow_error',
+      errorMessage: error.message,
+      inputData: { event, payload }
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Execute workflow starting from a specific node
+ * @param {object} startNode - Node to start from
+ * @param {object} workflowDef - Workflow definition
+ * @param {object} context - Execution context
+ * @returns {Promise<object>} Execution result
+ */
+async function executeFromNode(startNode, workflowDef, context) {
+  let currentNode = startNode;
+  const executedNodes = [];
+  let response = null;
+  let shouldPause = false;
+  let shouldEnd = false;
+  let pauseReason = null;
+  let resumeNodeId = null;
+
+  while (currentNode && !shouldPause && !shouldEnd) {
+    console.log(`➡️ Executing node: ${currentNode.id} (${currentNode.type})`);
+
+    // Log node entry
+    await workflowLogService.logNodeEntered({
+      conversationId: context.conversationId,
+      testSessionId: context.testSessionId,
+      agentId: context.agentId,
+      nodeId: currentNode.id,
+      nodeType: currentNode.type,
+      nodeLabel: currentNode.data?.label || currentNode.data?.name
+    });
+
+    // Execute based on node type
+    let nodeResult;
+
+    switch (currentNode.type) {
+      case 'trigger':
+        nodeResult = await executeTriggerNode(currentNode, context);
+        break;
+
+      case 'conversationStep':
+        nodeResult = await executeConversationNode(currentNode, context);
+        response = nodeResult.response;
+
+        // Track attempt count for this conversationStep
+        // Only count entries where we actually had a lead message to evaluate (not the initial AI send)
+        // If hasMaxMessages is false or maxMessages is null/0 = unlimited (use 9999)
+        const hasMaxMessages = currentNode.data?.hasMaxMessages === true;
+        const configuredMax = currentNode.data?.maxMessages;
+        const maxAttempts = (hasMaxMessages && configuredMax && configuredMax > 0) ? configuredMax : 9999;
+        const stepHistory = context.stepHistory || [];
+        // Filter to only count actual evaluation attempts (entries with hadMessage=true)
+        // hadMessage is stored inside result object
+        const attemptCount = stepHistory.filter(s =>
+          s.nodeId === currentNode.id && s.result?.hadMessage === true
+        ).length;
+
+        // ConversationStep should wait for response to evaluate objective
+        // If this is the first execution (no lead message yet), pause for response
+        if (!context.message && nodeResult.response) {
+          shouldPause = true;
+          pauseReason = 'waiting_for_response';
+          // Resume to THIS node to evaluate the response
+          resumeNodeId = currentNode.id;
+          nodeResult.pauseReason = pauseReason;
+          nodeResult.resumeNodeId = resumeNodeId;
+          // Mark this entry as initial send (not an evaluation attempt)
+          nodeResult.hadMessage = false;
+          console.log(`⏸️ [ConversationStep] First execution - pausing for lead response. Will re-evaluate at ${currentNode.id}`);
+        }
+        // If we have a lead message, AI has evaluated
+        else if (context.message) {
+          // Mark this as an actual evaluation attempt
+          nodeResult.hadMessage = true;
+
+          // Current attempt number (1-indexed for user display)
+          const currentAttempt = attemptCount + 1;
+          console.log(`📊 [ConversationStep] Evaluating response - attempt ${currentAttempt}/${maxAttempts} for node ${currentNode.id}`);
+
+          // AI determines if objective was achieved via shouldAdvance
+          if (nodeResult.shouldAdvance) {
+            // Objective achieved - follow success path
+            nodeResult.path = 'success';
+            console.log(`✅ [ConversationStep] Objective achieved on attempt ${currentAttempt}! Following success path.`);
+          } else {
+            // Objective NOT achieved yet
+            // Check if we've exceeded max attempts (currentAttempt is 1-indexed)
+            if (currentAttempt >= maxAttempts) {
+              // Max attempts reached - follow failure path
+              nodeResult.path = 'failure';
+              console.log(`❌ [ConversationStep] Max attempts (${maxAttempts}) reached on attempt ${currentAttempt}. Following failure path.`);
+            } else {
+              // Continue conversation - pause again at the SAME node
+              shouldPause = true;
+              pauseReason = 'waiting_for_response';
+              resumeNodeId = currentNode.id;
+              nodeResult.pauseReason = pauseReason;
+              nodeResult.resumeNodeId = resumeNodeId;
+              console.log(`🔄 [ConversationStep] Objective not achieved (attempt ${currentAttempt}/${maxAttempts}). Continuing conversation at same node.`);
+            }
+          }
+        }
+        break;
+
+      case 'condition':
+        nodeResult = await executeConditionNode(currentNode, context);
+        break;
+
+      case 'action':
+        nodeResult = await executeActionNode(currentNode, context);
+
+        // Debug: log the result structure
+        console.log(`🔍 [Action] nodeResult:`, {
+          actionType: nodeResult.actionType,
+          pausesWorkflow: nodeResult.pausesWorkflow,
+          endsBranch: nodeResult.endsBranch,
+          resultWaitForResponse: nodeResult.result?.waitForResponse,
+          fullResult: nodeResult.result
+        });
+
+        // Check both static pausesWorkflow AND dynamic waitForResponse from result
+        shouldPause = nodeResult.pausesWorkflow || nodeResult.result?.waitForResponse === true;
+        shouldEnd = nodeResult.endsBranch;
+
+        console.log(`🔍 [Action] shouldPause: ${shouldPause}, shouldEnd: ${shouldEnd}`);
+
+        // If waiting for response, set up the resume info
+        if (nodeResult.result?.waitForResponse === true) {
+          // Find next node to resume from when response arrives
+          const nextNodeAfterWait = findNextNode(workflowDef, currentNode, nodeResult);
+          pauseReason = 'waiting_for_response';
+          resumeNodeId = nextNodeAfterWait?.id || null;
+          nodeResult.pauseReason = pauseReason;
+          nodeResult.resumeNodeId = resumeNodeId;
+          console.log(`⏸️ [Workflow] Pausing for response. Resume node: ${resumeNodeId}`);
+        }
+        break;
+
+      default:
+        console.warn(`⚠️ Unknown node type: ${currentNode.type}`);
+        nodeResult = { success: true };
+    }
+
+    executedNodes.push({
+      nodeId: currentNode.id,
+      nodeType: currentNode.type,
+      result: nodeResult
+    });
+
+    // Update state with new step
+    await workflowStateService.addStepToHistory(context.conversationId, {
+      nodeId: currentNode.id,
+      nodeType: currentNode.type,
+      nodeLabel: currentNode.data?.label || currentNode.data?.name,
+      result: nodeResult
+    });
+
+    if (shouldPause) {
+      // Log the pause event
+      const pauseReason = nodeResult.pauseReason || 'action_pause';
+      await workflowLogService.logWorkflowPaused({
+        conversationId: context.conversationId,
+        testSessionId: context.testSessionId,
+        agentId: context.agentId,
+        nodeId: currentNode.id,
+        nodeLabel: currentNode.data?.label || currentNode.data?.actionType || 'Ação',
+        pauseReason,
+        resumeNodeId: nodeResult.resumeNodeId,
+        outputData: {
+          reason: pauseReason === 'waiting_for_response' ? 'Aguardando resposta do lead' : pauseReason,
+          resumeNodeId: nodeResult.resumeNodeId
+        }
+      });
+
+      // Workflow is paused - update state
+      await workflowStateService.pauseWorkflow(
+        context.conversationId,
+        nodeResult.resumeAt,
+        pauseReason,
+        nodeResult.resumeNodeId,
+        nodeResult.jobId
+      );
+      break;
+    }
+
+    if (shouldEnd) {
+      // Branch ends here
+      await workflowStateService.completeWorkflow(context.conversationId, 'branch_completed');
+      break;
+    }
+
+    // Find next node
+    const nextNode = findNextNode(workflowDef, currentNode, nodeResult);
+
+    if (!nextNode) {
+      console.log(`🏁 No more nodes to execute`);
+
+      // Log detailed info for conditions without matching edge
+      if (currentNode.type === 'condition' && nodeResult?.path) {
+        const availableEdges = workflowDef.edges?.filter(e => e.source === currentNode.id) || [];
+        const edgeHandles = availableEdges.map(e => e.sourceHandle);
+
+        console.log(`❌ [EDGE_NOT_FOUND] Node: ${currentNode.id}`);
+        console.log(`   Expected path: "${nodeResult.path}"`);
+        console.log(`   Available sourceHandles:`, edgeHandles);
+        console.log(`   Full edges:`, JSON.stringify(availableEdges, null, 2));
+
+        const handlesList = edgeHandles.length > 0 ? edgeHandles.join(', ') : 'NENHUM';
+
+        await workflowLogService.logEvent({
+          conversationId: context.conversationId,
+          testSessionId: context.testSessionId,
+          agentId: context.agentId,
+          nodeId: currentNode.id,
+          nodeType: 'navigation',
+          nodeLabel: `Buscando: "${nodeResult.path}" | Existentes: [${handlesList}]`,
+          eventType: 'EDGE_NOT_FOUND',
+          inputData: {
+            expectedPath: nodeResult.path,
+            availableHandles: edgeHandles,
+            edgesFromNode: availableEdges.map(e => ({
+              sourceHandle: e.sourceHandle,
+              target: e.target
+            }))
+          },
+          decisionReason: `Edges saindo do nó: ${availableEdges.length}`,
+          success: false
+        });
+      }
+
+      break;
+    }
+
+    // Update current node in state
+    await workflowStateService.updateWorkflowState(context.conversationId, {
+      currentNodeId: nextNode.id
+    });
+
+    currentNode = nextNode;
+  }
+
+  return {
+    executedNodes,
+    response,
+    paused: shouldPause,
+    completed: shouldEnd,
+    finalNodeId: currentNode?.id,
+    pauseReason,
+    resumeNodeId
+  };
+}
+
+/**
+ * Execute trigger node
+ */
+async function executeTriggerNode(node, context) {
+  const { data } = node;
+
+  await workflowLogService.logTriggerFired({
+    conversationId: context.conversationId,
+    testSessionId: context.testSessionId,
+    agentId: context.agentId,
+    nodeId: node.id,
+    nodeType: 'trigger',
+    nodeLabel: data.label || data.event,
+    inputData: { event: context.event },
+    outputData: { matched: true }
+  });
+
+  return {
+    success: true,
+    event: data.event,
+    matched: true
+  };
+}
+
+/**
+ * Execute conversation step node
+ */
+async function executeConversationNode(node, context) {
+  const { data } = node;
+  const startTime = Date.now();
+
+  // DEBUG: Log node data to understand what fields are available
+  console.log('📋 ConversationStep node data:', JSON.stringify(data, null, 2));
+
+  // Log that we're generating a message
+  await workflowLogService.logEvent({
+    conversationId: context.conversationId,
+    testSessionId: context.testSessionId,
+    agentId: context.agentId,
+    nodeId: node.id,
+    nodeType: 'conversationStep',
+    nodeLabel: data.name || data.label,
+    eventType: 'message_generating',
+    inputData: { step: data }
+  });
+
+  // Build AI context for this step
+  const stepInstructions = data.instructions || '';
+  const stepObjective = data.objective || '';
+
+  // DEBUG: Log extracted values
+  console.log('📝 Step Instructions:', stepInstructions || '(empty)');
+  console.log('🎯 Step Objective:', stepObjective || '(empty)');
+
+  // Search RAG if available
+  let knowledgeContext = '';
+  if (context.message && context.agentId) {
+    try {
+      const knowledge = await ragService.searchRelevantKnowledge(
+        context.agentId,
+        context.message,
+        { limit: 5, minSimilarity: 0.7 }
+      );
+
+      if (knowledge && knowledge.length > 0) {
+        knowledgeContext = ragService.formatKnowledgeForPrompt(knowledge);
+
+        await workflowLogService.logRagSearch({
+          conversationId: context.conversationId,
+          testSessionId: context.testSessionId,
+          agentId: context.agentId,
+          nodeId: node.id,
+          outputData: { foundItems: knowledge.length }
+        });
+      }
+    } catch (error) {
+      console.error('⚠️ RAG search failed:', error.message);
+    }
+  }
+
+  // Build merged instructions
+  const mergedInstructions = `${stepInstructions}\n\nObjetivo desta etapa: ${stepObjective}`;
+  console.log('🤖 Merged instructions for AI:', mergedInstructions);
+
+  // Generate response using AI
+  const aiResult = await aiResponseService.generateResponse({
+    conversation_id: context.conversationId,
+    lead_message: context.message || '',
+    conversation_context: context.conversationContext,
+    ai_agent: {
+      ...context.agent,
+      // Inject step-specific instructions
+      objective_instructions: mergedInstructions
+    },
+    lead_data: context.lead,
+    current_step: data.stepNumber || 0
+  });
+
+  const durationMs = Date.now() - startTime;
+
+  // Log message generated
+  await workflowLogService.logMessageGenerated({
+    conversationId: context.conversationId,
+    testSessionId: context.testSessionId,
+    agentId: context.agentId,
+    nodeId: node.id,
+    nodeType: 'conversationStep',
+    nodeLabel: data.name || data.label,
+    inputData: { message: context.message },
+    outputData: {
+      response: aiResult.response,
+      intent: aiResult.intent,
+      tokensUsed: aiResult.tokens_used
+    },
+    durationMs
+  });
+
+  // Log intent if detected
+  if (aiResult.intent) {
+    await workflowLogService.logIntentDetected({
+      conversationId: context.conversationId,
+      testSessionId: context.testSessionId,
+      agentId: context.agentId,
+      nodeId: node.id,
+      outputData: { intent: aiResult.intent }
+    });
+  }
+
+  return {
+    success: true,
+    response: aiResult.response,
+    intent: aiResult.intent,
+    sentiment: aiResult.sentiment,
+    shouldAdvance: aiResult.step_advanced,
+    tokensUsed: aiResult.tokens_used,
+    durationMs
+  };
+}
+
+/**
+ * Execute condition node
+ */
+async function executeConditionNode(node, context) {
+  const result = await workflowConditionEvaluator.evaluateCondition(node, context);
+
+  // Log condition evaluation
+  await workflowLogService.logConditionEvaluated({
+    conversationId: context.conversationId,
+    testSessionId: context.testSessionId,
+    agentId: context.agentId,
+    nodeId: node.id,
+    nodeType: 'condition',
+    nodeLabel: node.data?.label || node.data?.conditionType,
+    inputData: {
+      conditionType: result.conditionType,
+      operator: result.operator,
+      value: result.value
+    },
+    outputData: {
+      path: result.path,
+      result: result.result
+    },
+    decisionReason: result.reason,
+    durationMs: result.durationMs
+  });
+
+  return result;
+}
+
+/**
+ * Execute action node
+ */
+async function executeActionNode(node, context) {
+  // Log action start
+  await workflowLogService.logActionStarted({
+    conversationId: context.conversationId,
+    testSessionId: context.testSessionId,
+    agentId: context.agentId,
+    nodeId: node.id,
+    nodeType: 'action',
+    nodeLabel: node.data?.label || node.data?.actionType,
+    inputData: node.data
+  });
+
+  const result = await workflowActionExecutors.executeAction(node, context);
+
+  if (result.success) {
+    await workflowLogService.logActionCompleted({
+      conversationId: context.conversationId,
+      testSessionId: context.testSessionId,
+      agentId: context.agentId,
+      nodeId: node.id,
+      nodeType: 'action',
+      nodeLabel: node.data?.label || node.data?.actionType,
+      outputData: result,
+      durationMs: result.durationMs
+    });
+  } else {
+    await workflowLogService.logActionFailed({
+      conversationId: context.conversationId,
+      testSessionId: context.testSessionId,
+      agentId: context.agentId,
+      nodeId: node.id,
+      nodeType: 'action',
+      nodeLabel: node.data?.label || node.data?.actionType,
+      errorMessage: result.error,
+      durationMs: result.durationMs
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Find node by ID in workflow definition
+ */
+function findNodeById(workflowDef, nodeId) {
+  if (!workflowDef?.nodes || !nodeId) return null;
+  return workflowDef.nodes.find(n => n.id === nodeId);
+}
+
+/**
+ * Find trigger node for a specific event
+ */
+function findTriggerForEvent(workflowDef, event) {
+  if (!workflowDef?.nodes) return null;
+
+  // First, try to find exact match
+  let trigger = workflowDef.nodes.find(n =>
+    n.type === 'trigger' && n.data?.event === event
+  );
+
+  // If not found, look for generic trigger
+  if (!trigger) {
+    trigger = workflowDef.nodes.find(n =>
+      n.type === 'trigger' && n.data?.event === 'message_received'
+    );
+  }
+
+  // Fallback to any trigger
+  if (!trigger) {
+    trigger = workflowDef.nodes.find(n => n.type === 'trigger');
+  }
+
+  return trigger;
+}
+
+/**
+ * Find next node to execute based on edges
+ */
+function findNextNode(workflowDef, currentNode, nodeResult) {
+  if (!workflowDef?.edges) return null;
+
+  // For condition nodes, follow the appropriate handle (yes/no)
+  if (currentNode.type === 'condition' && nodeResult?.path) {
+    console.log(`🔍 [findNextNode] Condition path: ${nodeResult.path}, looking for edge from ${currentNode.id}`);
+
+    // Debug: log all edges from this node
+    const nodeEdges = workflowDef.edges.filter(e => e.source === currentNode.id);
+    console.log(`🔍 [findNextNode] Available edges:`, nodeEdges.map(e => ({
+      sourceHandle: e.sourceHandle,
+      target: e.target
+    })));
+
+    const edge = workflowDef.edges.find(e =>
+      e.source === currentNode.id &&
+      (e.sourceHandle === nodeResult.path || e.sourceHandle === `${nodeResult.path}-handle`)
+    );
+
+    if (edge) {
+      console.log(`✅ [findNextNode] Found edge to: ${edge.target}`);
+      return findNodeById(workflowDef, edge.target);
+    }
+
+    // IMPORTANT: For condition nodes, if the specific path edge is not found,
+    // do NOT fall through to any edge - return null to stop this branch
+    console.log(`⚠️ [findNextNode] No edge found for path '${nodeResult.path}'`);
+    return null;
+  }
+
+  // For conversationStep nodes with path (achieved/not_achieved), follow the appropriate handle
+  if (currentNode.type === 'conversationStep' && nodeResult?.path) {
+    console.log(`🔍 [findNextNode] ConversationStep path: ${nodeResult.path}, looking for edge from ${currentNode.id}`);
+
+    const nodeEdges = workflowDef.edges.filter(e => e.source === currentNode.id);
+    console.log(`🔍 [findNextNode] Available edges:`, nodeEdges.map(e => ({
+      sourceHandle: e.sourceHandle,
+      target: e.target
+    })));
+
+    // Try to find edge matching the path
+    const edge = workflowDef.edges.find(e =>
+      e.source === currentNode.id &&
+      (e.sourceHandle === nodeResult.path || e.sourceHandle === `${nodeResult.path}-handle`)
+    );
+
+    if (edge) {
+      console.log(`✅ [findNextNode] Found edge to: ${edge.target}`);
+      return findNodeById(workflowDef, edge.target);
+    }
+
+    // If no specific path edge found, check if there's only one output edge (fallback)
+    if (nodeEdges.length === 1) {
+      console.log(`⚠️ [findNextNode] No path edge found, using single output edge to: ${nodeEdges[0].target}`);
+      return findNodeById(workflowDef, nodeEdges[0].target);
+    }
+
+    console.log(`⚠️ [findNextNode] No edge found for conversationStep path '${nodeResult.path}'`);
+    return null;
+  }
+
+  // For other nodes, find any outgoing edge
+  const edge = workflowDef.edges.find(e => e.source === currentNode.id);
+
+  if (edge) {
+    return findNodeById(workflowDef, edge.target);
+  }
+
+  return null;
+}
+
+/**
+ * Build execution context for workflow processing
+ */
+async function buildExecutionContext(conversationId, state, event, payload, options) {
+  // Fetch conversation details
+  const convResult = await db.query(
+    `SELECT
+      c.*,
+      l.id as lead_id,
+      l.name as lead_name,
+      l.email as lead_email,
+      l.phone as lead_phone,
+      l.company as lead_company,
+      l.title as lead_title,
+      l.linkedin_profile_id as lead_unipile_id,
+      la.unipile_account_id,
+      camp.id as campaign_id,
+      aa.*
+     FROM conversations c
+     LEFT JOIN leads l ON c.lead_id = l.id
+     LEFT JOIN campaigns camp ON c.campaign_id = camp.id
+     LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
+     LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
+     WHERE c.id = $1`,
+    [conversationId]
+  );
+
+  const conv = convResult.rows[0] || {};
+
+  // Get conversation stats
+  const statsResult = await db.query(
+    `SELECT
+      COUNT(*) FILTER (WHERE sender_type = 'lead') as lead_messages,
+      COUNT(*) FILTER (WHERE sender_type = 'ai') as ai_messages,
+      COUNT(*) as total_messages,
+      MAX(sent_at) as last_message_at
+     FROM messages
+     WHERE conversation_id = $1`,
+    [conversationId]
+  );
+
+  const stats = statsResult.rows[0] || {};
+
+  return {
+    // IDs
+    conversationId,
+    agentId: state.agentId,
+    leadId: conv.lead_id,
+    contactId: conv.contact_id,
+    campaignId: conv.campaign_id,
+    accountId: conv.account_id,
+    userId: conv.user_id,
+    testSessionId: options.testSessionId || null,
+
+    // Event info
+    event,
+    message: payload.message || payload.content,
+    hasResponse: !!payload.message,
+
+    // Lead data
+    lead: {
+      id: conv.lead_id,
+      name: conv.lead_name,
+      email: conv.lead_email,
+      phone: conv.lead_phone,
+      company: conv.lead_company,
+      title: conv.lead_title,
+      status: conv.status
+    },
+
+    // Agent data
+    agent: {
+      id: state.agentId,
+      name: state.agentName,
+      productsServices: conv.products_services,
+      behavioralProfile: conv.behavioral_profile,
+      language: conv.language,
+      tone: conv.tone,
+      autoSchedule: conv.auto_schedule,
+      schedulingLink: conv.scheduling_link
+    },
+
+    // Unipile config
+    unipileAccountId: conv.unipile_account_id,
+    leadUnipileId: conv.lead_unipile_id,
+    channel: conv.channel || 'linkedin',
+
+    // Workflow variables
+    variables: state.variables || {},
+
+    // Step history for tracking attempts per node
+    stepHistory: state.stepHistory || [],
+
+    // Conversation context
+    conversationContext: payload.conversationContext || null,
+    conversationStats: {
+      leadMessages: parseInt(stats.lead_messages) || 0,
+      aiMessages: parseInt(stats.ai_messages) || 0,
+      totalMessages: parseInt(stats.total_messages) || 0,
+      lastMessageAt: stats.last_message_at,
+      exchangeCount: Math.min(parseInt(stats.lead_messages) || 0, parseInt(stats.ai_messages) || 0)
+    },
+
+    // Intent/sentiment from payload
+    lastIntent: payload.intent,
+    lastSentiment: payload.sentiment,
+    lastMessage: payload.message,
+    lastMessageAt: stats.last_message_at,
+
+    // Test mode
+    isTestMode: options.isTestMode || false
+  };
+}
+
+/**
+ * Process test message or event (for agent testing UI)
+ * @param {string} testSessionId - Test session UUID
+ * @param {number} agentId - Agent ID
+ * @param {string} message - Message content (null for non-message events)
+ * @param {object} options - Additional options (lead, agent, workflowState, conversationContext, eventType)
+ * @returns {Promise<object>} Response and execution info
+ */
+async function processTestMessage(testSessionId, agentId, message, options = {}) {
+  try {
+    const { lead, agent, workflowState, conversationContext, eventType = 'message_received' } = options;
+
+    console.log(`🧪 Processing test event "${eventType}" for session ${testSessionId}`);
+
+    if (!agent || !agent.workflow_definition) {
+      throw new Error('Agent workflow definition is required');
+    }
+
+    const workflowDef = agent.workflow_definition;
+
+    // DEBUG: Log all edges from conversationStep nodes
+    const conversationStepNodes = workflowDef.nodes?.filter(n => n.type === 'conversationStep') || [];
+    for (const csNode of conversationStepNodes) {
+      const csEdges = workflowDef.edges?.filter(e => e.source === csNode.id) || [];
+      console.log(`📊 [DEBUG] ConversationStep "${csNode.data?.label || csNode.id}" edges:`, csEdges.map(e => ({
+        sourceHandle: e.sourceHandle,
+        targetNode: workflowDef.nodes?.find(n => n.id === e.target)?.data?.label || e.target
+      })));
+    }
+
+    // Build test context with the correct event type
+    const context = {
+      conversationId: null,
+      testSessionId,
+      agentId,
+      event: eventType, // Use the actual event type
+      message,
+      isTestMode: true,
+      lead: lead || {},
+      agent,
+      variables: workflowState?.variables || {},
+      // Step history for tracking attempts per node
+      stepHistory: workflowState?.step_history || workflowState?.stepHistory || [],
+      conversationContext,
+      conversationStats: {
+        leadMessages: (conversationContext?.stats?.totalMessages || 0) / 2,
+        aiMessages: (conversationContext?.stats?.totalMessages || 0) / 2,
+        totalMessages: conversationContext?.stats?.totalMessages || 0,
+        lastMessageAt: new Date()
+      },
+      lastMessage: message,
+      // Additional flags for condition evaluation
+      inviteAccepted: eventType === 'invite_accepted',
+      inviteIgnored: eventType === 'invite_ignored',
+      hasResponse: eventType === 'message_received' && !!message
+    };
+
+    // Find current node or trigger based on event type
+    let currentNode = null;
+
+    // Check if workflow is paused waiting for response
+    if (workflowState?.status === 'paused' && workflowState?.pausedReason === 'waiting_for_response') {
+      // Resume from the saved resume node
+      const resumeNodeId = workflowState.resumeNodeId || workflowState.resume_node_id;
+      if (resumeNodeId) {
+        currentNode = findNodeById(workflowDef, resumeNodeId);
+        console.log(`▶️ Resuming workflow from node: ${resumeNodeId} (was waiting for response)`);
+
+        // Log resume event
+        await workflowLogService.logWorkflowResumed({
+          conversationId: context.conversationId,
+          testSessionId: context.testSessionId,
+          agentId: context.agentId,
+          nodeId: resumeNodeId,
+          nodeLabel: currentNode?.data?.label || 'Nó',
+          outputData: { reason: 'Resposta recebida' }
+        });
+      }
+    }
+
+    // If not resuming, try current_node_id
+    if (!currentNode && workflowState?.current_node_id) {
+      currentNode = findNodeById(workflowDef, workflowState.current_node_id);
+    }
+
+    // If still no node, find trigger for the event type
+    if (!currentNode) {
+      currentNode = findTriggerForEvent(workflowDef, eventType);
+    }
+
+    if (!currentNode) {
+      // Fallback: try message_received trigger
+      currentNode = findTriggerForEvent(workflowDef, 'message_received');
+    }
+
+    if (!currentNode) {
+      // Last resort: find first conversationStep
+      currentNode = workflowDef.nodes?.find(n => n.type === 'conversationStep');
+    }
+
+    if (!currentNode) {
+      throw new Error(`No valid starting node found for event "${eventType}"`);
+    }
+
+    console.log(`➡️ Starting test execution from node: ${currentNode.id} (${currentNode.type})`);
+
+    // Execute from current node
+    const result = await executeFromNode(currentNode, workflowDef, context);
+
+    // Build new state
+    const newState = {
+      current_node_id: result.finalNodeId,
+      variables: context.variables,
+      step_history: [...(workflowState?.step_history || []), ...result.executedNodes.map(n => ({
+        nodeId: n.nodeId,
+        nodeType: n.nodeType,
+        timestamp: new Date().toISOString(),
+        result: n.result // Include result with hadMessage flag for attempt counting
+      }))],
+      status: result.completed ? 'completed' : (result.paused ? 'paused' : 'active'),
+      // Pause-related state
+      pausedReason: result.paused ? result.pauseReason : null,
+      resumeNodeId: result.paused ? result.resumeNodeId : null
+    };
+
+    console.log(`✅ Test message processed, response generated`);
+
+    return {
+      response: result.response,
+      executedNodes: result.executedNodes,
+      newState,
+      paused: result.paused,
+      completed: result.completed
+    };
+  } catch (error) {
+    console.error('❌ Error processing test message:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if agent has workflow enabled
+ */
+async function hasWorkflowEnabled(agentId) {
+  try {
+    const result = await db.query(
+      `SELECT workflow_enabled, workflow_definition IS NOT NULL as has_definition
+       FROM ai_agents WHERE id = $1`,
+      [agentId]
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      return false;
+    }
+
+    return result.rows[0].workflow_enabled && result.rows[0].has_definition;
+  } catch (error) {
+    console.error('❌ Error checking workflow enabled:', error);
+    return false;
+  }
+}
+
+module.exports = {
+  initializeWorkflow,
+  processEvent,
+  executeFromNode,
+  processTestMessage,
+  hasWorkflowEnabled,
+  findNodeById,
+  findTriggerForEvent,
+  findNextNode,
+  buildExecutionContext
+};

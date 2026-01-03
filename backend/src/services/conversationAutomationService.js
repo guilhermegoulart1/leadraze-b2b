@@ -7,6 +7,8 @@ const contactExtractionService = require('./contactExtractionService');
 const conversationSummaryService = require('./conversationSummaryService');
 const stripeService = require('./stripeService');
 const handoffService = require('./handoffService');
+const workflowExecutionService = require('./workflowExecutionService');
+const workflowStateService = require('./workflowStateService');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -126,157 +128,64 @@ async function processIncomingMessage(params) {
                 `${conversationContext.stats.totalTokens} tokens ` +
                 `(summary: ${conversationContext.stats.hasSummary ? 'YES' : 'NO'})`);
 
-    // Gerar resposta usando IA
-    // Usar current_step da conversa para tracking de etapas
-    const currentStep = conversation.current_step || 0;
-    console.log(`🤖 Gerando resposta IA... (etapa atual: ${currentStep + 1})`);
+    // ========================================
+    // WORKFLOW ENGINE: Process message through workflow
+    // ========================================
+    const agent = conversation.ai_agent;
 
-    const aiResponse = await aiResponseService.generateResponse({
-      conversation_id,
-      lead_message: message_content,
-      conversation_context: conversationContext, // New format with summary
-      ai_agent: conversation.ai_agent,
-      lead_data: conversation.lead_data,
-      current_step: currentStep, // Pass current step for stage tracking
-      context: {
-        campaign: conversation.campaign_name
-      }
-    });
-
-    console.log(`✅ Resposta gerada: "${aiResponse.response.substring(0, 50)}..."`);
-    console.log(`🎯 Intenção detectada: ${aiResponse.intent}`);
-
-    // Enviar resposta via Unipile
-    await sendAutomatedReply({
-      conversation_id,
-      response: aiResponse.response,
-      unipile_account_id: conversation.unipile_account_id,
-      lead_unipile_id: conversation.lead_unipile_id
-    });
-
-    // Salvar resposta no banco
-    await saveMessage({
-      conversation_id,
-      sender_type: 'ai',
-      content: aiResponse.response,
-      ai_intent: aiResponse.intent,
-      sent_at: new Date()
-    });
-
-    // Atualizar conversa (incluindo step se avançou)
-    const conversationUpdate = {
-      last_message_at: new Date(),
-      last_message_preview: aiResponse.response.substring(0, 100)
-    };
-
-    // Persistir current_step se houve avanço de etapa
-    if (aiResponse.step_advanced) {
-      conversationUpdate.current_step = aiResponse.current_step;
-      conversationUpdate.step_advanced_at = new Date();
-
-      // Atualizar step_history
-      const stepHistoryEntry = {
-        from_step: currentStep,
-        to_step: aiResponse.current_step,
-        advanced_at: new Date().toISOString(),
-        trigger: 'ai_detected_completion'
+    // Agente DEVE ter workflow definido (modelo antigo não é mais suportado)
+    if (!agent?.workflow_definition) {
+      console.error(`❌ Agente ${agent?.id || 'N/A'} não tem workflow definido`);
+      return {
+        processed: false,
+        reason: 'no_workflow_definition',
+        error: 'Este agente não possui um workflow definido. Por favor, configure o workflow no editor visual.'
       };
-
-      await db.query(
-        `UPDATE conversations
-         SET step_history = COALESCE(step_history, '[]'::jsonb) || $1::jsonb
-         WHERE id = $2`,
-        [JSON.stringify([stepHistoryEntry]), conversation_id]
-      );
-
-      console.log(`📈 Etapa avançada: ${currentStep + 1} → ${aiResponse.current_step + 1}`);
     }
 
-    await db.update('conversations', conversationUpdate, { id: conversation_id });
+    console.log(`🔄 Processing message through Workflow Engine for conversation ${conversation_id}`);
 
-    // Atualizar status do lead baseado na intenção
-    if (aiResponse.intent) {
-      await updateLeadStatusByIntent(conversation.lead_id, aiResponse.intent);
-    }
+    // Process through workflow engine
+    const workflowResult = await workflowExecutionService.processEvent(
+      conversation_id,
+      'message_received',
+      {
+        message: message_content,
+        conversationContext,
+        lead: conversation.lead_data
+      },
+      {
+        agentId: agent.id,
+        accountId
+      }
+    );
 
-    // Consumir 1 crédito de IA após envio bem-sucedido
-    if (accountId) {
+    // Consumir crédito se gerou resposta
+    if (accountId && workflowResult.response) {
       const consumed = await stripeService.consumeAiCredits(
         accountId,
         1,
-        conversation.ai_agent_id,
+        agent.id,
         conversation_id,
         conversation.user_id,
-        `AI response sent to ${conversation.lead_name}`
+        `Workflow AI response to ${conversation.lead_name}`
       );
 
       if (consumed) {
         console.log(`💰 1 crédito de IA consumido para conta ${accountId}`);
-      } else {
-        console.warn(`⚠️ Falha ao consumir crédito de IA (mensagem já enviada)`);
       }
     }
 
-    // ========================================
-    // HANDOFF LOGIC: Check if we should transfer to human
-    // ========================================
-    let handoffExecuted = false;
-    const agent = conversation.ai_agent;
-
-    // Increment exchange count (1 exchange = lead message + AI response)
-    const newExchangeCount = await handoffService.incrementExchangeCount(conversation_id);
-
-    // Priority 1: Check if AI requested transfer via [TRANSFER] tag
-    if (aiResponse.aiRequestedTransfer) {
-      console.log(`🔄 Handoff triggered: AI detected transfer trigger and requested transfer`);
-      await handoffService.executeHandoff(conversation_id, agent, 'trigger_ai_requested');
-      handoffExecuted = true;
-    }
-
-    // Priority 2: Check transfer triggers from lead's message (new system)
-    if (!handoffExecuted && agent && agent.transfer_triggers && agent.transfer_triggers.length > 0) {
-      const triggerResult = handoffService.checkTransferTriggers(message_content, agent);
-
-      if (triggerResult.shouldTransfer) {
-        console.log(`🔄 Handoff triggered: ${triggerResult.reasonText} (triggers: ${triggerResult.matchedTriggers.join(', ')})`);
-        await handoffService.executeHandoff(conversation_id, agent, triggerResult.reason);
-        handoffExecuted = true;
-      }
-    }
-
-    // Priority 3: Check legacy handoff_after_exchanges (for backward compatibility)
-    if (!handoffExecuted && agent && agent.handoff_after_exchanges) {
-      const shouldHandoff = await handoffService.shouldTriggerHandoff(
-        conversation_id,
-        agent.handoff_after_exchanges
-      );
-
-      if (shouldHandoff) {
-        console.log(`🔄 Handoff triggered: exchange count (${newExchangeCount}) >= limit (${agent.handoff_after_exchanges})`);
-
-        await handoffService.executeHandoff(conversation_id, agent, 'exchange_limit');
-        handoffExecuted = true;
-      }
-    }
-
-    // Priority 4: Check for escalation triggers (sentiment/keywords - legacy system)
-    if (!handoffExecuted && aiResponse.shouldEscalate) {
-      const escalationReason = aiResponse.escalationReasons?.[0] || 'escalation_detected';
-      console.log(`🔄 Escalation handoff triggered: ${escalationReason}`);
-
-      await handoffService.executeHandoff(conversation_id, agent, escalationReason.includes('keyword') ? 'escalation_keyword' : 'escalation_sentiment');
-      handoffExecuted = true;
-    }
-
-    console.log(`✅ Resposta automática enviada com sucesso${handoffExecuted ? ' (handoff executado)' : ''}`);
+    console.log(`✅ Workflow processed message, executed ${workflowResult.executedNodes?.length || 0} nodes`);
 
     return {
-      processed: true,
-      response_sent: aiResponse.response,
-      intent: aiResponse.intent,
-      should_notify_user: ['ready_to_buy', 'objection'].includes(aiResponse.intent),
-      handoff_executed: handoffExecuted,
-      exchange_count: newExchangeCount
+      processed: workflowResult.processed || true,
+      response_sent: workflowResult.response,
+      workflow: true,
+      executedNodes: workflowResult.executedNodes?.length || 0,
+      paused: workflowResult.paused,
+      completed: workflowResult.completed,
+      actions: workflowResult.executedActions || []
     };
 
   } catch (error) {
@@ -532,7 +441,6 @@ async function getConversationDetails(conversationId) {
       la.unipile_account_id,
       aa.id as ai_agent_id,
       aa.name as ai_agent_name,
-      aa.system_prompt,
       aa.products_services,
       aa.behavioral_profile,
       aa.initial_approach,
@@ -541,11 +449,9 @@ async function getConversationDetails(conversationId) {
       aa.intent_detection_enabled,
       aa.response_style_instructions,
       aa.priority_rules,
-      aa.objective,
-      aa.tone,
+      aa.objective_instructions,
       aa.language,
       aa.target_audience,
-      aa.escalation_rules,
       aa.escalation_keywords,
       aa.escalation_sentiments,
       aa.conversation_steps,
@@ -554,7 +460,10 @@ async function getConversationDetails(conversationId) {
       aa.handoff_after_exchanges,
       aa.connection_strategy,
       aa.post_accept_message,
-      aa.transfer_triggers
+      aa.transfer_triggers,
+      aa.workflow_definition,
+      aa.workflow_enabled,
+      aa.config
     FROM conversations conv
     JOIN leads l ON conv.lead_id = l.id
     JOIN campaigns c ON conv.campaign_id = c.id
@@ -575,7 +484,6 @@ async function getConversationDetails(conversationId) {
     ai_agent: row.ai_agent_id ? {
       id: row.ai_agent_id,
       name: row.ai_agent_name,
-      system_prompt: row.system_prompt,
       products_services: row.products_services,
       behavioral_profile: row.behavioral_profile,
       initial_approach: row.initial_approach,
@@ -584,11 +492,9 @@ async function getConversationDetails(conversationId) {
       intent_detection_enabled: row.intent_detection_enabled,
       response_style_instructions: row.response_style_instructions,
       priority_rules: row.priority_rules || [],
-      objective: row.objective,
-      tone: row.tone,
+      objective_instructions: row.objective_instructions,
       language: row.language,
       target_audience: row.target_audience,
-      escalation_rules: row.escalation_rules,
       escalation_keywords: row.escalation_keywords,
       escalation_sentiments: row.escalation_sentiments,
       conversation_steps: row.conversation_steps,
@@ -597,7 +503,10 @@ async function getConversationDetails(conversationId) {
       handoff_after_exchanges: row.handoff_after_exchanges,
       connection_strategy: row.connection_strategy,
       post_accept_message: row.post_accept_message,
-      transfer_triggers: row.transfer_triggers || []
+      transfer_triggers: row.transfer_triggers || [],
+      workflow_definition: row.workflow_definition,
+      workflow_enabled: row.workflow_enabled,
+      config: row.config || {}
     } : null,
     lead_data: {
       name: row.lead_name,

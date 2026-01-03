@@ -3,6 +3,7 @@
 
 const templateService = require('../services/templateService');
 const smartInterviewService = require('../services/smartInterviewService');
+const agentTestService = require('../services/agentTestService');
 
 /**
  * Get all templates
@@ -428,6 +429,236 @@ async function moderateTemplate(req, res) {
   }
 }
 
+// ===========================================
+// TEST SESSION ROUTES
+// ===========================================
+
+/**
+ * Start a test session for an agent
+ * POST /api/ai-employees/:agentId/test/start
+ */
+async function startTestSession(req, res) {
+  try {
+    const { agentId } = req.params;
+    const { accountId, id: userId } = req.user;
+    const { leadSimulation = {} } = req.body;
+
+    const session = await agentTestService.startTestSession(
+      agentId,
+      userId,
+      accountId,
+      leadSimulation
+    );
+
+    res.status(201).json({
+      success: true,
+      data: session
+    });
+  } catch (error) {
+    console.error('Error starting test session:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Send a test message or simulate an event
+ * POST /api/ai-employees/test/:sessionId/message
+ * Body: { message?: string, eventType?: string }
+ * eventType can be: message_received, invite_accepted, invite_ignored, no_response
+ */
+async function sendTestMessage(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { id: userId } = req.user;
+    const { message, eventType = 'message_received' } = req.body;
+
+    // Message is required only for message_received event
+    if (eventType === 'message_received' && (!message || !message.trim())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required for message_received event'
+      });
+    }
+
+    const result = await agentTestService.sendTestMessage(
+      sessionId,
+      message ? message.trim() : null,
+      userId,
+      eventType
+    );
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error sending test message:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Get test session logs
+ * GET /api/ai-employees/test/:sessionId/logs
+ */
+async function getTestLogs(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { id: userId } = req.user;
+    const { since } = req.query;
+
+    const logs = await agentTestService.getTestLogs(
+      sessionId,
+      userId,
+      since ? new Date(since) : null
+    );
+
+    res.json({
+      success: true,
+      data: { logs }
+    });
+  } catch (error) {
+    console.error('Error getting test logs:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Get test session state
+ * GET /api/ai-employees/test/:sessionId
+ */
+async function getTestSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { id: userId } = req.user;
+
+    const session = await agentTestService.getTestSessionState(
+      sessionId,
+      userId
+    );
+
+    res.json({
+      success: true,
+      data: { session }
+    });
+  } catch (error) {
+    console.error('Error getting test session:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * End a test session
+ * POST /api/ai-employees/test/:sessionId/end
+ */
+async function endTestSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { id: userId } = req.user;
+
+    const result = await agentTestService.endTestSession(sessionId, userId);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error ending test session:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Reset a test session
+ * POST /api/ai-employees/test/:sessionId/reset
+ */
+async function resetTestSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { id: userId } = req.user;
+
+    const result = await agentTestService.resetTestSession(sessionId, userId);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error resetting test session:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Update lead simulation for a test session
+ * PUT /api/ai-employees/test/:sessionId/lead
+ */
+async function updateTestLead(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { id: userId } = req.user;
+    const { leadSimulation } = req.body;
+
+    const result = await agentTestService.updateLeadSimulation(
+      sessionId,
+      userId,
+      leadSimulation
+    );
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error updating test lead:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Get active test sessions for current user
+ * GET /api/ai-employees/test/sessions
+ */
+async function getActiveSessions(req, res) {
+  try {
+    const { accountId, id: userId } = req.user;
+
+    const sessions = await agentTestService.getActiveSessions(userId, accountId);
+
+    res.json({
+      success: true,
+      data: { sessions }
+    });
+  } catch (error) {
+    console.error('Error getting active sessions:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   getTemplates,
   getTemplate,
@@ -440,5 +671,14 @@ module.exports = {
   getInterviewQuestion,
   generateAgent,
   getPendingTemplates,
-  moderateTemplate
+  moderateTemplate,
+  // Test session routes
+  startTestSession,
+  sendTestMessage,
+  getTestLogs,
+  getTestSession,
+  endTestSession,
+  resetTestSession,
+  updateTestLead,
+  getActiveSessions
 };

@@ -13,6 +13,7 @@ import TemplateGallery from '../components/aiemployees/TemplateGallery';
 import AgentProfileStep from '../components/aiemployees/AgentProfileStep';
 import WorkflowBuilder from '../components/aiemployees/WorkflowBuilder';
 import FollowUpBuilder from '../components/aiemployees/FollowUpBuilder';
+import AgentTestModal from '../components/aiemployees/AgentTestModal';
 
 // Tabs for the main page
 const TABS = {
@@ -73,6 +74,10 @@ const AIEmployeesPage = () => {
   const [showDeleteAgentModal, setShowDeleteAgentModal] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState(null);
   const [deletingAgent, setDeletingAgent] = useState(false);
+
+  // Agent test state
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [agentToTest, setAgentToTest] = useState(null);
 
   // Folder state
   const [agentFolders, setAgentFolders] = useState({ tree: [], flatList: [], totalCount: 0, noFolderCount: 0 });
@@ -530,10 +535,63 @@ const AIEmployeesPage = () => {
     setCurrentStep(STEPS.AGENT_PROFILE);
   };
 
-  // Handle profile completion
+  // Handle profile completion (continue to workflow)
   const handleProfileComplete = (profile) => {
     setAgentProfile(profile);
     setCurrentStep(STEPS.WORKFLOW_BUILDER);
+  };
+
+  // Handle profile save (editing mode - save and return to list)
+  const handleProfileSave = async (profile) => {
+    setAgentProfile(profile);
+    setLoading(true);
+
+    try {
+      const existingAgentId = editingAgent?.id || editingAgentWorkflow?.id;
+      const existingConfig = editingAgent?.config || editingAgentWorkflow?.config || {};
+      const existingAgentType = editingAgent?.agent_type || editingAgentWorkflow?.agent_type;
+
+      // Build new config preserving required fields
+      const newConfig = {
+        ...existingConfig,
+        tone: profile?.tone || existingConfig.tone,
+        objective: profile?.objective || existingConfig.objective,
+        personality: profile?.personality || existingConfig.personality,
+        rules: profile?.rules || existingConfig.rules,
+        company: profile?.company || existingConfig.company,
+        product: profile?.product || existingConfig.product,
+        faq: profile?.faq || existingConfig.faq,
+        objections: profile?.objections || existingConfig.objections
+      };
+
+      // Ensure required fields exist based on agent type
+      if ((existingAgentType === 'whatsapp' || existingAgentType === 'email') && !newConfig.initial_message) {
+        newConfig.initial_message = existingConfig.initial_message || 'Olá! Como posso ajudar?';
+      }
+      if (existingAgentType === 'linkedin' && !newConfig.behavioral_profile) {
+        newConfig.behavioral_profile = existingConfig.behavioral_profile || 'professional';
+      }
+
+      const updateData = {
+        name: profile?.name,
+        description: profile?.description,
+        avatar_url: profile?.avatarUrl,
+        response_length: profile?.responseLength || 'medium',
+        config: newConfig,
+        is_active: editingAgent?.is_active ?? editingAgentWorkflow?.is_active ?? true
+      };
+
+      await api.updateAgent(existingAgentId, updateData);
+
+      // Reload employees list and return to list
+      await loadEmployees();
+      handleReset();
+      console.log('AI Employee profile updated successfully');
+    } catch (error) {
+      console.error('Error updating AI Employee profile:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Go back
@@ -665,8 +723,22 @@ const AIEmployeesPage = () => {
           avatar_url: agentProfile?.avatarUrl,
           response_length: agentProfile?.responseLength || 'medium',
           config: newConfig,
+          workflow_definition: workflowDefinition,
+          workflow_enabled: !!workflowDefinition,
           is_active: editingAgent?.is_active ?? editingAgentWorkflow?.is_active ?? true
         };
+
+        console.log('📤 [updateAgent] Sending workflow_definition:', {
+          hasWorkflow: !!workflowDefinition,
+          nodesCount: workflowDefinition?.nodes?.length || 0,
+          edgesCount: workflowDefinition?.edges?.length || 0,
+          edges: workflowDefinition?.edges?.map(e => ({
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle
+          }))
+        });
+
         response = await api.updateAgent(existingAgentId, updateData);
       } else {
         // Create new agent - use generate endpoint
@@ -692,23 +764,29 @@ const AIEmployeesPage = () => {
           ...interviewAnswers
         };
 
+        // Only send template_id if it's a valid UUID (from database), not local templates like "consultive-service"
+        const isValidUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        const templateId = selectedTemplate?.id && selectedTemplate.id !== 'scratch' && isValidUUID(selectedTemplate.id)
+          ? selectedTemplate.id
+          : null;
+
         const generateData = {
           agent_type: channel,
           niche: agentType,
-          template_id: selectedTemplate?.id !== 'scratch' ? selectedTemplate?.id : null,
+          template_id: templateId,
           answers: answers,
           workflow_definition: workflowDefinition
         };
         response = await api.generateAIEmployee(generateData);
       }
 
-      if (response.success) {
+      if (response?.success || response?.data || response?.id) {
         // Reload employees list
         await loadEmployees();
         // Reset wizard and go back to list
         handleReset();
         // Show success (you could add a toast notification here)
-        console.log(isEditing ? 'AI Employee updated successfully:' : 'AI Employee created successfully:', response.data);
+        console.log(isEditing ? 'AI Employee updated successfully:' : 'AI Employee created successfully:', response);
       }
     } catch (error) {
       console.error('Error creating/updating AI Employee:', error);
@@ -1131,6 +1209,16 @@ const AIEmployeesPage = () => {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => {
+                                    setAgentToTest(employee);
+                                    setShowTestModal(true);
+                                  }}
+                                  className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                  title="Testar Agente"
+                                >
+                                  <PlayCircle className="w-4 h-4" />
+                                </button>
                                 <button
                                   onClick={() => {
                                     // Open agent config editor (profile, knowledge base, rules)
@@ -1789,6 +1877,17 @@ const AIEmployeesPage = () => {
           </div>
         )}
 
+        {/* Agent Test Modal */}
+        {showTestModal && agentToTest && (
+          <AgentTestModal
+            agent={agentToTest}
+            onClose={() => {
+              setShowTestModal(false);
+              setAgentToTest(null);
+            }}
+          />
+        )}
+
         {/* Move to Folder Modal */}
         {showMoveToFolderModal && itemToMove && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1932,7 +2031,7 @@ const AIEmployeesPage = () => {
               <button
                 onClick={handleCreateAgent}
                 disabled={loading}
-                className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <>
@@ -1986,6 +2085,7 @@ const AIEmployeesPage = () => {
             channel={channel}
             initialData={agentProfile}
             onComplete={handleProfileComplete}
+            onSave={handleProfileSave}
             onBack={handleBack}
             isEditing={!!(editingAgent || editingAgentWorkflow)}
           />

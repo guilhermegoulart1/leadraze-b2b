@@ -2865,6 +2865,64 @@ class ApiService {
   }
 
   // ==========================================
+  // AI EMPLOYEE TEST SESSIONS
+  // ==========================================
+
+  // Start a test session for an agent
+  async startAgentTestSession(agentId, leadSimulation = {}) {
+    return this.request(`/ai-employees/${agentId}/test/start`, {
+      method: 'POST',
+      body: JSON.stringify({ leadSimulation }),
+    });
+  }
+
+  // Get test session state
+  async getAgentTestSession(sessionId) {
+    return this.request(`/ai-employees/test/${sessionId}`);
+  }
+
+  // Send a message in a test session (or simulate an event)
+  async sendAgentTestMessage(sessionId, message, eventType = 'message_received') {
+    return this.request(`/ai-employees/test/${sessionId}/message`, {
+      method: 'POST',
+      body: JSON.stringify({ message, eventType }),
+    });
+  }
+
+  // Get test session logs
+  async getAgentTestLogs(sessionId, since = null) {
+    const query = since ? `?since=${since}` : '';
+    return this.request(`/ai-employees/test/${sessionId}/logs${query}`);
+  }
+
+  // End a test session
+  async endAgentTestSession(sessionId) {
+    return this.request(`/ai-employees/test/${sessionId}/end`, {
+      method: 'POST',
+    });
+  }
+
+  // Reset a test session
+  async resetAgentTestSession(sessionId) {
+    return this.request(`/ai-employees/test/${sessionId}/reset`, {
+      method: 'POST',
+    });
+  }
+
+  // Update lead simulation data
+  async updateAgentTestLead(sessionId, leadSimulation) {
+    return this.request(`/ai-employees/test/${sessionId}/lead`, {
+      method: 'PUT',
+      body: JSON.stringify({ leadSimulation }),
+    });
+  }
+
+  // Get active test sessions
+  async getActiveAgentTestSessions() {
+    return this.request('/ai-employees/test/sessions');
+  }
+
+  // ==========================================
   // FOLLOW-UP FLOWS
   // ==========================================
 

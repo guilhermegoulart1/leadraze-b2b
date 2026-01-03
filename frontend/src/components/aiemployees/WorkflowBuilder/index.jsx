@@ -91,6 +91,7 @@ const generateWorkflowFromAnswers = (agentType, interviewAnswers) => {
         ? `Inicie a conversa de forma amigavel, mencionando a ${interviewAnswers.company_name}. Seja natural e nao pareca um robo.`
         : 'Quebre o gelo de forma natural e amigavel. Seja genuino.',
       objective: 'Lead demonstrar abertura para conversa',
+      hasMaxMessages: true,
       maxMessages: 2,
       examples: []
     }
@@ -112,6 +113,7 @@ const generateWorkflowFromAnswers = (agentType, interviewAnswers) => {
           ? `Entenda as necessidades do lead relacionadas a: ${interviewAnswers.product_service || 'seu produto'}. Faca perguntas abertas.`
           : `Identifique qual servico o cliente precisa: ${interviewAnswers.services || 'servicos oferecidos'}.`,
         objective: 'Entender necessidade do lead',
+        hasMaxMessages: true,
         maxMessages: 3,
         examples: []
       }
@@ -132,6 +134,7 @@ const generateWorkflowFromAnswers = (agentType, interviewAnswers) => {
           ? `Apresente como ${interviewAnswers.company_name || 'nossa solucao'} pode ajudar. ${interviewAnswers.differentials ? 'Destaque: ' + interviewAnswers.differentials : ''}`
           : `Explique como podemos ajudar com base na necessidade identificada. ${interviewAnswers.operating_hours ? 'Horario: ' + interviewAnswers.operating_hours : ''}`,
         objective: 'Lead entender o valor',
+        hasMaxMessages: true,
         maxMessages: 3,
         examples: []
       }
@@ -151,6 +154,7 @@ const generateWorkflowFromAnswers = (agentType, interviewAnswers) => {
         stepNumber: 4,
         instructions: `Objetivo: ${conversionGoal}. Seja direto mas nao agressivo. Se o lead demonstrar resistencia, entenda o motivo.`,
         objective: conversionGoal,
+        hasMaxMessages: true,
         maxMessages: 3,
         examples: []
       }
@@ -238,6 +242,7 @@ const getLinkedInSDRWorkflow = () => ({
         stepNumber: 1,
         instructions: 'Quebre o gelo de forma natural. Agradeca pela conexao e mencione algo em comum ou do perfil da pessoa. Seja genuino e nao pareca um robo.',
         objective: 'Lead demonstrar abertura para conversa',
+        hasMaxMessages: true,
         maxMessages: 2,
         examples: ['Obrigado por aceitar! Vi que voce trabalha com X, area muito interessante.']
       }
@@ -252,6 +257,7 @@ const getLinkedInSDRWorkflow = () => ({
         stepNumber: 2,
         instructions: 'Faca perguntas abertas para entender o contexto atual do lead. Qual o maior desafio? Como funciona o processo atual? Escute mais do que fale.',
         objective: 'Identificar necessidades e dores do lead',
+        hasMaxMessages: true,
         maxMessages: 3,
         examples: ['Como funciona o processo de X na empresa de voces hoje?']
       }
@@ -278,6 +284,7 @@ const getLinkedInSDRWorkflow = () => ({
         stepNumber: 3,
         instructions: 'Conecte sua solucao com as dores identificadas. Mostre como pode ajudar sem ser agressivo. Use casos de sucesso se houver.',
         objective: 'Lead entender o valor da solucao',
+        hasMaxMessages: true,
         maxMessages: 2,
         examples: ['Entendo. Temos ajudado empresas como a sua a resolver exatamente isso...']
       }
@@ -292,6 +299,7 @@ const getLinkedInSDRWorkflow = () => ({
         stepNumber: 4,
         instructions: 'Proponha proximo passo: reuniao, demo ou conversa. Seja direto mas respeitoso. Se houver resistencia, entenda o motivo.',
         objective: 'Agendar reuniao ou proximo passo',
+        hasMaxMessages: true,
         maxMessages: 3,
         examples: ['Que tal uma conversa rapida de 15min pra mostrar como funciona?']
       }
@@ -442,7 +450,7 @@ const WorkflowBuilderInner = ({
       }
     }
 
-    // 4. Check conditions have both yes/no paths
+    // 4. Check conditions have both yes/no paths (BLOCKS SAVE)
     const conditions = nodesToValidate.filter(n => n.type === 'condition');
     conditions.forEach(condition => {
       const yesEdge = edgesToValidate.find(e => e.source === condition.id && e.sourceHandle === 'yes');
@@ -450,16 +458,38 @@ const WorkflowBuilderInner = ({
 
       if (!yesEdge) {
         errors.push({
-          type: 'warning',
-          message: `Condicao "${condition.data.label}" sem caminho SIM`,
+          type: 'error',
+          message: `Condicao "${condition.data.label}" sem caminho SIM conectado`,
           nodeId: condition.id
         });
       }
       if (!noEdge) {
         errors.push({
-          type: 'warning',
-          message: `Condicao "${condition.data.label}" sem caminho NAO`,
+          type: 'error',
+          message: `Condicao "${condition.data.label}" sem caminho NAO conectado`,
           nodeId: condition.id
+        });
+      }
+    });
+
+    // 4.1 Check conversationSteps have both success/failure paths (BLOCKS SAVE)
+    const conversationSteps = nodesToValidate.filter(n => n.type === 'conversationStep');
+    conversationSteps.forEach(step => {
+      const successEdge = edgesToValidate.find(e => e.source === step.id && e.sourceHandle === 'success');
+      const failureEdge = edgesToValidate.find(e => e.source === step.id && e.sourceHandle === 'failure');
+
+      if (!successEdge) {
+        errors.push({
+          type: 'error',
+          message: `Etapa "${step.data.label}" sem caminho "ATINGIDO" conectado`,
+          nodeId: step.id
+        });
+      }
+      if (!failureEdge) {
+        errors.push({
+          type: 'error',
+          message: `Etapa "${step.data.label}" sem caminho "NAO ATINGIDO" conectado`,
+          nodeId: step.id
         });
       }
     });
@@ -555,6 +585,14 @@ const WorkflowBuilderInner = ({
 
   // Handle edge connections with validation
   const onConnect = useCallback((params) => {
+    // DEBUG: Log connection params to verify sourceHandle
+    console.log('🔗 [onConnect] Connection params:', {
+      source: params.source,
+      target: params.target,
+      sourceHandle: params.sourceHandle,
+      targetHandle: params.targetHandle
+    });
+
     // Rule 1: Prevent self-connections
     if (params.source === params.target) {
       console.warn('Conexao para si mesmo nao permitida');
@@ -657,7 +695,8 @@ const WorkflowBuilderInner = ({
         stepNumber: stepCount + 1,
         instructions: '',
         objective: '',
-        maxMessages: 3,
+        hasMaxMessages: false,  // Toggle OFF by default = unlimited
+        maxMessages: null,      // null = unlimited (AI decides when to advance)
         examples: []
       },
       condition: {
@@ -753,6 +792,14 @@ const WorkflowBuilderInner = ({
 
   // Build workflow object for saving
   const buildWorkflow = useCallback(() => {
+    // DEBUG: Log edges being saved
+    console.log('💾 [buildWorkflow] Edges being saved:', edges.map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle
+    })));
+
     return {
       nodes: nodes.map(n => ({
         id: n.id,

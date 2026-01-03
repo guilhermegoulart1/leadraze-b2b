@@ -483,7 +483,9 @@ const updateAgent = async (req, res) => {
       scheduling_link,
       auto_schedule,
       intent_detection_enabled,
-      response_style_instructions
+      response_style_instructions,
+      workflow_definition,
+      workflow_enabled
     } = req.body;
 
     // Validate config if provided
@@ -629,6 +631,27 @@ const updateAgent = async (req, res) => {
     if (response_style_instructions !== undefined) {
       updates.push(`response_style_instructions = $${paramIndex}`);
       params.push(response_style_instructions);
+      paramIndex++;
+    }
+
+    if (workflow_definition !== undefined) {
+      updates.push(`workflow_definition = $${paramIndex}`);
+      params.push(JSON.stringify(workflow_definition));
+      paramIndex++;
+      console.log('📥 [updateAgent] Saving workflow_definition:', {
+        nodesCount: workflow_definition?.nodes?.length || 0,
+        edgesCount: workflow_definition?.edges?.length || 0,
+        edges: workflow_definition?.edges?.map(e => ({
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle
+        }))
+      });
+    }
+
+    if (workflow_enabled !== undefined) {
+      updates.push(`workflow_enabled = $${paramIndex}`);
+      params.push(workflow_enabled);
       paramIndex++;
     }
 

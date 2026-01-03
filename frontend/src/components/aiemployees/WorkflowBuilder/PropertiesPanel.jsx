@@ -550,7 +550,14 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           </label>
           <button
             type="button"
-            onClick={() => handleChange('hasMaxMessages', !localData.hasMaxMessages)}
+            onClick={() => {
+              // When toggle is turned OFF, also clear maxMessages to ensure unlimited
+              if (localData.hasMaxMessages) {
+                handleMultiChange({ hasMaxMessages: false, maxMessages: null });
+              } else {
+                handleMultiChange({ hasMaxMessages: true, maxMessages: localData.maxMessages || 3 });
+              }
+            }}
             className={`relative w-9 h-5 rounded-full transition-colors ${
               localData.hasMaxMessages ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
             }`}

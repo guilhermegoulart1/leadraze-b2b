@@ -455,6 +455,25 @@ QUANDO NÃO AVANÇAR:
 - A conversa está em fase de aquecimento/rapport`;
   }
 
+  // Workflow visual: incluir instruções de progressão quando objective_instructions existe
+  // (para agentes que usam workflow visual em vez de conversation_steps)
+  if (!stepsSection && ai_agent.objective_instructions) {
+    stepsSection = `
+
+OBJETIVO DESTA ETAPA:
+${ai_agent.objective_instructions}
+
+REGRA DE CONCLUSÃO DA ETAPA:
+- Quando você determinar que o objetivo acima foi CLARAMENTE atingido (baseado na resposta do lead), inclua [NEXT_STEP] no final da sua mensagem.
+- NÃO inclua [NEXT_STEP] se o lead deu uma resposta genérica ou evasiva.
+- Pode demorar várias mensagens para atingir o objetivo - isso é normal e esperado.
+
+EXEMPLOS:
+- Objetivo: "Entender a dúvida do lead"
+  - Lead: "Ah tudo bem" → NÃO ATINGIDO (resposta genérica, não expressou dúvida)
+  - Lead: "Minha dúvida é sobre o preço do produto X" → ATINGIDO (dúvida clara expressa) [NEXT_STEP]`;
+  }
+
   // Build escalation section
   let escalationSection = '';
   const hasSentiments = ai_agent.escalation_sentiments && ai_agent.escalation_sentiments.length > 0;
@@ -549,15 +568,6 @@ ${ai_agent.value_proposition ? `Proposta de Valor: ${ai_agent.value_proposition}
 ${ai_agent.key_differentiators ? `Diferenciais: ${ai_agent.key_differentiators}` : ''}`;
   }
 
-  // Build additional instructions
-  let additionalInstructions = '';
-  if (ai_agent.objective_instructions) {
-    additionalInstructions = `
-
-INSTRUÇÕES ESPECÍFICAS:
-${ai_agent.objective_instructions}`;
-  }
-
   // Get channel-specific context
   const agentType = ai_agent.agent_type || 'linkedin';
   const channelContext = getChannelContext(agentType);
@@ -591,44 +601,21 @@ ${transferTriggersSection}
 ${priorityRulesSection}
 ${leadInfo}
 ${profileAnalysisContext}
-${additionalInstructions}
 ${objectionsContext}
 
-INSTRUÇÕES DE ESTILO:
-${ai_agent.response_style_instructions || '- Seja profissional mas acessível\n- Use linguagem clara e direta\n- Mostre interesse genuíno no lead'}
-
-⚠️ REGRA MAIS IMPORTANTE - SEJA HUMANO:
-Você é uma PESSOA REAL tendo uma conversa genuína. NÃO é um vendedor tentando qualificar.
-
-COMO CONVERSAR (siga isso rigorosamente):
-1. Respostas CURTAS - ${channelContext.maxSentences}
-2. Converse como AMIGO, não como vendedor
-3. NÃO faça perguntas sobre "desafios", "dores" ou "necessidades" nas primeiras mensagens
-4. NÃO diga coisas como "estou aqui para ajudar" ou "entender suas necessidades" - isso é linguagem de bot
-5. Se o lead não te conhece, NÃO force conversa sobre negócios - apenas bata papo primeiro
-6. Adapte seu tom ao do lead - se ele for informal, seja informal também
-7. Se o lead parecer confuso ou resistente, recue e seja mais casual
-
-EXEMPLOS DO QUE NÃO FAZER:
-❌ "Algum desafio que você gostaria de compartilhar?"
-❌ "Estou aqui para construir um relacionamento"
-❌ "Como posso ajudar você?"
-❌ "Entender melhor suas necessidades"
-❌ "Na sua área de [X]..." ou "Na [empresa]..."
-
-EXEMPLOS DO QUE FAZER:
-✅ "E aí, tudo bem?"
-✅ "Show! E como tá o mercado por aí?"
-✅ "Ah entendi. E você, curte o que faz?"
-✅ Responder de forma CURTA e natural como um humano faria
-
-QUANDO O LEAD DER ABERTURA (depois de algumas trocas):
-- Aí sim você pode explorar o que ele faz
-- Mas de forma natural, não interrogatório
-${ai_agent.auto_schedule && ai_agent.scheduling_link ? `- Se mostrar interesse real: ${ai_agent.scheduling_link}` : ''}
+${ai_agent.response_style_instructions ? `
+INSTRUÇÕES DE ESTILO E COMUNICAÇÃO:
+${ai_agent.response_style_instructions}` : ''}
+${ai_agent.auto_schedule && ai_agent.scheduling_link ? `
+AGENDAMENTO:
+Link para agendamento quando apropriado: ${ai_agent.scheduling_link}` : ''}
 ${languageInstruction}
+${ai_agent.objective_instructions ? `
 
-Lembre: você é uma pessoa, não um bot. Converse como tal.`;
+⚠️ INSTRUÇÕES DESTA ETAPA DA CONVERSA:
+${ai_agent.objective_instructions}
+
+Siga as instruções acima para esta etapa específica do fluxo.` : ''}`;
 
   return basePrompt;
 }
