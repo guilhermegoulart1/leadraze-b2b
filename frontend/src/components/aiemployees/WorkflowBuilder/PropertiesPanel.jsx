@@ -1032,7 +1032,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           <option value="remove_tag">Remover Tag</option>
           <option value="close_positive">Encerrar (Positivo)</option>
           <option value="close_negative">Encerrar (Negativo)</option>
-          <option value="pause">Pausar</option>
+          <option value="wait">Aguardar</option>
           <option value="webhook">Chamar Webhook</option>
         </select>
       </div>
@@ -1552,96 +1552,35 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
         </div>
       )}
 
-      {localData.actionType === 'pause' && (
-        <div className="space-y-2">
-          {/* Random Mode Toggle */}
-          <div className="flex items-center justify-between">
-            <label className="text-[11px] font-medium text-gray-700 dark:text-gray-300">
-              Modo Aleatorio
-            </label>
-            <button
-              type="button"
-              onClick={() => handleChange('params', {
-                ...localData.params,
-                randomMode: !localData.params?.randomMode,
-                // Reset to defaults when switching
-                ...(localData.params?.randomMode
-                  ? { duration: 5, minDuration: undefined, maxDuration: undefined }
-                  : { duration: undefined, minDuration: 3, maxDuration: 10 }
-                )
-              })}
-              className={`relative w-9 h-5 rounded-full transition-colors ${
-                localData.params?.randomMode ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+      {localData.actionType === 'wait' && (
+        <div className="space-y-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+          <label className="block text-[11px] font-medium text-amber-700 dark:text-amber-400">
+            <Clock className="w-3 h-3 inline mr-1" />
+            Tempo de Espera
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="1"
+              max="999"
+              value={localData.waitTime || 24}
+              onChange={(e) => handleChange('waitTime', parseInt(e.target.value) || 1)}
+              className="w-20 px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 dark:text-white"
+            />
+            <select
+              value={localData.waitUnit || 'hours'}
+              onChange={(e) => handleChange('waitUnit', e.target.value)}
+              className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 dark:text-white"
             >
-              <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  localData.params?.randomMode ? 'translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </button>
+              <option value="seconds">Segundos</option>
+              <option value="minutes">Minutos</option>
+              <option value="hours">Horas</option>
+              <option value="days">Dias</option>
+            </select>
           </div>
-
-          {localData.params?.randomMode ? (
-            <>
-              {/* Random Range Inputs */}
-              <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                Valor aleatorio entre os limites
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
-                    Min (min)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={localData.params?.minDuration || 3}
-                    onChange={(e) => handleChange('params', {
-                      ...localData.params,
-                      minDuration: parseInt(e.target.value) || 1
-                    })}
-                    className="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-xs"
-                  />
-                </div>
-                <div className="space-y-0.5">
-                  <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
-                    Max (min)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={localData.params?.maxDuration || 10}
-                    onChange={(e) => handleChange('params', {
-                      ...localData.params,
-                      maxDuration: parseInt(e.target.value) || 1
-                    })}
-                    className="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-xs"
-                  />
-                </div>
-              </div>
-              {/* Validation warning */}
-              {(localData.params?.minDuration || 3) > (localData.params?.maxDuration || 10) && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                  Min deve ser menor que max
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Fixed Duration Input */}
-              <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
-                Tempo (minutos)
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={localData.params?.duration || 5}
-                onChange={(e) => handleChange('params', { ...localData.params, duration: parseInt(e.target.value) })}
-                className="w-full px-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white"
-              />
-            </>
-          )}
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">
+            Aguarda este tempo antes de continuar para o proximo passo
+          </p>
         </div>
       )}
 

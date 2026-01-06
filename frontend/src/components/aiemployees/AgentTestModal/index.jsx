@@ -5,7 +5,8 @@ import {
   X, Send, RefreshCw, User, Bot, Settings, Loader,
   ChevronRight, CheckCircle, AlertCircle, Info, Zap,
   Play, Square, Clock, MessageSquare, GitBranch, Search,
-  Target, Hash, UserCheck, UserX, ThumbsUp, ThumbsDown
+  Target, Hash, UserCheck, UserX, ThumbsUp, ThumbsDown,
+  FastForward, Timer
 } from 'lucide-react';
 import api from '../../../services/api';
 
@@ -60,6 +61,10 @@ const AgentTestModal = ({ agent, onClose }) => {
     industry: 'Tecnologia'
   });
 
+  // Wait action state
+  const [waitInfo, setWaitInfo] = useState(null);
+  const [waitCountdown, setWaitCountdown] = useState(null); // Countdown in seconds for waits <= 1 min
+
   // Refs for auto-scroll
   const messagesEndRef = useRef(null);
   const logsEndRef = useRef(null);
@@ -84,6 +89,83 @@ const AgentTestModal = ({ agent, onClose }) => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
+  // Countdown effect for wait actions <= 1 minute
+  useEffect(() => {
+    if (!waitInfo) {
+      setWaitCountdown(null);
+      return;
+    }
+
+    // Calculate total wait in seconds
+    const multipliers = { seconds: 1, minutes: 60, hours: 3600, days: 86400 };
+    const totalSeconds = (waitInfo.waitTime || 0) * (multipliers[waitInfo.waitUnit] || 1);
+
+    // Only show countdown for waits <= 60 seconds
+    if (totalSeconds <= 60) {
+      setWaitCountdown(totalSeconds);
+
+      const interval = setInterval(() => {
+        setWaitCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            // Auto-skip when countdown reaches 0
+            handleSkipWait();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setWaitCountdown(null);
+    }
+  }, [waitInfo]);
+
+  // Skip wait action in test mode
+  const handleSkipWait = async () => {
+    if (!waitInfo || sending || !sessionId) return;
+
+    setSending(true);
+    setWaitInfo(null);
+    setWaitCountdown(null);
+
+    try {
+      const response = await api.sendAgentTestMessage(sessionId, null, 'message_received', true);
+
+      if (response.success) {
+        const { data } = response;
+
+        // Add AI response if any
+        if (data.response) {
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            sender: 'ai',
+            content: data.response,
+            timestamp: new Date().toISOString()
+          }]);
+        }
+
+        // Update logs
+        if (data.logs && data.logs.length > 0) {
+          setLogs(prev => [...prev, ...data.logs.map(log => ({
+            ...log,
+            id: log.id || Date.now() + Math.random()
+          }))]);
+        }
+
+        // Check for new wait action
+        if (data.waitInfo?.isWaitAction) {
+          setWaitInfo(data.waitInfo);
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Start a new test session
   const startSession = async () => {
     try {
@@ -91,6 +173,8 @@ const AgentTestModal = ({ agent, onClose }) => {
       setError(null);
       setMessages([]);
       setLogs([]);
+      setWaitInfo(null);
+      setWaitCountdown(null);
 
       const response = await api.startAgentTestSession(agent.id, leadSimulation);
 
@@ -165,6 +249,11 @@ const AgentTestModal = ({ agent, onClose }) => {
             id: log.id || Date.now() + Math.random()
           }))]);
         }
+
+        // Check for wait action
+        if (data.waitInfo?.isWaitAction) {
+          setWaitInfo(data.waitInfo);
+        }
       } else {
         throw new Error(response.error || 'Failed to simulate event');
       }
@@ -221,6 +310,11 @@ const AgentTestModal = ({ agent, onClose }) => {
             id: log.id || Date.now() + Math.random()
           }))]);
         }
+
+        // Check for wait action
+        if (data.waitInfo?.isWaitAction) {
+          setWaitInfo(data.waitInfo);
+        }
       } else {
         throw new Error(response.error || 'Failed to send message');
       }
@@ -250,6 +344,8 @@ const AgentTestModal = ({ agent, onClose }) => {
         setMessages([]);
         setInviteStatus(null);
         setShowEventPanel(true);
+        setWaitInfo(null);
+        setWaitCountdown(null);
         setLogs([{
           id: Date.now(),
           timestamp: new Date().toISOString(),
@@ -447,6 +543,47 @@ const AgentTestModal = ({ agent, onClose }) => {
               className="ml-auto text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
             >
               <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Wait Action Banner */}
+        {waitInfo && (
+          <div className="flex-shrink-0 px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {waitCountdown !== null ? (
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-800/50">
+                  <span className="text-lg font-bold text-amber-700 dark:text-amber-300">{waitCountdown}</span>
+                </div>
+              ) : (
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              )}
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  {waitCountdown !== null
+                    ? `Aguardando ${waitCountdown}s...`
+                    : `Aguardando ${waitInfo.waitTime} ${
+                        waitInfo.waitUnit === 'seconds' ? 'segundos' :
+                        waitInfo.waitUnit === 'minutes' ? 'minutos' :
+                        waitInfo.waitUnit === 'days' ? 'dias' : 'horas'
+                      }`
+                  }
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {waitCountdown !== null
+                    ? 'O workflow continuará automaticamente ou clique para pular'
+                    : 'Em produção, o workflow aguardaria este tempo antes de continuar'
+                  }
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleSkipWait}
+              disabled={sending}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FastForward className="w-4 h-4" />
+              Pular Espera
             </button>
           </div>
         )}

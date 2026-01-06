@@ -2882,10 +2882,10 @@ class ApiService {
   }
 
   // Send a message in a test session (or simulate an event)
-  async sendAgentTestMessage(sessionId, message, eventType = 'message_received') {
+  async sendAgentTestMessage(sessionId, message, eventType = 'message_received', skipWait = false) {
     return this.request(`/ai-employees/test/${sessionId}/message`, {
       method: 'POST',
-      body: JSON.stringify({ message, eventType }),
+      body: JSON.stringify({ message, eventType, skipWait }),
     });
   }
 

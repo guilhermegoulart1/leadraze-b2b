@@ -709,10 +709,12 @@ const WorkflowBuilderInner = ({
         label: subtype === 'transfer' ? 'Transferir' :
                subtype === 'schedule' ? 'Agendar' :
                subtype === 'close_positive' ? 'Encerrar +' :
-               subtype === 'close_negative' ? 'Encerrar -' : 'Acao',
+               subtype === 'close_negative' ? 'Encerrar -' :
+               subtype === 'wait' ? 'Aguardar' : 'Acao',
         actionType: subtype || 'transfer',
         message: '',
-        params: {}
+        params: {},
+        ...(subtype === 'wait' ? { waitTime: 24, waitUnit: 'hours' } : {})
       },
       trigger: {
         label: eventLabels[triggerEvent] || 'Trigger',

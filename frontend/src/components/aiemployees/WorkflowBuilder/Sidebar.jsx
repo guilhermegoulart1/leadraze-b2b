@@ -4,7 +4,7 @@
 import React, { useMemo } from 'react';
 import {
   Zap, MessageCircle, GitBranch, PhoneCall, Calendar, Send,
-  XCircle, CheckCircle, Tag, MinusCircle, Pause, UserCheck, UserX, Eye,
+  XCircle, CheckCircle, Tag, MinusCircle, UserCheck, UserX, Eye,
   Heart, Mail, Clock, UserPlus, Image, MousePointer, List,
   Globe, LogOut, Reply
 } from 'lucide-react';
@@ -135,11 +135,11 @@ const baseCategories = [
       },
       {
         type: 'action',
-        subtype: 'pause',
-        label: 'Pausar',
-        description: 'Aguardar',
-        icon: Pause,
-        color: 'gray'
+        subtype: 'wait',
+        label: 'Aguardar',
+        description: 'Tempo de espera',
+        icon: Clock,
+        color: 'amber'
       }
     ]
   }

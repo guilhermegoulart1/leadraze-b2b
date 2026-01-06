@@ -415,6 +415,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
               onChange={(e) => handleChange('waitUnit', e.target.value)}
               className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 dark:text-white"
             >
+              <option value="seconds">Segundos</option>
               <option value="minutes">Minutos</option>
               <option value="hours">Horas</option>
               <option value="days">Dias</option>

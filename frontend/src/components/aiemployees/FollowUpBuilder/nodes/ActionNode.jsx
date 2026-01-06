@@ -267,7 +267,7 @@ const ActionNode = ({ id, data, selected }) => {
               {data.actionType === 'wait' ? (
                 <>
                   <h4 className="font-semibold text-gray-900 dark:text-white text-base">
-                    {data.waitTime || 24} {data.waitUnit === 'minutes' ? 'minutos' : data.waitUnit === 'days' ? 'dias' : 'horas'}
+                    {data.waitTime || 24} {data.waitUnit === 'seconds' ? 'segundos' : data.waitUnit === 'minutes' ? 'minutos' : data.waitUnit === 'days' ? 'dias' : 'horas'}
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                     Aguardar sem resposta

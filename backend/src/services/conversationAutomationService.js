@@ -178,6 +178,44 @@ async function processIncomingMessage(params) {
 
     console.log(`✅ Workflow processed message, executed ${workflowResult.executedNodes?.length || 0} nodes`);
 
+    // ========================================
+    // ENRIQUECIMENTO: Atualizar lead com dados extraídos pela IA
+    // ========================================
+    if (workflowResult.enrichedData?.extractedData) {
+      try {
+        await updateLeadWithExtractedData(
+          conversation.lead_id,
+          workflowResult.enrichedData.extractedData
+        );
+      } catch (error) {
+        console.error('⚠️ Erro ao atualizar lead com dados extraídos:', error.message);
+      }
+    }
+
+    // Atualizar qualificação da conversa se disponível
+    if (workflowResult.enrichedData?.qualification) {
+      try {
+        await updateConversationQualification(
+          conversation_id,
+          workflowResult.enrichedData.qualification
+        );
+      } catch (error) {
+        console.error('⚠️ Erro ao atualizar qualificação:', error.message);
+      }
+    }
+
+    // Registrar objeção se detectada
+    if (workflowResult.enrichedData?.objection?.detected) {
+      try {
+        await saveObjectionRecord(
+          conversation_id,
+          workflowResult.enrichedData.objection
+        );
+      } catch (error) {
+        console.error('⚠️ Erro ao registrar objeção:', error.message);
+      }
+    }
+
     return {
       processed: workflowResult.processed || true,
       response_sent: workflowResult.response,
@@ -185,7 +223,8 @@ async function processIncomingMessage(params) {
       executedNodes: workflowResult.executedNodes?.length || 0,
       paused: workflowResult.paused,
       completed: workflowResult.completed,
-      actions: workflowResult.executedActions || []
+      actions: workflowResult.executedActions || [],
+      enrichedData: workflowResult.enrichedData || null
     };
 
   } catch (error) {
@@ -712,6 +751,130 @@ async function enableAIForConversation(conversationId, userId) {
   }
 }
 
+/**
+ * Atualizar lead com dados extraídos pela IA durante a conversa
+ * @param {string} leadId - ID do lead
+ * @param {Object} extractedData - Dados extraídos (email, phone, company, etc)
+ */
+async function updateLeadWithExtractedData(leadId, extractedData) {
+  if (!extractedData || Object.keys(extractedData).length === 0) {
+    return;
+  }
+
+  // Mapear campos extraídos para campos do banco
+  const fieldMapping = {
+    email: 'email',
+    phone: 'phone',
+    company: 'company',
+    role: 'title',  // role mapeia para title no banco
+    company_size: 'company_size',
+    budget: 'budget',
+    timeline: 'timeline'
+  };
+
+  // Buscar lead atual para não sobrescrever dados existentes
+  const currentLead = await db.findOne('leads', { id: leadId });
+  if (!currentLead) {
+    console.log(`⚠️ Lead ${leadId} não encontrado para atualização`);
+    return;
+  }
+
+  const updates = {};
+  const updatedFields = [];
+
+  for (const [extractedField, dbField] of Object.entries(fieldMapping)) {
+    const value = extractedData[extractedField];
+    // Só atualizar se o valor foi extraído E o campo atual está vazio
+    if (value && !currentLead[dbField]) {
+      updates[dbField] = value;
+      updatedFields.push(dbField);
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return;
+  }
+
+  updates.updated_at = new Date();
+
+  await db.update('leads', updates, { id: leadId });
+
+  console.log(`📋 Lead ${leadId} atualizado com dados extraídos: ${updatedFields.join(', ')}`);
+}
+
+/**
+ * Atualizar qualificação da conversa
+ * @param {string} conversationId - ID da conversa
+ * @param {Object} qualification - Dados de qualificação (score, stage, reasons)
+ */
+async function updateConversationQualification(conversationId, qualification) {
+  if (!qualification || typeof qualification.score !== 'number') {
+    return;
+  }
+
+  await db.update(
+    'conversations',
+    {
+      qualification_score: qualification.score,
+      qualification_stage: qualification.stage || 'cold',
+      qualification_reasons: JSON.stringify(qualification.reasons || []),
+      updated_at: new Date()
+    },
+    { id: conversationId }
+  );
+
+  console.log(`⭐ Conversa ${conversationId} qualificada: ${qualification.score} (${qualification.stage})`);
+}
+
+/**
+ * Registrar objeção detectada na conversa
+ * @param {string} conversationId - ID da conversa
+ * @param {Object} objection - Dados da objeção (type, text, severity)
+ */
+async function saveObjectionRecord(conversationId, objection) {
+  if (!objection || !objection.detected) {
+    return;
+  }
+
+  // Salvar na tabela de objeções (se existir) ou no JSON da conversa
+  try {
+    // Tentar inserir na tabela dedicada
+    await db.insert('conversation_objections', {
+      id: uuidv4(),
+      conversation_id: conversationId,
+      type: objection.type || 'unknown',
+      text: objection.text || null,
+      severity: objection.severity || 'medium',
+      detected_at: new Date(),
+      created_at: new Date()
+    });
+
+    console.log(`⚠️ Objeção registrada: ${objection.type} (${objection.severity})`);
+  } catch (error) {
+    // Se a tabela não existir, salvar no campo JSON da conversa
+    if (error.code === '42P01') { // undefined_table
+      console.log('ℹ️ Tabela conversation_objections não existe, salvando em conversations.objections_history');
+
+      const conversation = await db.findOne('conversations', { id: conversationId });
+      const objectionsHistory = conversation?.objections_history || [];
+      objectionsHistory.push({
+        type: objection.type,
+        text: objection.text,
+        severity: objection.severity,
+        detected_at: new Date().toISOString()
+      });
+
+      await db.update(
+        'conversations',
+        { objections_history: JSON.stringify(objectionsHistory) },
+        { id: conversationId }
+      );
+    } else {
+      throw error;
+    }
+  }
+}
+
 module.exports = {
   processIncomingMessage,
   processInviteAccepted,
@@ -719,5 +882,7 @@ module.exports = {
   enableAIForConversation,
   getConversationDetails,
   getConversationHistory,
-  getConversationContext
+  getConversationContext,
+  updateLeadWithExtractedData,
+  updateConversationQualification
 };

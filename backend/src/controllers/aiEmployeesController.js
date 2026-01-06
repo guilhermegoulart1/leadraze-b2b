@@ -466,17 +466,18 @@ async function startTestSession(req, res) {
 /**
  * Send a test message or simulate an event
  * POST /api/ai-employees/test/:sessionId/message
- * Body: { message?: string, eventType?: string }
+ * Body: { message?: string, eventType?: string, skipWait?: boolean }
  * eventType can be: message_received, invite_accepted, invite_ignored, no_response
+ * skipWait: if true, skips current wait action and continues workflow (test mode only)
  */
 async function sendTestMessage(req, res) {
   try {
     const { sessionId } = req.params;
     const { id: userId } = req.user;
-    const { message, eventType = 'message_received' } = req.body;
+    const { message, eventType = 'message_received', skipWait = false } = req.body;
 
-    // Message is required only for message_received event
-    if (eventType === 'message_received' && (!message || !message.trim())) {
+    // Message is required only for message_received event (unless skipping wait)
+    if (eventType === 'message_received' && !skipWait && (!message || !message.trim())) {
       return res.status(400).json({
         success: false,
         error: 'Message is required for message_received event'
@@ -487,7 +488,8 @@ async function sendTestMessage(req, res) {
       sessionId,
       message ? message.trim() : null,
       userId,
-      eventType
+      eventType,
+      skipWait
     );
 
     res.json({

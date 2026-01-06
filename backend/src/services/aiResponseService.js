@@ -281,18 +281,103 @@ async function generateResponse(params) {
     }
 
     // Chamar OpenAI
-    const completion = await openai.chat.completions.create({
+    // Se tem objective_instructions, forçar resposta em JSON
+    const useJsonMode = !!ai_agent.objective_instructions;
+
+    const completionParams = {
       model: 'gpt-4o-mini',
       messages: messages,
       temperature: 0.7,
       max_tokens: 500,
       presence_penalty: 0.6,
       frequency_penalty: 0.3
-    });
+    };
+
+    // Forçar JSON mode quando objetivo está definido
+    if (useJsonMode) {
+      completionParams.response_format = { type: 'json_object' };
+      console.log(`🔧 [AI] JSON mode ENABLED for objective evaluation`);
+    }
+
+    const completion = await openai.chat.completions.create(completionParams);
 
     const generatedResponse = completion.choices[0].message.content.trim();
 
-    console.log(`✅ Resposta gerada com sucesso (${generatedResponse.length} caracteres)`);
+    // DEBUG: Log da resposta bruta da IA
+    console.log(`🤖 [AI RAW RESPONSE] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>`);
+    console.log(generatedResponse);
+    console.log(`🤖 [AI RAW RESPONSE] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<`);
+    console.log(`📝 [AI] Has objective_instructions: ${!!ai_agent.objective_instructions}`);
+
+    // Tentar parsear como JSON estruturado (quando objective_instructions existe)
+    let parsedResponse = null;
+    let objectiveAchievedByAI = false;
+    let extractedData = null;
+    let qualification = null;
+    let objection = null;
+    let messageContent = generatedResponse;
+
+    if (ai_agent.objective_instructions) {
+      try {
+        // Tentar extrair JSON da resposta
+        const jsonMatch = generatedResponse.match(/\{[\s\S]*\}/);
+        console.log(`🔍 [JSON MATCH] Found JSON: ${!!jsonMatch}`);
+        if (jsonMatch) {
+          console.log(`🔍 [JSON MATCH] JSON string: ${jsonMatch[0].substring(0, 200)}...`);
+          parsedResponse = JSON.parse(jsonMatch[0]);
+          console.log(`✅ [JSON PARSED] objectiveAchieved = ${parsedResponse.objectiveAchieved}`);
+
+          // Extrair campos do JSON
+          objectiveAchievedByAI = parsedResponse.objectiveAchieved === true;
+          messageContent = parsedResponse.message || generatedResponse;
+
+          // Extrair dados do lead (filtrar nulls)
+          if (parsedResponse.extractedData) {
+            const data = parsedResponse.extractedData;
+            extractedData = {};
+            if (data.email && data.email !== 'null') extractedData.email = data.email;
+            if (data.phone && data.phone !== 'null') extractedData.phone = data.phone;
+            if (data.company && data.company !== 'null') extractedData.company = data.company;
+            if (data.role && data.role !== 'null') extractedData.role = data.role;
+            if (data.company_size && data.company_size !== 'null') extractedData.company_size = data.company_size;
+            if (data.budget && data.budget !== 'null') extractedData.budget = data.budget;
+            if (data.timeline && data.timeline !== 'null') extractedData.timeline = data.timeline;
+            // Se não extraiu nada, set null
+            if (Object.keys(extractedData).length === 0) extractedData = null;
+          }
+
+          // Extrair qualificação
+          if (parsedResponse.qualification && typeof parsedResponse.qualification.score === 'number') {
+            qualification = {
+              score: parsedResponse.qualification.score,
+              stage: parsedResponse.qualification.stage || 'warm',
+              reasons: parsedResponse.qualification.reasons || []
+            };
+          }
+
+          // Extrair objeção
+          if (parsedResponse.objection?.detected === true) {
+            objection = {
+              detected: true,
+              type: parsedResponse.objection.type || 'unknown',
+              text: parsedResponse.objection.text || null,
+              severity: parsedResponse.objection.severity || 'medium'
+            };
+          }
+
+          // Logs detalhados
+          console.log(`🎯 Avaliação da IA: objectiveAchieved = ${objectiveAchievedByAI}`);
+          if (extractedData) console.log(`📋 Dados extraídos do lead:`, JSON.stringify(extractedData));
+          if (qualification) console.log(`⭐ Qualificação: ${qualification.score} (${qualification.stage})`);
+          if (objection) console.log(`⚠️ Objeção detectada: ${objection.type} (${objection.severity})`);
+        }
+      } catch (e) {
+        console.log(`⚠️ Resposta não veio em JSON, usando como texto: ${e.message}`);
+        messageContent = generatedResponse;
+      }
+    }
+
+    console.log(`✅ Resposta gerada com sucesso (${messageContent.length} caracteres)`);
 
     // Detectar intenção do lead se habilitado
     let intent = null;
@@ -331,26 +416,38 @@ async function generateResponse(params) {
 
     // Check if AI response contains [TRANSFER] tag (from transfer triggers)
     let aiRequestedTransfer = false;
-    let cleanedResponse = generatedResponse;
-    if (generatedResponse.includes('[TRANSFER]')) {
+    let cleanedResponse = messageContent; // Usar messageContent (já parseado do JSON se aplicável)
+    if (messageContent.includes('[TRANSFER]')) {
       aiRequestedTransfer = true;
       shouldEscalate = true;
       escalationReasons.push('IA detectou gatilho de transferência');
-      cleanedResponse = generatedResponse.replace('[TRANSFER]', '').trim();
+      cleanedResponse = messageContent.replace('[TRANSFER]', '').trim();
       console.log(`🔄 IA solicitou transferência via [TRANSFER] tag`);
     }
 
-    // Check if AI indicated step completion with [NEXT_STEP] tag
+    // Check if AI indicated step completion
     let stepAdvanced = false;
     let newStep = current_step;
     const conversationSteps = ai_agent.conversation_steps || [];
-    if (cleanedResponse.includes('[NEXT_STEP]')) {
+
+    // MÉTODO 1: Via JSON estruturado (quando objective_instructions existe)
+    console.log(`🔍 [STEP_ADVANCED] objectiveAchievedByAI = ${objectiveAchievedByAI}, has objective_instructions = ${!!ai_agent.objective_instructions}`);
+    if (objectiveAchievedByAI) {
+      stepAdvanced = true;
+      console.log(`📈 IA avaliou objetivo como ATINGIDO via JSON estruturado`);
+    }
+
+    // MÉTODO 2: Via token [NEXT_STEP] (fallback para compatibilidade)
+    if (!stepAdvanced && cleanedResponse.includes('[NEXT_STEP]')) {
       cleanedResponse = cleanedResponse.replace('[NEXT_STEP]', '').trim();
-      if (current_step < conversationSteps.length - 1) {
-        newStep = current_step + 1;
-        stepAdvanced = true;
-        console.log(`📈 IA indicou conclusão da etapa ${current_step + 1}, avançando para etapa ${newStep + 1}`);
-      }
+      stepAdvanced = true;
+      console.log(`📈 IA indicou conclusão via [NEXT_STEP] tag`);
+    }
+
+    // Aplicar avanço se indicado
+    if (stepAdvanced && current_step < conversationSteps.length - 1) {
+      newStep = current_step + 1;
+      console.log(`📈 Avançando da etapa ${current_step + 1} para ${newStep + 1}`);
     }
 
     // Verificar se deve oferecer agendamento
@@ -358,6 +455,8 @@ async function generateResponse(params) {
     if (ai_agent.auto_schedule && intent && ['interested', 'ready_to_buy', 'asking_details'].includes(intent)) {
       should_offer_scheduling = true;
     }
+
+    console.log(`🚀 [RETURN] step_advanced = ${stepAdvanced}, objectiveAchievedByAI = ${objectiveAchievedByAI}`);
 
     return {
       response: cleanedResponse,
@@ -373,7 +472,11 @@ async function generateResponse(params) {
       tokens_used: completion.usage.total_tokens,
       model: completion.model,
       current_step: newStep,
-      step_advanced: stepAdvanced
+      step_advanced: stepAdvanced,
+      // Novos campos enriquecidos
+      extractedData,     // Dados extraídos do lead (email, phone, company, etc)
+      qualification,     // Score e estágio de qualificação
+      objection          // Objeção detectada (type, severity)
     };
 
   } catch (error) {
@@ -417,61 +520,80 @@ Use apenas o PRIMEIRO NOME do lead de forma natural.` : '';
 
   // Build conversation steps section with intelligent progression
   let stepsSection = '';
-  if (ai_agent.conversation_steps && ai_agent.conversation_steps.length > 0) {
-    const steps = ai_agent.conversation_steps;
-    const currentStepData = typeof steps[currentStep] === 'object'
-      ? steps[currentStep]
-      : { text: steps[currentStep], is_escalation: false };
 
-    stepsSection = `
-
-ETAPAS DA CONVERSA:
-${steps.map((step, index) => {
-  const stepData = typeof step === 'object' ? step : { text: step, is_escalation: false };
-  const escalationMark = stepData.is_escalation ? ' [TRANSFERIR PARA HUMANO]' : '';
-  const currentMark = index === currentStep ? ' ← VOCÊ ESTÁ AQUI' : '';
-  const completedMark = index < currentStep ? '✓ ' : '';
-  return `${completedMark}${index + 1}. ${stepData.text || step}${escalationMark}${currentMark}`;
-}).join('\n')}
-
-ETAPA ATUAL: ${currentStep + 1} - ${currentStepData.text || steps[currentStep]}
-
-REGRAS DE PROGRESSÃO DE ETAPAS:
-1. Você ESTÁ na etapa ${currentStep + 1}. Foque em cumprir o objetivo desta etapa.
-2. Uma etapa SÓ é concluída quando o OBJETIVO foi alcançado na conversa.
-3. Você pode demorar VÁRIAS mensagens na mesma etapa - isso é normal e esperado.
-4. NÃO avance de etapa só porque trocou mensagens. Avance quando o objetivo foi REALMENTE cumprido.
-5. Quando você DETERMINAR que o objetivo da etapa atual foi cumprido (baseado na resposta do lead),
-   inclua [NEXT_STEP] no final da sua mensagem para sinalizar ao sistema.
-
-QUANDO AVANÇAR DE ETAPA:
-- O lead deu uma resposta que indica que o objetivo da etapa foi atingido
-- Exemplo: Na etapa "Descobrir dor do lead", só avance quando o lead REALMENTE compartilhar uma dor/desafio
-- NÃO avance só porque fez uma pergunta - espere a resposta relevante
-
-QUANDO NÃO AVANÇAR:
-- O lead deu uma resposta genérica ou evasiva
-- Você ainda não cumpriu o objetivo da etapa
-- A conversa está em fase de aquecimento/rapport`;
-  }
-
-  // Workflow visual: incluir instruções de progressão quando objective_instructions existe
-  // (para agentes que usam workflow visual em vez de conversation_steps)
-  if (!stepsSection && ai_agent.objective_instructions) {
+  // Prioridade: Se objective_instructions existe (workflow visual), usa JSON estruturado
+  // Isso garante que agentes com workflow visual não usem conversation_steps legado
+  if (ai_agent.objective_instructions) {
     stepsSection = `
 
 OBJETIVO DESTA ETAPA:
 ${ai_agent.objective_instructions}
 
-REGRA DE CONCLUSÃO DA ETAPA:
-- Quando você determinar que o objetivo acima foi CLARAMENTE atingido (baseado na resposta do lead), inclua [NEXT_STEP] no final da sua mensagem.
-- NÃO inclua [NEXT_STEP] se o lead deu uma resposta genérica ou evasiva.
-- Pode demorar várias mensagens para atingir o objetivo - isso é normal e esperado.
+⚠️ FORMATO DE RESPOSTA OBRIGATÓRIO (JSON):
+{
+  "message": "sua resposta natural para o lead",
+  "objectiveAchieved": true/false,
+  "extractedData": {
+    "email": "email se mencionado ou null",
+    "phone": "telefone se mencionado ou null",
+    "company": "empresa se mencionada ou null",
+    "role": "cargo se mencionado ou null",
+    "company_size": "tamanho da empresa se mencionado ou null",
+    "budget": "orçamento se mencionado ou null",
+    "timeline": "prazo/urgência se mencionado ou null"
+  },
+  "qualification": {
+    "score": 0-100,
+    "stage": "cold/warm/MQL/SQL/hot",
+    "reasons": ["razão 1", "razão 2"]
+  },
+  "objection": {
+    "detected": true/false,
+    "type": "price/time/authority/need/competitor/null",
+    "text": "texto da objeção ou null",
+    "severity": "low/medium/high/null"
+  }
+}
 
-EXEMPLOS:
-- Objetivo: "Entender a dúvida do lead"
-  - Lead: "Ah tudo bem" → NÃO ATINGIDO (resposta genérica, não expressou dúvida)
-  - Lead: "Minha dúvida é sobre o preço do produto X" → ATINGIDO (dúvida clara expressa) [NEXT_STEP]`;
+REGRAS:
+1. "message" = sua resposta natural para o lead (continue a conversa)
+2. "objectiveAchieved" = AVALIE SE O OBJETIVO ACIMA FOI CUMPRIDO pelo lead
+3. "extractedData" = dados que o lead MENCIONOU explicitamente (null se não mencionou)
+4. "qualification" = avalie interesse, urgência, autoridade, budget
+5. "objection" = se o lead levantou objeção ou preocupação
+
+⚠️ COMO AVALIAR objectiveAchieved:
+- Leia o OBJETIVO DESTA ETAPA com atenção
+- Se o lead fez/disse algo que CUMPRE esse objetivo → TRUE
+- Se ainda NÃO cumpriu o que o objetivo pede → FALSE
+
+INTERPRETAÇÃO CORRETA DOS OBJETIVOS:
+- "Descobrir X" = o lead REVELOU X → TRUE (você NÃO precisa resolver, só descobrir)
+- "Obter X" = o lead FORNECEU X → TRUE
+- "Resolver X" = você DEU a solução para X → TRUE
+- "Qualificar" = você conseguiu avaliar o perfil → TRUE
+
+EXEMPLO IMPORTANTE:
+- Objetivo: "Descobrir a dúvida do cliente"
+- Lead: "Não sei onde mudar meu nome de usuário"
+- objectiveAchieved: TRUE ← O lead REVELOU a dúvida! Objetivo cumprido!
+- Você NÃO precisa resolver a dúvida nesta etapa, só descobrir qual é
+
+TIPOS DE OBJEÇÃO:
+- price: preço/custo/caro
+- time: tempo/ocupado/depois
+- authority: preciso consultar/não decido sozinho
+- need: não preciso/já tenho
+- competitor: já uso outra solução
+
+ESTÁGIOS DE QUALIFICAÇÃO:
+- cold (0-20): sem interesse
+- warm (21-40): algum interesse
+- MQL (41-60): interesse claro
+- SQL (61-80): qualificado
+- hot (81-100): muito interessado, urgente
+
+⚠️ IMPORTANTE: Sua resposta DEVE ser APENAS o objeto JSON, sem texto adicional.`;
   }
 
   // Build escalation section

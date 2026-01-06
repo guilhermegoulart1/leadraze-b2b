@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import {
   User, Building2, Briefcase, MapPin, Linkedin,
   Mail, Phone, Calendar, Tag, FileText, Bot,
-  ChevronDown, ChevronUp, ExternalLink, Edit2, X, Plus
+  ChevronDown, ChevronUp, ExternalLink, Edit2, X, Plus,
+  Target, AlertTriangle, TrendingUp
 } from 'lucide-react';
 import api from '../services/api';
 import SecretAgentPanel from './SecretAgentPanel';
@@ -616,6 +617,121 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               )}
             </div>
           </div>
+
+          {/* Qualificação IA */}
+          {(conversation?.qualification_score !== undefined && conversation?.qualification_score !== null) && (
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-purple-500" />
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  {t('details.aiQualification', 'Qualificação IA')}
+                </p>
+              </div>
+
+              {/* Score e Stage */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                    conversation.qualification_score >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    conversation.qualification_score >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                    conversation.qualification_score >= 40 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                    'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                  }`}>
+                    {conversation.qualification_score}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {t(`details.qualificationStage.${conversation.qualification_stage}`, conversation.qualification_stage?.toUpperCase() || 'N/A')}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {t('details.qualificationScore', 'Score de qualificação')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Indicador visual de temperatura */}
+                <div className="flex items-center gap-1">
+                  {['cold', 'warm', 'MQL', 'SQL', 'hot'].map((stage, index) => {
+                    const stageOrder = { cold: 0, warm: 1, MQL: 2, SQL: 3, hot: 4 };
+                    const currentOrder = stageOrder[conversation.qualification_stage] ?? -1;
+                    const isActive = index <= currentOrder;
+                    return (
+                      <div
+                        key={stage}
+                        className={`w-2 h-4 rounded-sm transition-colors ${
+                          isActive
+                            ? index >= 4 ? 'bg-red-500' :
+                              index >= 3 ? 'bg-orange-500' :
+                              index >= 2 ? 'bg-yellow-500' :
+                              index >= 1 ? 'bg-blue-400' :
+                              'bg-blue-200'
+                            : 'bg-gray-200 dark:bg-gray-600'
+                        }`}
+                        title={stage}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Razões da qualificação */}
+              {conversation.qualification_reasons && (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    {t('details.qualificationReasons', 'Motivos:')}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {(() => {
+                      try {
+                        const reasons = typeof conversation.qualification_reasons === 'string'
+                          ? JSON.parse(conversation.qualification_reasons)
+                          : conversation.qualification_reasons;
+                        return Array.isArray(reasons) ? reasons.slice(0, 3).map((reason, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                          >
+                            {reason}
+                          </span>
+                        )) : null;
+                      } catch {
+                        return null;
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Objeções detectadas */}
+              {conversation.objections_history && (
+                <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <div className="flex items-center gap-1 mb-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                      {t('details.objectionsDetected', 'Objeções detectadas')}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    {(() => {
+                      try {
+                        const objections = typeof conversation.objections_history === 'string'
+                          ? JSON.parse(conversation.objections_history)
+                          : conversation.objections_history;
+                        return Array.isArray(objections) ? objections.slice(-2).map((obj, index) => (
+                          <div key={index} className="text-xs text-amber-800 dark:text-amber-300">
+                            <span className="font-medium capitalize">{obj.type}</span>
+                            {obj.text && <span className="ml-1">- "{obj.text}"</span>}
+                          </div>
+                        )) : null;
+                      } catch {
+                        return null;
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Etapa do CRM */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">

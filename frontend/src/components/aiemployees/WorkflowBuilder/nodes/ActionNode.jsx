@@ -14,7 +14,6 @@ import {
   UserPlus,
   Mail,
   Webhook,
-  Pause,
   Trash2,
   Copy,
   X,
@@ -22,7 +21,6 @@ import {
   User,
   Building2,
   RefreshCw,
-  Shuffle,
   Clock,
   MessageCircle,
   FastForward
@@ -89,10 +87,10 @@ const actionConfigs = {
     color: 'gray',
     hasOutput: true
   },
-  pause: {
-    icon: Pause,
-    label: 'Pausar',
-    color: 'yellow',
+  wait: {
+    icon: Clock,
+    label: 'Aguardar',
+    color: 'amber',
     hasOutput: true
   }
 };
@@ -415,31 +413,15 @@ const ActionNode = ({ id, data, selected }) => {
             </div>
           )}
 
-          {/* Pause configuration display */}
-          {data.actionType === 'pause' && (
-            <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+          {/* Wait configuration display */}
+          {data.actionType === 'wait' && (
+            <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="flex items-center gap-2 text-sm">
-                {data.params?.randomMode ? (
-                  <>
-                    <Shuffle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-yellow-700 dark:text-yellow-300 font-medium">
-                      {data.params?.minDuration || 3}-{data.params?.maxDuration || 10} min
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-yellow-700 dark:text-yellow-300 font-medium">
-                      {data.params?.duration || 5} min
-                    </span>
-                  </>
-                )}
+                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-amber-700 dark:text-amber-300 font-medium">
+                  {data.waitTime || 24} {data.waitUnit === 'seconds' ? 'segundos' : data.waitUnit === 'minutes' ? 'minutos' : data.waitUnit === 'days' ? 'dias' : 'horas'}
+                </span>
               </div>
-              {data.params?.randomMode && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Tempo aleatorio
-                </p>
-              )}
             </div>
           )}
 

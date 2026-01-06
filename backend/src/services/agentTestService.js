@@ -111,10 +111,11 @@ async function startTestSession(agentId, userId, accountId, leadSimulation = {})
  * @param {string} sessionId - Test session UUID
  * @param {string} message - Message content (null for non-message events)
  * @param {number} userId - User ID for authorization
- * @param {string} eventType - Event type: message_received, invite_accepted, invite_ignored, no_response
+ * @param {string} eventType - Event type: message_received, invite_accepted, invite_ignored, no_response, wait_skipped
+ * @param {boolean} skipWait - If true, skips the current wait action and continues workflow
  * @returns {Promise<object>} Response and logs
  */
-async function sendTestMessage(sessionId, message, userId, eventType = 'message_received') {
+async function sendTestMessage(sessionId, message, userId, eventType = 'message_received', skipWait = false) {
   console.log(`💬 Processing test event "${eventType}" in session ${sessionId}`);
 
   // Get session with agent data
@@ -177,11 +178,33 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
 
   let response;
   let workflowLogs = [];
+  let waitInfo = null;
 
   // Check if workflow is enabled
   if (session.workflow_enabled && session.workflow_definition) {
     // Process through workflow engine
     console.log(`🔄 Processing through workflow engine (event: ${eventType})`);
+
+    // Handle skip_wait: modify workflow state to continue from resume node
+    let workflowState = session.workflow_state;
+    let effectiveEventType = eventType;
+
+    if (skipWait && workflowState?.status === 'paused') {
+      console.log(`⏭️ Skipping wait action, workflowState BEFORE:`, JSON.stringify({
+        status: workflowState.status,
+        pausedReason: workflowState.pausedReason,
+        resumeNodeId: workflowState.resumeNodeId
+      }));
+      // Clear the paused status so workflow continues, but KEEP the resumeNodeId
+      workflowState = {
+        ...workflowState,
+        status: 'active',
+        pausedReason: null
+        // resumeNodeId is preserved by the spread operator
+      };
+      effectiveEventType = 'wait_skipped';
+      console.log(`⏭️ After modification, workflowState.resumeNodeId: ${workflowState.resumeNodeId}`);
+    }
 
     const workflowResult = await workflowExecutionService.processTestMessage(
       sessionId,
@@ -205,12 +228,13 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
           response_style_instructions: session.response_style_instructions,
           config: session.config
         },
-        workflowState: session.workflow_state,
-        eventType: eventType // Pass the event type to workflow
+        workflowState: workflowState,
+        eventType: effectiveEventType
       }
     );
 
     response = workflowResult.response;
+    waitInfo = workflowResult.waitInfo;
 
     // Update workflow state
     if (workflowResult.newState) {
@@ -290,12 +314,14 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
   );
 
   console.log(`✅ Test message processed, response: "${(response || '').substring(0, 50)}..."`);
+  console.log(`🔍 [agentTestService] Returning waitInfo:`, JSON.stringify(waitInfo));
 
   return {
     response,
     messages,
     logs: workflowLogs,
-    workflowEnabled: session.workflow_enabled
+    workflowEnabled: session.workflow_enabled,
+    waitInfo
   };
 }
 

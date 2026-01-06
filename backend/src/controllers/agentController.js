@@ -157,7 +157,9 @@ const getAgents = async (req, res) => {
         conversation_steps,
         transfer_mode,
         transfer_message,
-        objective_instructions
+        objective_instructions,
+        workflow_enabled,
+        workflow_definition
       FROM ai_agents
       WHERE account_id = $1
     `;
@@ -886,9 +888,12 @@ const testAgentResponse = async (req, res) => {
   try {
     const { id } = req.params;
     const accountId = req.user.account_id;
-    const { message, conversation_history = [], lead_data = {}, current_step = 0 } = req.body;
+    const userId = req.user.id;
+    const { message, conversation_history = [], lead_data = {}, current_step = 0, workflow_state, skip_wait = false, event_type } = req.body;
 
-    if (!message) {
+    // Message is required unless skipping wait or processing special events
+    const isSpecialEvent = event_type && ['invite_accepted', 'invite_ignored'].includes(event_type);
+    if (!message && !skip_wait && !isSpecialEvent) {
       throw new ValidationError('Test message is required');
     }
 
@@ -904,6 +909,87 @@ const testAgentResponse = async (req, res) => {
 
     const agent = agentResult.rows[0];
 
+    // Check if agent has workflow enabled
+    console.log(`🔍 [testAgentResponse] Agent ${id}: workflow_enabled=${agent.workflow_enabled}, has_definition=${!!agent.workflow_definition}, event_type=${event_type}, skip_wait=${skip_wait}`);
+
+    if (agent.workflow_enabled && agent.workflow_definition) {
+      // Use workflow execution for agents with workflow
+      const workflowExecutionService = require('../services/workflowExecutionService');
+
+      // Build conversation context
+      const conversationContext = {
+        recentMessages: conversation_history.slice(-20).map(msg => ({
+          content: msg.content,
+          sender_type: msg.sender_type || (msg.sender === 'user' ? 'lead' : 'ai'),
+          sent_at: msg.timestamp || new Date().toISOString()
+        })),
+        stats: {
+          totalMessages: conversation_history.length
+        }
+      };
+
+      // Determine event type based on skip_wait or explicit event_type
+      let eventType = event_type || 'message_received';
+      let effectiveWorkflowState = workflow_state || { status: 'active', step_history: [] };
+
+      if (skip_wait && workflow_state?.status === 'paused') {
+        // Skip wait: change status to active and use wait_skipped event
+        eventType = 'wait_skipped';
+        effectiveWorkflowState = {
+          ...workflow_state,
+          status: 'active',
+          pausedReason: null
+        };
+      }
+
+      // Don't pass message when skipping wait or processing special events
+      const effectiveMessage = (skip_wait || isSpecialEvent) ? null : message;
+
+      const workflowResult = await workflowExecutionService.processTestMessage(
+        `test-${id}-${userId}`,
+        id,
+        effectiveMessage,
+        {
+          lead: lead_data,
+          conversationContext,
+          agent: {
+            id: agent.id,
+            name: agent.name,
+            workflow_definition: agent.workflow_definition,
+            products_services: agent.products_services,
+            behavioral_profile: agent.behavioral_profile,
+            initial_approach: agent.initial_approach,
+            objective_instructions: agent.objective_instructions,
+            language: agent.language,
+            target_audience: agent.target_audience,
+            conversation_steps: agent.conversation_steps,
+            knowledge_similarity_threshold: agent.knowledge_similarity_threshold,
+            response_style_instructions: agent.response_style_instructions,
+            config: agent.config
+          },
+          workflowState: effectiveWorkflowState,
+          eventType: eventType
+        }
+      );
+
+      console.log(`✅ [testAgentResponse] Workflow result: paused=${workflowResult.paused}, completed=${workflowResult.completed}, waitInfo=${JSON.stringify(workflowResult.waitInfo)}`);
+      if (workflowResult.enrichedData) {
+        console.log(`📊 [testAgentResponse] Enriched data:`, JSON.stringify(workflowResult.enrichedData));
+      }
+
+      return sendSuccess(res, {
+        response: workflowResult.response,
+        workflow_state: workflowResult.newState,
+        paused: workflowResult.paused,
+        completed: workflowResult.completed,
+        waitInfo: workflowResult.waitInfo,
+        enrichedData: workflowResult.enrichedData,  // Dados enriquecidos (extractedData, qualification, objection)
+        current_step: current_step,
+        step_advanced: false
+      });
+    }
+
+    // Fallback to legacy AI response for agents without workflow
     // Adapt agent format for aiResponseService
     const adaptedAgent = adaptAgentForAIService(agent);
 
@@ -931,7 +1017,13 @@ const testAgentResponse = async (req, res) => {
       scheduling_link: result.scheduling_link,
       tokens_used: result.tokens_used,
       current_step: result.current_step,    // Return updated step
-      step_advanced: result.step_advanced   // Indicate if step advanced
+      step_advanced: result.step_advanced,  // Indicate if step advanced
+      // Dados enriquecidos
+      enrichedData: (result.extractedData || result.qualification || result.objection) ? {
+        extractedData: result.extractedData || null,
+        qualification: result.qualification || null,
+        objection: result.objection || null
+      } : null
     });
 
   } catch (error) {

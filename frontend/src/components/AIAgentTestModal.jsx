@@ -1,6 +1,6 @@
 // frontend/src/components/AIAgentTestModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, User, Bot, Loader, RotateCcw, Info, UserX, AlertTriangle, CheckCircle, Globe } from 'lucide-react';
+import { X, Send, Sparkles, User, Bot, Loader, RotateCcw, Info, UserX, AlertTriangle, CheckCircle, Globe, Clock, FastForward } from 'lucide-react';
 import api from '../services/api';
 
 // Mapeamento de códigos de idioma para nomes
@@ -77,6 +77,11 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
   const [inviteState, setInviteState] = useState('none'); // 'none', 'pending', 'accepted'
   const [showAcceptOptions, setShowAcceptOptions] = useState(false);
 
+  // Estados para nó de espera (wait action)
+  const [waitInfo, setWaitInfo] = useState(null); // { waitTime, waitUnit, formattedDuration }
+  const [showWaitBanner, setShowWaitBanner] = useState(false);
+  const [workflowState, setWorkflowState] = useState(null); // Estado do workflow para agentes com workflow
+
   // Obter etapas da conversa do agente (pode estar em agent.conversation_steps ou agent.config)
   const getConversationSteps = () => {
     // Primeiro tenta do campo direto (novo formato)
@@ -127,6 +132,9 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
       setEscalationReason(null);
       setInviteState('none');
       setShowAcceptOptions(false);
+      setWaitInfo(null);
+      setShowWaitBanner(false);
+      setWorkflowState(null);
 
       // Verificar estratégia de conexão do agente
       const strategy = agent.connection_strategy || agent.config?.connection_strategy;
@@ -237,6 +245,60 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
     setShowAcceptOptions(false);
     setIsLoading(true);
 
+    // Se agente tem workflow, processar evento invite_accepted
+    if (agent.workflow_enabled && agent.workflow_definition) {
+      try {
+        // Chamar API de teste com evento invite_accepted
+        const response = await api.testAgentResponse(agent.id, {
+          message: null, // Sem mensagem do lead
+          conversation_history: messages.map(m => ({
+            sender_type: m.sender === 'user' ? 'lead' : 'ai',
+            content: m.content
+          })),
+          lead_data: testLeadData,
+          current_step: currentStep,
+          workflow_state: workflowState || { status: 'active', step_history: [] },
+          event_type: 'invite_accepted' // Evento especial de aceite
+        });
+
+        const data = response.data;
+
+        // Adicionar resposta do bot se houver
+        if (data.response) {
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            sender: 'bot',
+            content: data.response,
+            timestamp: new Date()
+          }]);
+        }
+
+        // Atualizar workflow state
+        if (data.workflow_state) {
+          setWorkflowState(data.workflow_state);
+        }
+
+        // Verificar se há waitInfo (nó Aguardar ativado)
+        if (data.waitInfo?.isWaitAction) {
+          setWaitInfo(data.waitInfo);
+          setShowWaitBanner(true);
+        }
+      } catch (error) {
+        console.error('Erro ao processar invite_accepted no workflow:', error);
+        // Fallback para mensagem genérica
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'bot',
+          content: processTemplate('Olá {{first_name}}! Que bom que conectamos! Como posso ajudar você hoje?', testLeadData),
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Fluxo legado para agentes sem workflow
     // Usar post_accept_message se disponível, senão gerar via IA
     const postAcceptMsg = agent.post_accept_message || agent.config?.post_accept_message;
 
@@ -326,7 +388,8 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
             content: m.content
           })),
           lead_data: testLeadData,
-          current_step: currentStep  // Pass current step to backend for intelligent progression
+          current_step: currentStep,  // Pass current step to backend for intelligent progression
+          workflow_state: workflowState  // Pass workflow state for agents with workflow
         });
       } catch (error) {
         // Fallback to old system if agent is from ai_agents table
@@ -415,6 +478,20 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
       };
 
       setMessages(prev => [...prev, botMessage]);
+
+      // Atualizar workflow state se retornado (para agentes com workflow)
+      if (response.data.workflow_state) {
+        setWorkflowState(response.data.workflow_state);
+      }
+
+      // Verificar se há waitInfo (nó Aguardar ativado)
+      if (response.data.waitInfo?.isWaitAction) {
+        setWaitInfo(response.data.waitInfo);
+        setShowWaitBanner(true);
+      } else {
+        setWaitInfo(null);
+        setShowWaitBanner(false);
+      }
     } catch (error) {
       console.error('Erro ao gerar resposta:', error);
 
@@ -445,6 +522,77 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
     setCurrentStep(0);
     setEscalationTriggered(false);
     setEscalationReason(null);
+    setWaitInfo(null);
+    setShowWaitBanner(false);
+  };
+
+  // Handler para pular espera no modo teste
+  const handleSkipWait = async () => {
+    if (!waitInfo || !workflowState) return;
+
+    setIsLoading(true);
+    setShowWaitBanner(false);
+
+    try {
+      // Modificar workflow state para continuar (pular wait)
+      const modifiedWorkflowState = {
+        ...workflowState,
+        status: 'active',
+        pausedReason: null
+      };
+
+      // Chamar API com estado modificado para continuar o workflow
+      const response = await api.testAgentResponse(agent.id, {
+        message: '__SKIP_WAIT__', // Mensagem especial que indica pular espera
+        conversation_history: messages.map(m => ({
+          sender_type: m.sender === 'user' ? 'lead' : 'ai',
+          content: m.content
+        })),
+        lead_data: testLeadData,
+        current_step: currentStep,
+        workflow_state: modifiedWorkflowState,
+        skip_wait: true
+      });
+
+      const data = response.data;
+
+      // Adicionar resposta do bot se houver
+      if (data.response) {
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'bot',
+          content: data.response,
+          timestamp: new Date(),
+          waitSkipped: true
+        }]);
+      }
+
+      // Atualizar workflow state
+      if (data.workflow_state) {
+        setWorkflowState(data.workflow_state);
+      }
+
+      // Verificar se há novo wait
+      if (data.waitInfo?.isWaitAction) {
+        setWaitInfo(data.waitInfo);
+        setShowWaitBanner(true);
+      } else {
+        setWaitInfo(null);
+      }
+    } catch (error) {
+      console.error('Erro ao pular espera:', error);
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'bot',
+        content: 'Erro ao continuar após espera. Tente novamente.',
+        error: true,
+        timestamp: new Date()
+      }]);
+      // Restaurar banner de wait em caso de erro
+      setShowWaitBanner(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -709,6 +857,31 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
                 {escalationReason?.type === 'ai' && `Decisão automática da IA`}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Wait Action Banner */}
+        {showWaitBanner && waitInfo && (
+          <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  Aguardando {waitInfo.waitTime} {waitInfo.waitUnit === 'seconds' ? 'segundos' : waitInfo.waitUnit === 'minutes' ? 'minutos' : waitInfo.waitUnit === 'days' ? 'dias' : 'horas'}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Em produção, o workflow aguardaria este tempo antes de continuar
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleSkipWait}
+              disabled={isLoading}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FastForward className="w-4 h-4" />
+              Pular Espera
+            </button>
           </div>
         )}
 

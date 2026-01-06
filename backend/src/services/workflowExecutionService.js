@@ -216,7 +216,6 @@ async function executeFromNode(startNode, workflowDef, context) {
 
       case 'conversationStep':
         nodeResult = await executeConversationNode(currentNode, context);
-        response = nodeResult.response;
 
         // Track attempt count for this conversationStep
         // Only count entries where we actually had a lead message to evaluate (not the initial AI send)
@@ -234,6 +233,8 @@ async function executeFromNode(startNode, workflowDef, context) {
         // ConversationStep should wait for response to evaluate objective
         // If this is the first execution (no lead message yet), pause for response
         if (!context.message && nodeResult.response) {
+          // First execution - send initial AI message and pause for lead response
+          response = nodeResult.response;
           shouldPause = true;
           pauseReason = 'waiting_for_response';
           // Resume to THIS node to evaluate the response
@@ -252,14 +253,19 @@ async function executeFromNode(startNode, workflowDef, context) {
           // Current attempt number (1-indexed for user display)
           const currentAttempt = attemptCount + 1;
           console.log(`📊 [ConversationStep] Evaluating response - attempt ${currentAttempt}/${maxAttempts} for node ${currentNode.id}`);
+          console.log(`🔍 [ConversationStep] nodeResult.shouldAdvance = ${nodeResult.shouldAdvance}`);
 
           // AI determines if objective was achieved via shouldAdvance
           if (nodeResult.shouldAdvance) {
-            // Objective achieved - follow success path
+            // ✅ OBJETIVO ATINGIDO - NÃO enviar resposta da IA, apenas avançar para próxima etapa
+            // A próxima etapa (ex: ACAO com send_message) enviará sua própria mensagem
             nodeResult.path = 'success';
-            console.log(`✅ [ConversationStep] Objective achieved on attempt ${currentAttempt}! Following success path.`);
+            console.log(`✅ [ConversationStep] Objective achieved on attempt ${currentAttempt}! Skipping AI response, advancing to next node.`);
+            // NÃO definimos response aqui - deixamos o próximo nó definir
           } else {
-            // Objective NOT achieved yet
+            // Objective NOT achieved - send AI response and continue conversation
+            response = nodeResult.response;
+
             // Check if we've exceeded max attempts (currentAttempt is 1-indexed)
             if (currentAttempt >= maxAttempts) {
               // Max attempts reached - follow failure path
@@ -294,6 +300,13 @@ async function executeFromNode(startNode, workflowDef, context) {
           fullResult: nodeResult.result
         });
 
+        // ✅ Capturar mensagem de ações send_message como response do workflow
+        // Isso é importante quando ConversationStep atinge objetivo e avança para ACAO
+        if (nodeResult.actionType === 'send_message' && nodeResult.result?.message) {
+          response = nodeResult.result.message;
+          console.log(`📨 [Action] send_message response captured: "${response.substring(0, 50)}..."`);
+        }
+
         // Check both static pausesWorkflow AND dynamic waitForResponse from result
         shouldPause = nodeResult.pausesWorkflow || nodeResult.result?.waitForResponse === true;
         shouldEnd = nodeResult.endsBranch;
@@ -309,6 +322,15 @@ async function executeFromNode(startNode, workflowDef, context) {
           nodeResult.pauseReason = pauseReason;
           nodeResult.resumeNodeId = resumeNodeId;
           console.log(`⏸️ [Workflow] Pausing for response. Resume node: ${resumeNodeId}`);
+        }
+        // If this is a wait action, set up resume to the NEXT node
+        else if (nodeResult.result?.isWaitAction === true) {
+          const nextNodeAfterWait = findNextNode(workflowDef, currentNode, nodeResult);
+          pauseReason = 'wait_action';
+          resumeNodeId = nextNodeAfterWait?.id || null;
+          nodeResult.pauseReason = pauseReason;
+          nodeResult.resumeNodeId = resumeNodeId;
+          console.log(`⏸️ [Workflow] Pausing for wait action. Resume node: ${resumeNodeId}`);
         }
         break;
 
@@ -415,6 +437,46 @@ async function executeFromNode(startNode, workflowDef, context) {
     currentNode = nextNode;
   }
 
+  // Check if last executed node was a wait action
+  const lastNode = executedNodes[executedNodes.length - 1];
+  // For action nodes, the result structure is: { success, result: executorResult, pausesWorkflow, ... }
+  // The executor result is inside nodeResult.result for actions
+  const actionResult = lastNode?.result?.result || lastNode?.result;
+
+  // Debug: log structure to understand the data
+  console.log(`🔍 [waitInfo extraction] lastNode:`, {
+    nodeId: lastNode?.nodeId,
+    nodeType: lastNode?.nodeType,
+    resultKeys: lastNode?.result ? Object.keys(lastNode.result) : null,
+    resultResultKeys: lastNode?.result?.result ? Object.keys(lastNode.result.result) : null,
+    actionResultIsWaitAction: actionResult?.isWaitAction
+  });
+
+  const isWaitAction = actionResult?.isWaitAction === true;
+  const waitInfo = isWaitAction ? {
+    waitTime: actionResult.waitTime,
+    waitUnit: actionResult.waitUnit,
+    formattedDuration: actionResult.formattedDuration,
+    isWaitAction: true
+  } : null;
+
+  console.log(`🔍 [waitInfo extraction] isWaitAction=${isWaitAction}, waitInfo=${JSON.stringify(waitInfo)}`);
+
+  // Extract enriched data from the last conversationStep node
+  let enrichedData = null;
+  const lastConversationNode = [...executedNodes].reverse().find(n => n.nodeType === 'conversationStep');
+  if (lastConversationNode?.result) {
+    const result = lastConversationNode.result;
+    if (result.extractedData || result.qualification || result.objection) {
+      enrichedData = {
+        extractedData: result.extractedData || null,
+        qualification: result.qualification || null,
+        objection: result.objection || null
+      };
+      console.log(`📊 [Workflow] Dados enriquecidos extraídos:`, JSON.stringify(enrichedData));
+    }
+  }
+
   return {
     executedNodes,
     response,
@@ -422,7 +484,9 @@ async function executeFromNode(startNode, workflowDef, context) {
     completed: shouldEnd,
     finalNodeId: currentNode?.id,
     pauseReason,
-    resumeNodeId
+    resumeNodeId,
+    waitInfo,
+    enrichedData
   };
 }
 
@@ -554,6 +618,24 @@ async function executeConversationNode(node, context) {
     });
   }
 
+  // Log extracted data if any
+  if (aiResult.extractedData) {
+    console.log(`📋 [ConversationStep] Dados extraídos do lead:`, JSON.stringify(aiResult.extractedData));
+  }
+
+  // Log qualification if present
+  if (aiResult.qualification) {
+    console.log(`⭐ [ConversationStep] Qualificação: ${aiResult.qualification.score} (${aiResult.qualification.stage})`);
+  }
+
+  // Log objection if detected
+  if (aiResult.objection?.detected) {
+    console.log(`⚠️ [ConversationStep] Objeção detectada: ${aiResult.objection.type} (${aiResult.objection.severity})`);
+  }
+
+  // DEBUG: Log step_advanced value received from AI
+  console.log(`🎯 [ConversationStep] aiResult.step_advanced = ${aiResult.step_advanced}`);
+
   return {
     success: true,
     response: aiResult.response,
@@ -561,7 +643,11 @@ async function executeConversationNode(node, context) {
     sentiment: aiResult.sentiment,
     shouldAdvance: aiResult.step_advanced,
     tokensUsed: aiResult.tokens_used,
-    durationMs
+    durationMs,
+    // Novos campos enriquecidos
+    extractedData: aiResult.extractedData,
+    qualification: aiResult.qualification,
+    objection: aiResult.objection
   };
 }
 
@@ -921,8 +1007,24 @@ async function processTestMessage(testSessionId, agentId, message, options = {})
     // Find current node or trigger based on event type
     let currentNode = null;
 
+    // Check if this is a wait_skipped event - continue from resume node
+    if (eventType === 'wait_skipped' && workflowState?.resumeNodeId) {
+      const resumeNodeId = workflowState.resumeNodeId;
+      currentNode = findNodeById(workflowDef, resumeNodeId);
+      console.log(`⏭️ Wait skipped - continuing from node: ${resumeNodeId}`);
+
+      // Log skip event
+      await workflowLogService.logWorkflowResumed({
+        conversationId: context.conversationId,
+        testSessionId: context.testSessionId,
+        agentId: context.agentId,
+        nodeId: resumeNodeId,
+        nodeLabel: currentNode?.data?.label || 'Nó',
+        outputData: { reason: 'Espera pulada (modo teste)' }
+      });
+    }
     // Check if workflow is paused waiting for response
-    if (workflowState?.status === 'paused' && workflowState?.pausedReason === 'waiting_for_response') {
+    else if (workflowState?.status === 'paused' && workflowState?.pausedReason === 'waiting_for_response') {
       // Resume from the saved resume node
       const resumeNodeId = workflowState.resumeNodeId || workflowState.resume_node_id;
       if (resumeNodeId) {
@@ -993,7 +1095,9 @@ async function processTestMessage(testSessionId, agentId, message, options = {})
       executedNodes: result.executedNodes,
       newState,
       paused: result.paused,
-      completed: result.completed
+      completed: result.completed,
+      waitInfo: result.waitInfo,
+      enrichedData: result.enrichedData  // Dados enriquecidos (extractedData, qualification, objection)
     };
   } catch (error) {
     console.error('❌ Error processing test message:', error);

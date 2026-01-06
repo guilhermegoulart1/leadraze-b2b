@@ -51,7 +51,8 @@ const ACTION_CONFIGS = {
   assign_agent: { hasOutput: true, endsBranch: false },
   send_email: { hasOutput: true, endsBranch: false },
   webhook: { hasOutput: true, endsBranch: false },
-  pause: { hasOutput: true, endsBranch: false, pausesWorkflow: true }
+  pause: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
+  wait: { hasOutput: true, endsBranch: false, pausesWorkflow: true }
 };
 
 /**
@@ -742,6 +743,65 @@ const executors = {
       duration: formatDuration(pauseDuration),
       resumeAt,
       jobId: job.id
+    };
+  },
+
+  /**
+   * Wait for a specified duration (with flexible time units)
+   * Similar to pause but with minutes/hours/days configuration
+   */
+  wait: async (params, context) => {
+    const { waitTime = 24, waitUnit = 'hours' } = params;
+    const { conversationId, isTestMode } = context;
+
+    // Time unit multipliers
+    const multipliers = {
+      seconds: 1000,
+      minutes: 60 * 1000,
+      hours: 60 * 60 * 1000,
+      days: 24 * 60 * 60 * 1000
+    };
+
+    // Calculate wait duration in milliseconds
+    const waitDuration = waitTime * (multipliers[waitUnit] || multipliers.hours);
+    const resumeAt = new Date(Date.now() + waitDuration);
+
+    // Format for display
+    const unitLabels = { seconds: 'segundos', minutes: 'minutos', hours: 'horas', days: 'dias' };
+    const formattedDuration = `${waitTime} ${unitLabels[waitUnit] || 'horas'}`;
+
+    if (isTestMode) {
+      return {
+        simulated: true,
+        waitTime,
+        waitUnit,
+        formattedDuration,
+        resumeAt,
+        isWaitAction: true
+      };
+    }
+
+    // Schedule resume job
+    const job = await getFollowUpQueue().add(
+      {
+        type: 'resume_workflow',
+        conversationId,
+        scheduledFor: resumeAt.toISOString()
+      },
+      {
+        delay: waitDuration,
+        removeOnComplete: true
+      }
+    );
+
+    return {
+      paused: true,
+      waitTime,
+      waitUnit,
+      formattedDuration,
+      resumeAt,
+      jobId: job.id,
+      isWaitAction: true
     };
   }
 };
