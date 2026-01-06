@@ -572,12 +572,27 @@ INTERPRETAÇÃO CORRETA DOS OBJETIVOS:
 - "Obter X" = o lead FORNECEU X → TRUE
 - "Resolver X" = você DEU a solução para X → TRUE
 - "Qualificar" = você conseguiu avaliar o perfil → TRUE
+- "Se certificar de X" / "Confirmar X" = o lead CONFIRMOU explicitamente X → TRUE
+- "Tirar dúvidas" / "Resolver dúvidas" = só TRUE quando o lead CONFIRMA que não tem mais dúvidas
 
-EXEMPLO IMPORTANTE:
+⚠️ REGRAS CRÍTICAS:
+1. Se o objetivo inclui "se certificar" ou "confirmar", você PRECISA da confirmação EXPLÍCITA do lead
+2. Se o lead faz uma NOVA pergunta ou levanta um NOVO assunto, o objetivo NÃO foi atingido
+3. Frases como "tudo certo", "era só isso", "obrigado" = confirmação de que não tem mais dúvidas
+4. Frases como "outra coisa...", "e sobre...", "também queria saber..." = NÃO atingiu o objetivo
+
+EXEMPLOS:
 - Objetivo: "Descobrir a dúvida do cliente"
-- Lead: "Não sei onde mudar meu nome de usuário"
-- objectiveAchieved: TRUE ← O lead REVELOU a dúvida! Objetivo cumprido!
-- Você NÃO precisa resolver a dúvida nesta etapa, só descobrir qual é
+  Lead: "Não sei onde mudar meu nome de usuário"
+  objectiveAchieved: TRUE ← O lead REVELOU a dúvida!
+
+- Objetivo: "Se certificar que não tem mais dúvidas"
+  Lead: "Ah, e como faço pra mudar minha senha?"
+  objectiveAchieved: FALSE ← O lead tem MAIS dúvidas!
+
+- Objetivo: "Se certificar que não tem mais dúvidas"
+  Lead: "Entendi, era só isso mesmo. Obrigado!"
+  objectiveAchieved: TRUE ← O lead CONFIRMOU que não tem mais dúvidas
 
 TIPOS DE OBJEÇÃO:
 - price: preço/custo/caro

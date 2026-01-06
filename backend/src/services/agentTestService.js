@@ -177,6 +177,7 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
   });
 
   let response;
+  let allResponses = null; // ✅ Array com todas as respostas quando múltiplos nós executam
   let workflowLogs = [];
   let waitInfo = null;
 
@@ -234,6 +235,7 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
     );
 
     response = workflowResult.response;
+    allResponses = workflowResult.allResponses; // ✅ Capturar array de respostas
     waitInfo = workflowResult.waitInfo;
 
     // Update workflow state
@@ -315,9 +317,13 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
 
   console.log(`✅ Test message processed, response: "${(response || '').substring(0, 50)}..."`);
   console.log(`🔍 [agentTestService] Returning waitInfo:`, JSON.stringify(waitInfo));
+  if (allResponses?.length > 1) {
+    console.log(`📬 [agentTestService] Returning ${allResponses.length} responses:`, allResponses.map(r => r.nodeLabel));
+  }
 
   return {
     response,
+    allResponses, // ✅ Array com todas as respostas quando múltiplos nós executam
     messages,
     logs: workflowLogs,
     workflowEnabled: session.workflow_enabled,

@@ -136,8 +136,18 @@ const AgentTestModal = ({ agent, onClose }) => {
       if (response.success) {
         const { data } = response;
 
-        // Add AI response if any
-        if (data.response) {
+        // ✅ Verificar se há múltiplas respostas (quando múltiplos nós executam em sequência)
+        if (data.allResponses && data.allResponses.length > 1) {
+          const newMessages = data.allResponses.map((r, index) => ({
+            id: Date.now() + index,
+            sender: 'ai',
+            content: r.message,
+            nodeLabel: r.nodeLabel,
+            timestamp: new Date(Date.now() + index * 100).toISOString()
+          }));
+          setMessages(prev => [...prev, ...newMessages]);
+        } else if (data.response) {
+          // Única resposta
           setMessages(prev => [...prev, {
             id: Date.now(),
             sender: 'ai',
@@ -232,8 +242,18 @@ const AgentTestModal = ({ agent, onClose }) => {
           setInviteStatus('ignored');
         }
 
-        // Add AI response if any
-        if (data.response) {
+        // ✅ Verificar se há múltiplas respostas (quando múltiplos nós executam em sequência)
+        if (data.allResponses && data.allResponses.length > 1) {
+          const newMessages = data.allResponses.map((r, index) => ({
+            id: Date.now() + index,
+            sender: 'ai',
+            content: r.message,
+            nodeLabel: r.nodeLabel,
+            timestamp: new Date(Date.now() + index * 100).toISOString()
+          }));
+          setMessages(prev => [...prev, ...newMessages]);
+        } else if (data.response) {
+          // Única resposta
           setMessages(prev => [...prev, {
             id: Date.now(),
             sender: 'ai',
@@ -293,8 +313,19 @@ const AgentTestModal = ({ agent, onClose }) => {
       if (response.success) {
         const { data } = response;
 
-        // Add AI response
-        if (data.response) {
+        // ✅ Verificar se há múltiplas respostas (quando múltiplos nós executam em sequência)
+        if (data.allResponses && data.allResponses.length > 1) {
+          console.log(`📬 Múltiplas respostas (${data.allResponses.length}):`, data.allResponses.map(r => r.nodeLabel));
+          const newMessages = data.allResponses.map((r, index) => ({
+            id: Date.now() + index,
+            sender: 'ai',
+            content: r.message,
+            nodeLabel: r.nodeLabel,
+            timestamp: new Date(Date.now() + index * 100).toISOString()
+          }));
+          setMessages(prev => [...prev, ...newMessages]);
+        } else if (data.response) {
+          // Única resposta
           setMessages(prev => [...prev, {
             id: Date.now(),
             sender: 'ai',

@@ -976,9 +976,13 @@ const testAgentResponse = async (req, res) => {
       if (workflowResult.enrichedData) {
         console.log(`📊 [testAgentResponse] Enriched data:`, JSON.stringify(workflowResult.enrichedData));
       }
+      if (workflowResult.allResponses?.length > 1) {
+        console.log(`📬 [testAgentResponse] Multiple responses (${workflowResult.allResponses.length}):`, workflowResult.allResponses.map(r => r.nodeLabel));
+      }
 
       return sendSuccess(res, {
         response: workflowResult.response,
+        allResponses: workflowResult.allResponses, // ✅ Array com TODAS as respostas quando múltiplos nós executam
         workflow_state: workflowResult.newState,
         paused: workflowResult.paused,
         completed: workflowResult.completed,

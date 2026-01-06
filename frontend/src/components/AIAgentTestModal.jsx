@@ -263,8 +263,18 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
         const data = response.data;
 
-        // Adicionar resposta do bot se houver
-        if (data.response) {
+        // ✅ Verificar se há múltiplas respostas
+        if (data.allResponses && data.allResponses.length > 1) {
+          const newMessages = data.allResponses.map((r, index) => ({
+            id: Date.now() + index,
+            sender: 'bot',
+            content: r.message,
+            nodeLabel: r.nodeLabel,
+            timestamp: new Date(Date.now() + index * 100)
+          }));
+          setMessages(prev => [...prev, ...newMessages]);
+        } else if (data.response) {
+          // Única resposta
           setMessages(prev => [...prev, {
             id: Date.now(),
             sender: 'bot',
@@ -462,22 +472,50 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
           : { text: conversationSteps[messageStep], is_escalation: false }
       ) : null;
 
-      const botMessage = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        content: response.data.response,
-        intent: response.data.intent,
-        sentiment: detectedSentiment,
-        shouldEscalate,
-        matchedKeywords,
-        escalationInfo,
-        stepNumber: messageStep !== null ? messageStep + 1 : null,
-        stepText: messageStepData?.text || null,
-        stepIsEscalation: messageStepData?.is_escalation || false,
-        timestamp: new Date()
-      };
+      // ✅ Verificar se há múltiplas respostas (quando múltiplos nós executam em sequência)
+      const allResponses = response.data.allResponses;
 
-      setMessages(prev => [...prev, botMessage]);
+      if (allResponses && allResponses.length > 1) {
+        // Múltiplas respostas - adicionar cada uma como mensagem separada
+        console.log(`📬 Múltiplas respostas (${allResponses.length}):`, allResponses.map(r => r.nodeLabel));
+
+        const newMessages = allResponses.map((r, index) => ({
+          id: Date.now() + index + 1,
+          sender: 'bot',
+          content: r.message,
+          nodeLabel: r.nodeLabel, // Label do nó para debug
+          nodeType: r.type,       // Tipo do nó (action, conversationStep)
+          intent: index === allResponses.length - 1 ? response.data.intent : null, // Intent só na última
+          sentiment: index === allResponses.length - 1 ? detectedSentiment : null,
+          shouldEscalate: index === allResponses.length - 1 ? shouldEscalate : false,
+          matchedKeywords: index === allResponses.length - 1 ? matchedKeywords : [],
+          escalationInfo: index === allResponses.length - 1 ? escalationInfo : null,
+          stepNumber: messageStep !== null ? messageStep + 1 : null,
+          stepText: messageStepData?.text || null,
+          stepIsEscalation: messageStepData?.is_escalation || false,
+          timestamp: new Date(Date.now() + index * 100) // Pequena diferença para ordenação
+        }));
+
+        setMessages(prev => [...prev, ...newMessages]);
+      } else {
+        // Única resposta - comportamento original
+        const botMessage = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          content: response.data.response,
+          intent: response.data.intent,
+          sentiment: detectedSentiment,
+          shouldEscalate,
+          matchedKeywords,
+          escalationInfo,
+          stepNumber: messageStep !== null ? messageStep + 1 : null,
+          stepText: messageStepData?.text || null,
+          stepIsEscalation: messageStepData?.is_escalation || false,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, botMessage]);
+      }
 
       // Atualizar workflow state se retornado (para agentes com workflow)
       if (response.data.workflow_state) {
@@ -556,8 +594,19 @@ const AIAgentTestModal = ({ isOpen, onClose, agent }) => {
 
       const data = response.data;
 
-      // Adicionar resposta do bot se houver
-      if (data.response) {
+      // ✅ Verificar se há múltiplas respostas
+      if (data.allResponses && data.allResponses.length > 1) {
+        const newMessages = data.allResponses.map((r, index) => ({
+          id: Date.now() + index,
+          sender: 'bot',
+          content: r.message,
+          nodeLabel: r.nodeLabel,
+          timestamp: new Date(Date.now() + index * 100),
+          waitSkipped: index === 0
+        }));
+        setMessages(prev => [...prev, ...newMessages]);
+      } else if (data.response) {
+        // Única resposta
         setMessages(prev => [...prev, {
           id: Date.now(),
           sender: 'bot',

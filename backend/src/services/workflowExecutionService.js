@@ -188,6 +188,7 @@ async function executeFromNode(startNode, workflowDef, context) {
   let currentNode = startNode;
   const executedNodes = [];
   let response = null;
+  const allResponses = []; // ✅ Coletar TODAS as respostas quando múltiplos nós executam em sequência
   let shouldPause = false;
   let shouldEnd = false;
   let pauseReason = null;
@@ -230,11 +231,25 @@ async function executeFromNode(startNode, workflowDef, context) {
           s.nodeId === currentNode.id && s.result?.hadMessage === true
         ).length;
 
+        // ✅ CORREÇÃO: Verificar se este nó ESPECÍFICO já foi executado antes
+        // Isso é crucial quando avançamos de uma etapa para outra (ex: Etapa 1 → Etapa 2)
+        // porque context.message ainda terá a mensagem do lead da etapa anterior
+        const hasThisNodeBeenExecuted = stepHistory.some(s => s.nodeId === currentNode.id);
+
         // ConversationStep should wait for response to evaluate objective
-        // If this is the first execution (no lead message yet), pause for response
-        if (!context.message && nodeResult.response) {
+        // If this is the first execution of THIS NODE (not in stepHistory), pause for response
+        // Note: We use hasThisNodeBeenExecuted instead of !context.message because
+        // when advancing from one step to another, context.message still has the previous message
+        if (!hasThisNodeBeenExecuted && nodeResult.response) {
           // First execution - send initial AI message and pause for lead response
           response = nodeResult.response;
+          // ✅ Adicionar ao array de respostas
+          allResponses.push({
+            nodeId: currentNode.id,
+            nodeLabel: currentNode.data?.name || currentNode.data?.label || 'Etapa',
+            message: nodeResult.response,
+            type: 'conversationStep'
+          });
           shouldPause = true;
           pauseReason = 'waiting_for_response';
           // Resume to THIS node to evaluate the response
@@ -243,10 +258,10 @@ async function executeFromNode(startNode, workflowDef, context) {
           nodeResult.resumeNodeId = resumeNodeId;
           // Mark this entry as initial send (not an evaluation attempt)
           nodeResult.hadMessage = false;
-          console.log(`⏸️ [ConversationStep] First execution - pausing for lead response. Will re-evaluate at ${currentNode.id}`);
+          console.log(`⏸️ [ConversationStep] First execution of node ${currentNode.id} - pausing for lead response. hasThisNodeBeenExecuted=${hasThisNodeBeenExecuted}`);
         }
-        // If we have a lead message, AI has evaluated
-        else if (context.message) {
+        // If this node WAS executed before AND we have a lead message, evaluate the objective
+        else if (hasThisNodeBeenExecuted && context.message) {
           // Mark this as an actual evaluation attempt
           nodeResult.hadMessage = true;
 
@@ -265,6 +280,15 @@ async function executeFromNode(startNode, workflowDef, context) {
           } else {
             // Objective NOT achieved - send AI response and continue conversation
             response = nodeResult.response;
+            // ✅ Adicionar ao array de respostas
+            if (nodeResult.response) {
+              allResponses.push({
+                nodeId: currentNode.id,
+                nodeLabel: currentNode.data?.name || currentNode.data?.label || 'Etapa',
+                message: nodeResult.response,
+                type: 'conversationStep'
+              });
+            }
 
             // Check if we've exceeded max attempts (currentAttempt is 1-indexed)
             if (currentAttempt >= maxAttempts) {
@@ -304,7 +328,14 @@ async function executeFromNode(startNode, workflowDef, context) {
         // Isso é importante quando ConversationStep atinge objetivo e avança para ACAO
         if (nodeResult.actionType === 'send_message' && nodeResult.result?.message) {
           response = nodeResult.result.message;
-          console.log(`📨 [Action] send_message response captured: "${response.substring(0, 50)}..."`);
+          // ✅ Adicionar ao array de respostas para não perder quando múltiplos nós executam
+          allResponses.push({
+            nodeId: currentNode.id,
+            nodeLabel: currentNode.data?.label || currentNode.data?.actionType || 'Ação',
+            message: nodeResult.result.message,
+            type: 'action'
+          });
+          console.log(`📨 [Action] send_message response captured: "${response.substring(0, 50)}..." (total: ${allResponses.length})`);
         }
 
         // Check both static pausesWorkflow AND dynamic waitForResponse from result
@@ -477,9 +508,15 @@ async function executeFromNode(startNode, workflowDef, context) {
     }
   }
 
+  // ✅ Log todas as respostas coletadas
+  if (allResponses.length > 1) {
+    console.log(`📬 [Workflow] ${allResponses.length} respostas coletadas:`, allResponses.map(r => r.nodeLabel));
+  }
+
   return {
     executedNodes,
     response,
+    allResponses, // ✅ Array com TODAS as respostas quando múltiplos nós executam em sequência
     paused: shouldPause,
     completed: shouldEnd,
     finalNodeId: currentNode?.id,
@@ -1092,6 +1129,7 @@ async function processTestMessage(testSessionId, agentId, message, options = {})
 
     return {
       response: result.response,
+      allResponses: result.allResponses, // ✅ Array com TODAS as respostas
       executedNodes: result.executedNodes,
       newState,
       paused: result.paused,
