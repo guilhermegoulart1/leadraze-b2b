@@ -116,7 +116,7 @@ const typeLabels = {
   atendimento: 'Atendimento'
 };
 
-const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, initialData = null, isEditing = false }) => {
+const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, initialData = null, isEditing = false, agentId = null }) => {
   const [activeTab, setActiveTab] = useState('identity');
   const [saving, setSaving] = useState(false);
   const initializedRef = React.useRef(false);
@@ -314,6 +314,7 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, init
             profile={profile}
             onChange={updateProfile}
             onNestedChange={updateNestedProfile}
+            agentId={agentId || initialData?.id}
           />
         )}
         {activeTab === 'rules' && (

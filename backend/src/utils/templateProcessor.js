@@ -150,11 +150,107 @@ class TemplateProcessor {
   }
 
   /**
+   * Processa template com variáveis customizadas do agente + variáveis do lead
+   * @param {string} template - Template com variáveis
+   * @param {object} leadData - Dados do lead
+   * @param {array} customVariables - Array de variáveis customizadas [{name, value, description}]
+   * @returns {string} - Mensagem com todas as variáveis substituídas
+   */
+  static processTemplateWithCustomVars(template, leadData, customVariables = []) {
+    if (!template || typeof template !== 'string') {
+      return template;
+    }
+
+    let processed = template;
+
+    // 1. Primeiro substituir variáveis customizadas do agente
+    if (Array.isArray(customVariables) && customVariables.length > 0) {
+      for (const variable of customVariables) {
+        if (variable.name && variable.value !== undefined) {
+          // Suportar formato {{variavel}} e {{variavel}}
+          const regex = new RegExp(`\\{\\{${variable.name}\\}\\}`, 'gi');
+          processed = processed.replace(regex, variable.value || '');
+        }
+      }
+    }
+
+    // 2. Depois processar variáveis do lead (comportamento existente)
+    return this.processTemplate(processed, leadData);
+  }
+
+  /**
+   * Valida template considerando variáveis customizadas
+   * @param {string} template - Template para validar
+   * @param {array} customVariables - Array de variáveis customizadas opcionais
+   * @returns {object} - { valid: boolean, invalidVariables: array, validVariables: array }
+   */
+  static validateTemplateWithCustomVars(template, customVariables = []) {
+    const baseValidation = this.validateTemplate(template);
+
+    // Se não há variáveis customizadas, retornar validação base
+    if (!Array.isArray(customVariables) || customVariables.length === 0) {
+      return baseValidation;
+    }
+
+    // Adicionar variáveis customizadas à lista de válidas
+    const customVarNames = customVariables.map(v => `{{${v.name}}}`);
+    const allValidVariables = [...baseValidation.validVariables, ...customVarNames];
+
+    // Re-validar com a lista expandida
+    const usedVariables = this.getUsedVariables(template);
+    const invalidVariables = usedVariables.filter(
+      variable => !allValidVariables.some(v => v.toLowerCase() === variable.toLowerCase())
+    );
+
+    return {
+      valid: invalidVariables.length === 0,
+      invalidVariables,
+      validVariables: allValidVariables,
+      customVariables: customVarNames
+    };
+  }
+
+  /**
+   * Retorna lista de variáveis nativas por canal
+   * @param {string} channel - Canal (linkedin, whatsapp, email)
+   * @returns {array} - Lista de variáveis disponíveis para o canal
+   */
+  static getChannelVariables(channel = 'linkedin') {
+    const baseVariables = [
+      { name: 'first_name', label: 'Primeiro Nome', description: 'Primeiro nome do contato' },
+      { name: 'name', label: 'Nome Completo', description: 'Nome completo do contato' },
+      { name: 'company', label: 'Empresa', description: 'Empresa do contato' },
+      { name: 'title', label: 'Cargo', description: 'Cargo/título do contato' },
+      { name: 'location', label: 'Localização', description: 'Localização do contato' },
+      { name: 'industry', label: 'Setor', description: 'Setor/indústria' }
+    ];
+
+    const channelSpecific = {
+      linkedin: [
+        ...baseVariables,
+        { name: 'connections', label: 'Conexões', description: 'Número de conexões' },
+        { name: 'summary', label: 'Resumo', description: 'Resumo/headline do perfil' }
+      ],
+      whatsapp: [
+        ...baseVariables,
+        { name: 'phone', label: 'Telefone', description: 'Número de telefone' }
+      ],
+      email: [
+        ...baseVariables,
+        { name: 'email', label: 'Email', description: 'Endereço de email' }
+      ]
+    };
+
+    return channelSpecific[channel] || baseVariables;
+  }
+
+  /**
    * Gera preview do template com dados de exemplo
    * @param {string} template - Template para preview
+   * @param {array} customVariables - Variáveis customizadas opcionais
    * @returns {string} - Preview com dados de exemplo
    */
-  static generatePreview(template) {
+  static generatePreview(template, customVariables = []) {
     const exampleData = {
       first_name: 'João',
       name: 'João Silva',
@@ -168,8 +264,15 @@ class TemplateProcessor {
       connections: '500+',
       connections_count: '500+',
       summary: 'Profissional experiente em transformação digital',
-      headline: 'Profissional experiente em transformação digital'
+      headline: 'Profissional experiente em transformação digital',
+      phone: '+55 11 99999-9999',
+      email: 'joao.silva@techsolutions.com'
     };
+
+    // Se há variáveis customizadas, usar o método que as suporta
+    if (Array.isArray(customVariables) && customVariables.length > 0) {
+      return this.processTemplateWithCustomVars(template, exampleData, customVariables);
+    }
 
     return this.processTemplate(template, exampleData);
   }

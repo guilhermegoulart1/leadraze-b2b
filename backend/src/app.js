@@ -538,6 +538,34 @@ try {
 }
 
 // ================================
+// CRM PIPELINES
+// ================================
+
+// CRM Projects (for organizing pipelines)
+try {
+  app.use('/api/crm-projects', require('./routes/crm-projects'));
+  console.log('✅ CRM Projects routes loaded');
+} catch (error) {
+  console.error('❌ Error loading CRM Projects routes:', error.message);
+}
+
+// Pipelines (customizable sales pipelines)
+try {
+  app.use('/api/pipelines', require('./routes/pipelines'));
+  console.log('✅ Pipelines routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Pipelines routes:', error.message);
+}
+
+// Opportunities (deals in pipelines)
+try {
+  app.use('/api/opportunities', require('./routes/opportunities'));
+  console.log('✅ Opportunities routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Opportunities routes:', error.message);
+}
+
+// ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================
 

@@ -10,7 +10,8 @@ const rotationService = require('../services/rotationService');
 const assignmentLogService = require('../services/assignmentLogService');
 const agentGeneratorService = require('../services/agentGeneratorService');
 const agentTemplates = require('../data/agentTemplates');
-const { syncKnowledgeFromConfig } = require('../services/ragService');
+const { syncKnowledgeFromConfig, addKnowledge, deleteKnowledge, listKnowledge } = require('../services/ragService');
+const documentProcessorService = require('../services/documentProcessorService');
 
 // ==========================================
 // HELPER: Check sector access
@@ -1568,6 +1569,196 @@ const applyAgentTemplate = async (req, res) => {
   }
 };
 
+// ==========================================
+// DOCUMENT UPLOAD ENDPOINTS
+// ==========================================
+
+/**
+ * Upload a document to the agent's knowledge base
+ * POST /api/agents/:id/documents
+ */
+const uploadDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { account_id } = req.user;
+
+    // Verificar se o agente existe
+    const agentResult = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [id, account_id]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agente nao encontrado');
+    }
+
+    // Verificar se tem arquivo
+    if (!req.file) {
+      throw new ValidationError('Nenhum arquivo enviado');
+    }
+
+    console.log(`📤 Upload de documento para agente ${id}: ${req.file.originalname}`);
+
+    // Processar documento
+    const processingResult = await documentProcessorService.processDocument(req.file);
+
+    if (!processingResult.success) {
+      throw new ValidationError(processingResult.error || 'Erro ao processar documento');
+    }
+
+    // Inserir chunks na base de conhecimento
+    let insertedCount = 0;
+    const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    for (const chunk of processingResult.chunks) {
+      try {
+        await addKnowledge({
+          ai_agent_id: id,
+          type: 'document',
+          question: `[${processingResult.metadata.filename}] Chunk ${chunk.index + 1}`,
+          answer: chunk.content,
+          always_include: false,
+          metadata: {
+            document_id: documentId,
+            filename: processingResult.metadata.filename,
+            chunk_index: chunk.index,
+            total_chunks: processingResult.chunks.length
+          }
+        });
+        insertedCount++;
+      } catch (error) {
+        console.error(`⚠️ Erro ao inserir chunk ${chunk.index}:`, error.message);
+      }
+    }
+
+    // Atualizar config do agente para rastrear documentos
+    const agent = agentResult.rows[0];
+    const config = typeof agent.config === 'string'
+      ? JSON.parse(agent.config || '{}')
+      : (agent.config || {});
+
+    const documents = config.documents || [];
+    documents.push({
+      id: documentId,
+      name: processingResult.metadata.filename,
+      size: processingResult.metadata.size,
+      chunks: insertedCount,
+      uploadedAt: new Date().toISOString()
+    });
+
+    await db.query(
+      'UPDATE ai_agents SET config = $1, updated_at = NOW() WHERE id = $2',
+      [JSON.stringify({ ...config, documents }), id]
+    );
+
+    console.log(`✅ Documento processado: ${insertedCount} chunks inseridos`);
+
+    sendSuccess(res, {
+      document: {
+        id: documentId,
+        name: processingResult.metadata.filename,
+        size: processingResult.metadata.size,
+        chunks: insertedCount,
+        uploadedAt: new Date().toISOString()
+      },
+      metadata: processingResult.metadata
+    }, 'Documento processado com sucesso');
+
+  } catch (error) {
+    console.error('Error in uploadDocument:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Get all documents in the agent's knowledge base
+ * GET /api/agents/:id/documents
+ */
+const getAgentDocuments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { account_id } = req.user;
+
+    // Verificar se o agente existe
+    const agentResult = await db.query(
+      'SELECT config FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [id, account_id]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agente nao encontrado');
+    }
+
+    const config = typeof agentResult.rows[0].config === 'string'
+      ? JSON.parse(agentResult.rows[0].config || '{}')
+      : (agentResult.rows[0].config || {});
+
+    const documents = config.documents || [];
+
+    sendSuccess(res, { documents });
+
+  } catch (error) {
+    console.error('Error in getAgentDocuments:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * Delete a document from the agent's knowledge base
+ * DELETE /api/agents/:id/documents/:documentId
+ */
+const deleteAgentDocument = async (req, res) => {
+  try {
+    const { id, documentId } = req.params;
+    const { account_id } = req.user;
+
+    // Verificar se o agente existe
+    const agentResult = await db.query(
+      'SELECT * FROM ai_agents WHERE id = $1 AND account_id = $2',
+      [id, account_id]
+    );
+
+    if (agentResult.rows.length === 0) {
+      throw new NotFoundError('Agente nao encontrado');
+    }
+
+    // Remover chunks do documento da base de conhecimento
+    const deleteResult = await db.query(
+      `DELETE FROM ai_agent_knowledge
+       WHERE ai_agent_id = $1
+       AND type = 'document'
+       AND metadata->>'document_id' = $2
+       RETURNING id`,
+      [id, documentId]
+    );
+
+    console.log(`🗑️ Removidos ${deleteResult.rowCount} chunks do documento ${documentId}`);
+
+    // Atualizar config do agente
+    const agent = agentResult.rows[0];
+    const config = typeof agent.config === 'string'
+      ? JSON.parse(agent.config || '{}')
+      : (agent.config || {});
+
+    const documents = (config.documents || []).filter(d => d.id !== documentId);
+
+    await db.query(
+      'UPDATE ai_agents SET config = $1, updated_at = NOW() WHERE id = $2',
+      [JSON.stringify({ ...config, documents }), id]
+    );
+
+    sendSuccess(res, {
+      deleted: true,
+      documentId,
+      chunksDeleted: deleteResult.rowCount
+    }, 'Documento removido com sucesso');
+
+  } catch (error) {
+    console.error('Error in deleteAgentDocument:', error);
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getAgents,
   getAgent,
@@ -1593,5 +1784,9 @@ module.exports = {
   // Template endpoints
   getAgentTemplates,
   getAgentTemplate,
-  applyAgentTemplate
+  applyAgentTemplate,
+  // Document endpoints
+  uploadDocument,
+  getAgentDocuments,
+  deleteAgentDocument
 };

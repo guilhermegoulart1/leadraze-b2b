@@ -2,7 +2,7 @@
 // Panel for editing node properties
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw } from 'lucide-react';
+import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw, DollarSign } from 'lucide-react';
 import api from '../../../services/api';
 
 // Cores pré-definidas para tags (mesmo do TagsPage)
@@ -106,6 +106,12 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
   const [followUpFlows, setFollowUpFlows] = useState([]);
   const [loadingFollowUpFlows, setLoadingFollowUpFlows] = useState(false);
 
+  // State for pipelines (create_opportunity action)
+  const [pipelines, setPipelines] = useState([]);
+  const [pipelineStages, setPipelineStages] = useState([]);
+  const [loadingPipelines, setLoadingPipelines] = useState(false);
+  const [loadingStages, setLoadingStages] = useState(false);
+
   useEffect(() => {
     setLocalData(node.data);
   }, [node]);
@@ -130,6 +136,20 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
       loadFollowUpFlows();
     }
   }, [node.type]);
+
+  // Load pipelines when create_opportunity action is selected
+  useEffect(() => {
+    if (node.type === 'action' && localData.actionType === 'create_opportunity') {
+      loadPipelines();
+    }
+  }, [node.type, localData.actionType]);
+
+  // Load stages when pipeline is selected
+  useEffect(() => {
+    if (localData.actionType === 'create_opportunity' && localData.params?.pipelineId) {
+      loadPipelineStages(localData.params.pipelineId);
+    }
+  }, [localData.actionType, localData.params?.pipelineId]);
 
   const loadFollowUpFlows = async () => {
     try {
@@ -203,6 +223,61 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
       }
     } catch (error) {
       console.error('Error creating tag:', error);
+    }
+  };
+
+  const loadPipelines = async () => {
+    try {
+      setLoadingPipelines(true);
+      const response = await api.getPipelines();
+      let pipelinesData = [];
+
+      if (Array.isArray(response)) {
+        pipelinesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        pipelinesData = response.data;
+      } else if (response?.data?.pipelines && Array.isArray(response.data.pipelines)) {
+        pipelinesData = response.data.pipelines;
+      } else if (response?.pipelines && Array.isArray(response.pipelines)) {
+        pipelinesData = response.pipelines;
+      }
+
+      setPipelines(pipelinesData);
+    } catch (error) {
+      console.error('Error loading pipelines:', error);
+      setPipelines([]);
+    } finally {
+      setLoadingPipelines(false);
+    }
+  };
+
+  const loadPipelineStages = async (pipelineId) => {
+    if (!pipelineId) {
+      setPipelineStages([]);
+      return;
+    }
+
+    try {
+      setLoadingStages(true);
+      const response = await api.getPipelineStages(pipelineId);
+      let stagesData = [];
+
+      if (Array.isArray(response)) {
+        stagesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        stagesData = response.data;
+      } else if (response?.data?.stages && Array.isArray(response.data.stages)) {
+        stagesData = response.data.stages;
+      } else if (response?.stages && Array.isArray(response.stages)) {
+        stagesData = response.stages;
+      }
+
+      setPipelineStages(stagesData);
+    } catch (error) {
+      console.error('Error loading pipeline stages:', error);
+      setPipelineStages([]);
+    } finally {
+      setLoadingStages(false);
     }
   };
 
@@ -1034,6 +1109,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           <option value="close_negative">Encerrar (Negativo)</option>
           <option value="wait">Aguardar</option>
           <option value="webhook">Chamar Webhook</option>
+          <option value="create_opportunity">Criar Oportunidade</option>
         </select>
       </div>
 
@@ -1596,6 +1672,176 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
             className="w-full px-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white"
             placeholder="https://..."
           />
+        </div>
+      )}
+
+      {/* Create Opportunity Configuration */}
+      {localData.actionType === 'create_opportunity' && (
+        <div className="space-y-3 p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-purple-700 dark:text-purple-400">
+            <Target className="w-3 h-3" />
+            Configurar Oportunidade
+          </div>
+
+          {/* Pipeline Selection */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Pipeline
+            </label>
+            {loadingPipelines ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                Carregando...
+              </div>
+            ) : (
+              <select
+                value={localData.params?.pipelineId || ''}
+                onChange={(e) => {
+                  const selectedPipeline = pipelines.find(p => p.id === e.target.value);
+                  handleChange('params', {
+                    ...localData.params,
+                    pipelineId: e.target.value,
+                    pipelineName: selectedPipeline?.name || '',
+                    stageId: '',
+                    stageName: ''
+                  });
+                }}
+                className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
+              >
+                <option value="">Selecione uma pipeline...</option>
+                {pipelines.map((pipeline) => (
+                  <option key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {pipelines.length === 0 && !loadingPipelines && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                Nenhuma pipeline encontrada
+              </p>
+            )}
+          </div>
+
+          {/* Stage Selection */}
+          {localData.params?.pipelineId && (
+            <div className="space-y-1">
+              <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                Etapa
+              </label>
+              {loadingStages ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                  <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  Carregando...
+                </div>
+              ) : (
+                <select
+                  value={localData.params?.stageId || ''}
+                  onChange={(e) => {
+                    const selectedStage = pipelineStages.find(s => s.id === e.target.value);
+                    handleChange('params', {
+                      ...localData.params,
+                      stageId: e.target.value,
+                      stageName: selectedStage?.name || ''
+                    });
+                  }}
+                  className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
+                >
+                  <option value="">Selecione uma etapa...</option>
+                  {pipelineStages.map((stage) => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {pipelineStages.length === 0 && !loadingStages && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                  Nenhuma etapa encontrada
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Opportunity Title */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Titulo da Oportunidade
+            </label>
+            <div className="flex flex-wrap gap-1 mb-1">
+              {MESSAGE_VARIABLES.slice(0, 4).map((v) => (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => {
+                    const currentTitle = localData.params?.title || '';
+                    handleChange('params', {
+                      ...localData.params,
+                      title: currentTitle + `{{${v.key}}}`
+                    });
+                  }}
+                  className="inline-flex items-center px-1 py-0.5 text-[9px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 transition-colors cursor-pointer"
+                >
+                  {`{{${v.key}}}`}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={localData.params?.title || ''}
+              onChange={(e) => handleChange('params', { ...localData.params, title: e.target.value })}
+              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
+              placeholder="{{name}} - {{company}}"
+            />
+            <p className="text-[9px] text-gray-400 dark:text-gray-500">
+              Deixe vazio para usar nome do lead
+            </p>
+          </div>
+
+          {/* Opportunity Value */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              <DollarSign className="w-2.5 h-2.5 inline mr-0.5" />
+              Valor (opcional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={localData.params?.value || ''}
+              onChange={(e) => handleChange('params', { ...localData.params, value: e.target.value })}
+              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
+              placeholder="0,00"
+            />
+          </div>
+
+          {/* Create Contact if Not Exists Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Criar contato se nao existir
+            </label>
+            <button
+              type="button"
+              onClick={() => handleChange('params', {
+                ...localData.params,
+                createContactIfNotExists: localData.params?.createContactIfNotExists !== false ? false : true
+              })}
+              className={`relative w-9 h-5 rounded-full transition-colors ${
+                localData.params?.createContactIfNotExists !== false ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  localData.params?.createContactIfNotExists !== false ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">
+            {localData.params?.createContactIfNotExists !== false
+              ? 'Cria contato a partir dos dados do lead se nao existir'
+              : 'Requer contato existente para criar oportunidade'}
+          </p>
         </div>
       )}
     </>

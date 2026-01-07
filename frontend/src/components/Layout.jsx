@@ -22,13 +22,26 @@ const Layout = () => {
   const { t } = useTranslation('navigation');
   const { user, logout, isAdmin, isSupervisor, hasPermission } = useAuth();
   const { isDark } = useTheme();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0); // Real data from API
   const [unreadNotifications, setUnreadNotifications] = useState(0); // System notifications
 
   const isActive = (path) => location.pathname === path;
+
+  // Listen for storage events (from other components like PipelinesPage)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+      setIsCollapsed(collapsed);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // ✅ Carregar estatísticas de conversas não lidas
   // Atualiza ao montar o componente e quando navega para /conversations
@@ -104,7 +117,10 @@ const Layout = () => {
         <div className="h-14 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3">
           {isCollapsed ? (
             <button
-              onClick={() => setIsCollapsed(false)}
+              onClick={() => {
+                setIsCollapsed(false);
+                localStorage.setItem('sidebarCollapsed', 'false');
+              }}
               className="w-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors p-2"
               title={t('userMenu.expandMenu')}
             >
@@ -124,7 +140,10 @@ const Layout = () => {
                 />
               </div>
               <button
-                onClick={() => setIsCollapsed(true)}
+                onClick={() => {
+                  setIsCollapsed(true);
+                  localStorage.setItem('sidebarCollapsed', 'true');
+                }}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors flex-shrink-0"
                 title={t('userMenu.collapseMenu')}
               >

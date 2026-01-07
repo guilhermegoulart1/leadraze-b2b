@@ -577,33 +577,107 @@ const ObjectionsSection = ({ items, onChange, searchQuery }) => {
 };
 
 // Documents Section
-const DocumentsSection = ({ documents, onChange }) => {
+const DocumentsSection = ({ documents, onChange, agentId }) => {
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [error, setError] = useState(null);
 
   const handleUpload = async (files) => {
+    if (!agentId) {
+      setError('Salve o agente primeiro antes de enviar documentos.');
+      return;
+    }
+
     setIsUploading(true);
+    setError(null);
+    const uploadedDocs = [];
+
     try {
-      await new Promise(r => setTimeout(r, 1000));
-      const newDocs = Array.from(files).map(file => ({
-        id: Date.now() + Math.random(),
-        name: file.name,
-        size: file.size,
-        chunks: Math.floor(Math.random() * 15) + 5,
-        uploadedAt: new Date().toISOString()
-      }));
-      onChange([...(documents || []), ...newDocs]);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress(`Processando ${file.name} (${i + 1}/${files.length})...`);
+
+        const formData = new FormData();
+        formData.append('document', file);
+
+        const response = await fetch(`/api/agents/${agentId}/documents`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Erro ao enviar ${file.name}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.data?.document) {
+          uploadedDocs.push(result.data.document);
+        }
+      }
+
+      if (uploadedDocs.length > 0) {
+        onChange([...(documents || []), ...uploadedDocs]);
+      }
+    } catch (err) {
+      console.error('Erro no upload:', err);
+      setError(err.message || 'Erro ao processar documentos');
     } finally {
       setIsUploading(false);
+      setUploadProgress('');
     }
   };
 
-  const handleDelete = (id) => {
-    onChange(documents.filter(d => d.id !== id));
+  const handleDelete = async (docId) => {
+    if (!agentId) return;
+
+    try {
+      const response = await fetch(`/api/agents/${agentId}/documents/${docId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao remover documento');
+      }
+
+      onChange(documents.filter(d => d.id !== docId));
+    } catch (err) {
+      console.error('Erro ao deletar:', err);
+      setError(err.message || 'Erro ao remover documento');
+    }
   };
 
   return (
     <div className="space-y-4">
+      {/* Aviso se nao tem agentId */}
+      {!agentId && (
+        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            Salve o agente primeiro para poder enviar documentos.
+          </p>
+        </div>
+      )}
+
+      {/* Erro */}
+      {error && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <input
         ref={fileInputRef}
         type="file"
@@ -617,19 +691,26 @@ const DocumentsSection = ({ documents, onChange }) => {
       />
 
       <div
-        onClick={() => !isUploading && fileInputRef.current?.click()}
+        onClick={() => !isUploading && agentId && fileInputRef.current?.click()}
         className={`
-          border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
-          ${isUploading
-            ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800'
-            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+          border-2 border-dashed rounded-lg p-8 text-center transition-all
+          ${!agentId
+            ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 cursor-not-allowed opacity-60'
+            : isUploading
+              ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 cursor-wait'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'
           }
         `}
       >
         {isUploading ? (
           <div className="flex flex-col items-center">
-            <Loader className="w-8 h-8 text-gray-400 animate-spin mb-3" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Processando documentos...</p>
+            <Loader className="w-8 h-8 text-purple-500 animate-spin mb-3" />
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {uploadProgress || 'Processando documentos...'}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Extraindo texto e gerando embeddings...
+            </p>
           </div>
         ) : (
           <div className="flex flex-col items-center">
@@ -743,7 +824,7 @@ const SettingsSection = ({ value, onChange }) => {
 };
 
 // Main Component
-const KnowledgeTab = ({ profile, onChange, onNestedChange }) => {
+const KnowledgeTab = ({ profile, onChange, onNestedChange, agentId }) => {
   const [activeCategory, setActiveCategory] = useState('company');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -841,6 +922,7 @@ const KnowledgeTab = ({ profile, onChange, onNestedChange }) => {
             <DocumentsSection
               documents={profile.documents || []}
               onChange={(docs) => onChange('documents', docs)}
+              agentId={agentId}
             />
           )}
           {activeCategory === 'settings' && (

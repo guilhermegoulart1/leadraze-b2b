@@ -3055,6 +3055,200 @@ class ApiService {
     });
   }
 
+  // ==========================================
+  // CRM PROJECTS
+  // ==========================================
+
+  async getCrmProjects(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/crm-projects${query ? '?' + query : ''}`);
+  }
+
+  async getCrmProject(id) {
+    return this.request(`/crm-projects/${id}`);
+  }
+
+  async createCrmProject(data) {
+    return this.request('/crm-projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCrmProject(id, data) {
+    return this.request(`/crm-projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCrmProject(id, force = false) {
+    return this.request(`/crm-projects/${id}${force ? '?force=true' : ''}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderCrmProjects(orders) {
+    return this.request('/crm-projects/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ orders }),
+    });
+  }
+
+  // ==========================================
+  // PIPELINES
+  // ==========================================
+
+  async getPipelines(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/pipelines${query ? '?' + query : ''}`);
+  }
+
+  async getPipeline(id) {
+    return this.request(`/pipelines/${id}`);
+  }
+
+  async createPipeline(data) {
+    return this.request('/pipelines', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePipeline(id, data) {
+    return this.request(`/pipelines/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePipeline(id, force = false) {
+    return this.request(`/pipelines/${id}${force ? '?force=true' : ''}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPipelineStats(id) {
+    return this.request(`/pipelines/${id}/stats`);
+  }
+
+  async movePipelineToProject(id, projectId) {
+    return this.request(`/pipelines/${id}/move`, {
+      method: 'PATCH',
+      body: JSON.stringify({ project_id: projectId }),
+    });
+  }
+
+  async addPipelineUser(pipelineId, userId, role = 'member') {
+    return this.request(`/pipelines/${pipelineId}/users`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, role }),
+    });
+  }
+
+  async removePipelineUser(pipelineId, userId) {
+    return this.request(`/pipelines/${pipelineId}/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ==========================================
+  // PIPELINE STAGES
+  // ==========================================
+
+  async getPipelineStages(pipelineId) {
+    return this.request(`/pipelines/${pipelineId}/stages`);
+  }
+
+  async createPipelineStage(pipelineId, data) {
+    return this.request(`/pipelines/${pipelineId}/stages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePipelineStage(pipelineId, stageId, data) {
+    return this.request(`/pipelines/${pipelineId}/stages/${stageId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePipelineStage(pipelineId, stageId, moveToStageId = null) {
+    const query = moveToStageId ? `?move_to_stage_id=${moveToStageId}` : '';
+    return this.request(`/pipelines/${pipelineId}/stages/${stageId}${query}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderPipelineStages(pipelineId, orders) {
+    return this.request(`/pipelines/${pipelineId}/stages/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ orders }),
+    });
+  }
+
+  // ==========================================
+  // OPPORTUNITIES
+  // ==========================================
+
+  async getOpportunities(pipelineId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/pipelines/${pipelineId}/opportunities${query ? '?' + query : ''}`);
+  }
+
+  async getOpportunitiesKanban(pipelineId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/pipelines/${pipelineId}/opportunities/kanban${query ? '?' + query : ''}`);
+  }
+
+  async createOpportunity(pipelineId, data) {
+    return this.request(`/pipelines/${pipelineId}/opportunities`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getOpportunity(id) {
+    return this.request(`/opportunities/${id}`);
+  }
+
+  async updateOpportunity(id, data) {
+    return this.request(`/opportunities/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async moveOpportunity(id, stageId, notes = null, lossReasonId = null, lossNotes = null) {
+    return this.request(`/opportunities/${id}/move`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        stage_id: stageId,
+        notes,
+        loss_reason_id: lossReasonId,
+        loss_notes: lossNotes,
+      }),
+    });
+  }
+
+  async deleteOpportunity(id) {
+    return this.request(`/opportunities/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getContactOpportunities(contactId) {
+    return this.request(`/opportunities/contact/${contactId}`);
+  }
+
+  async reorderOpportunities(orders) {
+    return this.request('/opportunities/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ orders }),
+    });
+  }
+
 }
 
 export default new ApiService();

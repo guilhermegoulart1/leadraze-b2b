@@ -7,6 +7,7 @@ const ragService = require('./ragService');
 const objectionService = require('./objectionService');
 const playbookService = require('./playbookService');
 const profileAnalysisService = require('./profileAnalysisService');
+const businessHoursService = require('./businessHoursService');
 
 // Lazy load to avoid circular dependencies
 let emailBrandingService = null;
@@ -146,6 +147,44 @@ async function generateResponse(params) {
     // Validar agente IA
     if (!ai_agent) {
       throw new Error('AI agent configuration is required');
+    }
+
+    // 🕐 VERIFICAR HORÁRIO DE FUNCIONAMENTO
+    const agentConfig = typeof ai_agent.config === 'string'
+      ? JSON.parse(ai_agent.config || '{}')
+      : (ai_agent.config || {});
+
+    if (agentConfig.workingHours?.enabled) {
+      const isWithinHours = businessHoursService.isWithinBusinessHours(agentConfig.workingHours);
+
+      if (!isWithinHours) {
+        const outOfHoursResponse = businessHoursService.getOutOfHoursResponse(agentConfig.workingHours);
+        console.log(`🕐 Fora do horário de funcionamento - Ação: ${outOfHoursResponse.action}`);
+
+        if (outOfHoursResponse.action === 'message') {
+          // Retornar mensagem de ausência
+          return {
+            message: outOfHoursResponse.message,
+            isOutOfHours: true,
+            skipAI: true,
+            sentiment: 'neutral',
+            intent: 'out_of_hours',
+            action: 'auto_reply'
+          };
+        } else if (outOfHoursResponse.action === 'ignore') {
+          // Não responder nada
+          return {
+            message: null,
+            isOutOfHours: true,
+            skipAI: true,
+            ignored: true,
+            action: 'ignore'
+          };
+        }
+        // 'queue' - continua normalmente, mas marca como fora do horário
+        // O sistema pode processar depois ou simplesmente responder normalmente
+        console.log(`🕐 Modo 'queue' - processando resposta mesmo fora do horário`);
+      }
     }
 
     // Obter perfil comportamental

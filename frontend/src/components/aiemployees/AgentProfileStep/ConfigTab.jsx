@@ -1,8 +1,8 @@
 // frontend/src/components/aiemployees/AgentProfileStep/ConfigTab.jsx
 // Tab de Configuracoes adicionais
 
-import React from 'react';
-import { Sliders, MessageSquare, Zap, Globe, Clock, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sliders, MessageSquare, Zap, Globe, Clock, Calendar, Variable, Plus, Trash2, Info } from 'lucide-react';
 
 // Timezone options
 const timezoneOptions = [
@@ -152,6 +152,110 @@ const ConfigTab = ({ profile, onChange }) => {
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           Idioma principal das respostas do agente
         </p>
+      </div>
+
+      {/* Divider - Variáveis */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+          Variaveis Personalizadas
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Crie variaveis customizadas para usar nas mensagens do agente. Use o formato {'{{nome_variavel}}'} nas instrucoes.
+        </p>
+      </div>
+
+      {/* Custom Variables */}
+      <div className="space-y-3">
+        {/* Info Box */}
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-2">
+            <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-blue-700 dark:text-blue-400">
+              <strong>Variaveis nativas do canal:</strong> {`{{first_name}}, {{name}}, {{company}}, {{title}}`} - sao automaticamente preenchidas com dados do contato.
+            </div>
+          </div>
+        </div>
+
+        {/* Custom Variables List */}
+        {(profile.customVariables || []).map((variable, index) => (
+          <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="flex-1 grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Nome da Variavel
+                </label>
+                <div className="flex items-center">
+                  <span className="px-2 py-2 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 text-sm rounded-l-lg border border-r-0 border-gray-300 dark:border-gray-500">
+                    {'{{'}
+                  </span>
+                  <input
+                    type="text"
+                    value={variable.name || ''}
+                    onChange={(e) => {
+                      const newVars = [...(profile.customVariables || [])];
+                      newVars[index] = { ...newVars[index], name: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') };
+                      onChange('customVariables', newVars);
+                    }}
+                    placeholder="nome_variavel"
+                    className="flex-1 px-2 py-2 bg-white dark:bg-gray-700 border-y border-gray-300 dark:border-gray-500 focus:ring-2 focus:ring-purple-500 dark:text-white text-sm"
+                  />
+                  <span className="px-2 py-2 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 text-sm rounded-r-lg border border-l-0 border-gray-300 dark:border-gray-500">
+                    {'}}'}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Valor Padrao
+                </label>
+                <input
+                  type="text"
+                  value={variable.value || ''}
+                  onChange={(e) => {
+                    const newVars = [...(profile.customVariables || [])];
+                    newVars[index] = { ...newVars[index], value: e.target.value };
+                    onChange('customVariables', newVars);
+                  }}
+                  placeholder="Ex: GetRaze CRM"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-sm"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const newVars = (profile.customVariables || []).filter((_, i) => i !== index);
+                onChange('customVariables', newVars);
+              }}
+              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors mt-5"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+
+        {/* Add Variable Button */}
+        <button
+          type="button"
+          onClick={() => {
+            const newVars = [...(profile.customVariables || []), { name: '', value: '', description: '' }];
+            onChange('customVariables', newVars);
+          }}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-500 dark:hover:border-purple-500 dark:hover:text-purple-400 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Adicionar Variavel
+        </button>
+
+        {/* Usage Example */}
+        {(profile.customVariables || []).length > 0 && (
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+            <div className="text-xs text-purple-700 dark:text-purple-400">
+              <strong>Exemplo de uso:</strong><br />
+              "Ola {`{{first_name}}`}! Conheca o {`{{${profile.customVariables[0]?.name || 'produto'}}}`} e agende uma demonstracao."
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Divider */}

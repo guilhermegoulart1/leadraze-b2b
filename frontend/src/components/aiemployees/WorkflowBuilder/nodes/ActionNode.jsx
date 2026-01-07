@@ -23,7 +23,8 @@ import {
   RefreshCw,
   Clock,
   MessageCircle,
-  FastForward
+  FastForward,
+  Target
 } from 'lucide-react';
 
 const actionConfigs = {
@@ -91,6 +92,12 @@ const actionConfigs = {
     icon: Clock,
     label: 'Aguardar',
     color: 'amber',
+    hasOutput: true
+  },
+  create_opportunity: {
+    icon: Target,
+    label: 'Criar Oportunidade',
+    color: 'purple',
     hasOutput: true
   }
 };
@@ -275,6 +282,15 @@ const checkActionComplete = (data) => {
   if (data.actionType === 'webhook') {
     if (!data.params?.url) {
       issues.push('Configure a URL do webhook');
+    }
+  }
+
+  if (data.actionType === 'create_opportunity') {
+    if (!data.params?.pipelineId) {
+      issues.push('Selecione uma pipeline');
+    }
+    if (!data.params?.stageId) {
+      issues.push('Selecione uma etapa');
     }
   }
 
@@ -491,6 +507,24 @@ const ActionNode = ({ id, data, selected }) => {
                   Remover todas as tags
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Create Opportunity configuration display */}
+          {data.actionType === 'create_opportunity' && data.params?.pipelineId && (
+            <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center gap-2 text-sm">
+                <Target className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span className="text-purple-700 dark:text-purple-300 font-medium">
+                  {data.params.pipelineName || 'Pipeline'}
+                </span>
+              </div>
+              {data.params.stageName && (
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-600 dark:text-gray-400">
+                  <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                  <span>{data.params.stageName}</span>
+                </div>
+              )}
             </div>
           )}
 

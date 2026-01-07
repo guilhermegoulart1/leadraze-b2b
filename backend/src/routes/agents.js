@@ -1,8 +1,31 @@
 // backend/src/routes/agents.js
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const agentController = require('../controllers/agentController');
 const { authenticateToken } = require('../middleware/auth');
+
+// Configuracao do multer para upload de documentos
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'text/plain',
+      'text/markdown'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de arquivo nao suportado. Aceitos: PDF, DOCX, DOC, TXT, MD'), false);
+    }
+  }
+});
 
 // All routes require authentication
 router.use(authenticateToken);
@@ -146,6 +169,30 @@ router.post('/:id/test/response', agentController.testAgentResponse);
  * Get agent statistics
  */
 router.get('/:id/stats', agentController.getAgentStats);
+
+// ==========================================
+// DOCUMENT UPLOAD ROUTES
+// ==========================================
+
+/**
+ * POST /api/agents/:id/documents
+ * Upload a document to the agent's knowledge base
+ * Body: multipart/form-data with 'document' field
+ * Returns: { success, document, chunks }
+ */
+router.post('/:id/documents', upload.single('document'), agentController.uploadDocument);
+
+/**
+ * GET /api/agents/:id/documents
+ * Get all documents in the agent's knowledge base
+ */
+router.get('/:id/documents', agentController.getAgentDocuments);
+
+/**
+ * DELETE /api/agents/:id/documents/:documentId
+ * Delete a document from the agent's knowledge base
+ */
+router.delete('/:id/documents/:documentId', agentController.deleteAgentDocument);
 
 // ==========================================
 // ASSIGNEES / ROTATION ROUTES

@@ -52,7 +52,8 @@ const ACTION_CONFIGS = {
   send_email: { hasOutput: true, endsBranch: false },
   webhook: { hasOutput: true, endsBranch: false },
   pause: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
-  wait: { hasOutput: true, endsBranch: false, pausesWorkflow: true }
+  wait: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
+  create_opportunity: { hasOutput: true, endsBranch: false }
 };
 
 /**
@@ -802,6 +803,199 @@ const executors = {
       resumeAt,
       jobId: job.id,
       isWaitAction: true
+    };
+  },
+
+  /**
+   * Create opportunity in pipeline
+   * Creates a contact if it doesn't exist and adds an opportunity to the specified pipeline/stage
+   */
+  create_opportunity: async (params, context) => {
+    const {
+      pipelineId,
+      stageId,
+      title,
+      value = 0,
+      createContactIfNotExists = true
+    } = params.params || params;
+
+    const { lead, leadId, contactId, accountId, userId, isTestMode, variables } = context;
+
+    if (!pipelineId) {
+      throw new Error('Pipeline ID is required');
+    }
+
+    if (!stageId) {
+      throw new Error('Stage ID is required');
+    }
+
+    // Process variables in title
+    const leadData = TemplateProcessor.extractLeadData(lead || {});
+    const allVariables = { ...leadData, ...variables };
+    const processedTitle = title
+      ? TemplateProcessor.processTemplate(title, allVariables)
+      : `${lead?.name || 'Lead'}${lead?.company ? ` - ${lead.company}` : ''}`;
+
+    if (isTestMode) {
+      return {
+        simulated: true,
+        pipelineId,
+        stageId,
+        title: processedTitle,
+        value,
+        createContactIfNotExists
+      };
+    }
+
+    let targetContactId = contactId;
+
+    // Create contact from lead if needed
+    if (!targetContactId && createContactIfNotExists && lead) {
+      // Check if contact already exists with this email or phone
+      let existingContact = null;
+
+      if (lead.email) {
+        const emailCheck = await db.query(
+          'SELECT id FROM contacts WHERE account_id = $1 AND email = $2',
+          [accountId, lead.email]
+        );
+        if (emailCheck.rows.length > 0) {
+          existingContact = emailCheck.rows[0];
+        }
+      }
+
+      if (!existingContact && lead.phone) {
+        const phoneCheck = await db.query(
+          'SELECT id FROM contacts WHERE account_id = $1 AND phone = $2',
+          [accountId, lead.phone]
+        );
+        if (phoneCheck.rows.length > 0) {
+          existingContact = phoneCheck.rows[0];
+        }
+      }
+
+      if (existingContact) {
+        targetContactId = existingContact.id;
+        console.log(`📋 [create_opportunity] Using existing contact: ${targetContactId}`);
+      } else {
+        // Create new contact from lead data
+        const contactResult = await db.query(
+          `INSERT INTO contacts (
+            account_id, name, email, phone, company, title,
+            source, source_lead_id, created_by, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+          RETURNING id`,
+          [
+            accountId,
+            lead.name || 'Unknown',
+            lead.email || null,
+            lead.phone || null,
+            lead.company || null,
+            lead.title || null,
+            'workflow',
+            leadId,
+            userId
+          ]
+        );
+        targetContactId = contactResult.rows[0].id;
+        console.log(`✅ [create_opportunity] Created contact: ${targetContactId} from lead ${leadId}`);
+
+        // Update lead with contact_id
+        if (leadId) {
+          await db.query(
+            'UPDATE leads SET contact_id = $1 WHERE id = $2',
+            [targetContactId, leadId]
+          );
+        }
+      }
+    }
+
+    if (!targetContactId) {
+      throw new Error('No contact available and could not create one');
+    }
+
+    // Verify pipeline and stage exist and belong to account
+    const stageCheck = await db.query(
+      `SELECT ps.id, ps.name, p.id as pipeline_id, p.name as pipeline_name
+       FROM pipeline_stages ps
+       JOIN pipelines p ON ps.pipeline_id = p.id
+       WHERE ps.id = $1 AND p.id = $2 AND p.account_id = $3`,
+      [stageId, pipelineId, accountId]
+    );
+
+    if (stageCheck.rows.length === 0) {
+      throw new Error('Pipeline or stage not found');
+    }
+
+    const stage = stageCheck.rows[0];
+
+    // Check if opportunity already exists for this contact in this pipeline
+    const existingOpp = await db.query(
+      'SELECT id FROM opportunities WHERE contact_id = $1 AND pipeline_id = $2',
+      [targetContactId, pipelineId]
+    );
+
+    if (existingOpp.rows.length > 0) {
+      console.log(`⚠️ [create_opportunity] Opportunity already exists for contact ${targetContactId} in pipeline ${pipelineId}`);
+      return {
+        created: false,
+        existed: true,
+        opportunityId: existingOpp.rows[0].id,
+        contactId: targetContactId,
+        pipelineId,
+        stageId
+      };
+    }
+
+    // Create opportunity
+    const oppResult = await db.query(
+      `INSERT INTO opportunities (
+        account_id, contact_id, pipeline_id, stage_id, title, value,
+        source_lead_id, source, owner_user_id, created_by, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      RETURNING id`,
+      [
+        accountId,
+        targetContactId,
+        pipelineId,
+        stageId,
+        processedTitle,
+        parseFloat(value) || 0,
+        leadId,
+        'workflow',
+        userId,
+        userId
+      ]
+    );
+
+    const opportunityId = oppResult.rows[0].id;
+
+    // Record in opportunity history
+    await db.query(
+      `INSERT INTO opportunity_history (opportunity_id, user_id, action, to_stage_id, to_value, notes, metadata)
+       VALUES ($1, $2, 'created', $3, $4, $5, $6)`,
+      [
+        opportunityId,
+        userId,
+        stageId,
+        parseFloat(value) || 0,
+        'Criada via workflow',
+        JSON.stringify({ source: 'workflow', lead_id: leadId })
+      ]
+    );
+
+    console.log(`✅ [create_opportunity] Created opportunity ${opportunityId} in pipeline "${stage.pipeline_name}" stage "${stage.name}"`);
+
+    return {
+      created: true,
+      opportunityId,
+      contactId: targetContactId,
+      pipelineId,
+      pipelineName: stage.pipeline_name,
+      stageId,
+      stageName: stage.name,
+      title: processedTitle,
+      value: parseFloat(value) || 0
     };
   }
 };

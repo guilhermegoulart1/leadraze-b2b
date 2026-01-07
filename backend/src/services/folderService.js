@@ -420,7 +420,7 @@ async function moveFlowToFolder(flowId, folderId, accountId) {
  * @returns {Promise<void>}
  */
 async function reorderFolders(accountId, folderOrders) {
-  const client = await db.getClient();
+  const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
 
