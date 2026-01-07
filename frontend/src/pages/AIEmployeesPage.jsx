@@ -556,13 +556,25 @@ const AIEmployeesPage = () => {
         ...existingConfig,
         tone: profile?.tone || existingConfig.tone,
         objective: profile?.objective || existingConfig.objective,
+        customObjective: profile?.customObjective || existingConfig.customObjective,
         personality: profile?.personality || existingConfig.personality,
         rules: profile?.rules || existingConfig.rules,
         company: profile?.company || existingConfig.company,
         product: profile?.product || existingConfig.product,
         faq: profile?.faq || existingConfig.faq,
-        objections: profile?.objections || existingConfig.objections
+        objections: profile?.objections || existingConfig.objections,
+        documents: profile?.documents || existingConfig.documents,
+        // Novos campos adicionados
+        baseInstructions: profile?.baseInstructions || existingConfig.baseInstructions,
+        formality: profile?.formality ?? existingConfig.formality ?? 50,
+        assertiveness: profile?.assertiveness ?? existingConfig.assertiveness ?? 50
       };
+
+      console.log('📤 [handleProfileSave] newConfig:', {
+        faq: newConfig.faq?.length || 0,
+        objections: newConfig.objections?.length || 0,
+        baseInstructions: newConfig.baseInstructions?.substring(0, 50) || '(empty)'
+      });
 
       // Ensure required fields exist based on agent type
       if ((existingAgentType === 'whatsapp' || existingAgentType === 'email') && !newConfig.initial_message) {
@@ -700,13 +712,19 @@ const AIEmployeesPage = () => {
           // Update with new profile data
           tone: agentProfile?.tone || existingConfig.tone,
           objective: agentProfile?.objective || existingConfig.objective,
+          customObjective: agentProfile?.customObjective || existingConfig.customObjective,
           personality: agentProfile?.personality || existingConfig.personality,
           rules: agentProfile?.rules || existingConfig.rules,
           company: agentProfile?.company || existingConfig.company,
           product: agentProfile?.product || existingConfig.product,
           faq: agentProfile?.faq || existingConfig.faq,
           objections: agentProfile?.objections || existingConfig.objections,
-          workflow: workflowDefinition || existingConfig.workflow
+          documents: agentProfile?.documents || existingConfig.documents,
+          workflow: workflowDefinition || existingConfig.workflow,
+          // Novos campos adicionados
+          baseInstructions: agentProfile?.baseInstructions || existingConfig.baseInstructions,
+          formality: agentProfile?.formality ?? existingConfig.formality ?? 50,
+          assertiveness: agentProfile?.assertiveness ?? existingConfig.assertiveness ?? 50
         };
 
         // Ensure required fields exist based on agent type

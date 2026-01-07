@@ -3,6 +3,7 @@
 
 const db = require('../config/database');
 const OpenAI = require('openai');
+const { syncKnowledgeFromConfig } = require('./ragService');
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -254,9 +255,26 @@ async function generateAgentConfig(options) {
     agentData.workflow_enabled
   ]);
 
+  const createdAgent = result.rows[0];
+
+  // Sincronizar FAQ e objeções do config com o banco vetorial (RAG)
+  // Isso permite busca semântica de FAQs e objeções quando o agente responder
+  try {
+    const configObj = typeof agentData.config === 'string'
+      ? JSON.parse(agentData.config)
+      : agentData.config;
+
+    if (configObj?.faq?.length || configObj?.objections?.length) {
+      await syncKnowledgeFromConfig(createdAgent.id, configObj);
+    }
+  } catch (syncError) {
+    console.error('⚠️ Erro ao sincronizar conhecimento (não crítico):', syncError.message);
+    // Não falha a criação se a sincronização falhar
+  }
+
   return {
-    agent: result.rows[0],
-    agentId: result.rows[0].id,
+    agent: createdAgent,
+    agentId: createdAgent.id,
     conversationSteps,
     message: 'AI Employee criado com sucesso!'
   };

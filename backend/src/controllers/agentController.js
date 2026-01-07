@@ -10,6 +10,7 @@ const rotationService = require('../services/rotationService');
 const assignmentLogService = require('../services/assignmentLogService');
 const agentGeneratorService = require('../services/agentGeneratorService');
 const agentTemplates = require('../data/agentTemplates');
+const { syncKnowledgeFromConfig } = require('../services/ragService');
 
 // ==========================================
 // HELPER: Check sector access
@@ -673,6 +674,22 @@ const updateAgent = async (req, res) => {
     const agent = result.rows[0];
 
     console.log(`✅ Updated ${agent.agent_type} agent:`, agent.id);
+
+    // Sincronizar FAQ e objeções do config com o banco vetorial (RAG)
+    if (config) {
+      try {
+        const configForSync = typeof config === 'string' ? config : JSON.stringify(config);
+        const configObj = typeof config === 'string' ? JSON.parse(config) : config;
+        console.log('📥 [agentController.updateAgent] Iniciando sync RAG:', {
+          agentId: id,
+          faqCount: configObj.faq?.length || 0,
+          objectionsCount: configObj.objections?.length || 0
+        });
+        await syncKnowledgeFromConfig(id, configForSync);
+      } catch (syncError) {
+        console.error('⚠️ Erro ao sincronizar conhecimento (não crítico):', syncError.message);
+      }
+    }
 
     sendSuccess(res, { agent });
 

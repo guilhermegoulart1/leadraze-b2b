@@ -20,6 +20,12 @@ async function searchRelevantKnowledge(agentId, query, options = {}) {
       includeTypes = null // Array de tipos para incluir
     } = options;
 
+    // Validar query - não pode ser vazia
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      console.log(`⚠️ Query vazia, pulando busca de conhecimento`);
+      return [];
+    }
+
     console.log(`🔍 Buscando conhecimento relevante para: "${query}"`);
 
     // 1. Gerar embedding da query
@@ -435,6 +441,89 @@ function formatKnowledgeForPrompt(knowledgeResults) {
   return formatted;
 }
 
+/**
+ * Sincroniza FAQ e objeções do config JSON para a tabela ai_agent_knowledge
+ * Isso permite que esses dados sejam buscados via RAG (busca vetorial semântica)
+ * @param {string} agentId - ID do agente
+ * @param {Object} config - Objeto config do agente (pode ser JSON string ou objeto)
+ * @returns {Promise<Object>} - Estatísticas de sincronização
+ */
+async function syncKnowledgeFromConfig(agentId, config) {
+  try {
+    // Parse config se for string
+    const configObj = typeof config === 'string' ? JSON.parse(config) : (config || {});
+
+    console.log(`🔄 Sincronizando conhecimento do config para agente ${agentId}...`);
+
+    // 1. Remover FAQs e objeções existentes deste agente (para evitar duplicatas)
+    const deleteResult = await db.query(
+      `DELETE FROM ai_agent_knowledge
+       WHERE ai_agent_id = $1 AND type IN ('faq', 'objection')
+       RETURNING id`,
+      [agentId]
+    );
+    console.log(`🗑️ Removidos ${deleteResult.rowCount} itens antigos de FAQ/objeções`);
+
+    let faqCount = 0;
+    let objectionCount = 0;
+
+    // 2. Inserir FAQs (com embeddings gerados automaticamente pelo addKnowledge)
+    const faqs = configObj.faq || [];
+    for (const faq of faqs) {
+      if (faq.question && faq.answer) {
+        try {
+          await addKnowledge({
+            ai_agent_id: agentId,
+            type: 'faq',
+            question: faq.question,
+            answer: faq.answer,
+            always_include: false // FAQs são buscados por similaridade, não sempre incluídos
+          });
+          faqCount++;
+        } catch (error) {
+          console.error(`⚠️ Erro ao adicionar FAQ "${faq.question?.substring(0, 30)}...":`, error.message);
+        }
+      }
+    }
+
+    // 3. Inserir objeções (com embeddings gerados automaticamente)
+    const objections = configObj.objections || [];
+    for (const obj of objections) {
+      // Aceitar tanto formato {objection, response} quanto {question, answer}
+      const objectionText = obj.objection || obj.question;
+      const responseText = obj.response || obj.answer;
+
+      if (objectionText && responseText) {
+        try {
+          await addKnowledge({
+            ai_agent_id: agentId,
+            type: 'objection',
+            question: objectionText,  // Campo 'question' guarda a objeção
+            answer: responseText,      // Campo 'answer' guarda como responder
+            always_include: false
+          });
+          objectionCount++;
+        } catch (error) {
+          console.error(`⚠️ Erro ao adicionar objeção "${objectionText?.substring(0, 30)}...":`, error.message);
+        }
+      }
+    }
+
+    console.log(`✅ Sincronização concluída: ${faqCount} FAQs e ${objectionCount} objeções adicionadas`);
+
+    return {
+      success: true,
+      faqCount,
+      objectionCount,
+      deletedCount: deleteResult.rowCount
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao sincronizar conhecimento do config:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   searchRelevantKnowledge,
   addKnowledge,
@@ -443,5 +532,6 @@ module.exports = {
   deleteKnowledge,
   listKnowledge,
   getEssentialKnowledge,
-  formatKnowledgeForPrompt
+  formatKnowledgeForPrompt,
+  syncKnowledgeFromConfig
 };

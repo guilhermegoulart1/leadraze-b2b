@@ -245,7 +245,43 @@ async function generateResponse(params) {
         knowledgeContext = ragService.formatKnowledgeForPrompt(allKnowledge);
         console.log(`✅ Total: ${allKnowledge.length} itens de conhecimento injetados no contexto (${essentialKnowledge.length} essenciais + ${allKnowledge.length - essentialKnowledge.length} contextuais)`);
       } else {
-        console.log(`📭 Nenhum conhecimento encontrado para a query`);
+        // FALLBACK: Se nao encontrou via RAG, tentar ler do config diretamente
+        // Isso e util para agentes criados antes do sync de FAQ/objecoes
+        console.log(`📭 Nenhum conhecimento via RAG - tentando fallback do config...`);
+
+        const config = typeof ai_agent.config === 'string'
+          ? JSON.parse(ai_agent.config || '{}')
+          : (ai_agent.config || {});
+
+        const fallbackFaqs = config.faq || [];
+        const fallbackObjections = config.objections || [];
+
+        if (fallbackFaqs.length > 0 || fallbackObjections.length > 0) {
+          let fallbackContext = '';
+
+          if (fallbackFaqs.length > 0) {
+            fallbackContext += '\n\n=== PERGUNTAS FREQUENTES (FAQ) ===\n';
+            fallbackFaqs.forEach((faq, i) => {
+              if (faq.question && faq.answer) {
+                fallbackContext += `\nP${i + 1}: ${faq.question}\nR: ${faq.answer}\n`;
+              }
+            });
+          }
+
+          if (fallbackObjections.length > 0) {
+            fallbackContext += '\n\n=== TRATAMENTO DE OBJECOES ===\n';
+            fallbackObjections.forEach((obj, i) => {
+              if (obj.objection && obj.response) {
+                fallbackContext += `\nObjecao ${i + 1}: ${obj.objection}\nResposta: ${obj.response}\n`;
+              }
+            });
+          }
+
+          knowledgeContext = fallbackContext;
+          console.log(`📋 Fallback: ${fallbackFaqs.length} FAQs e ${fallbackObjections.length} objecoes carregados do config`);
+        } else {
+          console.log(`📭 Nenhum conhecimento disponivel (nem via RAG, nem no config)`);
+        }
       }
     } catch (error) {
       console.error('⚠️ Erro ao buscar conhecimento (continuando sem RAG):', error.message);
@@ -489,6 +525,15 @@ async function generateResponse(params) {
  * Construir system prompt baseado no agente IA
  */
 function buildSystemPrompt({ ai_agent, behavioralProfile, lead_data, knowledgeContext = '', objectionsContext = '', playbookContext = '', profileAnalysisContext = '', currentStep = 0 }) {
+  // Parse config JSON (pode vir como string ou objeto)
+  const config = typeof ai_agent.config === 'string'
+    ? JSON.parse(ai_agent.config || '{}')
+    : (ai_agent.config || {});
+
+  // Extrair dados de empresa e produto do config
+  const companyInfo = config.company || {};
+  const productInfo = config.product || {};
+
   // Incluímos todas as informações para contexto interno, mas instruímos a IA a NÃO mencionar diretamente
   const leadInfo = lead_data.name ? `
 
@@ -511,12 +556,19 @@ Use apenas o PRIMEIRO NOME do lead de forma natural.` : '';
     generate_interest: 'Gerar interesse e despertar curiosidade sobre o produto',
     get_contact: 'Obter informações de contato (email ou telefone)',
     start_conversation: 'Iniciar conversa e criar relacionamento',
-    direct_sale: 'Realizar venda direta pelo chat'
+    direct_sale: 'Realizar venda direta pelo chat',
+    support: 'Prestar suporte ao cliente e resolver dúvidas',
+    suporte: 'Prestar suporte ao cliente e resolver dúvidas'
   };
 
-  const objectiveText = ai_agent.objective
-    ? objectiveLabels[ai_agent.objective] || ai_agent.objective
-    : 'Qualificar o lead e identificar oportunidades de negócio';
+  // Usar customObjective quando objetivo é "other"
+  const configObjective = config.objective || ai_agent.objective;
+  const customObjective = config.customObjective;
+  const objectiveText = configObjective === 'other' && customObjective
+    ? customObjective
+    : (configObjective
+        ? objectiveLabels[configObjective] || configObjective
+        : 'Qualificar o lead e identificar oportunidades de negócio');
 
   // Build conversation steps section with intelligent progression
   let stepsSection = '';
@@ -529,86 +581,24 @@ Use apenas o PRIMEIRO NOME do lead de forma natural.` : '';
 OBJETIVO DESTA ETAPA:
 ${ai_agent.objective_instructions}
 
-⚠️ FORMATO DE RESPOSTA OBRIGATÓRIO (JSON):
+⚠️ FORMATO DE RESPOSTA (JSON):
 {
-  "message": "sua resposta natural para o lead",
+  "message": "sua resposta para o lead",
   "objectiveAchieved": true/false,
   "extractedData": {
     "email": "email se mencionado ou null",
     "phone": "telefone se mencionado ou null",
     "company": "empresa se mencionada ou null",
-    "role": "cargo se mencionado ou null",
-    "company_size": "tamanho da empresa se mencionado ou null",
-    "budget": "orçamento se mencionado ou null",
-    "timeline": "prazo/urgência se mencionado ou null"
-  },
-  "qualification": {
-    "score": 0-100,
-    "stage": "cold/warm/MQL/SQL/hot",
-    "reasons": ["razão 1", "razão 2"]
-  },
-  "objection": {
-    "detected": true/false,
-    "type": "price/time/authority/need/competitor/null",
-    "text": "texto da objeção ou null",
-    "severity": "low/medium/high/null"
+    "role": "cargo se mencionado ou null"
   }
 }
 
-REGRAS:
-1. "message" = sua resposta natural para o lead (continue a conversa)
-2. "objectiveAchieved" = AVALIE SE O OBJETIVO ACIMA FOI CUMPRIDO pelo lead
-3. "extractedData" = dados que o lead MENCIONOU explicitamente (null se não mencionou)
-4. "qualification" = avalie interesse, urgência, autoridade, budget
-5. "objection" = se o lead levantou objeção ou preocupação
+COMO AVALIAR objectiveAchieved:
+- Leia as instruções acima com atenção
+- Se as instruções descrevem uma condição de sucesso e essa condição foi atendida pelo lead → TRUE
+- Exemplo: Se as instruções dizem "quando o cliente fizer uma pergunta, você descobriu a dúvida", e o cliente fez uma pergunta → TRUE
 
-⚠️ COMO AVALIAR objectiveAchieved:
-- Leia o OBJETIVO DESTA ETAPA com atenção
-- Se o lead fez/disse algo que CUMPRE esse objetivo → TRUE
-- Se ainda NÃO cumpriu o que o objetivo pede → FALSE
-
-INTERPRETAÇÃO CORRETA DOS OBJETIVOS:
-- "Descobrir X" = o lead REVELOU X → TRUE (você NÃO precisa resolver, só descobrir)
-- "Obter X" = o lead FORNECEU X → TRUE
-- "Resolver X" = você DEU a solução para X → TRUE
-- "Qualificar" = você conseguiu avaliar o perfil → TRUE
-- "Se certificar de X" / "Confirmar X" = o lead CONFIRMOU explicitamente X → TRUE
-- "Tirar dúvidas" / "Resolver dúvidas" = só TRUE quando o lead CONFIRMA que não tem mais dúvidas
-
-⚠️ REGRAS CRÍTICAS:
-1. Se o objetivo inclui "se certificar" ou "confirmar", você PRECISA da confirmação EXPLÍCITA do lead
-2. Se o lead faz uma NOVA pergunta ou levanta um NOVO assunto, o objetivo NÃO foi atingido
-3. Frases como "tudo certo", "era só isso", "obrigado" = confirmação de que não tem mais dúvidas
-4. Frases como "outra coisa...", "e sobre...", "também queria saber..." = NÃO atingiu o objetivo
-
-EXEMPLOS:
-- Objetivo: "Descobrir a dúvida do cliente"
-  Lead: "Não sei onde mudar meu nome de usuário"
-  objectiveAchieved: TRUE ← O lead REVELOU a dúvida!
-
-- Objetivo: "Se certificar que não tem mais dúvidas"
-  Lead: "Ah, e como faço pra mudar minha senha?"
-  objectiveAchieved: FALSE ← O lead tem MAIS dúvidas!
-
-- Objetivo: "Se certificar que não tem mais dúvidas"
-  Lead: "Entendi, era só isso mesmo. Obrigado!"
-  objectiveAchieved: TRUE ← O lead CONFIRMOU que não tem mais dúvidas
-
-TIPOS DE OBJEÇÃO:
-- price: preço/custo/caro
-- time: tempo/ocupado/depois
-- authority: preciso consultar/não decido sozinho
-- need: não preciso/já tenho
-- competitor: já uso outra solução
-
-ESTÁGIOS DE QUALIFICAÇÃO:
-- cold (0-20): sem interesse
-- warm (21-40): algum interesse
-- MQL (41-60): interesse claro
-- SQL (61-80): qualificado
-- hot (81-100): muito interessado, urgente
-
-⚠️ IMPORTANTE: Sua resposta DEVE ser APENAS o objeto JSON, sem texto adicional.`;
+⚠️ Responda APENAS com o JSON, sem texto adicional.`;
   }
 
   // Build escalation section
@@ -678,31 +668,72 @@ IMPORTANTE: Ao detectar um gatilho de transferência, responda de forma empátic
   }
 
   // Build priority rules section (user-defined behavioral rules)
+  // Aceitar regras de config.rules (novo formato) ou ai_agent.priority_rules (legado)
   let priorityRulesSection = '';
-  if (ai_agent.priority_rules && Array.isArray(ai_agent.priority_rules) && ai_agent.priority_rules.length > 0) {
-    const rules = ai_agent.priority_rules.map(rule => {
-      const prefix = rule.prefix || 'SEMPRE';
-      const instruction = rule.instruction || '';
-      return `- ${prefix}: ${instruction}`;
-    }).join('\n');
+  const rulesSource = config.rules || ai_agent.priority_rules || [];
 
-    priorityRulesSection = `
+  if (Array.isArray(rulesSource) && rulesSource.length > 0) {
+    const rules = rulesSource.map(rule => {
+      const prefix = rule.prefix || 'SEMPRE';
+      // Aceitar tanto 'instruction' quanto 'text' (frontend usa 'text')
+      const instruction = rule.instruction || rule.text || '';
+      return `- ${prefix}: ${instruction}`;
+    }).filter(r => r !== '- SEMPRE: ').join('\n'); // Filtrar regras vazias
+
+    if (rules) {
+      priorityRulesSection = `
 
 REGRAS PRIORITÁRIAS (SIGA RIGOROSAMENTE):
 ${rules}
 
 IMPORTANTE: Estas regras têm prioridade máxima e devem ser seguidas em todas as interações.`;
+    }
   }
 
-  // Build company info section
+  // Build company info section (from config.company)
   let companySection = '';
-  if (ai_agent.company_description || ai_agent.value_proposition || ai_agent.key_differentiators) {
+  const hasCompanyInfo = companyInfo.name || companyInfo.description || companyInfo.website || companyInfo.sector;
+  const hasLegacyCompanyInfo = ai_agent.company_description || ai_agent.value_proposition || ai_agent.key_differentiators;
+
+  if (hasCompanyInfo) {
+    // Usar dados do novo formato (config.company)
+    const companyParts = [];
+    if (companyInfo.name) companyParts.push(`Nome: ${companyInfo.name}`);
+    if (companyInfo.website) companyParts.push(`Website: ${companyInfo.website}`);
+    if (companyInfo.sector) companyParts.push(`Setor: ${companyInfo.sector}`);
+    if (companyInfo.description) companyParts.push(`Descrição: ${companyInfo.description}`);
+    if (companyInfo.avgTicket) companyParts.push(`Ticket Médio: ${companyInfo.avgTicket}`);
+    if (companyInfo.icp) companyParts.push(`Cliente Ideal (ICP): ${companyInfo.icp}`);
+
+    companySection = `
+
+SOBRE A EMPRESA:
+${companyParts.join('\n')}`;
+  } else if (hasLegacyCompanyInfo) {
+    // Fallback para formato legado (colunas diretas)
     companySection = `
 
 SOBRE A EMPRESA:
 ${ai_agent.company_description ? `Descrição: ${ai_agent.company_description}` : ''}
 ${ai_agent.value_proposition ? `Proposta de Valor: ${ai_agent.value_proposition}` : ''}
 ${ai_agent.key_differentiators ? `Diferenciais: ${ai_agent.key_differentiators}` : ''}`;
+  }
+
+  // Build product info section (from config.product)
+  let productSection = '';
+  const hasProductInfo = productInfo.name || productInfo.description || productInfo.benefits?.length || productInfo.differentials?.length;
+
+  if (hasProductInfo) {
+    const productParts = [];
+    if (productInfo.name) productParts.push(`Nome: ${productInfo.name}`);
+    if (productInfo.description) productParts.push(`Descrição: ${productInfo.description}`);
+    if (productInfo.benefits?.length) productParts.push(`Benefícios:\n- ${productInfo.benefits.join('\n- ')}`);
+    if (productInfo.differentials?.length) productParts.push(`Diferenciais:\n- ${productInfo.differentials.join('\n- ')}`);
+
+    productSection = `
+
+PRODUTO/SERVIÇO:
+${productParts.join('\n')}`;
   }
 
   // Get channel-specific context
@@ -718,15 +749,64 @@ Você DEVE responder SEMPRE em ${languageName}.
 Mesmo que o lead escreva em outro idioma, sua resposta deve ser EXCLUSIVAMENTE em ${languageName}.
 NÃO mude de idioma em nenhuma circunstância. Mantenha TODAS as suas respostas em ${languageName}.`;
 
+  // Build personality section (from config.personality)
+  let personalitySection = '';
+  const personality = config.personality || [];
+  if (personality.length > 0) {
+    personalitySection = `
+
+TRAÇOS DE PERSONALIDADE:
+Você deve demonstrar os seguintes traços em suas respostas: ${personality.join(', ')}.
+Adapte seu tom e linguagem para refletir esses traços de forma natural.`;
+  }
+
+  // Build style section based on formality and assertiveness (from config)
+  let styleSection = '';
+  const formality = config.formality ?? 50;
+  const assertiveness = config.assertiveness ?? 50;
+  const styleParts = [];
+
+  if (formality < 30) {
+    styleParts.push('Use linguagem INFORMAL e descontraída, como uma conversa entre colegas.');
+  } else if (formality > 70) {
+    styleParts.push('Use linguagem FORMAL e respeitosa, mantendo distância profissional.');
+  }
+
+  if (assertiveness < 30) {
+    styleParts.push('Seja SUTIL e consultivo, faça perguntas antes de sugerir soluções.');
+  } else if (assertiveness > 70) {
+    styleParts.push('Seja DIRETO e assertivo, proponha próximos passos claros.');
+  }
+
+  if (styleParts.length > 0) {
+    styleSection = `
+
+ESTILO DE COMUNICAÇÃO:
+${styleParts.join('\n')}`;
+  }
+
+  // Build base instructions section (from config.baseInstructions)
+  let baseInstructionsSection = '';
+  const baseInstructions = config.baseInstructions || ai_agent.description || '';
+  if (baseInstructions.trim()) {
+    baseInstructionsSection = `
+
+${baseInstructions}`;
+  }
+
   let basePrompt = `Você é ${ai_agent.name}, ${channelContext.agentDescription}
+${baseInstructionsSection}
 
 PERFIL COMPORTAMENTAL: ${behavioralProfile.style}
 Tom de comunicação: ${behavioralProfile.tone}
 Abordagem: ${behavioralProfile.approach}
+${personalitySection}
+${styleSection}
 
 SEU NEGÓCIO/PRODUTO:
 ${ai_agent.products_services || 'Não especificado'}
 ${companySection}
+${productSection}
 ${knowledgeContext}
 ${playbookContext}
 

@@ -2,7 +2,7 @@
 // Tab de Identidade - vai no Prompt (sempre carregado)
 
 import React from 'react';
-import { User, MessageSquare, Target, Sparkles } from 'lucide-react';
+import { User, MessageSquare, Target, Sparkles, FileText } from 'lucide-react';
 
 const toneOptions = [
   { value: 'casual', label: 'Casual', description: 'Descontraido e amigavel' },
@@ -52,6 +52,27 @@ const IdentityTab = ({ profile, onChange }) => {
         />
         <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
           Nome que o agente usara para se apresentar
+        </p>
+      </div>
+
+      {/* Instrucoes Base */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <FileText className="w-4 h-4" />
+          Instrucoes do Agente
+          <span className="text-xs text-gray-400 font-normal">(opcional)</span>
+        </label>
+        <textarea
+          value={profile.baseInstructions || ''}
+          onChange={(e) => onChange('baseInstructions', e.target.value)}
+          placeholder="Descreva o que esse agente faz, seu papel, contexto importante, ou instrucoes gerais que devem ser seguidas em todas as interacoes...
+
+Exemplo: Voce e um assistente de vendas da empresa XYZ. Seu papel e ajudar clientes a encontrar o plano ideal. Sempre seja cordial e busque entender as necessidades antes de oferecer solucoes."
+          rows={4}
+          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:text-white transition-all resize-none"
+        />
+        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+          Instrucoes gerais que serao aplicadas em todas as conversas do agente
         </p>
       </div>
 
