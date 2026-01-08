@@ -1,0 +1,52 @@
+{
+  "title": "Pipelines",
+  "loading": "Loading pipelines...",
+  "loadingContent": "Loading...",
+  "search": "Search opportunities...",
+  "filters": "Filters",
+  "newOpportunity": "New Opportunity",
+  "pipelineSettings": "Pipeline Settings",
+  "newProject": "New Project",
+  "newPipeline": "New Pipeline",
+  "createPipeline": "Create Pipeline",
+  "empty": "Empty",
+  "selectPipeline": "Select a Pipeline",
+  "selectPipelineSubtitle": "Choose a pipeline from the sidebar or create a new one",
+  "kanban": {
+    "dropHere": "Drop here",
+    "noOpportunities": "No opportunities"
+  },
+  "table": {
+    "lead": "Lead",
+    "stage": "Stage",
+    "responsible": "Responsible",
+    "tags": "Tags",
+    "date": "Date",
+    "actions": "Actions"
+  },
+  "actions": {
+    "viewDetails": "View details",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "responsible": {
+    "notAssigned": "Not assigned"
+  },
+  "pagination": {
+    "itemsPerPage": "Items per page:",
+    "showing": "Showing",
+    "of": "of",
+    "first": "First",
+    "last": "Last"
+  },
+  "source": {
+    "linkedin": "LinkedIn",
+    "googleMaps": "Google Maps",
+    "list": "List",
+    "paidTraffic": "Paid Traffic",
+    "lead": "Lead",
+    "manual": "Manual",
+    "other": "Other"
+  },
+  "loadingDetails": "Loading details..."
+}

@@ -33,6 +33,7 @@ import enKnowledge from './locales/en/knowledge.json';
 import enSecretAgent from './locales/en/secretAgent.json';
 import enProducts from './locales/en/products.json';
 import enSecretAgentCoaching from './locales/en/secretAgentCoaching.json';
+import enPipelines from './locales/en/pipelines.json';
 
 // Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
@@ -65,6 +66,7 @@ import ptKnowledge from './locales/pt/knowledge.json';
 import ptSecretAgent from './locales/pt/secretAgent.json';
 import ptProducts from './locales/pt/products.json';
 import ptSecretAgentCoaching from './locales/pt/secretAgentCoaching.json';
+import ptPipelines from './locales/pt/pipelines.json';
 
 // Import translations - Spanish
 import esCommon from './locales/es/common.json';
@@ -97,6 +99,7 @@ import esKnowledge from './locales/es/knowledge.json';
 import esSecretAgent from './locales/es/secretAgent.json';
 import esProducts from './locales/es/products.json';
 import esSecretAgentCoaching from './locales/es/secretAgentCoaching.json';
+import esPipelines from './locales/es/pipelines.json';
 
 // Translation resources
 const resources = {
@@ -131,6 +134,7 @@ const resources = {
     secretAgent: enSecretAgent,
     products: enProducts,
     secretAgentCoaching: enSecretAgentCoaching,
+    pipelines: enPipelines,
   },
   pt: {
     common: ptCommon,
@@ -163,6 +167,7 @@ const resources = {
     secretAgent: ptSecretAgent,
     products: ptProducts,
     secretAgentCoaching: ptSecretAgentCoaching,
+    pipelines: ptPipelines,
   },
   es: {
     common: esCommon,
@@ -195,6 +200,7 @@ const resources = {
     secretAgent: esSecretAgent,
     products: esProducts,
     secretAgentCoaching: esSecretAgentCoaching,
+    pipelines: esPipelines,
   },
 };
 
@@ -211,7 +217,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines'
     ],
 
     // Language detection configuration

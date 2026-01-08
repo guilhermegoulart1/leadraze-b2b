@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import OpportunityModal from '../components/pipelines/OpportunityModal';
@@ -53,6 +54,7 @@ import LeadDetailModal from '../components/LeadDetailModal';
 
 const PipelinesPage = () => {
   const { hasPermission } = useAuth();
+  const { t } = useTranslation('pipelines');
   const [searchParams, setSearchParams] = useSearchParams();
 
   // State
@@ -725,7 +727,7 @@ const PipelinesPage = () => {
                   handleOpenLeadDetail(opportunity);
                 }}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex-shrink-0"
-                title="Ver detalhes"
+                title={t('actions.viewDetails')}
               >
                 <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </button>
@@ -790,37 +792,37 @@ const PipelinesPage = () => {
                   const sourceConfig = {
                     linkedin: {
                       icon: Linkedin,
-                      label: 'LinkedIn',
+                      label: t('source.linkedin'),
                       className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
                     },
                     google_maps: {
                       icon: MapPin,
-                      label: 'Google Maps',
+                      label: t('source.googleMaps'),
                       className: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
                     },
                     list: {
                       icon: ListIcon,
-                      label: 'Lista',
+                      label: t('source.list'),
                       className: 'bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-800'
                     },
                     paid_traffic: {
                       icon: Zap,
-                      label: 'Tráfego Pago',
+                      label: t('source.paidTraffic'),
                       className: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
                     },
                     lead_migration: {
                       icon: Users,
-                      label: 'Lead',
+                      label: t('source.lead'),
                       className: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800'
                     },
                     manual: {
                       icon: Edit,
-                      label: 'Manual',
+                      label: t('source.manual'),
                       className: 'bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-800'
                     },
                     other: {
                       icon: Package,
-                      label: 'Outro',
+                      label: t('source.other'),
                       className: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800'
                     }
                   };
@@ -984,7 +986,7 @@ const PipelinesPage = () => {
                         {loadingMore ? (
                           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                             <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span>Carregando...</span>
+                            <span>{t('loadingContent')}</span>
                           </div>
                         ) : (
                           <div className="w-full h-1" />
@@ -998,7 +1000,7 @@ const PipelinesPage = () => {
                       ? 'border-blue-400 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                       : 'border-gray-300 dark:border-gray-600 text-gray-400'
                   }`}>
-                    {snapshot.isDraggingOver ? 'Solte aqui' : 'Sem oportunidades'}
+                    {snapshot.isDraggingOver ? t('kanban.dropHere') : t('kanban.noOpportunities')}
                   </div>
                 )}
                 {provided.placeholder}
@@ -1062,15 +1064,15 @@ const PipelinesPage = () => {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <TableHeader field="contact_name" label="Lead" />
-                <TableHeader field="stage_id" label="Etapa" />
-                <TableHeader field="owner_name" label="Responsável" />
+                <TableHeader field="contact_name" label={t('table.lead')} />
+                <TableHeader field="stage_id" label={t('table.stage')} />
+                <TableHeader field="owner_name" label={t('table.responsible')} />
                 <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                  Tags
+                  {t('table.tags')}
                 </th>
-                <TableHeader field="created_at" label="Data" />
+                <TableHeader field="created_at" label={t('table.date')} />
                 <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                  Ações
+                  {t('table.actions')}
                 </th>
               </tr>
             </thead>
@@ -1175,7 +1177,7 @@ const PipelinesPage = () => {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-gray-400 italic">Não atribuído</span>
+                        <span className="text-[10px] text-gray-400 italic">{t('responsible.notAssigned')}</span>
                       )}
                     </td>
 
@@ -1223,19 +1225,19 @@ const PipelinesPage = () => {
                         <button
                           onClick={() => handleOpenLeadDetail(opp)}
                           className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                          title="Ver detalhes"
+                          title={t('actions.viewDetails')}
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                          title="Editar"
+                          title={t('actions.edit')}
                         >
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
                           className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                          title="Excluir"
+                          title={t('actions.delete')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1252,7 +1254,7 @@ const PipelinesPage = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-600 dark:text-gray-400">Itens por página:</span>
+              <span className="text-[10px] text-gray-600 dark:text-gray-400">{t('pagination.itemsPerPage')}</span>
               <select
                 value={itemsPerPage}
                 onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
@@ -1264,15 +1266,15 @@ const PipelinesPage = () => {
                 <option value={100}>100</option>
               </select>
               <span className="text-[10px] text-gray-600 dark:text-gray-400">
-                Mostrando {startIndex + 1}-{endIndex} de {totalOpportunities}
+                {t('pagination.showing')} {startIndex + 1}-{endIndex} {t('pagination.of')} {totalOpportunities}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-[10px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">Primeira</button>
+              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-[10px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">{t('pagination.first')}</button>
               <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="p-1 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"><ChevronLeft className="w-3.5 h-3.5" /></button>
               <span className="px-2 py-1 text-[10px] text-gray-600 dark:text-gray-400">{currentPage} / {totalPages}</span>
               <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="p-1 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"><ChevronRight className="w-3.5 h-3.5" /></button>
-              <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-[10px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">Última</button>
+              <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-[10px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">{t('pagination.last')}</button>
             </div>
           </div>
         )}
@@ -1296,7 +1298,7 @@ const PipelinesPage = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <Loader className="w-10 h-10 text-purple-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Carregando pipelines...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t('loading')}</p>
         </div>
       </div>
     );
@@ -1308,12 +1310,12 @@ const PipelinesPage = () => {
       <div className="w-56 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0">
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Pipelines</h3>
+            <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wide">{t('title')}</h3>
             {hasPermission('pipelines:create') && (
               <button
                 onClick={() => { setEditingProject(null); setShowProjectModal(true); }}
                 className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                title="Novo Projeto"
+                title={t('newProject')}
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -1386,7 +1388,7 @@ const PipelinesPage = () => {
                                             className="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                           >
                                             <Target className="w-3.5 h-3.5" />
-                                            Nova Pipeline
+                                            {t('newPipeline')}
                                           </button>
                                         </div>
                                       )}
@@ -1405,7 +1407,7 @@ const PipelinesPage = () => {
                                   className={`mt-0.5 min-h-[20px] rounded transition-colors ${droppableSnapshot.isDraggingOver ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}
                                 >
                                   {projectPipelines.length === 0 && !droppableSnapshot.isDraggingOver && (
-                                    <span className="text-[9px] text-gray-400 dark:text-gray-500 italic px-2">Vazio</span>
+                                    <span className="text-[9px] text-gray-400 dark:text-gray-500 italic px-2">{t('empty')}</span>
                                   )}
                                   {projectPipelines.map((pipeline, pipelineIndex) => (
                                     <Draggable key={pipeline.id} draggableId={`pipeline-${pipeline.id}`} index={pipelineIndex}>
@@ -1459,14 +1461,14 @@ const PipelinesPage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar oportunidades..."
+                placeholder={t('search')}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
 
             <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 text-gray-700 dark:text-gray-300 transition-colors">
               <Filter className="w-4 h-4" />
-              <span className="text-sm font-medium">Filtros</span>
+              <span className="text-sm font-medium">{t('filters')}</span>
             </button>
 
             <div className="flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-0.5">
@@ -1477,12 +1479,12 @@ const PipelinesPage = () => {
             {selectedPipeline && (
               <button onClick={handleCreateOpportunity} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors">
                 <Plus className="w-4 h-4" />
-                <span className="font-medium">Nova Oportunidade</span>
+                <span className="font-medium">{t('newOpportunity')}</span>
               </button>
             )}
 
             {selectedPipeline && hasPermission('pipelines:edit') && (
-              <button onClick={() => { setEditingPipeline(selectedPipeline); setShowPipelineSettings(true); }} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title="Configurações da Pipeline">
+              <button onClick={() => { setEditingPipeline(selectedPipeline); setShowPipelineSettings(true); }} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title={t('pipelineSettings')}>
                 <Settings className="w-5 h-5" />
               </button>
             )}
@@ -1496,7 +1498,7 @@ const PipelinesPage = () => {
             <div className="absolute inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-3">
                 <Loader className="w-8 h-8 text-purple-500 animate-spin" />
-                <span className="text-sm text-gray-500 dark:text-gray-400">Carregando...</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{t('loadingContent')}</span>
               </div>
             </div>
           )}
@@ -1524,12 +1526,12 @@ const PipelinesPage = () => {
           ) : !loadingContent && (
             <div className="flex-1 flex flex-col items-center justify-center h-full">
               <Target className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Selecione uma Pipeline</h2>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">Escolha uma pipeline no menu lateral ou crie uma nova</p>
+              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('selectPipeline')}</h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">{t('selectPipelineSubtitle')}</p>
               {hasPermission('pipelines:create') && (
                 <button onClick={() => { setEditingPipeline(null); setShowPipelineSettings(true); }} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors">
                   <Plus className="w-4 h-4" />
-                  Criar Pipeline
+                  {t('createPipeline')}
                 </button>
               )}
             </div>
@@ -1621,7 +1623,7 @@ const PipelinesPage = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3">
             <Loader className="w-8 h-8 text-purple-500 animate-spin" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">Carregando detalhes...</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">{t('loadingDetails')}</span>
           </div>
         </div>
       )}

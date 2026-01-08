@@ -1,0 +1,52 @@
+{
+  "title": "Pipelines",
+  "loading": "Carregando pipelines...",
+  "loadingContent": "Carregando...",
+  "search": "Buscar oportunidades...",
+  "filters": "Filtros",
+  "newOpportunity": "Nova Oportunidade",
+  "pipelineSettings": "Configurações da Pipeline",
+  "newProject": "Novo Projeto",
+  "newPipeline": "Nova Pipeline",
+  "createPipeline": "Criar Pipeline",
+  "empty": "Vazio",
+  "selectPipeline": "Selecione uma Pipeline",
+  "selectPipelineSubtitle": "Escolha uma pipeline no menu lateral ou crie uma nova",
+  "kanban": {
+    "dropHere": "Solte aqui",
+    "noOpportunities": "Sem oportunidades"
+  },
+  "table": {
+    "lead": "Lead",
+    "stage": "Etapa",
+    "responsible": "Responsável",
+    "tags": "Tags",
+    "date": "Data",
+    "actions": "Ações"
+  },
+  "actions": {
+    "viewDetails": "Ver detalhes",
+    "edit": "Editar",
+    "delete": "Excluir"
+  },
+  "responsible": {
+    "notAssigned": "Não atribuído"
+  },
+  "pagination": {
+    "itemsPerPage": "Itens por página:",
+    "showing": "Mostrando",
+    "of": "de",
+    "first": "Primeira",
+    "last": "Última"
+  },
+  "source": {
+    "linkedin": "LinkedIn",
+    "googleMaps": "Google Maps",
+    "list": "Lista",
+    "paidTraffic": "Tráfego Pago",
+    "lead": "Lead",
+    "manual": "Manual",
+    "other": "Outro"
+  },
+  "loadingDetails": "Carregando detalhes..."
+}

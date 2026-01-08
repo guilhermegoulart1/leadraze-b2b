@@ -72,14 +72,14 @@ const Layout = () => {
 
     // TRABALHO
     { sectionKey: 'sections.work' },
-    { path: '/leads', labelKey: 'menu.pipeline', icon: BarChart3 },
+    { path: '/pipelines', labelKey: 'menu.pipeline', icon: BarChart3 },
     { path: '/tasks', labelKey: 'menu.tasks', icon: CheckSquare },
     { path: '/conversations', labelKey: 'menu.conversations', icon: MessageCircle, badge: unreadMessages },
     { path: '/contacts', labelKey: 'menu.contacts', icon: Users },
 
     // CAMPANHAS
     { sectionKey: 'sections.campaigns' },
-    { path: '/agents', labelKey: 'menu.aiAgents', icon: Bot },
+    { path: '/aiemployees', labelKey: 'menu.aiAgents', icon: Bot },
     { path: '/campaigns', labelKey: 'menu.linkedin', icon: Linkedin },
     { path: '/google-maps-agents', labelKey: 'menu.googleMaps', icon: MapPin },
     { path: '/activation-campaigns', labelKey: 'menu.lists', icon: Award },
