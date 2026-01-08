@@ -1,0 +1,95 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import ChatWidget from '../../../components/ChatWidget';
+import { getTranslation } from '../../../i18n/translations';
+
+import SolutionHero from '../../../components/solutions/SolutionHero.astro';
+import TechSupportDashboard from '../../../components/solutions/TechSupportDashboard.astro';
+import SolutionFeatures from '../../../components/solutions/SolutionFeatures.astro';
+import ChannelIntegrations from '../../../components/solutions/ChannelIntegrations.astro';
+import OnboardingProcess from '../../../components/solutions/OnboardingProcess.astro';
+
+const locale = Astro.currentLocale || 'pt-br';
+const t = getTranslation(locale);
+const s = t.solutions.technicalSupport;
+---
+
+<Layout title="GetRaze | Agente de IA para Suporte Tecnico">
+  <Header />
+
+  <main class="pt-16">
+    <!-- Hero Section -->
+    <SolutionHero
+      badge={s.badge}
+      title={s.title}
+      titleHighlight={s.titleHighlight}
+      subtitle={s.subtitle}
+      ctaText={s.cta}
+      ctaLink="#calendly"
+      variant="support"
+    >
+      <TechSupportDashboard
+        slot="dashboard"
+        title={s.dashboardTitle}
+        stats={s.stats}
+        recentChats={s.recentChats}
+        topQuestions={s.topQuestions}
+      />
+    </SolutionHero>
+
+    <!-- Features Section -->
+    <SolutionFeatures
+      badge={s.features.badge}
+      title={s.features.title}
+      subtitle={s.features.subtitle}
+      items={s.features.items}
+      variant="support"
+    />
+
+    <!-- Channels Section -->
+    <ChannelIntegrations
+      badge={s.channels.badge}
+      title={s.channels.title}
+      subtitle={s.channels.subtitle}
+      channels={s.channels}
+      variant="support"
+    />
+
+    <!-- Onboarding Process -->
+    <OnboardingProcess
+      badge={s.onboarding.badge}
+      title={s.onboarding.title}
+      subtitle={s.onboarding.subtitle}
+      steps={s.onboarding.steps}
+      variant="support"
+    />
+
+    <!-- Final CTA -->
+    <section class="py-20 lg:py-32 bg-gradient-to-br from-primary-600 to-indigo-700">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+          {s.title} <span class="text-primary-200">{s.titleHighlight}</span>
+        </h2>
+        <p class="text-lg text-primary-100 mb-8 max-w-2xl mx-auto">
+          {s.subtitle}
+        </p>
+        <a
+          href="#calendly"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-primary-600 bg-white transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+        >
+          {s.cta}
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+  <ChatWidget client:idle />
+</Layout>

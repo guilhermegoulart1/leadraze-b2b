@@ -1,0 +1,81 @@
+---
+interface Props {
+  badge: string;
+  title: string;
+  titleHighlight: string;
+  subtitle: string;
+  ctaText: string;
+  ctaLink: string;
+  variant?: 'support' | 'dealership';
+}
+
+const { badge, title, titleHighlight, subtitle, ctaText, ctaLink, variant = 'support' } = Astro.props;
+
+const gradientColors = variant === 'support'
+  ? 'from-blue-50 via-indigo-50 to-purple-50'
+  : 'from-emerald-50 via-teal-50 to-cyan-50';
+
+const accentColor = variant === 'support' ? 'primary' : 'emerald';
+---
+
+<section class={`relative min-h-[70vh] flex items-center py-20 lg:py-32 overflow-hidden bg-gradient-to-br ${gradientColors}`}>
+  <!-- Background Decorations -->
+  <div class="absolute inset-0 overflow-hidden">
+    <div class={`absolute -top-40 -right-40 w-80 h-80 bg-${accentColor}-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float`}></div>
+    <div class={`absolute -bottom-40 -left-40 w-80 h-80 bg-${accentColor}-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float`} style="animation-delay: 2s;"></div>
+  </div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <!-- Text Content -->
+      <div class="text-center lg:text-left">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm mb-6">
+          <span class={`w-2 h-2 rounded-full bg-${accentColor}-500 animate-pulse`}></span>
+          <span class="text-sm font-semibold text-gray-700">{badge}</span>
+        </div>
+
+        <!-- Title -->
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+          {title}
+          <span class="block text-transparent bg-clip-text" style={`background-image: linear-gradient(to right, ${variant === 'support' ? '#7229f7, #894cf8, #a06ff9' : '#059669, #10b981, #34d399'});`}>
+            {titleHighlight}
+          </span>
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-lg md:text-xl text-gray-600 mb-8 max-w-xl mx-auto lg:mx-0">
+          {subtitle}
+        </p>
+
+        <!-- CTA -->
+        <a
+          href={ctaLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          class={`inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${variant === 'support' ? 'bg-primary-600 hover:bg-primary-700 shadow-primary-500/30' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'}`}
+        >
+          {ctaText}
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+      </div>
+
+      <!-- Dashboard Preview Slot -->
+      <div class="relative">
+        <slot name="dashboard" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+</style>
