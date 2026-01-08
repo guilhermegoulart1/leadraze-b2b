@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Award, Search, Users, FileText } from 'lucide-react';
 import CampaignsPage from './CampaignsPage';
 import SearchPage from './SearchPage';
@@ -6,13 +7,14 @@ import MyConnectionsPage from './MyConnectionsPage';
 import SearchPostsPage from './SearchPostsPage';
 
 const LinkedInPage = () => {
+  const { t } = useTranslation('linkedin');
   const [activeTab, setActiveTab] = useState('campaigns');
 
   const tabs = [
-    { id: 'campaigns', label: 'Campanhas', icon: Award },
-    { id: 'search', label: 'Buscar Perfis', icon: Search },
-    { id: 'posts', label: 'Buscar Posts', icon: FileText },
-    { id: 'connections', label: 'Minhas Conexões', icon: Users },
+    { id: 'campaigns', label: t('tabs.campaigns'), icon: Award },
+    { id: 'search', label: t('tabs.searchProfiles'), icon: Search },
+    { id: 'posts', label: t('tabs.searchPosts'), icon: FileText },
+    { id: 'connections', label: t('tabs.myConnections'), icon: Users },
   ];
 
   const renderContent = () => {

@@ -1,10 +1,12 @@
 // frontend/src/pages/AuthCallbackPage.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Loader, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const AuthCallbackPage = () => {
+  const { t } = useTranslation('auth');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { setUser, setToken } = useAuth();
@@ -18,7 +20,7 @@ const AuthCallbackPage = () => {
         const userJson = searchParams.get('user');
 
         if (!token || !userJson) {
-          throw new Error('Token ou dados do usuário não encontrados');
+          throw new Error(t('callback.tokenNotFound'));
         }
 
         // Parse user data
@@ -37,7 +39,7 @@ const AuthCallbackPage = () => {
 
       } catch (err) {
         console.error('Auth callback error:', err);
-        setError(err.message || 'Erro ao processar autenticação');
+        setError(err.message || t('callback.processingError'));
 
         // Redirect to login after 3 seconds
         setTimeout(() => {
@@ -47,7 +49,7 @@ const AuthCallbackPage = () => {
     };
 
     handleCallback();
-  }, [searchParams, navigate, setUser, setToken]);
+  }, [searchParams, navigate, setUser, setToken, t]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -64,11 +66,11 @@ const AuthCallbackPage = () => {
 
             {/* Message */}
             <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Autenticando...
+              {t('callback.authenticating')}
             </h2>
 
             <p className="text-gray-600 mb-6">
-              Processando autenticação...
+              {t('callback.processing')}
             </p>
 
             {/* Bouncing Dots */}
@@ -89,7 +91,7 @@ const AuthCallbackPage = () => {
 
             {/* Error Message */}
             <h2 className="text-2xl font-bold text-red-900 mb-3">
-              Ops!
+              {t('callback.oops')}
             </h2>
 
             <p className="text-gray-600 mb-6">
@@ -100,7 +102,7 @@ const AuthCallbackPage = () => {
               onClick={() => navigate('/login')}
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              Voltar para o login
+              {t('callback.backToLogin')}
             </button>
           </>
         )}

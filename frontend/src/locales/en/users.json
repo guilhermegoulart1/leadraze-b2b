@@ -1,4 +1,9 @@
 {
+  "teamTabs": {
+    "users": "Users",
+    "sectors": "Sectors",
+    "permissions": "Permissions"
+  },
   "title": "User Management",
   "subtitle": "{{count}} user registered",
   "subtitle_plural": "{{count}} users registered",

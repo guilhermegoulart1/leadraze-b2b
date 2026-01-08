@@ -1,0 +1,14 @@
+{
+  "title": "Insights",
+  "subtitle": "Smart analytics and recommendations",
+  "comingSoon": {
+    "title": "Under Development",
+    "description": "We are working on intelligent analytics and powerful insights to optimize your campaigns and sales."
+  },
+  "features": {
+    "marketTrends": "Market Trends",
+    "leadProfile": "Lead Profile",
+    "aiRecommendations": "AI Recommendations",
+    "performance": "Performance"
+  }
+}

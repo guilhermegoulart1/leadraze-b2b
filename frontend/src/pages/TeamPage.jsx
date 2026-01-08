@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Users, Building2, Lock } from 'lucide-react';
 import UsersPage from './UsersPage';
 import SectorsPage from './SectorsPage';
 import PermissionsPage from './PermissionsPage';
 
 const TeamPage = () => {
+  const { t } = useTranslation('users');
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users');
 
@@ -20,9 +22,9 @@ const TeamPage = () => {
   };
 
   const tabs = [
-    { id: 'users', label: 'Usuários', icon: Users },
-    { id: 'sectors', label: 'Setores', icon: Building2 },
-    { id: 'permissions', label: 'Permissões', icon: Lock },
+    { id: 'users', label: t('teamTabs.users'), icon: Users },
+    { id: 'sectors', label: t('teamTabs.sectors'), icon: Building2 },
+    { id: 'permissions', label: t('teamTabs.permissions'), icon: Lock },
   ];
 
   const renderContent = () => {

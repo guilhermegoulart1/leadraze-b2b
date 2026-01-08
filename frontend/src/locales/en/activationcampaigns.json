@@ -1,4 +1,8 @@
 {
+  "listTabs": {
+    "campaigns": "Campaigns",
+    "contactLists": "Contact Lists"
+  },
   "title": "Activation Campaigns",
   "subtitle": "Manage your automated contact activation campaigns",
   "newCampaign": "New Campaign",

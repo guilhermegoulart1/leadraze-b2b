@@ -1,4 +1,10 @@
 {
+  "tabs": {
+    "campaigns": "Campanhas",
+    "searchProfiles": "Buscar Perfis",
+    "searchPosts": "Buscar Posts",
+    "myConnections": "Minhas Conexões"
+  },
   "title": "Contas do LinkedIn",
   "subtitle": "Gerencie suas contas do LinkedIn para campanhas",
   "connectAccount": "Conectar Conta do LinkedIn",

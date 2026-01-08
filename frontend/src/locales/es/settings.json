@@ -1,6 +1,15 @@
 {
   "title": "Configuración",
   "subtitle": "Gestione sus preferencias y configuración",
+  "configTabs": {
+    "products": "Productos",
+    "discardReasons": "Motivos de Descarte",
+    "tags": "Etiquetas",
+    "apiKeys": "API Key",
+    "channels": "Canales Conectados",
+    "checklists": "CRM Checklists",
+    "emails": "Emails"
+  },
   "tabs": {
     "profile": "Perfil",
     "security": "Seguridad",

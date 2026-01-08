@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Key, Link2, CheckSquare, Mail, Package, XCircle, Tag } from 'lucide-react';
 import ApiKeysPage from './ApiKeysPage';
 import ChannelsPage from './ChannelsPage';
@@ -10,6 +11,7 @@ import ProductsTab from '../components/settings/ProductsTab';
 import DiscardReasonsTab from '../components/settings/DiscardReasonsTab';
 
 const ConfigPage = () => {
+  const { t } = useTranslation('settings');
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'products');
 
@@ -24,13 +26,13 @@ const ConfigPage = () => {
   };
 
   const tabs = [
-    { id: 'products', label: 'Produtos', icon: Package },
-    { id: 'discard-reasons', label: 'Motivos de Descarte', icon: XCircle },
-    { id: 'tags', label: 'Etiquetas', icon: Tag },
-    { id: 'api-keys', label: 'API Key', icon: Key },
-    { id: 'channels', label: 'Canais Conectados', icon: Link2 },
-    { id: 'checklists', label: 'CRM Checklists', icon: CheckSquare },
-    { id: 'emails', label: 'Emails', icon: Mail },
+    { id: 'products', label: t('configTabs.products'), icon: Package },
+    { id: 'discard-reasons', label: t('configTabs.discardReasons'), icon: XCircle },
+    { id: 'tags', label: t('configTabs.tags'), icon: Tag },
+    { id: 'api-keys', label: t('configTabs.apiKeys'), icon: Key },
+    { id: 'channels', label: t('configTabs.channels'), icon: Link2 },
+    { id: 'checklists', label: t('configTabs.checklists'), icon: CheckSquare },
+    { id: 'emails', label: t('configTabs.emails'), icon: Mail },
   ];
 
   const renderContent = () => {

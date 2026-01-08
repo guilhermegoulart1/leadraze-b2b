@@ -1,4 +1,10 @@
 {
+  "tabs": {
+    "campaigns": "Campaigns",
+    "searchProfiles": "Search Profiles",
+    "searchPosts": "Search Posts",
+    "myConnections": "My Connections"
+  },
   "title": "LinkedIn Accounts",
   "subtitle": "Manage your LinkedIn accounts for campaigns",
   "connectAccount": "Connect LinkedIn Account",

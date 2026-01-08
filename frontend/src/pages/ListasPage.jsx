@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Award, Users } from 'lucide-react';
 import ActivationCampaignsPage from './ActivationCampaignsPage';
 import ContactListsPage from './ContactListsPage';
 
 const ListasPage = () => {
+  const { t } = useTranslation('activationcampaigns');
   const [activeTab, setActiveTab] = useState('campaigns');
 
   const tabs = [
-    { id: 'campaigns', label: 'Campanhas', icon: Award },
-    { id: 'contacts', label: 'Listas de Contatos', icon: Users },
+    { id: 'campaigns', label: t('listTabs.campaigns'), icon: Award },
+    { id: 'contacts', label: t('listTabs.contactLists'), icon: Users },
   ];
 
   const renderContent = () => {

@@ -1,6 +1,15 @@
 {
   "title": "Settings",
   "subtitle": "Manage your preferences and settings",
+  "configTabs": {
+    "products": "Products",
+    "discardReasons": "Discard Reasons",
+    "tags": "Tags",
+    "apiKeys": "API Key",
+    "channels": "Connected Channels",
+    "checklists": "CRM Checklists",
+    "emails": "Emails"
+  },
   "tabs": {
     "profile": "Profile",
     "security": "Security",
