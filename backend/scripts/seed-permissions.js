@@ -167,6 +167,32 @@ const permissions = [
     description: 'View tags (all users)' },
   { name: 'tags:manage', resource: 'tags', action: 'manage', scope: 'all',
     description: 'Create/edit/delete tags (all users - global tags)' },
+
+  // =====================
+  // PIPELINES
+  // =====================
+  { name: 'pipelines:view', resource: 'pipelines', action: 'view', scope: 'all',
+    description: 'View pipelines' },
+  { name: 'pipelines:create', resource: 'pipelines', action: 'create', scope: 'all',
+    description: 'Create new pipelines' },
+  { name: 'pipelines:edit', resource: 'pipelines', action: 'edit', scope: 'all',
+    description: 'Edit pipelines' },
+  { name: 'pipelines:delete', resource: 'pipelines', action: 'delete', scope: 'all',
+    description: 'Delete pipelines' },
+  { name: 'pipelines:manage_users', resource: 'pipelines', action: 'manage_users', scope: 'all',
+    description: 'Manage users in restricted pipelines' },
+
+  // =====================
+  // OPPORTUNITIES
+  // =====================
+  { name: 'opportunities:view', resource: 'opportunities', action: 'view', scope: 'all',
+    description: 'View opportunities' },
+  { name: 'opportunities:create', resource: 'opportunities', action: 'create', scope: 'all',
+    description: 'Create new opportunities' },
+  { name: 'opportunities:edit', resource: 'opportunities', action: 'edit', scope: 'all',
+    description: 'Edit opportunities' },
+  { name: 'opportunities:delete', resource: 'opportunities', action: 'delete', scope: 'all',
+    description: 'Delete opportunities' },
 ];
 
 // Define which permissions each role has
@@ -228,6 +254,17 @@ const roleAssignments = {
     // Tags
     'tags:view',
     'tags:manage',
+
+    // Pipelines
+    'pipelines:view',
+    'pipelines:create',
+    'pipelines:edit',
+    'pipelines:manage_users',
+
+    // Opportunities
+    'opportunities:view',
+    'opportunities:create',
+    'opportunities:edit',
   ],
 
   user: [
@@ -268,6 +305,14 @@ const roleAssignments = {
     // Tags
     'tags:view',
     'tags:manage',
+
+    // Pipelines
+    'pipelines:view',
+
+    // Opportunities
+    'opportunities:view',
+    'opportunities:create',
+    'opportunities:edit',
   ]
 };
 

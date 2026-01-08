@@ -23,9 +23,6 @@ import {
   Edit,
   Trash2,
   Settings,
-  FolderOpen,
-  FolderPlus,
-  Folder,
   MoreVertical,
   Phone,
   Mail,
@@ -40,7 +37,8 @@ import {
   AlertCircle,
   Zap,
   Package,
-  Clock
+  Clock,
+  Loader
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useSearchParams } from 'react-router-dom';
@@ -49,6 +47,9 @@ import { useAuth } from '../contexts/AuthContext';
 import OpportunityModal from '../components/pipelines/OpportunityModal';
 import PipelineSettingsModal from '../components/pipelines/PipelineSettingsModal';
 import ProjectModal from '../components/pipelines/ProjectModal';
+import WinOpportunityModal from '../components/pipelines/WinOpportunityModal';
+import LoseOpportunityModal from '../components/pipelines/LoseOpportunityModal';
+import LeadDetailModal from '../components/LeadDetailModal';
 
 const PipelinesPage = () => {
   const { hasPermission } = useAuth();
@@ -62,6 +63,7 @@ const PipelinesPage = () => {
   const [stages, setStages] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingContent, setLoadingContent] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState('kanban');
@@ -72,9 +74,7 @@ const PipelinesPage = () => {
   const [totalOpportunities, setTotalOpportunities] = useState(0);
   const [totalsByStage, setTotalsByStage] = useState({});
 
-  // Sidebar state
-  const [expandedProjects, setExpandedProjects] = useState(new Set());
-
+  
   // Modals
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState(null);
@@ -82,6 +82,16 @@ const PipelinesPage = () => {
   const [editingPipeline, setEditingPipeline] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [loadingLeadModal, setLoadingLeadModal] = useState(false);
+
+  // Win/Lose modals
+  const [showWinModal, setShowWinModal] = useState(false);
+  const [pendingWinOpp, setPendingWinOpp] = useState(null);
+  const [pendingWinStageId, setPendingWinStageId] = useState(null);
+  const [showLoseModal, setShowLoseModal] = useState(false);
+  const [pendingLoseOpp, setPendingLoseOpp] = useState(null);
+  const [pendingLoseStageId, setPendingLoseStageId] = useState(null);
 
   // Kanban column limit
   const KANBAN_COLUMN_LIMIT = 20;
@@ -154,10 +164,12 @@ const PipelinesPage = () => {
       if (projectsRes.success) {
         const projectsData = projectsRes.data?.projects || [];
         setProjects(projectsData);
-        setExpandedProjects(new Set(projectsData.map(p => p.id)));
       }
     } catch (error) {
       console.error('Erro ao carregar pipelines:', error);
+    } finally {
+      // Initial page load complete
+      setLoading(false);
     }
   };
 
@@ -165,9 +177,9 @@ const PipelinesPage = () => {
     if (!selectedPipelineId) return;
 
     try {
-      // Show loading on initial load or when no data
-      if (showLoading && opportunities.length === 0) {
-        setLoading(true);
+      // Show loading on initial load or when switching pipelines
+      if (showLoading) {
+        setLoadingContent(true);
       }
 
       // Load pipeline details first
@@ -209,6 +221,7 @@ const PipelinesPage = () => {
       console.error('Erro ao carregar kanban:', error);
     } finally {
       setLoading(false);
+      setLoadingContent(false);
     }
   };
 
@@ -267,7 +280,7 @@ const PipelinesPage = () => {
     if (!selectedPipelineId) return;
 
     try {
-      setLoading(true);
+      setLoadingContent(true);
 
       // Load pipeline details
       const pipelineRes = await api.getPipeline(selectedPipelineId);
@@ -296,6 +309,7 @@ const PipelinesPage = () => {
       console.error('Erro ao carregar oportunidades:', error);
     } finally {
       setLoading(false);
+      setLoadingContent(false);
     }
   };
 
@@ -312,20 +326,115 @@ const PipelinesPage = () => {
   }, [opportunities]);
 
   const handleSelectPipeline = (pipeline) => {
+    if (pipeline.id === selectedPipelineId) return;
+
+    // Show loading and clear current data immediately
+    setLoadingContent(true);
+    setStages([]);
+    setOpportunities([]);
+    setSelectedPipeline(null);
+
     setSelectedPipelineId(pipeline.id);
     setSearchParams({ pipeline: pipeline.id });
   };
 
-  const toggleProject = (projectId) => {
-    setExpandedProjects(prev => {
-      const next = new Set(prev);
-      if (next.has(projectId)) {
-        next.delete(projectId);
-      } else {
-        next.add(projectId);
+  // Inline editing for project name
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editingProjectName, setEditingProjectName] = useState('');
+
+  // Project menu state
+  const [projectMenuOpen, setProjectMenuOpen] = useState(null);
+  const [newPipelineProjectId, setNewPipelineProjectId] = useState(null);
+
+  // Close project menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setProjectMenuOpen(null);
+    if (projectMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [projectMenuOpen]);
+
+  const handleProjectNameClick = (project) => {
+    setEditingProjectId(project.id);
+    setEditingProjectName(project.name);
+  };
+
+  const handleProjectNameSave = async (projectId) => {
+    if (!editingProjectName.trim()) {
+      setEditingProjectId(null);
+      return;
+    }
+
+    try {
+      await api.updateCrmProject(projectId, { name: editingProjectName.trim() });
+      setProjects(prev => prev.map(p =>
+        p.id === projectId ? { ...p, name: editingProjectName.trim() } : p
+      ));
+    } catch (error) {
+      console.error('Erro ao renomear projeto:', error);
+    }
+    setEditingProjectId(null);
+  };
+
+  const handleProjectNameKeyDown = (e, projectId) => {
+    if (e.key === 'Enter') {
+      handleProjectNameSave(projectId);
+    } else if (e.key === 'Escape') {
+      setEditingProjectId(null);
+    }
+  };
+
+  // Handle sidebar drag & drop (projects reordering + pipelines between projects)
+  const handleSidebarDragEnd = async (result) => {
+    const { source, destination, type, draggableId } = result;
+
+    if (!destination) return;
+
+    // Reordering projects
+    if (type === 'project') {
+      if (source.index === destination.index) return;
+
+      const newProjects = Array.from(projects);
+      const [removed] = newProjects.splice(source.index, 1);
+      newProjects.splice(destination.index, 0, removed);
+      setProjects(newProjects);
+
+      try {
+        const orders = newProjects.map((project, index) => ({
+          id: project.id,
+          display_order: index
+        }));
+        await api.reorderCrmProjects(orders);
+      } catch (error) {
+        console.error('Erro ao reordenar projetos:', error);
+        loadPipelinesAndProjects();
       }
-      return next;
-    });
+      return;
+    }
+
+    // Moving pipeline between projects
+    if (type === 'pipeline') {
+      const pipelineId = draggableId.replace('pipeline-', '');
+      const sourceProjectId = source.droppableId.replace('project-pipelines-', '');
+      const destProjectId = destination.droppableId.replace('project-pipelines-', '');
+
+      // Same project, no action needed (no reordering within project)
+      if (sourceProjectId === destProjectId) return;
+
+      // Update locally
+      setPipelines(prev => prev.map(p =>
+        p.id === pipelineId ? { ...p, project_id: destProjectId } : p
+      ));
+
+      // Save to backend
+      try {
+        await api.updatePipeline(pipelineId, { project_id: destProjectId });
+      } catch (error) {
+        console.error('Erro ao mover pipeline:', error);
+        loadPipelinesAndProjects();
+      }
+    }
   };
 
   const handleDragEnd = async (result) => {
@@ -338,7 +447,30 @@ const PipelinesPage = () => {
     const newStageId = destination.droppableId;
     const sourceStageId = source.droppableId;
 
-    // Optimistic update
+    // Find the opportunity and target stage
+    const opportunity = opportunities.find(o => String(o.id) === String(oppId));
+    const targetStage = stages.find(s => s.id === newStageId);
+
+    if (!opportunity || !targetStage) return;
+
+    // Check if moving to win or loss stage
+    if (targetStage.is_win_stage && sourceStageId !== newStageId) {
+      // Show win modal instead of directly moving
+      setPendingWinOpp(opportunity);
+      setPendingWinStageId(newStageId);
+      setShowWinModal(true);
+      return; // Don't do optimistic update - wait for modal
+    }
+
+    if (targetStage.is_loss_stage && sourceStageId !== newStageId) {
+      // Show lose modal instead of directly moving
+      setPendingLoseOpp(opportunity);
+      setPendingLoseStageId(newStageId);
+      setShowLoseModal(true);
+      return; // Don't do optimistic update - wait for modal
+    }
+
+    // For normal stages, do optimistic update
     setOpportunities(prevOpps => {
       const newOpps = [...prevOpps];
       const oppIndex = newOpps.findIndex(o => String(o.id) === String(oppId));
@@ -351,12 +483,76 @@ const PipelinesPage = () => {
     // Update backend
     if (sourceStageId !== newStageId) {
       try {
-        await api.moveOpportunity(oppId, newStageId);
+        await api.moveOpportunity(oppId, { stage_id: newStageId });
       } catch (error) {
         console.error('Erro ao mover oportunidade:', error);
         loadOpportunitiesKanban(false);
       }
     }
+  };
+
+  // Handle win modal success
+  const handleWinSuccess = (updatedOpp) => {
+    // Capture values before clearing
+    const targetStageId = pendingWinStageId;
+    const originalOpp = pendingWinOpp;
+
+    // Close modal and clear state
+    setShowWinModal(false);
+    setPendingWinOpp(null);
+    setPendingWinStageId(null);
+
+    // Update state locally for immediate feedback
+    if (originalOpp && targetStageId) {
+      setOpportunities(prevOpps => {
+        const newOpps = [...prevOpps];
+        const oppIndex = newOpps.findIndex(o => String(o.id) === String(originalOpp.id));
+        if (oppIndex !== -1) {
+          newOpps[oppIndex] = {
+            ...newOpps[oppIndex],
+            ...(updatedOpp || {}),
+            stage_id: targetStageId,
+            won_at: new Date().toISOString()
+          };
+        }
+        return newOpps;
+      });
+    }
+
+    // Also reload to ensure data is fully synced (with delay)
+    setTimeout(() => loadOpportunitiesKanban(false), 300);
+  };
+
+  // Handle lose modal success
+  const handleLoseSuccess = (updatedOpp) => {
+    // Capture values before clearing
+    const targetStageId = pendingLoseStageId;
+    const originalOpp = pendingLoseOpp;
+
+    // Close modal and clear state
+    setShowLoseModal(false);
+    setPendingLoseOpp(null);
+    setPendingLoseStageId(null);
+
+    // Update state locally for immediate feedback
+    if (originalOpp && targetStageId) {
+      setOpportunities(prevOpps => {
+        const newOpps = [...prevOpps];
+        const oppIndex = newOpps.findIndex(o => String(o.id) === String(originalOpp.id));
+        if (oppIndex !== -1) {
+          newOpps[oppIndex] = {
+            ...newOpps[oppIndex],
+            ...(updatedOpp || {}),
+            stage_id: targetStageId,
+            lost_at: new Date().toISOString()
+          };
+        }
+        return newOpps;
+      });
+    }
+
+    // Also reload to ensure data is fully synced (with delay)
+    setTimeout(() => loadOpportunitiesKanban(false), 300);
   };
 
   const handleSort = (field) => {
@@ -390,6 +586,46 @@ const PipelinesPage = () => {
       currency: 'BRL',
       maximumFractionDigits: 0
     }).format(value || 0);
+  };
+
+  // Handle opening lead detail modal
+  const handleOpenLeadDetail = async (opportunity) => {
+    if (!opportunity) return;
+
+    // If opportunity has source_lead_id, load the full lead
+    if (opportunity.source_lead_id) {
+      try {
+        setLoadingLeadModal(true);
+        const response = await api.getLead(opportunity.source_lead_id);
+        if (response.success) {
+          setSelectedLead(response.data.lead || response.data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar lead:', error);
+      } finally {
+        setLoadingLeadModal(false);
+      }
+    } else {
+      // Create a lead-like object from opportunity data for display
+      setSelectedLead({
+        id: opportunity.id,
+        name: opportunity.contact_name,
+        title: opportunity.contact_title,
+        company: opportunity.contact_company,
+        location: opportunity.contact_location,
+        email: opportunity.contact_email,
+        phone: opportunity.contact_phone,
+        profile_picture: opportunity.contact_picture,
+        public_identifier: opportunity.contact_linkedin_id,
+        status: opportunity.won_at ? 'qualified' : opportunity.lost_at ? 'discarded' : 'leads',
+        source: opportunity.source,
+        created_at: opportunity.created_at,
+        tags: opportunity.tags || [],
+        responsible_id: opportunity.owner_user_id,
+        responsible_name: opportunity.owner_name,
+        responsible_avatar: opportunity.owner_avatar
+      });
+    }
   };
 
   // Stage badge classes
@@ -486,8 +722,7 @@ const PipelinesPage = () => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setEditingOpportunity(opportunity);
-                  setShowOpportunityModal(true);
+                  handleOpenLeadDetail(opportunity);
                 }}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex-shrink-0"
                 title="Ver detalhes"
@@ -721,7 +956,6 @@ const PipelinesPage = () => {
           style={{
             maxHeight: 'calc(100vh - 200px)',
             minHeight: '400px',
-            contain: 'strict',
             overflowAnchor: 'none'
           }}
         >
@@ -801,7 +1035,7 @@ const PipelinesPage = () => {
   };
 
   // =====================================================
-  // LIST VIEW
+  // LIST VIEW - Similar to LeadsPage
   // =====================================================
   const ListView = () => {
     const totalPages = Math.ceil(totalOpportunities / itemsPerPage);
@@ -810,19 +1044,31 @@ const PipelinesPage = () => {
 
     const getStageForOpp = (stageId) => stages.find(s => s.id === stageId);
 
+    // Stage badge classes for list view (inline style)
+    const getStageInlineBadgeClasses = (stage) => {
+      if (!stage) return 'px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+      if (stage.is_win_stage) {
+        return 'px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+      }
+      if (stage.is_loss_stage) {
+        return 'px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      }
+      return 'px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400';
+    };
+
     return (
       <div className="space-y-3">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <TableHeader field="title" label="Oportunidade" />
-                <TableHeader field="contact_name" label="Contato" />
+                <TableHeader field="contact_name" label="Lead" />
                 <TableHeader field="stage_id" label="Etapa" />
-                <TableHeader field="value" label="Valor" />
-                <TableHeader field="expected_close_date" label="Previsão" />
                 <TableHeader field="owner_name" label="Responsável" />
-                <TableHeader field="created_at" label="Criado" />
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  Tags
+                </th>
+                <TableHeader field="created_at" label="Data" />
                 <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                   Ações
                 </th>
@@ -834,64 +1080,166 @@ const PipelinesPage = () => {
 
                 return (
                   <tr key={opp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors">
-                    <td className="px-3 py-2">
-                      <div className="font-semibold text-xs text-gray-900 dark:text-gray-100">
-                        {opp.title}
-                      </div>
-                    </td>
+                    {/* Contact Info - Like LeadsPage */}
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         {opp.contact_picture ? (
-                          <img src={opp.contact_picture} alt={opp.contact_name} className="w-7 h-7 rounded-full object-cover" />
+                          <img
+                            src={opp.contact_picture}
+                            alt={opp.contact_name}
+                            loading="lazy"
+                            className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                          />
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-semibold">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
                             {opp.contact_name?.charAt(0) || '?'}
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{opp.contact_name}</div>
-                          {opp.contact_company && <div className="text-[10px] text-gray-500 truncate">{opp.contact_company}</div>}
+                        <div className="min-w-0 max-w-[250px]">
+                          <div className="font-semibold text-xs text-gray-900 dark:text-gray-100 truncate">{opp.contact_name}</div>
+                          {opp.contact_company && (
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate" title={opp.contact_company}>
+                              {opp.contact_company}
+                            </div>
+                          )}
+                          {opp.contact_title && (
+                            <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate" title={opp.contact_title}>
+                              {opp.contact_title}
+                            </div>
+                          )}
+                          {opp.contact_location && (
+                            <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate flex items-center gap-1" title={opp.contact_location}>
+                              <MapPin className="w-2.5 h-2.5 inline flex-shrink-0" />
+                              <span>{opp.contact_location}</span>
+                            </div>
+                          )}
+                          {/* Value badge if won */}
+                          {opp.value > 0 && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Trophy className="w-2.5 h-2.5 text-emerald-500" />
+                              <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                {formatCurrency(opp.value)}
+                              </span>
+                            </div>
+                          )}
+                          {/* LinkedIn link */}
+                          {opp.contact_linkedin_id && (
+                            <a
+                              href={`https://www.linkedin.com/in/${opp.contact_linkedin_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 text-[9px] mt-0.5"
+                              title="Ver LinkedIn"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Linkedin className="w-2.5 h-2.5" />
+                            </a>
+                          )}
                         </div>
                       </div>
                     </td>
+
+                    {/* Stage */}
                     <td className="px-3 py-2">
-                      {stage && <span className={getStageBadgeClasses(stage)}>{stage.name}</span>}
+                      {stage && <span className={getStageInlineBadgeClasses(stage)}>{stage.name}</span>}
                     </td>
-                    <td className="px-3 py-2">
-                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                        {formatCurrency(opp.value)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-[10px] text-gray-500">
-                      {opp.expected_close_date ? new Date(opp.expected_close_date).toLocaleDateString('pt-BR') : '-'}
-                    </td>
+
+                    {/* Responsible */}
                     <td className="px-3 py-2">
                       {opp.owner_name ? (
                         <div className="flex items-center gap-1.5">
                           {opp.owner_avatar ? (
-                            <img src={opp.owner_avatar} alt={opp.owner_name} className="w-5 h-5 rounded-full" />
+                            <img
+                              src={opp.owner_avatar}
+                              alt={opp.owner_name}
+                              loading="lazy"
+                              className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                            />
                           ) : (
                             <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                              <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400">{opp.owner_name?.charAt(0)}</span>
+                              <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400">
+                                {(() => {
+                                  const names = (opp.owner_name || '').trim().split(' ').filter(n => n.length > 0);
+                                  if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+                                  return (names[0][0] + names[1][0]).toUpperCase();
+                                })()}
+                              </span>
                             </div>
                           )}
-                          <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate max-w-[80px]">{opp.owner_name}</span>
+                          <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate max-w-[90px]">
+                            {(() => {
+                              const names = (opp.owner_name || '').trim().split(' ').filter(n => n.length > 0);
+                              if (names.length === 1) return names[0];
+                              return `${names[0]} ${names[1][0]}.`;
+                            })()}
+                          </span>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-gray-400 italic">-</span>
+                        <span className="text-[10px] text-gray-400 italic">Não atribuído</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-[10px] text-gray-500">
+
+                    {/* Tags */}
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-0.5">
+                        {opp.tags && opp.tags.slice(0, 2).map((tag) => {
+                          const colorClasses = {
+                            purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+                            blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+                            green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+                            yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+                            red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+                            pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+                            orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+                            gray: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                          };
+                          const colorClass = colorClasses[tag.color] || colorClasses.purple;
+
+                          return (
+                            <span
+                              key={tag.id}
+                              className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium ${colorClass}`}
+                            >
+                              {tag.name}
+                            </span>
+                          );
+                        })}
+                        {opp.tags && opp.tags.length > 2 && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            +{opp.tags.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Date */}
+                    <td className="px-3 py-2 text-[10px] text-gray-500 dark:text-gray-400">
                       {new Date(opp.created_at).toLocaleDateString('pt-BR')}
                     </td>
+
+                    {/* Actions */}
                     <td className="px-3 py-2 text-right">
-                      <button
-                        onClick={() => { setEditingOpportunity(opp); setShowOpportunityModal(true); }}
-                        className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                        title="Ver detalhes"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          onClick={() => handleOpenLeadDetail(opp)}
+                          className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                          title="Ver detalhes"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          className="p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -941,14 +1289,14 @@ const PipelinesPage = () => {
   }, {});
 
   // =====================================================
-  // LOADING STATE - EXACTLY LIKE LEADSPAGE
+  // INITIAL LOADING STATE - Only on first page load
   // =====================================================
-  if (loading && opportunities.length === 0) {
+  if (loading && pipelines.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
+          <Loader className="w-10 h-10 text-purple-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Carregando pipelines...</p>
         </div>
       </div>
     );
@@ -959,79 +1307,144 @@ const PipelinesPage = () => {
       {/* Sidebar - Projects & Pipelines */}
       <div className="w-56 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col flex-shrink-0">
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-xs font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">Pipelines</h3>
-          <div
-            onClick={() => { if (pipelines.length > 0) handleSelectPipeline(pipelines[0]); }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${!selectedPipelineId ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span className="flex-1 text-left">Todas</span>
-            <span className="text-[10px] text-gray-400">{pipelines.length}</span>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wide">Pipelines</h3>
+            {hasPermission('pipelines:create') && (
+              <button
+                onClick={() => { setEditingProject(null); setShowProjectModal(true); }}
+                className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                title="Novo Projeto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 py-1.5">
-          {projects.map(project => {
-            const projectPipelines = pipelinesByProject[project.id] || [];
-            const isExpanded = expandedProjects.has(project.id);
+          <DragDropContext onDragEnd={handleSidebarDragEnd}>
+            <Droppable droppableId="projects-list" type="project">
+              {(provided) => (
+                <div ref={provided.innerRef} {...provided.droppableProps}>
+                  {projects.map((project, index) => {
+                    const projectPipelines = pipelinesByProject[project.id] || [];
 
-            return (
-              <div key={project.id} className="mb-1">
-                <div onClick={() => toggleProject(project.id)} className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
-                  <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                  <FolderOpen className="w-3.5 h-3.5" style={{ color: project.color || '#6366f1' }} />
-                  <span className="flex-1 truncate">{project.name}</span>
-                  <span className="text-[10px] text-gray-400">{projectPipelines.length}</span>
+                    return (
+                      <Draggable key={project.id} draggableId={`project-${project.id}`} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`mb-3 ${snapshot.isDragging ? 'opacity-80 bg-gray-100 dark:bg-gray-700 rounded-md' : ''}`}
+                          >
+                            {/* Project header - section header style with inline editing */}
+                            <div
+                              {...provided.dragHandleProps}
+                              className="px-0 py-1 cursor-grab group/project flex items-center justify-between"
+                            >
+                              {editingProjectId === project.id ? (
+                                <input
+                                  type="text"
+                                  value={editingProjectName}
+                                  onChange={(e) => setEditingProjectName(e.target.value)}
+                                  onBlur={() => handleProjectNameSave(project.id)}
+                                  onKeyDown={(e) => handleProjectNameKeyDown(e, project.id)}
+                                  className="w-full text-[10px] font-medium text-gray-900 dark:text-white uppercase bg-white dark:bg-gray-700 border border-purple-500 rounded px-1 py-0.5 focus:outline-none"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                <>
+                                  <span
+                                    className="text-[10px] font-medium text-gray-400 uppercase cursor-pointer hover:text-gray-600 dark:hover:text-gray-300"
+                                    onClick={(e) => { e.stopPropagation(); handleProjectNameClick(project); }}
+                                  >
+                                    {project.name}
+                                  </span>
+                                  {hasPermission('pipelines:create') && (
+                                    <div className="relative">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setProjectMenuOpen(projectMenuOpen === project.id ? null : project.id);
+                                        }}
+                                        className="opacity-0 group-hover/project:opacity-100 p-0.5 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all"
+                                        title="Adicionar"
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </button>
+                                      {projectMenuOpen === project.id && (
+                                        <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setProjectMenuOpen(null);
+                                              setEditingPipeline(null);
+                                              setNewPipelineProjectId(project.id);
+                                              setShowPipelineSettings(true);
+                                            }}
+                                            className="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                          >
+                                            <Target className="w-3.5 h-3.5" />
+                                            Nova Pipeline
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {/* Pipelines under this project - droppable for pipeline drag */}
+                            <Droppable droppableId={`project-pipelines-${project.id}`} type="pipeline">
+                              {(droppableProvided, droppableSnapshot) => (
+                                <div
+                                  ref={droppableProvided.innerRef}
+                                  {...droppableProvided.droppableProps}
+                                  className={`mt-0.5 min-h-[20px] rounded transition-colors ${droppableSnapshot.isDraggingOver ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}
+                                >
+                                  {projectPipelines.length === 0 && !droppableSnapshot.isDraggingOver && (
+                                    <span className="text-[9px] text-gray-400 dark:text-gray-500 italic px-2">Vazio</span>
+                                  )}
+                                  {projectPipelines.map((pipeline, pipelineIndex) => (
+                                    <Draggable key={pipeline.id} draggableId={`pipeline-${pipeline.id}`} index={pipelineIndex}>
+                                      {(draggableProvided, draggableSnapshot) => (
+                                        <div
+                                          ref={draggableProvided.innerRef}
+                                          {...draggableProvided.draggableProps}
+                                          {...draggableProvided.dragHandleProps}
+                                          onClick={() => handleSelectPipeline(pipeline)}
+                                          className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${
+                                            draggableSnapshot.isDragging
+                                              ? 'shadow-lg bg-white dark:bg-gray-700 ring-2 ring-purple-400 text-gray-700 dark:text-gray-300'
+                                              : selectedPipelineId === pipeline.id
+                                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                                                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                          }`}
+                                        >
+                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pipeline.color || '#6366f1' }} />
+                                          <span className="flex-1 truncate">{pipeline.name}</span>
+                                          <span className="text-[10px] text-gray-400">{pipeline.opportunities_count || 0}</span>
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  ))}
+                                  {droppableProvided.placeholder}
+                                </div>
+                              )}
+                            </Droppable>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {provided.placeholder}
                 </div>
-
-                {isExpanded && projectPipelines.length > 0 && (
-                  <div className="ml-4 mt-0.5">
-                    {projectPipelines.map(pipeline => (
-                      <div
-                        key={pipeline.id}
-                        onClick={() => handleSelectPipeline(pipeline)}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${selectedPipelineId === pipeline.id ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
-                      >
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pipeline.color || '#6366f1' }} />
-                        <span className="flex-1 truncate">{pipeline.name}</span>
-                        <span className="text-[10px] text-gray-400">{pipeline.opportunities_count || 0}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {(pipelinesByProject['no_project'] || []).length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <div className="px-2 py-1 text-[10px] font-medium text-gray-400 uppercase">Sem Projeto</div>
-              {pipelinesByProject['no_project'].map(pipeline => (
-                <div
-                  key={pipeline.id}
-                  onClick={() => handleSelectPipeline(pipeline)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${selectedPipelineId === pipeline.id ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
-                >
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pipeline.color || '#6366f1' }} />
-                  <span className="flex-1 truncate">{pipeline.name}</span>
-                  <span className="text-[10px] text-gray-400">{pipeline.opportunities_count || 0}</span>
-                </div>
-              ))}
-            </div>
-          )}
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
-
-        {hasPermission('pipelines:create') && (
-          <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => { setEditingPipeline(null); setShowPipelineSettings(true); }}
-              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Nova Pipeline
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Main content */}
@@ -1039,16 +1452,8 @@ const PipelinesPage = () => {
         {/* Header */}
         <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {selectedPipeline && (
-                <>
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: selectedPipeline.color || '#6366f1' }} />
-                  <h1 className="text-lg font-semibold text-gray-900 dark:text-white truncate">{selectedPipeline.name}</h1>
-                </>
-              )}
-            </div>
-
-            <div className="flex-1 relative max-w-md">
+            {/* Search */}
+            <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
@@ -1085,7 +1490,17 @@ const PipelinesPage = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden relative">
+          {/* Loading Overlay */}
+          {loadingContent && (
+            <div className="absolute inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 text-purple-500 animate-spin" />
+                <span className="text-sm text-gray-500 dark:text-gray-400">Carregando...</span>
+              </div>
+            </div>
+          )}
+
           {selectedPipeline ? (
             <>
               {viewMode === 'kanban' && (
@@ -1106,7 +1521,7 @@ const PipelinesPage = () => {
                 </div>
               )}
             </>
-          ) : (
+          ) : !loadingContent && (
             <div className="flex-1 flex flex-col items-center justify-center h-full">
               <Target className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
               <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Selecione uma Pipeline</h2>
@@ -1136,10 +1551,12 @@ const PipelinesPage = () => {
         <PipelineSettingsModal
           pipeline={editingPipeline}
           projects={projects}
-          onClose={() => { setShowPipelineSettings(false); setEditingPipeline(null); }}
+          defaultProjectId={newPipelineProjectId}
+          onClose={() => { setShowPipelineSettings(false); setEditingPipeline(null); setNewPipelineProjectId(null); }}
           onSave={() => {
             setShowPipelineSettings(false);
             setEditingPipeline(null);
+            setNewPipelineProjectId(null);
             loadPipelinesAndProjects();
             if (selectedPipelineId) {
               if (viewMode === 'kanban') loadOpportunitiesKanban(false);
@@ -1155,6 +1572,58 @@ const PipelinesPage = () => {
           onClose={() => { setShowProjectModal(false); setEditingProject(null); }}
           onSave={() => { setShowProjectModal(false); setEditingProject(null); loadPipelinesAndProjects(); }}
         />
+      )}
+
+      {/* Win Modal */}
+      <WinOpportunityModal
+        isOpen={showWinModal}
+        onClose={() => {
+          setShowWinModal(false);
+          setPendingWinOpp(null);
+          setPendingWinStageId(null);
+        }}
+        opportunity={pendingWinOpp}
+        targetStageId={pendingWinStageId}
+        onSuccess={handleWinSuccess}
+      />
+
+      {/* Lose Modal */}
+      <LoseOpportunityModal
+        isOpen={showLoseModal}
+        onClose={() => {
+          setShowLoseModal(false);
+          setPendingLoseOpp(null);
+          setPendingLoseStageId(null);
+        }}
+        opportunity={pendingLoseOpp}
+        targetStageId={pendingLoseStageId}
+        onSuccess={handleLoseSuccess}
+      />
+
+      {/* Lead Detail Modal */}
+      {selectedLead && (
+        <LeadDetailModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onLeadUpdated={() => {
+            // Refresh opportunities after lead update
+            if (viewMode === 'kanban') {
+              loadOpportunitiesKanban(false);
+            } else {
+              loadOpportunitiesList();
+            }
+          }}
+        />
+      )}
+
+      {/* Loading Lead Modal Overlay */}
+      {loadingLeadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3">
+            <Loader className="w-8 h-8 text-purple-500 animate-spin" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">Carregando detalhes...</span>
+          </div>
+        </div>
       )}
     </div>
   );

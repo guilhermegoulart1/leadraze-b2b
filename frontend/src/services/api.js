@@ -3220,15 +3220,15 @@ class ApiService {
     });
   }
 
-  async moveOpportunity(id, stageId, notes = null, lossReasonId = null, lossNotes = null) {
+  async moveOpportunity(id, data) {
+    // Support both old signature (stageId as string) and new signature (data object)
+    const body = typeof data === 'string'
+      ? { stage_id: data }
+      : data;
+
     return this.request(`/opportunities/${id}/move`, {
       method: 'PATCH',
-      body: JSON.stringify({
-        stage_id: stageId,
-        notes,
-        loss_reason_id: lossReasonId,
-        loss_notes: lossNotes,
-      }),
+      body: JSON.stringify(body),
     });
   }
 

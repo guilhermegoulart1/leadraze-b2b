@@ -96,14 +96,22 @@ const getOpportunities = async (req, res) => {
     const whereClause = whereConditions.join(' AND ');
 
     // Validar campos de ordenação
-    const validSortFields = ['created_at', 'updated_at', 'title', 'value', 'expected_close_date', 'probability', 'display_order'];
+    const validSortFields = ['created_at', 'updated_at', 'title', 'value', 'expected_close_date', 'probability', 'display_order', 'contact_name', 'owner_name', 'stage_id'];
     const safeSortField = validSortFields.includes(sort_field) ? sort_field : 'created_at';
     const safeSortDirection = sort_direction === 'asc' ? 'ASC' : 'DESC';
+
+    // Map sort fields to actual column references
+    const sortFieldMap = {
+      'contact_name': 'COALESCE(c.name, o.title)',
+      'owner_name': 'u.name',
+      'stage_id': 'ps.position'
+    };
+    const actualSortField = sortFieldMap[safeSortField] || `o.${safeSortField}`;
 
     // Use kanban ordering when filtering by stage (for infinite scroll consistency)
     const orderClause = stage_id
       ? 'o.display_order ASC, o.created_at DESC'
-      : `o.${safeSortField} ${safeSortDirection}`;
+      : `${actualSortField} ${safeSortDirection}`;
 
     const query = `
       SELECT
@@ -691,7 +699,7 @@ const moveOpportunity = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
     const { id } = req.params;
-    const { stage_id, notes, loss_reason_id, loss_notes } = req.body;
+    const { stage_id, notes, loss_reason_id, loss_notes, value } = req.body;
 
     if (!stage_id) {
       throw new ValidationError('ID da etapa é obrigatório');
@@ -724,6 +732,13 @@ const moveOpportunity = async (req, res) => {
       if (newStage.is_win_stage && !opportunity.won_at) {
         updates.push(`won_at = NOW()`);
         updates.push(`lost_at = NULL`);
+
+        // Update value if provided (from win modal)
+        if (value !== undefined && value !== null) {
+          updates.push(`value = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
       }
       // Se movendo para etapa de perda
       else if (newStage.is_loss_stage && !opportunity.lost_at) {
@@ -761,9 +776,17 @@ const moveOpportunity = async (req, res) => {
 
       // Registrar no histórico
       await client.query(
-        `INSERT INTO opportunity_history (opportunity_id, user_id, action, from_stage_id, to_stage_id, notes)
-         VALUES ($1, $2, 'stage_changed', $3, $4, $5)`,
-        [id, userId, opportunity.stage_id, stage_id, notes || `Movido para ${newStage.name}`]
+        `INSERT INTO opportunity_history (opportunity_id, user_id, action, from_stage_id, to_stage_id, from_value, to_value, notes)
+         VALUES ($1, $2, 'stage_changed', $3, $4, $5, $6, $7)`,
+        [
+          id,
+          userId,
+          opportunity.stage_id,
+          stage_id,
+          opportunity.value,
+          value !== undefined ? value : opportunity.value,
+          notes || `Movido para ${newStage.name}`
+        ]
       );
 
       await client.query('COMMIT');
