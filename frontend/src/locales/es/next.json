@@ -1,0 +1,148 @@
+{
+  "header": {
+    "title": "GetRaze Next"
+  },
+  "actions": {
+    "newSuggestion": "Nueva Sugerencia",
+    "suggest": "Sugerir",
+    "newRelease": "Nueva Release"
+  },
+  "hero": {
+    "roadmapTitle": "Roadmap y Feedback",
+    "changelogTitle": "Changelog",
+    "roadmapDescription": "Sugiere nuevas funcionalidades, vota por las ideas de otros usuarios y sigue lo que estamos construyendo.",
+    "changelogDescription": "Mira las novedades de cada versión de GetRaze."
+  },
+  "viewMode": {
+    "roadmap": "Roadmap",
+    "changelog": "Changelog"
+  },
+  "status": {
+    "suggestion": {
+      "label": "Sugerencias",
+      "shortLabel": "Sugerencias",
+      "description": "Ideas enviadas por usuarios"
+    },
+    "backlog": {
+      "label": "Backlog",
+      "shortLabel": "Backlog",
+      "description": "Planificado para desarrollo"
+    },
+    "in_progress": {
+      "label": "En Progreso",
+      "shortLabel": "En Progreso",
+      "description": "Actualmente en desarrollo"
+    },
+    "done": {
+      "label": "Lanzado",
+      "shortLabel": "Lanzado",
+      "description": "Disponible para uso"
+    }
+  },
+  "list": {
+    "loading": "Cargando...",
+    "item": "item",
+    "items": "items",
+    "errorLoading": "Error al cargar sugerencias"
+  },
+  "sort": {
+    "votes": "Más votados",
+    "newest": "Más recientes",
+    "oldest": "Más antiguos"
+  },
+  "empty": {
+    "noSuggestions": "Ninguna sugerencia aquí todavía",
+    "beFirst": "¡Sé el primero en compartir una idea!",
+    "noItemsInTab": "Ningún item en \"{{tab}}\" todavía",
+    "createSuggestion": "Crear sugerencia",
+    "noReleases": "Ninguna release todavía",
+    "releasesWillAppear": "Las notas de versión aparecerán aquí cuando se publiquen."
+  },
+  "vote": {
+    "voted": "Votado",
+    "vote": "Vota",
+    "removeVote": "Quitar voto",
+    "voteForIdea": "Votar por esta idea"
+  },
+  "form": {
+    "newItem": "Nuevo Item",
+    "newSuggestion": "Nueva Sugerencia",
+    "titleLabel": "Título *",
+    "titlePlaceholder": "Ej: Integración con WhatsApp Business",
+    "titleRequired": "El título es obligatorio",
+    "descriptionLabel": "Descripción",
+    "descriptionOptional": "(opcional)",
+    "descriptionPlaceholder": "Describe tu sugerencia en detalle...",
+    "statusLabel": "Estado",
+    "cancel": "Cancelar",
+    "createItem": "Crear Item",
+    "submitSuggestion": "Enviar Sugerencia",
+    "errorCreating": "Error al crear sugerencia"
+  },
+  "detail": {
+    "description": "Descripción",
+    "noDescription": "Sin descripción adicional",
+    "addDescription": "Agregar una descripción...",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "saveChanges": "Guardar Cambios",
+    "cancel": "Cancelar",
+    "confirmDelete": "¿Estás seguro de que quieres eliminar este item?",
+    "votedLabel": "✓ Votado",
+    "voteForThisIdea": "Votar por esta idea"
+  },
+  "comments": {
+    "title": "Comentarios",
+    "noComments": "Sin comentarios todavía",
+    "beFirst": "¡Sé el primero en comentar!",
+    "placeholder": "Escribe un comentario...",
+    "send": "Enviar",
+    "team": "Equipo",
+    "confirmDelete": "¿Eliminar este comentario?"
+  },
+  "date": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "daysAgo": "hace {{count}} días",
+    "weeksAgo": "hace {{count}} semanas"
+  },
+  "release": {
+    "editRelease": "Editar Release",
+    "newRelease": "Nueva Release",
+    "versionLabel": "Versión *",
+    "versionPlaceholder": "ej., v3.1.0",
+    "titleLabel": "Título",
+    "titleOptional": "(opcional)",
+    "titlePlaceholder": "ej., \"Actualización de Rendimiento\"",
+    "notesLabel": "Notas de la Release *",
+    "versionRequired": "Versión y contenido son obligatorios",
+    "cancel": "Cancelar",
+    "saveChanges": "Guardar Cambios",
+    "publishRelease": "Publicar Release",
+    "errorCreating": "Error al crear release",
+    "errorUpdating": "Error al actualizar release",
+    "confirmDelete": "¿Estás seguro de que quieres eliminar esta release?"
+  },
+  "badges": {
+    "title": "Badges:",
+    "new": "Nuevo",
+    "improved": "Mejorado",
+    "fixed": "Corregido",
+    "removed": "Eliminado",
+    "security": "Seguridad",
+    "guideTitle": "Guía de atajos de badges",
+    "newDesc": "Nuevas funcionalidades y adiciones",
+    "improvedDesc": "Mejoras y actualizaciones",
+    "fixedDesc": "Correcciones de bugs",
+    "removedDesc": "Depreciado y eliminado",
+    "securityDesc": "Parches de seguridad",
+    "tip": "Consejo: Usa la barra de herramientas arriba para formatear texto (negrita, cursiva, listas, enlaces, código, etc.)"
+  },
+  "sections": {
+    "newFeatures": "Novedades",
+    "improvements": "Mejoras",
+    "bugFixes": "Correcciones de Bugs",
+    "removed": "Eliminado",
+    "security": "Seguridad"
+  }
+}

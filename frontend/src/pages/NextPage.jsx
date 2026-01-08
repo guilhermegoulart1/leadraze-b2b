@@ -2,6 +2,7 @@
 // GetRaze Next - Feedback & Roadmap
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import MDEditor from '@uiw/react-md-editor';
@@ -63,8 +64,13 @@ const STATUS_CONFIG = {
 const TABS = ['suggestion', 'backlog', 'in_progress', 'done'];
 
 export default function NextPage() {
+  const { t, i18n } = useTranslation('next');
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+
+  // Helper to get status label
+  const getStatusLabel = (status) => t(`status.${status}.label`);
+  const getStatusShortLabel = (status) => t(`status.${status}.shortLabel`);
 
   // State
   const [feedbackList, setFeedbackList] = useState([]);
@@ -141,7 +147,7 @@ export default function NextPage() {
       setError('');
     } catch (err) {
       console.error('Error loading feedback:', err);
-      setError('Error loading suggestions');
+      setError(t('list.errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -180,7 +186,7 @@ export default function NextPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      setFormError('Title is required');
+      setFormError(t('form.titleRequired'));
       return;
     }
 
@@ -201,7 +207,7 @@ export default function NextPage() {
       }
       loadFeedback();
     } catch (err) {
-      setFormError(err.message || 'Error creating suggestion');
+      setFormError(err.message || t('form.errorCreating'));
     } finally {
       setFormLoading(false);
     }
@@ -305,7 +311,7 @@ export default function NextPage() {
 
   // Delete feedback
   const handleDeleteFeedback = async () => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+    if (!confirm(t('detail.confirmDelete'))) return;
 
     try {
       await api.deleteFeedback(selectedFeedback.id);
@@ -318,7 +324,7 @@ export default function NextPage() {
 
   // Delete comment
   const handleDeleteComment = async (commentId) => {
-    if (!confirm('Delete this comment?')) return;
+    if (!confirm(t('comments.confirmDelete'))) return;
 
     try {
       await api.deleteFeedbackComment(selectedFeedback.id, commentId);
@@ -343,7 +349,7 @@ export default function NextPage() {
   const handleCreateRelease = async (e) => {
     e.preventDefault();
     if (!releaseForm.version.trim() || !releaseForm.content.trim()) {
-      setReleaseFormError('Version and content are required');
+      setReleaseFormError(t('release.versionRequired'));
       return;
     }
 
@@ -359,7 +365,7 @@ export default function NextPage() {
       setReleaseForm({ version: '', title: '', content: '' });
       loadReleases();
     } catch (err) {
-      setReleaseFormError(err.message || 'Error creating release');
+      setReleaseFormError(err.message || t('release.errorCreating'));
     } finally {
       setReleaseFormLoading(false);
     }
@@ -382,7 +388,7 @@ export default function NextPage() {
   const handleSaveRelease = async (e) => {
     e.preventDefault();
     if (!releaseForm.version.trim() || !releaseForm.content.trim()) {
-      setReleaseFormError('Version and content are required');
+      setReleaseFormError(t('release.versionRequired'));
       return;
     }
 
@@ -400,7 +406,7 @@ export default function NextPage() {
       setIsEditingRelease(false);
       loadReleases();
     } catch (err) {
-      setReleaseFormError(err.message || 'Error updating release');
+      setReleaseFormError(err.message || t('release.errorUpdating'));
     } finally {
       setReleaseFormLoading(false);
     }
@@ -408,7 +414,7 @@ export default function NextPage() {
 
   // Delete release
   const handleDeleteRelease = async (releaseId) => {
-    if (!confirm('Are you sure you want to delete this release?')) return;
+    if (!confirm(t('release.confirmDelete'))) return;
 
     try {
       await api.deleteRelease(releaseId);
@@ -425,11 +431,11 @@ export default function NextPage() {
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return date.toLocaleDateString('en-US');
+    if (diffDays === 0) return t('date.today');
+    if (diffDays === 1) return t('date.yesterday');
+    if (diffDays < 7) return t('date.daysAgo', { count: diffDays });
+    if (diffDays < 30) return t('date.weeksAgo', { count: Math.floor(diffDays / 7) });
+    return date.toLocaleDateString(i18n.language);
   };
 
   return (
@@ -443,7 +449,7 @@ export default function NextPage() {
               <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg flex items-center justify-center">
                 <Lightbulb className="w-4 h-4 text-white" />
               </div>
-              <span className="font-semibold text-slate-900">GetRaze Next</span>
+              <span className="font-semibold text-slate-900">{t('header.title')}</span>
             </div>
 
             {/* Actions */}
@@ -452,8 +458,8 @@ export default function NextPage() {
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">New Suggestion</span>
-              <span className="sm:hidden">Suggest</span>
+              <span className="hidden sm:inline">{t('actions.newSuggestion')}</span>
+              <span className="sm:hidden">{t('actions.suggest')}</span>
             </button>
           </div>
         </div>
@@ -463,12 +469,12 @@ export default function NextPage() {
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 text-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
-            {viewMode === 'roadmap' ? 'Roadmap & Feedback' : 'Changelog'}
+            {viewMode === 'roadmap' ? t('hero.roadmapTitle') : t('hero.changelogTitle')}
           </h1>
           <p className="text-slate-500 max-w-xl mx-auto mb-6">
             {viewMode === 'roadmap'
-              ? 'Suggest new features, vote on other users\' ideas, and follow what we\'re building.'
-              : 'See what\'s new in each version of GetRaze.'}
+              ? t('hero.roadmapDescription')
+              : t('hero.changelogDescription')}
           </p>
           {/* View Toggle */}
           <div className="inline-flex bg-slate-100 rounded-xl p-1">
@@ -481,7 +487,7 @@ export default function NextPage() {
               }`}
             >
               <Lightbulb className="w-4 h-4" />
-              Roadmap
+              {t('viewMode.roadmap')}
             </button>
             <button
               onClick={() => setViewMode('changelog')}
@@ -492,7 +498,7 @@ export default function NextPage() {
               }`}
             >
               <FileText className="w-4 h-4" />
-              Changelog
+              {t('viewMode.changelog')}
             </button>
           </div>
         </div>
@@ -522,7 +528,7 @@ export default function NextPage() {
                     `}
                   >
                     <Icon className="w-4 h-4" />
-                    <span>{config.shortLabel}</span>
+                    <span>{getStatusShortLabel(tab)}</span>
                   </button>
                 );
               })}
@@ -531,16 +537,16 @@ export default function NextPage() {
             {/* Sort & Count */}
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-slate-500">
-                {loading ? 'Loading...' : `${feedbackList.length} ${feedbackList.length === 1 ? 'item' : 'items'}`}
+                {loading ? t('list.loading') : `${feedbackList.length} ${feedbackList.length === 1 ? t('list.item') : t('list.items')}`}
               </p>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                <option value="votes">Most voted</option>
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
+                <option value="votes">{t('sort.votes')}</option>
+                <option value="newest">{t('sort.newest')}</option>
+                <option value="oldest">{t('sort.oldest')}</option>
               </select>
             </div>
 
@@ -563,12 +569,12 @@ export default function NextPage() {
                     <Lightbulb className="w-8 h-8 text-slate-400" />
                   </div>
                   <h3 className="text-lg font-medium text-slate-900 mb-2">
-                    No suggestions here yet
+                    {t('empty.noSuggestions')}
                   </h3>
                   <p className="text-slate-500 mb-4">
                     {activeTab === 'suggestion'
-                      ? 'Be the first to share an idea!'
-                      : `No items in "${STATUS_CONFIG[activeTab].label}" yet`}
+                      ? t('empty.beFirst')
+                      : t('empty.noItemsInTab', { tab: getStatusLabel(activeTab) })}
                   </p>
                   {activeTab === 'suggestion' && (
                     <button
@@ -576,7 +582,7 @@ export default function NextPage() {
                       className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
                     >
                       <Plus className="w-4 h-4" />
-                      Create suggestion
+                      {t('empty.createSuggestion')}
                     </button>
                   )}
                 </div>
@@ -605,12 +611,12 @@ export default function NextPage() {
                               : 'bg-white border-slate-200 text-slate-600 hover:border-purple-400 hover:bg-purple-50'
                             }
                           `}
-                          title={feedback.user_voted ? 'Remove vote' : 'Vote for this idea'}
+                          title={feedback.user_voted ? t('vote.removeVote') : t('vote.voteForIdea')}
                         >
                           <ChevronUp className={`w-5 h-5 ${feedback.user_voted ? 'text-white' : 'text-slate-400'}`} />
                           <span className="font-bold text-lg leading-none">{feedback.vote_count}</span>
                           <span className="text-[10px] uppercase tracking-wide mt-0.5 opacity-80">
-                            {feedback.user_voted ? 'Voted' : 'Vote'}
+                            {feedback.user_voted ? t('vote.voted') : t('vote.vote')}
                           </span>
                         </button>
 
@@ -641,7 +647,7 @@ export default function NextPage() {
                                 className={`ml-auto text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer ${STATUS_CONFIG[feedback.status].color}`}
                               >
                                 {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                                  <option key={key} value={key}>{config.label}</option>
+                                  <option key={key} value={key}>{getStatusLabel(key)}</option>
                                 ))}
                               </select>
                             )}
@@ -673,7 +679,7 @@ export default function NextPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
-                  New Release
+                  {t('actions.newRelease')}
                 </button>
               </div>
             )}
@@ -689,10 +695,10 @@ export default function NextPage() {
                   <Package className="w-8 h-8 text-slate-400" />
                 </div>
                 <h3 className="text-lg font-medium text-slate-900 mb-2">
-                  No releases yet
+                  {t('empty.noReleases')}
                 </h3>
                 <p className="text-slate-500">
-                  Release notes will appear here when published.
+                  {t('empty.releasesWillAppear')}
                 </p>
               </div>
             ) : (
@@ -718,7 +724,7 @@ export default function NextPage() {
                                 {release.version}
                               </span>
                               <span className="text-sm text-slate-400">
-                                {new Date(release.published_at).toLocaleDateString('en-US', {
+                                {new Date(release.published_at).toLocaleDateString(i18n.language, {
                                   year: 'numeric',
                                   month: 'long',
                                   day: 'numeric'
@@ -799,7 +805,7 @@ export default function NextPage() {
                                 : config.color + ' hover:opacity-80'
                             }`}
                           >
-                            {config.label}
+                            {getStatusLabel(key)}
                           </button>
                         ))}
                       </div>
@@ -814,7 +820,7 @@ export default function NextPage() {
                     <>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_CONFIG[selectedFeedback.status].color}`}>
-                          {STATUS_CONFIG[selectedFeedback.status].label}
+                          {getStatusLabel(selectedFeedback.status)}
                         </span>
                         <span className="text-xs text-slate-400">
                           {formatDate(selectedFeedback.created_at)}
@@ -867,13 +873,13 @@ export default function NextPage() {
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium"
                     >
                       {editLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      Save Changes
+                      {t('detail.saveChanges')}
                     </button>
                     <button
                       onClick={() => setIsEditing(false)}
                       className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium"
                     >
-                      Cancel
+                      {t('detail.cancel')}
                     </button>
                   </>
                 ) : (
@@ -890,7 +896,7 @@ export default function NextPage() {
                     <ChevronUp className={`w-5 h-5 ${selectedFeedback.user_voted ? '' : 'text-slate-400'}`} />
                     <span className="text-lg">{selectedFeedback.vote_count}</span>
                     <span className="text-sm opacity-80">
-                      {selectedFeedback.user_voted ? '✓ Voted' : 'Vote for this idea'}
+                      {selectedFeedback.user_voted ? t('detail.votedLabel') : t('detail.voteForThisIdea')}
                     </span>
                   </button>
                 )}
@@ -900,7 +906,7 @@ export default function NextPage() {
             {/* Description */}
             <div className="p-5 border-b border-slate-100">
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                Description
+                {t('detail.description')}
               </h3>
               {isEditing ? (
                 <textarea
@@ -908,14 +914,14 @@ export default function NextPage() {
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                   rows={4}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                  placeholder="Add a description..."
+                  placeholder={t('detail.addDescription')}
                 />
               ) : selectedFeedback.description ? (
                 <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
                   {selectedFeedback.description}
                 </p>
               ) : (
-                <p className="text-slate-400 italic">No additional description</p>
+                <p className="text-slate-400 italic">{t('detail.noDescription')}</p>
               )}
             </div>
 
@@ -923,7 +929,7 @@ export default function NextPage() {
             <div className="p-5">
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" />
-                Comments ({comments.length})
+                {t('comments.title')} ({comments.length})
               </h3>
 
               {commentsLoading ? (
@@ -933,8 +939,8 @@ export default function NextPage() {
               ) : comments.length === 0 ? (
                 <div className="text-center py-8 bg-slate-50 rounded-xl">
                   <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-500">No comments yet</p>
-                  <p className="text-slate-400 text-sm">Be the first to comment!</p>
+                  <p className="text-slate-500">{t('comments.noComments')}</p>
+                  <p className="text-slate-400 text-sm">{t('comments.beFirst')}</p>
                 </div>
               ) : (
                 <div className="space-y-4 mb-6">
@@ -954,7 +960,7 @@ export default function NextPage() {
                           {comment.author}
                           {comment.is_admin_reply && (
                             <span className="ml-2 text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">
-                              Team
+                              {t('comments.team')}
                             </span>
                           )}
                         </span>
@@ -988,7 +994,7 @@ export default function NextPage() {
                     type="text"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Write a comment..."
+                    placeholder={t('comments.placeholder')}
                     className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     maxLength={2000}
                   />
@@ -1002,7 +1008,7 @@ export default function NextPage() {
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        <span className="hidden sm:inline">Send</span>
+                        <span className="hidden sm:inline">{t('comments.send')}</span>
                       </>
                     )}
                   </button>
@@ -1019,7 +1025,7 @@ export default function NextPage() {
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h2 className="text-lg font-semibold text-slate-900">
-                {isAdmin ? 'New Item' : 'New Suggestion'}
+                {isAdmin ? t('form.newItem') : t('form.newSuggestion')}
               </h2>
               <button
                 onClick={() => {
@@ -1040,13 +1046,13 @@ export default function NextPage() {
               )}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Title *
+                  {t('form.titleLabel')}
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="E.g.: WhatsApp Business Integration"
+                  placeholder={t('form.titlePlaceholder')}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   maxLength={255}
                   autoFocus
@@ -1054,12 +1060,12 @@ export default function NextPage() {
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Description <span className="text-slate-400 font-normal">(optional)</span>
+                  {t('form.descriptionLabel')} <span className="text-slate-400 font-normal">{t('form.descriptionOptional')}</span>
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe your suggestion in detail..."
+                  placeholder={t('form.descriptionPlaceholder')}
                   rows={4}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                 />
@@ -1067,7 +1073,7 @@ export default function NextPage() {
               {isAdmin && (
                 <div className="mb-5">
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Status
+                    {t('form.statusLabel')}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(STATUS_CONFIG).map(([key, config]) => {
@@ -1087,7 +1093,7 @@ export default function NextPage() {
                           `}
                         >
                           <Icon className="w-4 h-4" />
-                          {config.shortLabel}
+                          {getStatusShortLabel(key)}
                         </button>
                       );
                     })}
@@ -1104,7 +1110,7 @@ export default function NextPage() {
                   }}
                   className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors font-medium"
                 >
-                  Cancel
+                  {t('form.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -1112,7 +1118,7 @@ export default function NextPage() {
                   className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium shadow-sm"
                 >
                   {formLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {isAdmin ? 'Create Item' : 'Submit Suggestion'}
+                  {isAdmin ? t('form.createItem') : t('form.submitSuggestion')}
                 </button>
               </div>
             </form>
@@ -1126,7 +1132,7 @@ export default function NextPage() {
           <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white z-10">
               <h2 className="text-lg font-semibold text-slate-900">
-                {isEditingRelease ? 'Edit Release' : 'New Release'}
+                {isEditingRelease ? t('release.editRelease') : t('release.newRelease')}
               </h2>
               <button
                 onClick={() => {
@@ -1152,26 +1158,26 @@ export default function NextPage() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Version *
+                    {t('release.versionLabel')}
                   </label>
                   <input
                     type="text"
                     value={releaseForm.version}
                     onChange={(e) => setReleaseForm({ ...releaseForm, version: e.target.value })}
-                    placeholder="e.g., v3.1.0"
+                    placeholder={t('release.versionPlaceholder')}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     autoFocus
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Title <span className="text-slate-400 font-normal">(optional)</span>
+                    {t('release.titleLabel')} <span className="text-slate-400 font-normal">{t('release.titleOptional')}</span>
                   </label>
                   <input
                     type="text"
                     value={releaseForm.title}
                     onChange={(e) => setReleaseForm({ ...releaseForm, title: e.target.value })}
-                    placeholder='e.g., "Performance Update"'
+                    placeholder={t('release.titlePlaceholder')}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
@@ -1179,46 +1185,46 @@ export default function NextPage() {
 
               <div className="mb-5">
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Release Notes *
+                  {t('release.notesLabel')}
                 </label>
 
                 {/* Badge Shortcuts */}
                 <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-t-xl border border-b-0 border-slate-200">
-                  <span className="text-xs text-slate-500 font-medium mr-2 self-center">Badges:</span>
+                  <span className="text-xs text-slate-500 font-medium mr-2 self-center">{t('badges.title')}</span>
                   <button
                     type="button"
-                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## ✨ New Features\n\n- ' })}
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + `## ✨ ${t('sections.newFeatures')}\n\n- ` })}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200 transition-colors"
                   >
-                    ✨ New
+                    ✨ {t('badges.new')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🔧 Improvements\n\n- ' })}
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + `## 🔧 ${t('sections.improvements')}\n\n- ` })}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors"
                   >
-                    🔧 Improved
+                    🔧 {t('badges.improved')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🐛 Bug Fixes\n\n- ' })}
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + `## 🐛 ${t('sections.bugFixes')}\n\n- ` })}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold hover:bg-amber-200 transition-colors"
                   >
-                    🐛 Fixed
+                    🐛 {t('badges.fixed')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🗑 Removed\n\n- ' })}
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + `## 🗑 ${t('sections.removed')}\n\n- ` })}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200 transition-colors"
                   >
-                    🗑 Removed
+                    🗑 {t('badges.removed')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + '## 🔒 Security\n\n- ' })}
+                    onClick={() => setReleaseForm({ ...releaseForm, content: (releaseForm.content || '') + (releaseForm.content ? '\n\n' : '') + `## 🔒 ${t('sections.security')}\n\n- ` })}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold hover:bg-purple-200 transition-colors"
                   >
-                    🔒 Security
+                    🔒 {t('badges.security')}
                   </button>
                 </div>
 
@@ -1237,32 +1243,32 @@ export default function NextPage() {
                 {/* Legend */}
                 <div className="mt-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-3">
-                    Badge shortcuts guide
+                    {t('badges.guideTitle')}
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">✨ New</span>
-                      <span className="text-slate-600">New features & additions</span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">✨ {t('badges.new')}</span>
+                      <span className="text-slate-600">{t('badges.newDesc')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">🔧 Improved</span>
-                      <span className="text-slate-600">Enhancements & updates</span>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">🔧 {t('badges.improved')}</span>
+                      <span className="text-slate-600">{t('badges.improvedDesc')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded font-semibold">🐛 Fixed</span>
-                      <span className="text-slate-600">Bug fixes & corrections</span>
+                      <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded font-semibold">🐛 {t('badges.fixed')}</span>
+                      <span className="text-slate-600">{t('badges.fixedDesc')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded font-semibold">🗑 Removed</span>
-                      <span className="text-slate-600">Deprecated & removed</span>
+                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded font-semibold">🗑 {t('badges.removed')}</span>
+                      <span className="text-slate-600">{t('badges.removedDesc')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-semibold">🔒 Security</span>
-                      <span className="text-slate-600">Security patches</span>
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-semibold">🔒 {t('badges.security')}</span>
+                      <span className="text-slate-600">{t('badges.securityDesc')}</span>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-3 pt-3 border-t border-slate-200">
-                    <strong>Tip:</strong> Use the toolbar above to format text (bold, italic, lists, links, code, etc.)
+                    {t('badges.tip')}
                   </p>
                 </div>
               </div>
@@ -1280,7 +1286,7 @@ export default function NextPage() {
                   }}
                   className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors font-medium"
                 >
-                  Cancel
+                  {t('release.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -1288,7 +1294,7 @@ export default function NextPage() {
                   className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium shadow-sm"
                 >
                   {releaseFormLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {isEditingRelease ? 'Save Changes' : 'Publish Release'}
+                  {isEditingRelease ? t('release.saveChanges') : t('release.publishRelease')}
                 </button>
               </div>
             </form>

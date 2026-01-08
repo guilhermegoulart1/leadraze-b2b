@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Link as LinkIcon, Users, DollarSign,
   Copy, Check, ExternalLink, LogOut, TrendingUp, Clock,
@@ -8,6 +9,7 @@ import {
 import api from '../../services/api';
 
 const PartnerDashboard = () => {
+  const { t, i18n } = useTranslation('partner');
   const navigate = useNavigate();
   const [partner, setPartner] = useState(null);
   const [stats, setStats] = useState(null);
@@ -89,7 +91,7 @@ const PartnerDashboard = () => {
       }
     } catch (error) {
       console.error('Error accessing account:', error);
-      alert(error.response?.data?.message || 'Erro ao acessar conta');
+      alert(error.response?.data?.message || t('dashboard.accountsAccess.errorAccess'));
     }
   };
 
@@ -98,7 +100,7 @@ const PartnerDashboard = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando...</p>
+          <p className="mt-4 text-gray-600">{t('dashboard.loading')}</p>
         </div>
       </div>
     );
@@ -113,7 +115,7 @@ const PartnerDashboard = () => {
             <div className="flex items-center gap-4">
               <img src="/logo/getraze-purple.svg" alt="GetRaze" className="h-8" />
               <span className="text-sm font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
-                Partner Portal
+                {t('dashboard.partnerPortal')}
               </span>
             </div>
             <div className="flex items-center gap-4">
@@ -139,7 +141,7 @@ const PartnerDashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{stats?.link?.clicks || 0}</p>
-                <p className="text-sm text-gray-500">Cliques no Link</p>
+                <p className="text-sm text-gray-500">{t('dashboard.stats.linkClicks')}</p>
               </div>
             </div>
           </div>
@@ -151,7 +153,7 @@ const PartnerDashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{stats?.referrals?.total || 0}</p>
-                <p className="text-sm text-gray-500">Indicados</p>
+                <p className="text-sm text-gray-500">{t('dashboard.stats.referrals')}</p>
               </div>
             </div>
           </div>
@@ -163,7 +165,7 @@ const PartnerDashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{stats?.referrals?.converted || 0}</p>
-                <p className="text-sm text-gray-500">Convertidos</p>
+                <p className="text-sm text-gray-500">{t('dashboard.stats.converted')}</p>
               </div>
             </div>
           </div>
@@ -177,7 +179,7 @@ const PartnerDashboard = () => {
                 <p className="text-2xl font-bold text-gray-900">
                   ${((stats?.earnings?.total_cents || 0) / 100).toFixed(2)}
                 </p>
-                <p className="text-sm text-gray-500">Ganhos Totais</p>
+                <p className="text-sm text-gray-500">{t('dashboard.stats.totalEarnings')}</p>
               </div>
             </div>
           </div>
@@ -187,19 +189,19 @@ const PartnerDashboard = () => {
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-6 mb-8 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold mb-1">Seu Link de Afiliado</h3>
-              <p className="text-purple-200 text-sm">Compartilhe este link para ganhar comissões</p>
+              <h3 className="text-lg font-semibold mb-1">{t('dashboard.affiliateLink.title')}</h3>
+              <p className="text-purple-200 text-sm">{t('dashboard.affiliateLink.subtitle')}</p>
             </div>
             <div className="flex items-center gap-3">
               <code className="bg-white/20 px-4 py-2 rounded-lg text-sm font-mono">
-                {stats?.link?.url || 'Carregando...'}
+                {stats?.link?.url || t('dashboard.affiliateLink.loading')}
               </code>
               <button
                 onClick={copyLink}
                 className="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-purple-50 transition-colors"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copiado!' : 'Copiar'}
+                {copied ? t('dashboard.affiliateLink.copied') : t('dashboard.affiliateLink.copy')}
               </button>
             </div>
           </div>
@@ -208,10 +210,10 @@ const PartnerDashboard = () => {
         {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-gray-200">
           {[
-            { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
-            { id: 'referrals', label: 'Indicados', icon: Users },
-            { id: 'earnings', label: 'Ganhos', icon: DollarSign },
-            { id: 'accounts', label: 'Contas com Acesso', icon: Building2 },
+            { id: 'overview', label: t('dashboard.tabs.overview'), icon: LayoutDashboard },
+            { id: 'referrals', label: t('dashboard.tabs.referrals'), icon: Users },
+            { id: 'earnings', label: t('dashboard.tabs.earnings'), icon: DollarSign },
+            { id: 'accounts', label: t('dashboard.tabs.accounts'), icon: Building2 },
           ].map(tab => (
             <button
               key={tab.id}
@@ -233,9 +235,9 @@ const PartnerDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Referrals */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Indicados Recentes</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.recentReferrals.title')}</h3>
               {referrals.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum indicado ainda</p>
+                <p className="text-gray-500 text-center py-8">{t('dashboard.recentReferrals.empty')}</p>
               ) : (
                 <div className="space-y-3">
                   {referrals.slice(0, 5).map((referral, index) => (
@@ -243,7 +245,7 @@ const PartnerDashboard = () => {
                       <div>
                         <p className="font-medium text-gray-900">{referral.referred_email}</p>
                         <p className="text-sm text-gray-500">
-                          {new Date(referral.created_at).toLocaleDateString('pt-BR')}
+                          {new Date(referral.created_at).toLocaleDateString(i18n.language)}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -251,7 +253,7 @@ const PartnerDashboard = () => {
                           ? 'bg-green-100 text-green-600'
                           : 'bg-yellow-100 text-yellow-600'
                       }`}>
-                        {referral.status === 'converted' ? 'Convertido' : 'Pendente'}
+                        {referral.status === 'converted' ? t('dashboard.status.converted') : t('dashboard.status.pending')}
                       </span>
                     </div>
                   ))}
@@ -261,9 +263,9 @@ const PartnerDashboard = () => {
 
             {/* Recent Earnings */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ganhos Recentes</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.recentEarnings.title')}</h3>
               {earnings.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum ganho ainda</p>
+                <p className="text-gray-500 text-center py-8">{t('dashboard.recentEarnings.empty')}</p>
               ) : (
                 <div className="space-y-3">
                   {earnings.slice(0, 5).map((earning, index) => (
@@ -271,7 +273,7 @@ const PartnerDashboard = () => {
                       <div>
                         <p className="font-medium text-gray-900">{earning.referred_email}</p>
                         <p className="text-sm text-gray-500">
-                          {new Date(earning.created_at).toLocaleDateString('pt-BR')}
+                          {new Date(earning.created_at).toLocaleDateString(i18n.language)}
                         </p>
                       </div>
                       <span className="text-green-600 font-semibold">
@@ -288,13 +290,13 @@ const PartnerDashboard = () => {
         {activeTab === 'referrals' && (
           <div className="bg-white rounded-xl border border-gray-200">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Todos os Indicados</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.allReferrals.title')}</h3>
             </div>
             {referrals.length === 0 ? (
               <div className="p-12 text-center text-gray-500">
                 <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Você ainda não tem indicados</p>
-                <p className="text-sm mt-2">Compartilhe seu link para começar a ganhar!</p>
+                <p>{t('dashboard.allReferrals.empty')}</p>
+                <p className="text-sm mt-2">{t('dashboard.allReferrals.emptySubtitle')}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -308,7 +310,7 @@ const PartnerDashboard = () => {
                         <p className="font-medium text-gray-900">{referral.referred_email}</p>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Clock className="w-4 h-4" />
-                          {new Date(referral.created_at).toLocaleDateString('pt-BR')}
+                          {new Date(referral.created_at).toLocaleDateString(i18n.language)}
                         </div>
                       </div>
                     </div>
@@ -319,8 +321,8 @@ const PartnerDashboard = () => {
                         ? 'bg-red-100 text-red-600'
                         : 'bg-yellow-100 text-yellow-600'
                     }`}>
-                      {referral.status === 'converted' ? 'Convertido' :
-                       referral.status === 'canceled' ? 'Cancelado' : 'Pendente'}
+                      {referral.status === 'converted' ? t('dashboard.status.converted') :
+                       referral.status === 'canceled' ? t('dashboard.status.canceled') : t('dashboard.status.pending')}
                     </span>
                   </div>
                 ))}
@@ -332,13 +334,13 @@ const PartnerDashboard = () => {
         {activeTab === 'earnings' && (
           <div className="bg-white rounded-xl border border-gray-200">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Histórico de Ganhos</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.earningsHistory.title')}</h3>
             </div>
             {earnings.length === 0 ? (
               <div className="p-12 text-center text-gray-500">
                 <DollarSign className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Você ainda não tem ganhos</p>
-                <p className="text-sm mt-2">Seus ganhos aparecerão aqui quando seus indicados pagarem</p>
+                <p>{t('dashboard.earningsHistory.empty')}</p>
+                <p className="text-sm mt-2">{t('dashboard.earningsHistory.emptySubtitle')}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -351,14 +353,14 @@ const PartnerDashboard = () => {
                       <div>
                         <p className="font-medium text-gray-900">{earning.referred_email}</p>
                         <p className="text-sm text-gray-500">
-                          Pagamento de ${(earning.invoice_amount_cents / 100).toFixed(2)} • {earning.commission_percent}% comissão
+                          {t('dashboard.earningsHistory.paymentOf')} ${(earning.invoice_amount_cents / 100).toFixed(2)} • {earning.commission_percent}% {t('dashboard.earningsHistory.commission')}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-green-600 font-semibold">+${(earning.earning_cents / 100).toFixed(2)}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(earning.created_at).toLocaleDateString('pt-BR')}
+                        {new Date(earning.created_at).toLocaleDateString(i18n.language)}
                       </p>
                     </div>
                   </div>
@@ -371,16 +373,16 @@ const PartnerDashboard = () => {
         {activeTab === 'accounts' && (
           <div className="bg-white rounded-xl border border-gray-200">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Contas com Acesso Autorizado</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.accountsAccess.title')}</h3>
               <p className="text-sm text-gray-500 mt-1">
-                Clientes que concederam acesso para você gerenciar suas contas
+                {t('dashboard.accountsAccess.subtitle')}
               </p>
             </div>
             {accounts.length === 0 ? (
               <div className="p-12 text-center text-gray-500">
                 <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Nenhum cliente autorizou acesso</p>
-                <p className="text-sm mt-2">Quando seus clientes concederem acesso, eles aparecerão aqui</p>
+                <p>{t('dashboard.accountsAccess.empty')}</p>
+                <p className="text-sm mt-2">{t('dashboard.accountsAccess.emptySubtitle')}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -391,7 +393,7 @@ const PartnerDashboard = () => {
                         <Building2 className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{account.account_name || 'Conta'}</p>
+                        <p className="font-medium text-gray-900">{account.account_name || t('dashboard.accountsAccess.account')}</p>
                         <p className="text-sm text-gray-500">{account.admin_email}</p>
                       </div>
                     </div>
@@ -400,7 +402,7 @@ const PartnerDashboard = () => {
                       className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      Acessar
+                      {t('dashboard.accountsAccess.access')}
                     </button>
                   </div>
                 ))}

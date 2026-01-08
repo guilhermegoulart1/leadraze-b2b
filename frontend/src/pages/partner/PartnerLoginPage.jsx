@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 
 const PartnerLoginPage = () => {
+  const { t } = useTranslation('partner');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,10 +27,10 @@ const PartnerLoginPage = () => {
         localStorage.setItem('partner_data', JSON.stringify(response.data.data.partner));
         navigate('/partner');
       } else {
-        setError(response.data.message || 'Erro ao fazer login');
+        setError(response.data.message || t('login.errorLogin'));
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Erro ao fazer login');
+      setError(err.response?.data?.message || t('login.errorLogin'));
     } finally {
       setLoading(false);
     }
@@ -50,16 +52,15 @@ const PartnerLoginPage = () => {
 
           <div className="relative z-10">
             <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-              Partner Portal
+              {t('login.heroTitle')}
             </h1>
             <p className="text-purple-100 text-lg">
-              Gerencie seus indicados, acompanhe comissões<br />
-              e acesse as contas dos seus clientes.
+              {t('login.heroSubtitle')}
             </p>
           </div>
 
           <div className="relative z-10 text-purple-200 text-sm">
-            © 2025 GetRaze Partners
+            © 2025 {t('login.copyright')}
           </div>
         </div>
 
@@ -75,10 +76,10 @@ const PartnerLoginPage = () => {
 
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Acesso de Partners
+              {t('login.title')}
             </h2>
             <p className="text-gray-600">
-              Entre com suas credenciais para acessar o portal
+              {t('login.subtitle')}
             </p>
           </div>
 
@@ -91,7 +92,7 @@ const PartnerLoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                {t('login.email')}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -99,7 +100,7 @@ const PartnerLoginPage = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
+                  placeholder={t('login.emailPlaceholder')}
                   required
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 />
@@ -108,7 +109,7 @@ const PartnerLoginPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Senha
+                {t('login.password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -135,14 +136,14 @@ const PartnerLoginPage = () => {
               disabled={loading}
               className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? t('login.loggingIn') : t('login.loginButton')}
             </button>
           </form>
 
           <p className="mt-8 text-center text-sm text-gray-600">
-            Ainda não é partner?{' '}
+            {t('login.noPartner')}{' '}
             <a href="https://getraze.co/partners" className="text-purple-600 hover:underline font-medium">
-              Cadastre-se aqui
+              {t('login.registerHere')}
             </a>
           </p>
         </div>

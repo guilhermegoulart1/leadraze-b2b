@@ -1,0 +1,96 @@
+{
+  "login": {
+    "heroTitle": "Partner Portal",
+    "heroSubtitle": "Manage your referrals, track commissions, and access your clients' accounts.",
+    "copyright": "GetRaze Partners",
+    "title": "Partner Access",
+    "subtitle": "Enter your credentials to access the portal",
+    "email": "Email",
+    "emailPlaceholder": "your@email.com",
+    "password": "Password",
+    "loginButton": "Log in",
+    "loggingIn": "Logging in...",
+    "noPartner": "Not a partner yet?",
+    "registerHere": "Register here",
+    "errorLogin": "Error logging in"
+  },
+  "setPassword": {
+    "title": "Set Your Password",
+    "subtitle": "Create a password to access the Partner Portal",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Minimum 6 characters",
+    "confirmPassword": "Confirm Password",
+    "confirmPlaceholder": "Repeat the password",
+    "submitButton": "Set Password",
+    "submitting": "Setting...",
+    "invalidLink": "Invalid Link",
+    "invalidLinkDescription": "This password setup link is invalid or has expired.",
+    "goToLogin": "Go to login",
+    "successTitle": "Password Set!",
+    "successDescription": "Your password has been set successfully. You will be redirected to login...",
+    "goToLoginNow": "Go to login now",
+    "errors": {
+      "invalidToken": "Invalid or expired token",
+      "passwordMinLength": "Password must be at least 6 characters",
+      "passwordsMismatch": "Passwords do not match",
+      "generic": "Error setting password"
+    }
+  },
+  "dashboard": {
+    "loading": "Loading...",
+    "partnerPortal": "Partner Portal",
+    "stats": {
+      "linkClicks": "Link Clicks",
+      "referrals": "Referrals",
+      "converted": "Converted",
+      "totalEarnings": "Total Earnings"
+    },
+    "affiliateLink": {
+      "title": "Your Affiliate Link",
+      "subtitle": "Share this link to earn commissions",
+      "loading": "Loading...",
+      "copied": "Copied!",
+      "copy": "Copy"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "referrals": "Referrals",
+      "earnings": "Earnings",
+      "accounts": "Accounts with Access"
+    },
+    "recentReferrals": {
+      "title": "Recent Referrals",
+      "empty": "No referrals yet"
+    },
+    "recentEarnings": {
+      "title": "Recent Earnings",
+      "empty": "No earnings yet"
+    },
+    "allReferrals": {
+      "title": "All Referrals",
+      "empty": "You don't have any referrals yet",
+      "emptySubtitle": "Share your link to start earning!"
+    },
+    "earningsHistory": {
+      "title": "Earnings History",
+      "empty": "You don't have any earnings yet",
+      "emptySubtitle": "Your earnings will appear here when your referrals pay",
+      "paymentOf": "Payment of",
+      "commission": "commission"
+    },
+    "accountsAccess": {
+      "title": "Accounts with Authorized Access",
+      "subtitle": "Clients who granted you access to manage their accounts",
+      "empty": "No clients have authorized access",
+      "emptySubtitle": "When your clients grant access, they will appear here",
+      "account": "Account",
+      "access": "Access",
+      "errorAccess": "Error accessing account"
+    },
+    "status": {
+      "converted": "Converted",
+      "pending": "Pending",
+      "canceled": "Canceled"
+    }
+  }
+}

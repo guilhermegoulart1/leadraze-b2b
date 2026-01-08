@@ -1,0 +1,96 @@
+{
+  "login": {
+    "heroTitle": "Partner Portal",
+    "heroSubtitle": "Gerencie seus indicados, acompanhe comissões e acesse as contas dos seus clientes.",
+    "copyright": "GetRaze Partners",
+    "title": "Acesso de Partners",
+    "subtitle": "Entre com suas credenciais para acessar o portal",
+    "email": "Email",
+    "emailPlaceholder": "seu@email.com",
+    "password": "Senha",
+    "loginButton": "Entrar",
+    "loggingIn": "Entrando...",
+    "noPartner": "Ainda não é partner?",
+    "registerHere": "Cadastre-se aqui",
+    "errorLogin": "Erro ao fazer login"
+  },
+  "setPassword": {
+    "title": "Defina sua Senha",
+    "subtitle": "Crie uma senha para acessar o Portal de Partners",
+    "newPassword": "Nova Senha",
+    "newPasswordPlaceholder": "Mínimo 6 caracteres",
+    "confirmPassword": "Confirmar Senha",
+    "confirmPlaceholder": "Repita a senha",
+    "submitButton": "Definir Senha",
+    "submitting": "Definindo...",
+    "invalidLink": "Link Inválido",
+    "invalidLinkDescription": "Este link de definição de senha é inválido ou já expirou.",
+    "goToLogin": "Ir para login",
+    "successTitle": "Senha Definida!",
+    "successDescription": "Sua senha foi definida com sucesso. Você será redirecionado para o login...",
+    "goToLoginNow": "Ir para login agora",
+    "errors": {
+      "invalidToken": "Token inválido ou expirado",
+      "passwordMinLength": "A senha deve ter no mínimo 6 caracteres",
+      "passwordsMismatch": "As senhas não coincidem",
+      "generic": "Erro ao definir senha"
+    }
+  },
+  "dashboard": {
+    "loading": "Carregando...",
+    "partnerPortal": "Partner Portal",
+    "stats": {
+      "linkClicks": "Cliques no Link",
+      "referrals": "Indicados",
+      "converted": "Convertidos",
+      "totalEarnings": "Ganhos Totais"
+    },
+    "affiliateLink": {
+      "title": "Seu Link de Afiliado",
+      "subtitle": "Compartilhe este link para ganhar comissões",
+      "loading": "Carregando...",
+      "copied": "Copiado!",
+      "copy": "Copiar"
+    },
+    "tabs": {
+      "overview": "Visão Geral",
+      "referrals": "Indicados",
+      "earnings": "Ganhos",
+      "accounts": "Contas com Acesso"
+    },
+    "recentReferrals": {
+      "title": "Indicados Recentes",
+      "empty": "Nenhum indicado ainda"
+    },
+    "recentEarnings": {
+      "title": "Ganhos Recentes",
+      "empty": "Nenhum ganho ainda"
+    },
+    "allReferrals": {
+      "title": "Todos os Indicados",
+      "empty": "Você ainda não tem indicados",
+      "emptySubtitle": "Compartilhe seu link para começar a ganhar!"
+    },
+    "earningsHistory": {
+      "title": "Histórico de Ganhos",
+      "empty": "Você ainda não tem ganhos",
+      "emptySubtitle": "Seus ganhos aparecerão aqui quando seus indicados pagarem",
+      "paymentOf": "Pagamento de",
+      "commission": "comissão"
+    },
+    "accountsAccess": {
+      "title": "Contas com Acesso Autorizado",
+      "subtitle": "Clientes que concederam acesso para você gerenciar suas contas",
+      "empty": "Nenhum cliente autorizou acesso",
+      "emptySubtitle": "Quando seus clientes concederem acesso, eles aparecerão aqui",
+      "account": "Conta",
+      "access": "Acessar",
+      "errorAccess": "Erro ao acessar conta"
+    },
+    "status": {
+      "converted": "Convertido",
+      "pending": "Pendente",
+      "canceled": "Cancelado"
+    }
+  }
+}

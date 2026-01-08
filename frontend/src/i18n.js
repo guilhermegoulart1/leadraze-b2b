@@ -35,6 +35,8 @@ import enProducts from './locales/en/products.json';
 import enSecretAgentCoaching from './locales/en/secretAgentCoaching.json';
 import enPipelines from './locales/en/pipelines.json';
 import enInsights from './locales/en/insights.json';
+import enNext from './locales/en/next.json';
+import enPartner from './locales/en/partner.json';
 
 // Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
@@ -69,6 +71,8 @@ import ptProducts from './locales/pt/products.json';
 import ptSecretAgentCoaching from './locales/pt/secretAgentCoaching.json';
 import ptPipelines from './locales/pt/pipelines.json';
 import ptInsights from './locales/pt/insights.json';
+import ptNext from './locales/pt/next.json';
+import ptPartner from './locales/pt/partner.json';
 
 // Import translations - Spanish
 import esCommon from './locales/es/common.json';
@@ -103,6 +107,8 @@ import esProducts from './locales/es/products.json';
 import esSecretAgentCoaching from './locales/es/secretAgentCoaching.json';
 import esPipelines from './locales/es/pipelines.json';
 import esInsights from './locales/es/insights.json';
+import esNext from './locales/es/next.json';
+import esPartner from './locales/es/partner.json';
 
 // Translation resources
 const resources = {
@@ -139,6 +145,8 @@ const resources = {
     secretAgentCoaching: enSecretAgentCoaching,
     pipelines: enPipelines,
     insights: enInsights,
+    next: enNext,
+    partner: enPartner,
   },
   pt: {
     common: ptCommon,
@@ -173,6 +181,8 @@ const resources = {
     secretAgentCoaching: ptSecretAgentCoaching,
     pipelines: ptPipelines,
     insights: ptInsights,
+    next: ptNext,
+    partner: ptPartner,
   },
   es: {
     common: esCommon,
@@ -207,6 +217,8 @@ const resources = {
     secretAgentCoaching: esSecretAgentCoaching,
     pipelines: esPipelines,
     insights: esInsights,
+    next: esNext,
+    partner: esPartner,
   },
 };
 
@@ -223,7 +235,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines', 'insights'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines', 'insights', 'next', 'partner'
     ],
 
     // Language detection configuration

@@ -1,0 +1,148 @@
+{
+  "header": {
+    "title": "GetRaze Next"
+  },
+  "actions": {
+    "newSuggestion": "New Suggestion",
+    "suggest": "Suggest",
+    "newRelease": "New Release"
+  },
+  "hero": {
+    "roadmapTitle": "Roadmap & Feedback",
+    "changelogTitle": "Changelog",
+    "roadmapDescription": "Suggest new features, vote on other users' ideas, and follow what we're building.",
+    "changelogDescription": "See what's new in each version of GetRaze."
+  },
+  "viewMode": {
+    "roadmap": "Roadmap",
+    "changelog": "Changelog"
+  },
+  "status": {
+    "suggestion": {
+      "label": "Suggestions",
+      "shortLabel": "Suggestions",
+      "description": "Ideas submitted by users"
+    },
+    "backlog": {
+      "label": "Backlog",
+      "shortLabel": "Backlog",
+      "description": "Planned for development"
+    },
+    "in_progress": {
+      "label": "In Progress",
+      "shortLabel": "In Progress",
+      "description": "Currently being developed"
+    },
+    "done": {
+      "label": "Released",
+      "shortLabel": "Released",
+      "description": "Available for use"
+    }
+  },
+  "list": {
+    "loading": "Loading...",
+    "item": "item",
+    "items": "items",
+    "errorLoading": "Error loading suggestions"
+  },
+  "sort": {
+    "votes": "Most voted",
+    "newest": "Newest",
+    "oldest": "Oldest"
+  },
+  "empty": {
+    "noSuggestions": "No suggestions here yet",
+    "beFirst": "Be the first to share an idea!",
+    "noItemsInTab": "No items in \"{{tab}}\" yet",
+    "createSuggestion": "Create suggestion",
+    "noReleases": "No releases yet",
+    "releasesWillAppear": "Release notes will appear here when published."
+  },
+  "vote": {
+    "voted": "Voted",
+    "vote": "Vote",
+    "removeVote": "Remove vote",
+    "voteForIdea": "Vote for this idea"
+  },
+  "form": {
+    "newItem": "New Item",
+    "newSuggestion": "New Suggestion",
+    "titleLabel": "Title *",
+    "titlePlaceholder": "E.g.: WhatsApp Business Integration",
+    "titleRequired": "Title is required",
+    "descriptionLabel": "Description",
+    "descriptionOptional": "(optional)",
+    "descriptionPlaceholder": "Describe your suggestion in detail...",
+    "statusLabel": "Status",
+    "cancel": "Cancel",
+    "createItem": "Create Item",
+    "submitSuggestion": "Submit Suggestion",
+    "errorCreating": "Error creating suggestion"
+  },
+  "detail": {
+    "description": "Description",
+    "noDescription": "No additional description",
+    "addDescription": "Add a description...",
+    "edit": "Edit",
+    "delete": "Delete",
+    "saveChanges": "Save Changes",
+    "cancel": "Cancel",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "votedLabel": "✓ Voted",
+    "voteForThisIdea": "Vote for this idea"
+  },
+  "comments": {
+    "title": "Comments",
+    "noComments": "No comments yet",
+    "beFirst": "Be the first to comment!",
+    "placeholder": "Write a comment...",
+    "send": "Send",
+    "team": "Team",
+    "confirmDelete": "Delete this comment?"
+  },
+  "date": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}} days ago",
+    "weeksAgo": "{{count}} weeks ago"
+  },
+  "release": {
+    "editRelease": "Edit Release",
+    "newRelease": "New Release",
+    "versionLabel": "Version *",
+    "versionPlaceholder": "e.g., v3.1.0",
+    "titleLabel": "Title",
+    "titleOptional": "(optional)",
+    "titlePlaceholder": "e.g., \"Performance Update\"",
+    "notesLabel": "Release Notes *",
+    "versionRequired": "Version and content are required",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes",
+    "publishRelease": "Publish Release",
+    "errorCreating": "Error creating release",
+    "errorUpdating": "Error updating release",
+    "confirmDelete": "Are you sure you want to delete this release?"
+  },
+  "badges": {
+    "title": "Badges:",
+    "new": "New",
+    "improved": "Improved",
+    "fixed": "Fixed",
+    "removed": "Removed",
+    "security": "Security",
+    "guideTitle": "Badge shortcuts guide",
+    "newDesc": "New features & additions",
+    "improvedDesc": "Enhancements & updates",
+    "fixedDesc": "Bug fixes & corrections",
+    "removedDesc": "Deprecated & removed",
+    "securityDesc": "Security patches",
+    "tip": "Tip: Use the toolbar above to format text (bold, italic, lists, links, code, etc.)"
+  },
+  "sections": {
+    "newFeatures": "New Features",
+    "improvements": "Improvements",
+    "bugFixes": "Bug Fixes",
+    "removed": "Removed",
+    "security": "Security"
+  }
+}

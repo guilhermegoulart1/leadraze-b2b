@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Lock, Eye, EyeOff, Check } from 'lucide-react';
 import api from '../../services/api';
 
 const PartnerSetPasswordPage = () => {
+  const { t } = useTranslation('partner');
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
@@ -20,17 +22,17 @@ const PartnerSetPasswordPage = () => {
     setError('');
 
     if (!token) {
-      setError('Token inválido ou expirado');
+      setError(t('setPassword.errors.invalidToken'));
       return;
     }
 
     if (password.length < 6) {
-      setError('A senha deve ter no mínimo 6 caracteres');
+      setError(t('setPassword.errors.passwordMinLength'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('As senhas não coincidem');
+      setError(t('setPassword.errors.passwordsMismatch'));
       return;
     }
 
@@ -43,10 +45,10 @@ const PartnerSetPasswordPage = () => {
         setSuccess(true);
         setTimeout(() => navigate('/partner/login'), 3000);
       } else {
-        setError(response.data.message || 'Erro ao definir senha');
+        setError(response.data.message || t('setPassword.errors.generic'));
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Erro ao definir senha');
+      setError(err.response?.data?.message || t('setPassword.errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -59,15 +61,15 @@ const PartnerSetPasswordPage = () => {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Lock className="w-8 h-8 text-red-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Link Inválido</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t('setPassword.invalidLink')}</h2>
           <p className="text-gray-600 mb-6">
-            Este link de definição de senha é inválido ou já expirou.
+            {t('setPassword.invalidLinkDescription')}
           </p>
           <a
             href="/partner/login"
             className="text-purple-600 hover:underline font-medium"
           >
-            Ir para login
+            {t('setPassword.goToLogin')}
           </a>
         </div>
       </div>
@@ -81,15 +83,15 @@ const PartnerSetPasswordPage = () => {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Senha Definida!</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t('setPassword.successTitle')}</h2>
           <p className="text-gray-600 mb-6">
-            Sua senha foi definida com sucesso. Você será redirecionado para o login...
+            {t('setPassword.successDescription')}
           </p>
           <a
             href="/partner/login"
             className="text-purple-600 hover:underline font-medium"
           >
-            Ir para login agora
+            {t('setPassword.goToLoginNow')}
           </a>
         </div>
       </div>
@@ -107,10 +109,10 @@ const PartnerSetPasswordPage = () => {
               className="h-10 mx-auto mb-6"
             />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Defina sua Senha
+              {t('setPassword.title')}
             </h1>
             <p className="text-gray-600">
-              Crie uma senha para acessar o Portal de Partners
+              {t('setPassword.subtitle')}
             </p>
           </div>
 
@@ -123,7 +125,7 @@ const PartnerSetPasswordPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nova Senha
+                {t('setPassword.newPassword')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -131,7 +133,7 @@ const PartnerSetPasswordPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={t('setPassword.newPasswordPlaceholder')}
                   required
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 />
@@ -147,7 +149,7 @@ const PartnerSetPasswordPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirmar Senha
+                {t('setPassword.confirmPassword')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -155,7 +157,7 @@ const PartnerSetPasswordPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repita a senha"
+                  placeholder={t('setPassword.confirmPlaceholder')}
                   required
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 />
@@ -167,7 +169,7 @@ const PartnerSetPasswordPage = () => {
               disabled={loading}
               className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Definindo...' : 'Definir Senha'}
+              {loading ? t('setPassword.submitting') : t('setPassword.submitButton')}
             </button>
           </form>
         </div>
