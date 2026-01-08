@@ -1,8 +1,0 @@
-[phases.setup]
-cmds = [
-  "echo '@guilhermegoulart1:registry=https://npm.pkg.github.com' > .npmrc",
-  "echo '//npm.pkg.github.com/:_authToken='$GITHUB_TOKEN >> .npmrc"
-]
-
-[phases.install]
-dependsOn = ["setup"]

@@ -1,2 +1,6 @@
 [build]
-buildCommand = "echo '@guilhermegoulart1:registry=https://npm.pkg.github.com' > .npmrc && echo '//npm.pkg.github.com/:_authToken='$GITHUB_TOKEN >> .npmrc && npm install"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[build.args]
+GITHUB_TOKEN = "${{GITHUB_TOKEN}}"
