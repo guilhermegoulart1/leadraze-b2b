@@ -53,7 +53,8 @@ const ACTION_CONFIGS = {
   webhook: { hasOutput: true, endsBranch: false },
   pause: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
   wait: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
-  create_opportunity: { hasOutput: true, endsBranch: false }
+  create_opportunity: { hasOutput: true, endsBranch: false },
+  move_stage: { hasOutput: true, endsBranch: false }
 };
 
 /**
@@ -814,6 +815,8 @@ const executors = {
     const {
       pipelineId,
       stageId,
+      pipelineName,
+      stageName,
       title,
       value = 0,
       createContactIfNotExists = true
@@ -837,10 +840,13 @@ const executors = {
       : `${lead?.name || 'Lead'}${lead?.company ? ` - ${lead.company}` : ''}`;
 
     if (isTestMode) {
+      console.log(`🧪 [create_opportunity] SIMULADO: Criaria oportunidade em "${pipelineName || pipelineId}" → "${stageName || stageId}"`);
       return {
         simulated: true,
         pipelineId,
+        pipelineName: pipelineName || 'Pipeline',
         stageId,
+        stageName: stageName || 'Etapa',
         title: processedTitle,
         value,
         createContactIfNotExists
@@ -996,6 +1002,126 @@ const executors = {
       stageName: stage.name,
       title: processedTitle,
       value: parseFloat(value) || 0
+    };
+  },
+
+  /**
+   * Move opportunity to a different stage
+   * Finds the opportunity for the current lead and moves it to the specified stage
+   */
+  move_stage: async (params, context) => {
+    const { stageId, pipelineId, pipelineName, stageName } = params.params || params;
+    const { lead, leadId, contactId, accountId, userId, isTestMode } = context;
+
+    if (!stageId) {
+      throw new Error('Stage ID is required');
+    }
+
+    if (isTestMode) {
+      console.log(`🧪 [move_stage] SIMULADO: Moveria para "${stageName || stageId}" em "${pipelineName || pipelineId}"`);
+      return {
+        simulated: true,
+        pipelineId,
+        pipelineName: pipelineName || 'Pipeline',
+        stageId,
+        stageName: stageName || 'Etapa'
+      };
+    }
+
+    // Find opportunity for this lead
+    let oppResult;
+
+    if (contactId) {
+      oppResult = await db.query(
+        `SELECT o.id, o.pipeline_id, o.stage_id, ps.name as current_stage
+         FROM opportunities o
+         LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+         WHERE o.contact_id = $1 AND o.account_id = $2
+         ORDER BY o.created_at DESC LIMIT 1`,
+        [contactId, accountId]
+      );
+    }
+
+    if ((!oppResult || oppResult.rows.length === 0) && leadId) {
+      oppResult = await db.query(
+        `SELECT o.id, o.pipeline_id, o.stage_id, ps.name as current_stage
+         FROM opportunities o
+         LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+         WHERE o.source_lead_id = $1 AND o.account_id = $2
+         ORDER BY o.created_at DESC LIMIT 1`,
+        [leadId, accountId]
+      );
+    }
+
+    if (!oppResult || oppResult.rows.length === 0) {
+      console.log(`⚠️ [move_stage] No opportunity found for lead ${leadId}`);
+      return { moved: false, reason: 'no_opportunity_found' };
+    }
+
+    const opportunity = oppResult.rows[0];
+    const targetPipelineId = pipelineId || opportunity.pipeline_id;
+
+    // Validate stage belongs to pipeline
+    const stageCheck = await db.query(
+      `SELECT ps.id, ps.name, ps.is_win_stage, ps.is_loss_stage
+       FROM pipeline_stages ps
+       WHERE ps.id = $1 AND ps.pipeline_id = $2`,
+      [stageId, targetPipelineId]
+    );
+
+    if (stageCheck.rows.length === 0) {
+      throw new Error('Stage not found or does not belong to pipeline');
+    }
+
+    const newStage = stageCheck.rows[0];
+
+    // If already in target stage, skip
+    if (opportunity.stage_id === stageId) {
+      console.log(`ℹ️ [move_stage] Opportunity already in stage ${newStage.name}`);
+      return { moved: false, reason: 'already_in_stage', stageId, stageName: newStage.name };
+    }
+
+    // Handle win/loss stage timestamps
+    let wonAt = null;
+    let lostAt = null;
+    if (newStage.is_win_stage) {
+      wonAt = new Date();
+    } else if (newStage.is_loss_stage) {
+      lostAt = new Date();
+    }
+
+    await db.query(
+      `UPDATE opportunities
+       SET stage_id = $1, won_at = $2, lost_at = $3, updated_at = NOW()
+       WHERE id = $4`,
+      [stageId, wonAt, lostAt, opportunity.id]
+    );
+
+    // Record in history
+    await db.query(
+      `INSERT INTO opportunity_history
+       (opportunity_id, user_id, action, from_stage_id, to_stage_id, notes, metadata)
+       VALUES ($1, $2, 'stage_changed', $3, $4, $5, $6)`,
+      [
+        opportunity.id,
+        userId,
+        opportunity.stage_id,
+        stageId,
+        'Movido via workflow',
+        JSON.stringify({ source: 'workflow', lead_id: leadId })
+      ]
+    );
+
+    console.log(`✅ [move_stage] Moved opportunity ${opportunity.id} from "${opportunity.current_stage}" to "${newStage.name}"`);
+
+    return {
+      moved: true,
+      opportunityId: opportunity.id,
+      fromStageId: opportunity.stage_id,
+      toStageId: stageId,
+      stageName: newStage.name,
+      isWinStage: newStage.is_win_stage,
+      isLossStage: newStage.is_loss_stage
     };
   }
 };

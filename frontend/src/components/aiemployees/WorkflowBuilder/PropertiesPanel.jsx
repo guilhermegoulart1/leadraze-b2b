@@ -2,7 +2,7 @@
 // Panel for editing node properties
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw, DollarSign } from 'lucide-react';
+import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw, DollarSign, ArrowRightCircle } from 'lucide-react';
 import api from '../../../services/api';
 
 // Cores pré-definidas para tags (mesmo do TagsPage)
@@ -137,16 +137,16 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
     }
   }, [node.type]);
 
-  // Load pipelines when create_opportunity action is selected
+  // Load pipelines when create_opportunity or move_stage action is selected
   useEffect(() => {
-    if (node.type === 'action' && localData.actionType === 'create_opportunity') {
+    if (node.type === 'action' && (localData.actionType === 'create_opportunity' || localData.actionType === 'move_stage')) {
       loadPipelines();
     }
   }, [node.type, localData.actionType]);
 
   // Load stages when pipeline is selected
   useEffect(() => {
-    if (localData.actionType === 'create_opportunity' && localData.params?.pipelineId) {
+    if ((localData.actionType === 'create_opportunity' || localData.actionType === 'move_stage') && localData.params?.pipelineId) {
       loadPipelineStages(localData.params.pipelineId);
     }
   }, [localData.actionType, localData.params?.pipelineId]);
@@ -1110,6 +1110,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           <option value="wait">Aguardar</option>
           <option value="webhook">Chamar Webhook</option>
           <option value="create_opportunity">Criar Oportunidade</option>
+          <option value="move_stage">Mover Etapa</option>
         </select>
       </div>
 
@@ -1841,6 +1842,100 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
             {localData.params?.createContactIfNotExists !== false
               ? 'Cria contato a partir dos dados do lead se nao existir'
               : 'Requer contato existente para criar oportunidade'}
+          </p>
+        </div>
+      )}
+
+      {/* Move Stage Configuration */}
+      {localData.actionType === 'move_stage' && (
+        <div className="space-y-3 p-2 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-teal-700 dark:text-teal-400">
+            <ArrowRightCircle className="w-3 h-3" />
+            Mover para Etapa
+          </div>
+
+          {/* Pipeline Selection */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              Pipeline
+            </label>
+            {loadingPipelines ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                <div className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                Carregando...
+              </div>
+            ) : (
+              <select
+                value={localData.params?.pipelineId || ''}
+                onChange={(e) => {
+                  const selectedPipeline = pipelines.find(p => p.id === e.target.value);
+                  handleChange('params', {
+                    ...localData.params,
+                    pipelineId: e.target.value,
+                    pipelineName: selectedPipeline?.name || '',
+                    stageId: '',
+                    stageName: ''
+                  });
+                }}
+                className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:text-white text-[11px]"
+              >
+                <option value="">Selecione a pipeline...</option>
+                {pipelines.map((pipeline) => (
+                  <option key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {pipelines.length === 0 && !loadingPipelines && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                Nenhuma pipeline encontrada
+              </p>
+            )}
+          </div>
+
+          {/* Stage Selection */}
+          {localData.params?.pipelineId && (
+            <div className="space-y-1">
+              <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                Etapa Destino
+              </label>
+              {loadingStages ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                  <div className="w-3 h-3 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                  Carregando...
+                </div>
+              ) : (
+                <select
+                  value={localData.params?.stageId || ''}
+                  onChange={(e) => {
+                    const selectedStage = pipelineStages.find(s => s.id === e.target.value);
+                    handleChange('params', {
+                      ...localData.params,
+                      stageId: e.target.value,
+                      stageName: selectedStage?.name || ''
+                    });
+                  }}
+                  className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:text-white text-[11px]"
+                >
+                  <option value="">Selecione a etapa...</option>
+                  {pipelineStages.map((stage) => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {pipelineStages.length === 0 && !loadingStages && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                  Nenhuma etapa encontrada
+                </p>
+              )}
+            </div>
+          )}
+
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">
+            Move a oportunidade do lead para a etapa selecionada
           </p>
         </div>
       )}

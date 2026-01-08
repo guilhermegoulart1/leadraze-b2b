@@ -735,6 +735,9 @@ async function executeActionNode(node, context) {
 
   const result = await workflowActionExecutors.executeAction(node, context);
 
+  // Generate human-readable description of action result
+  const actionDescription = getActionDescription(node.data?.actionType, result, context.isTestMode);
+
   if (result.success) {
     await workflowLogService.logActionCompleted({
       conversationId: context.conversationId,
@@ -744,6 +747,7 @@ async function executeActionNode(node, context) {
       nodeType: 'action',
       nodeLabel: node.data?.label || node.data?.actionType,
       outputData: result,
+      decisionReason: actionDescription,
       durationMs: result.durationMs
     });
   } else {
@@ -760,6 +764,95 @@ async function executeActionNode(node, context) {
   }
 
   return result;
+}
+
+/**
+ * Generate human-readable description of action result
+ */
+function getActionDescription(actionType, result, isTestMode) {
+  // The actual result from action executors is in result.result
+  const data = result.result || result.data || result;
+  const prefix = isTestMode && data?.simulated ? '[SIMULADO] ' : '';
+
+  switch (actionType) {
+    case 'create_opportunity':
+      if (data.simulated) {
+        return `${prefix}Criaria oportunidade em "${data.pipelineName || 'pipeline'}" → "${data.stageName || 'etapa'}"`;
+      }
+      if (data.existed) {
+        return `Oportunidade já existia (${data.opportunityId?.slice(0, 8)}...)`;
+      }
+      if (data.created) {
+        return `Oportunidade criada em "${data.pipelineName}" → "${data.stageName}"`;
+      }
+      return 'Criar oportunidade';
+
+    case 'move_stage':
+      if (data.simulated) {
+        return `${prefix}Moveria para etapa "${data.stageName || data.stageId}"`;
+      }
+      if (data.moved === false) {
+        if (data.reason === 'no_opportunity_found') {
+          return 'Nenhuma oportunidade encontrada para mover';
+        }
+        if (data.reason === 'already_in_stage') {
+          return `Já está na etapa "${data.stageName}"`;
+        }
+        return 'Não moveu';
+      }
+      if (data.moved) {
+        return `Movido para "${data.stageName}"${data.isWinStage ? ' (GANHO)' : ''}${data.isLossStage ? ' (PERDIDO)' : ''}`;
+      }
+      return 'Mover etapa';
+
+    case 'transfer':
+      if (data.simulated) {
+        return `${prefix}Transferiria conversa`;
+      }
+      return 'Conversa transferida';
+
+    case 'add_tag':
+      if (data.simulated) {
+        return `${prefix}Adicionaria tags`;
+      }
+      return `Tags adicionadas: ${data.tagsAdded || 0}`;
+
+    case 'remove_tag':
+      if (data.simulated) {
+        return `${prefix}Removeria tags`;
+      }
+      return `Tags removidas: ${data.tagsRemoved || 0}`;
+
+    case 'send_message':
+      if (data.simulated) {
+        return `${prefix}Enviaria mensagem`;
+      }
+      return 'Mensagem enviada';
+
+    case 'schedule':
+      if (data.simulated) {
+        return `${prefix}Agendaria reunião`;
+      }
+      return 'Link de agendamento enviado';
+
+    case 'wait':
+      return `Aguardando ${data.waitTime || ''} ${data.waitUnit || 'horas'}`;
+
+    case 'close_positive':
+      return 'Conversa encerrada (positivo)';
+
+    case 'close_negative':
+      return 'Conversa encerrada (negativo)';
+
+    case 'webhook':
+      if (data.simulated) {
+        return `${prefix}Chamaria webhook`;
+      }
+      return `Webhook executado (${data.statusCode || 'OK'})`;
+
+    default:
+      return data.simulated ? `${prefix}Ação simulada` : 'Ação executada';
+  }
 }
 
 /**

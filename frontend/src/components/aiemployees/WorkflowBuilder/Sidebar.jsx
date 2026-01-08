@@ -6,7 +6,7 @@ import {
   Zap, MessageCircle, GitBranch, PhoneCall, Calendar, Send,
   XCircle, CheckCircle, Tag, MinusCircle, UserCheck, UserX, Eye,
   Heart, Mail, Clock, UserPlus, Image, MousePointer, List,
-  Globe, LogOut, Reply
+  Globe, LogOut, Reply, Target, ArrowRightCircle
 } from 'lucide-react';
 
 // Channel-specific triggers by agent type
@@ -140,6 +140,22 @@ const baseCategories = [
         description: 'Tempo de espera',
         icon: Clock,
         color: 'amber'
+      },
+      {
+        type: 'action',
+        subtype: 'create_opportunity',
+        label: 'Criar Oport.',
+        description: 'Nova oportunidade',
+        icon: Target,
+        color: 'purple'
+      },
+      {
+        type: 'action',
+        subtype: 'move_stage',
+        label: 'Mover Etapa',
+        description: 'Mudar etapa',
+        icon: ArrowRightCircle,
+        color: 'teal'
       }
     ]
   }
@@ -154,6 +170,7 @@ const colorClasses = {
   cyan: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-200 dark:group-hover:bg-cyan-900/50',
   orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50',
   red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 group-hover:bg-red-200 dark:group-hover:bg-red-900/50',
+  teal: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 group-hover:bg-teal-200 dark:group-hover:bg-teal-900/50',
   gray: 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-900/50'
 };
 

@@ -24,7 +24,8 @@ import {
   Clock,
   MessageCircle,
   FastForward,
-  Target
+  Target,
+  ArrowRightCircle
 } from 'lucide-react';
 
 const actionConfigs = {
@@ -98,6 +99,12 @@ const actionConfigs = {
     icon: Target,
     label: 'Criar Oportunidade',
     color: 'purple',
+    hasOutput: true
+  },
+  move_stage: {
+    icon: ArrowRightCircle,
+    label: 'Mover Etapa',
+    color: 'teal',
     hasOutput: true
   }
 };
@@ -190,6 +197,20 @@ const colorClasses = {
     bg: 'from-yellow-500 to-yellow-600',
     iconBg: 'bg-yellow-100 dark:bg-yellow-900/30',
     iconText: 'text-yellow-600 dark:text-yellow-400'
+  },
+  teal: {
+    border: 'border-teal-400/50 hover:border-teal-400',
+    borderSelected: 'border-teal-500 shadow-teal-500/20',
+    bg: 'from-teal-500 to-teal-600',
+    iconBg: 'bg-teal-100 dark:bg-teal-900/30',
+    iconText: 'text-teal-600 dark:text-teal-400'
+  },
+  amber: {
+    border: 'border-amber-400/50 hover:border-amber-400',
+    borderSelected: 'border-amber-500 shadow-amber-500/20',
+    bg: 'from-amber-500 to-amber-600',
+    iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+    iconText: 'text-amber-600 dark:text-amber-400'
   }
 };
 
@@ -291,6 +312,15 @@ const checkActionComplete = (data) => {
     }
     if (!data.params?.stageId) {
       issues.push('Selecione uma etapa');
+    }
+  }
+
+  if (data.actionType === 'move_stage') {
+    if (!data.params?.pipelineId) {
+      issues.push('Selecione uma pipeline');
+    }
+    if (!data.params?.stageId) {
+      issues.push('Selecione a etapa destino');
     }
   }
 
@@ -523,6 +553,24 @@ const ActionNode = ({ id, data, selected }) => {
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-600 dark:text-gray-400">
                   <span className="w-2 h-2 rounded-full bg-purple-400"></span>
                   <span>{data.params.stageName}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Move Stage configuration display */}
+          {data.actionType === 'move_stage' && data.params?.pipelineId && (
+            <div className="mt-4 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+              <div className="flex items-center gap-2 text-sm">
+                <ArrowRightCircle className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span className="text-teal-700 dark:text-teal-300 font-medium">
+                  {data.params.pipelineName || 'Pipeline'}
+                </span>
+              </div>
+              {data.params.stageName && (
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-600 dark:text-gray-400">
+                  <span className="w-2 h-2 rounded-full bg-teal-400"></span>
+                  <span>→ {data.params.stageName}</span>
                 </div>
               )}
             </div>
