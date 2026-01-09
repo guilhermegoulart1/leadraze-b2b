@@ -187,13 +187,13 @@ exports.addTagToLead = async (req, res) => {
   }
 
   try {
-    // Buscar contato vinculado ao lead via contact_leads
+    // Buscar contato vinculado à opportunity diretamente
     const contactQuery = `
-      SELECT contact_id FROM contact_leads WHERE lead_id = $1 LIMIT 1
+      SELECT contact_id FROM opportunities WHERE id = $1 LIMIT 1
     `;
     const contactResult = await pool.query(contactQuery, [leadId]);
 
-    if (contactResult.rows.length === 0) {
+    if (contactResult.rows.length === 0 || !contactResult.rows[0].contact_id) {
       return res.status(400).json({
         success: false,
         message: 'Esta oportunidade não possui um contato vinculado. Vincule um contato primeiro.'
@@ -241,13 +241,13 @@ exports.removeTagFromLead = async (req, res) => {
   const { leadId, tagId } = req.params;
 
   try {
-    // Buscar contato vinculado ao lead via contact_leads
+    // Buscar contato vinculado à opportunity diretamente
     const contactQuery = `
-      SELECT contact_id FROM contact_leads WHERE lead_id = $1 LIMIT 1
+      SELECT contact_id FROM opportunities WHERE id = $1 LIMIT 1
     `;
     const contactResult = await pool.query(contactQuery, [leadId]);
 
-    if (contactResult.rows.length === 0) {
+    if (contactResult.rows.length === 0 || !contactResult.rows[0].contact_id) {
       return res.status(400).json({
         success: false,
         message: 'Esta oportunidade não possui um contato vinculado'
@@ -284,4 +284,18 @@ exports.removeTagFromLead = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// Add tag to opportunity (alias for addTagToLead - route uses opportunityId param)
+exports.addTagToOpportunity = async (req, res) => {
+  // Map opportunityId to leadId for the existing function
+  req.params.leadId = req.params.opportunityId;
+  return exports.addTagToLead(req, res);
+};
+
+// Remove tag from opportunity (alias for removeTagFromLead - route uses opportunityId param)
+exports.removeTagFromOpportunity = async (req, res) => {
+  // Map opportunityId to leadId for the existing function
+  req.params.leadId = req.params.opportunityId;
+  return exports.removeTagFromLead(req, res);
 };

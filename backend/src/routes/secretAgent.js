@@ -115,17 +115,17 @@ router.get('/briefings/:id', secretAgentController.getBriefing);
 
 /**
  * POST /api/secret-agent/briefings/:id/link-lead
- * Link a briefing to a lead/contact
+ * Link a briefing to a contact
  * Body:
- *   - leadId (required): UUID
+ *   - contactId (required): UUID
  */
-router.post('/briefings/:id/link-lead', secretAgentController.linkBriefingToLead);
+router.post('/briefings/:id/link-contact', secretAgentController.linkBriefingToContact);
 
 /**
- * DELETE /api/secret-agent/briefings/:id/link-lead/:leadId
- * Unlink a briefing from a lead
+ * DELETE /api/secret-agent/briefings/:id/link-contact/:contactId
+ * Unlink a briefing from a contact
  */
-router.delete('/briefings/:id/link-lead/:leadId', secretAgentController.unlinkBriefingFromLead);
+router.delete('/briefings/:id/link-contact/:contactId', secretAgentController.unlinkBriefingFromContact);
 
 /**
  * POST /api/secret-agent/briefings/:id/deep-analysis

@@ -10,7 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 const getItemAssignees = async (itemId) => {
   const query = `
     SELECT u.id, u.name, u.avatar_url as "avatarUrl"
-    FROM checklist_item_assignees cia
+    FROM opportunity_checklist_item_assignees cia
     JOIN users u ON cia.user_id = u.id
     WHERE cia.checklist_item_id = $1
     ORDER BY cia.assigned_at
@@ -24,7 +24,7 @@ const getItemAssignees = async (itemId) => {
  */
 const setItemAssignees = async (itemId, userIds, assignedBy) => {
   // Remove existing assignees
-  await db.query('DELETE FROM checklist_item_assignees WHERE checklist_item_id = $1', [itemId]);
+  await db.query('DELETE FROM opportunity_checklist_item_assignees WHERE checklist_item_id = $1', [itemId]);
 
   // Add new assignees
   if (userIds && userIds.length > 0) {
@@ -34,25 +34,25 @@ const setItemAssignees = async (itemId, userIds, assignedBy) => {
 
     const params = [itemId, ...userIds, assignedBy];
     await db.query(
-      `INSERT INTO checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at) VALUES ${values}`,
+      `INSERT INTO opportunity_checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at) VALUES ${values}`,
       params
     );
   }
 };
 
 /**
- * Get all checklists for a lead
- * GET /api/leads/:leadId/checklists
+ * Get all checklists for an opportunity
+ * GET /api/opportunities/:opportunityId/checklists
  */
-const getLeadChecklists = async (req, res) => {
+const getOpportunityChecklists = async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { opportunityId } = req.params;
     const accountId = req.user.account_id;
 
-    // Verify lead exists and belongs to account
-    const lead = await db.findOne('leads', { id: leadId, account_id: accountId });
-    if (!lead) {
-      throw new NotFoundError('Lead not found');
+    // Verify opportunity exists and belongs to account
+    const opportunity = await db.findOne('opportunities', { id: opportunityId, account_id: accountId });
+    if (!opportunity) {
+      throw new NotFoundError('Opportunity not found');
     }
 
     // Get checklists with items
@@ -66,7 +66,7 @@ const getLeadChecklists = async (req, res) => {
           SELECT json_agg(
             json_build_object(
               'id', i.id,
-              'title', i.title,
+              'title', COALESCE(i.title, i.content),
               'taskType', COALESCE(i.task_type, 'call'),
               'isCompleted', i.is_completed,
               'completedAt', i.completed_at,
@@ -80,21 +80,21 @@ const getLeadChecklists = async (req, res) => {
                     'avatarUrl', u.avatar_url
                   ) ORDER BY cia.assigned_at
                 ), '[]'::json)
-                FROM checklist_item_assignees cia
+                FROM opportunity_checklist_item_assignees cia
                 JOIN users u ON cia.user_id = u.id
                 WHERE cia.checklist_item_id = i.id
               )
             ) ORDER BY i.position, i.created_at
           )
-          FROM checklist_items i
+          FROM opportunity_checklist_items i
           WHERE i.checklist_id = c.id
         ) as items
-      FROM lead_checklists c
-      WHERE c.lead_id = $1 AND c.account_id = $2
+      FROM opportunity_checklists c
+      WHERE c.opportunity_id = $1 AND c.account_id = $2
       ORDER BY c.position, c.created_at
     `;
 
-    const result = await db.query(query, [leadId, accountId]);
+    const result = await db.query(query, [opportunityId, accountId]);
 
     const checklists = result.rows.map(row => ({
       id: row.id,
@@ -115,11 +115,11 @@ const getLeadChecklists = async (req, res) => {
 
 /**
  * Create a new checklist
- * POST /api/leads/:leadId/checklists
+ * POST /api/opportunities/:opportunityId/checklists
  */
 const createChecklist = async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { opportunityId } = req.params;
     const { name } = req.body;
     const accountId = req.user.account_id;
     const userId = req.user.id;
@@ -128,23 +128,23 @@ const createChecklist = async (req, res) => {
       throw new ValidationError('Checklist name is required');
     }
 
-    // Verify lead exists
-    const lead = await db.findOne('leads', { id: leadId, account_id: accountId });
-    if (!lead) {
-      throw new NotFoundError('Lead not found');
+    // Verify opportunity exists
+    const opportunity = await db.findOne('opportunities', { id: opportunityId, account_id: accountId });
+    if (!opportunity) {
+      throw new NotFoundError('Opportunity not found');
     }
 
     // Get max position
     const posResult = await db.query(
-      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM lead_checklists WHERE lead_id = $1',
-      [leadId]
+      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM opportunity_checklists WHERE opportunity_id = $1',
+      [opportunityId]
     );
     const position = posResult.rows[0].next_pos;
 
     const checklist = {
       id: uuidv4(),
       account_id: accountId,
-      lead_id: leadId,
+      opportunity_id: opportunityId,
       name: name.trim(),
       position,
       created_by: userId,
@@ -152,7 +152,7 @@ const createChecklist = async (req, res) => {
       updated_at: new Date()
     };
 
-    await db.insert('lead_checklists', checklist);
+    await db.insert('opportunity_checklists', checklist);
 
     return sendSuccess(res, {
       checklist: {
@@ -181,7 +181,7 @@ const updateChecklist = async (req, res) => {
     const { name } = req.body;
     const accountId = req.user.account_id;
 
-    const checklist = await db.findOne('lead_checklists', { id, account_id: accountId });
+    const checklist = await db.findOne('opportunity_checklists', { id, account_id: accountId });
     if (!checklist) {
       throw new NotFoundError('Checklist not found');
     }
@@ -190,7 +190,7 @@ const updateChecklist = async (req, res) => {
       if (!name || name.trim().length === 0) {
         throw new ValidationError('Checklist name cannot be empty');
       }
-      await db.update('lead_checklists', { name: name.trim(), updated_at: new Date() }, { id });
+      await db.update('opportunity_checklists', { name: name.trim(), updated_at: new Date() }, { id });
     }
 
     return sendSuccess(res, { checklist: { ...checklist, name: name?.trim() || checklist.name } });
@@ -209,12 +209,12 @@ const deleteChecklist = async (req, res) => {
     const { id } = req.params;
     const accountId = req.user.account_id;
 
-    const checklist = await db.findOne('lead_checklists', { id, account_id: accountId });
+    const checklist = await db.findOne('opportunity_checklists', { id, account_id: accountId });
     if (!checklist) {
       throw new NotFoundError('Checklist not found');
     }
 
-    await db.query('DELETE FROM lead_checklists WHERE id = $1', [id]);
+    await db.query('DELETE FROM opportunity_checklists WHERE id = $1', [id]);
 
     return sendSuccess(res, null, 'Checklist deleted');
 
@@ -244,14 +244,14 @@ const createChecklistItem = async (req, res) => {
     const validTaskType = VALID_TASK_TYPES.includes(task_type) ? task_type : 'call';
 
     // Verify checklist exists and belongs to account
-    const checklist = await db.findOne('lead_checklists', { id: checklistId, account_id: accountId });
+    const checklist = await db.findOne('opportunity_checklists', { id: checklistId, account_id: accountId });
     if (!checklist) {
       throw new NotFoundError('Checklist not found');
     }
 
     // Get max position
     const posResult = await db.query(
-      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM checklist_items WHERE checklist_id = $1',
+      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM opportunity_checklist_items WHERE checklist_id = $1',
       [checklistId]
     );
     const position = posResult.rows[0].next_pos;
@@ -261,6 +261,7 @@ const createChecklistItem = async (req, res) => {
       id: itemId,
       checklist_id: checklistId,
       title: title.trim(),
+      content: title.trim(),
       task_type: validTaskType,
       is_completed: false,
       due_date: due_date ? new Date(due_date) : null,
@@ -269,7 +270,7 @@ const createChecklistItem = async (req, res) => {
       updated_at: new Date()
     };
 
-    await db.insert('checklist_items', item);
+    await db.insert('opportunity_checklist_items', item);
 
     // Handle assignees (array of user IDs)
     const assigneeIds = Array.isArray(assignees) ? assignees : (assignees ? [assignees] : []);
@@ -312,8 +313,8 @@ const updateChecklistItem = async (req, res) => {
     // Get item with checklist to verify ownership
     const itemQuery = `
       SELECT i.*, c.account_id
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const itemResult = await db.query(itemQuery, [id, accountId]);
@@ -330,6 +331,7 @@ const updateChecklistItem = async (req, res) => {
         throw new ValidationError('Item title cannot be empty');
       }
       updates.title = title.trim();
+      updates.content = title.trim();
     }
 
     if (is_completed !== undefined) {
@@ -347,7 +349,7 @@ const updateChecklistItem = async (req, res) => {
       updates.due_date = due_date ? new Date(due_date) : null;
     }
 
-    await db.update('checklist_items', updates, { id });
+    await db.update('opportunity_checklist_items', updates, { id });
 
     // Handle assignees update
     if (assignees !== undefined) {
@@ -358,7 +360,7 @@ const updateChecklistItem = async (req, res) => {
     // Get updated item with assignees
     const updatedQuery = `
       SELECT i.*
-      FROM checklist_items i
+      FROM opportunity_checklist_items i
       WHERE i.id = $1
     `;
     const updatedResult = await db.query(updatedQuery, [id]);
@@ -368,7 +370,7 @@ const updateChecklistItem = async (req, res) => {
     return sendSuccess(res, {
       item: {
         id: updated.id,
-        title: updated.title,
+        title: updated.title || updated.content,
         taskType: updated.task_type || 'call',
         isCompleted: updated.is_completed,
         completedAt: updated.completed_at,
@@ -395,8 +397,8 @@ const deleteChecklistItem = async (req, res) => {
     // Verify ownership
     const itemQuery = `
       SELECT i.id
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const itemResult = await db.query(itemQuery, [id, accountId]);
@@ -405,7 +407,7 @@ const deleteChecklistItem = async (req, res) => {
       throw new NotFoundError('Item not found');
     }
 
-    await db.query('DELETE FROM checklist_items WHERE id = $1', [id]);
+    await db.query('DELETE FROM opportunity_checklist_items WHERE id = $1', [id]);
 
     return sendSuccess(res, null, 'Item deleted');
 
@@ -427,8 +429,8 @@ const toggleChecklistItem = async (req, res) => {
     // Get current item
     const itemQuery = `
       SELECT i.*, c.account_id
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const itemResult = await db.query(itemQuery, [id, accountId]);
@@ -440,7 +442,7 @@ const toggleChecklistItem = async (req, res) => {
     const item = itemResult.rows[0];
     const newCompleted = !item.is_completed;
 
-    await db.update('checklist_items', {
+    await db.update('opportunity_checklist_items', {
       is_completed: newCompleted,
       completed_at: newCompleted ? new Date() : null,
       completed_by: newCompleted ? userId : null,
@@ -450,7 +452,7 @@ const toggleChecklistItem = async (req, res) => {
     // Get updated item with assignees
     const updatedQuery = `
       SELECT i.*
-      FROM checklist_items i
+      FROM opportunity_checklist_items i
       WHERE i.id = $1
     `;
     const updatedResult = await db.query(updatedQuery, [id]);
@@ -460,7 +462,7 @@ const toggleChecklistItem = async (req, res) => {
     return sendSuccess(res, {
       item: {
         id: updated.id,
-        title: updated.title,
+        title: updated.title || updated.content,
         taskType: updated.task_type || 'call',
         isCompleted: updated.is_completed,
         completedAt: updated.completed_at,
@@ -476,7 +478,7 @@ const toggleChecklistItem = async (req, res) => {
 };
 
 module.exports = {
-  getLeadChecklists,
+  getOpportunityChecklists,
   createChecklist,
   updateChecklist,
   deleteChecklist,

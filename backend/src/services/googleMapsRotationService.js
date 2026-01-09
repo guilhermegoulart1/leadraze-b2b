@@ -246,17 +246,17 @@ async function assignAndLog({
       `, [nextAssignee.userId, contactId]);
     }
 
-    // Update lead with assigned user if the column exists
+    // Update opportunity with assigned user
     if (leadId) {
       try {
         await db.query(`
-          UPDATE leads
-          SET assigned_user_id = $1, updated_at = NOW()
+          UPDATE opportunities
+          SET owner_user_id = $1, updated_at = NOW()
           WHERE id = $2
         `, [nextAssignee.userId, leadId]);
       } catch (err) {
         // Column might not exist, ignore
-        console.log('[GMapsRotation] Could not update lead assigned_user_id:', err.message);
+        console.log('[GMapsRotation] Could not update opportunity owner_user_id:', err.message);
       }
     }
 

@@ -232,14 +232,14 @@ exports.deleteDiscardReason = async (req, res) => {
       });
     }
 
-    // Check if reason is being used by any leads
-    const usageQuery = 'SELECT COUNT(*) as count FROM leads WHERE discard_reason_id = $1';
+    // Check if reason is being used by any opportunities
+    const usageQuery = 'SELECT COUNT(*) as count FROM opportunities WHERE discard_reason_id = $1';
     const usageResult = await db.query(usageQuery, [id]);
 
     if (parseInt(usageResult.rows[0].count) > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Este motivo esta sendo usado por leads e nao pode ser excluido'
+        message: 'Este motivo esta sendo usado por oportunidades e nao pode ser excluido'
       });
     }
 

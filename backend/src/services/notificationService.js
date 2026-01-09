@@ -21,7 +21,7 @@ async function create(data) {
       title,
       message,
       conversation_id = null,
-      lead_id = null,
+      opportunity_id = null,
       agent_id = null,
       metadata = {}
     } = data;
@@ -29,7 +29,7 @@ async function create(data) {
     const result = await db.query(`
       INSERT INTO notifications (
         account_id, user_id, type, title, message,
-        conversation_id, lead_id, agent_id, metadata,
+        conversation_id, opportunity_id, agent_id, metadata,
         is_read, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, NOW())
       RETURNING *
@@ -40,7 +40,7 @@ async function create(data) {
       title,
       message,
       conversation_id,
-      lead_id,
+      opportunity_id,
       agent_id,
       JSON.stringify(metadata)
     ]);
@@ -71,12 +71,14 @@ async function getByUser(userId, options = {}) {
 
     let query = `
       SELECT n.*,
-             l.name as lead_name,
-             l.company as lead_company,
+             o.title as opportunity_title,
+             ct.name as contact_name,
+             ct.company as contact_company,
              c.last_message_preview,
              a.name as agent_name
       FROM notifications n
-      LEFT JOIN leads l ON n.lead_id = l.id
+      LEFT JOIN opportunities o ON n.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       LEFT JOIN conversations c ON n.conversation_id = c.id
       LEFT JOIN ai_agents a ON n.agent_id = a.id
       WHERE n.user_id = $1
@@ -227,7 +229,7 @@ async function createBulk(userIds, notificationData) {
       title,
       message,
       conversation_id = null,
-      lead_id = null,
+      opportunity_id = null,
       agent_id = null,
       metadata = {}
     } = notificationData;
@@ -238,7 +240,7 @@ async function createBulk(userIds, notificationData) {
       await db.query(`
         INSERT INTO notifications (
           account_id, user_id, type, title, message,
-          conversation_id, lead_id, agent_id, metadata,
+          conversation_id, opportunity_id, agent_id, metadata,
           is_read, created_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, NOW())
       `, [
@@ -248,7 +250,7 @@ async function createBulk(userIds, notificationData) {
         title,
         message,
         conversation_id,
-        lead_id,
+        opportunity_id,
         agent_id,
         JSON.stringify(metadata)
       ]);
@@ -269,18 +271,18 @@ async function createBulk(userIds, notificationData) {
  * @param {object} data - Notification data
  * @returns {Promise<object>}
  */
-async function notifyInviteAccepted({ accountId, userId, leadName, leadId, campaignId, campaignName }) {
+async function notifyInviteAccepted({ accountId, userId, opportunityName, opportunityId, campaignId, campaignName }) {
   return create({
     account_id: accountId,
     user_id: userId,
     type: 'invite_accepted',
     title: 'Convite aceito',
-    message: `${leadName} aceitou seu convite no LinkedIn`,
-    lead_id: leadId,
+    message: `${opportunityName} aceitou seu convite no LinkedIn`,
+    opportunity_id: opportunityId,
     metadata: {
       campaign_id: campaignId,
       campaign_name: campaignName,
-      lead_name: leadName,
+      contact_name: opportunityName,
       link: `/campaigns/${campaignId}/report`
     }
   });
@@ -291,18 +293,18 @@ async function notifyInviteAccepted({ accountId, userId, leadName, leadId, campa
  * @param {object} data - Notification data
  * @returns {Promise<object>}
  */
-async function notifyInviteExpired({ accountId, userId, leadName, leadId, campaignId, campaignName }) {
+async function notifyInviteExpired({ accountId, userId, opportunityName, opportunityId, campaignId, campaignName }) {
   return create({
     account_id: accountId,
     user_id: userId,
     type: 'invite_expired',
     title: 'Convite expirado',
-    message: `O convite para ${leadName} expirou sem resposta`,
-    lead_id: leadId,
+    message: `O convite para ${opportunityName} expirou sem resposta`,
+    opportunity_id: opportunityId,
     metadata: {
       campaign_id: campaignId,
       campaign_name: campaignName,
-      lead_name: leadName,
+      contact_name: opportunityName,
       link: `/campaigns/${campaignId}/report`
     }
   });

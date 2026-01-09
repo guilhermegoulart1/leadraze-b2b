@@ -27,11 +27,13 @@ async function executeHandoff(conversationId, agent, reason) {
     // 1. Get conversation details
     const conversationResult = await db.query(`
       SELECT c.*,
-             l.name as lead_name, l.id as lead_id,
+             ct.name as contact_name, ct.id as contact_id,
+             o.id as opportunity_id,
              la.unipile_account_id,
              la.account_id
       FROM conversations c
-      JOIN leads l ON c.lead_id = l.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
       WHERE c.id = $1
     `, [conversationId]);
@@ -105,20 +107,23 @@ async function executeHandoff(conversationId, agent, reason) {
 }
 
 /**
- * Send handoff message to the lead via Unipile
+ * Send handoff message to the contact via Unipile
  * @param {object} conversation - The conversation object
  * @param {string} message - The handoff message
  */
 async function sendHandoffMessage(conversation, message) {
   try {
-    // Get the lead's Unipile ID
-    const leadResult = await db.query(`
-      SELECT unipile_user_id FROM leads WHERE id = $1
-    `, [conversation.lead_id]);
+    // Get the contact's Unipile ID via opportunity
+    const contactResult = await db.query(`
+      SELECT ct.linkedin_profile_id as unipile_user_id
+      FROM opportunities o
+      JOIN contacts ct ON o.contact_id = ct.id
+      WHERE o.id = $1
+    `, [conversation.opportunity_id]);
 
-    const leadUnipileId = leadResult.rows[0]?.unipile_user_id;
+    const contactUnipileId = contactResult.rows[0]?.unipile_user_id;
 
-    if (!leadUnipileId || !conversation.unipile_account_id) {
+    if (!contactUnipileId || !conversation.unipile_account_id) {
       console.log(`⚠️ [HandoffService] Missing Unipile IDs for handoff message`);
       return;
     }
@@ -126,7 +131,7 @@ async function sendHandoffMessage(conversation, message) {
     // Send message via Unipile
     await unipileClient.messaging.send({
       account_id: conversation.unipile_account_id,
-      user_id: leadUnipileId,
+      user_id: contactUnipileId,
       text: message
     });
 
@@ -175,15 +180,15 @@ async function createHandoffNotification(conversation, agent, assignee, reason) 
       await db.query(`
         INSERT INTO notifications (
           account_id, user_id, type, title, message,
-          conversation_id, lead_id, agent_id, metadata
+          conversation_id, opportunity_id, agent_id, metadata
         ) VALUES ($1, $2, 'handoff', $3, $4, $5, $6, $7, $8)
       `, [
         conversation.account_id,
         assignee.userId,
         'Nova conversa transferida',
-        `A conversa com ${conversation.lead_name} ${reasonText} e foi transferida para você.`,
+        `A conversa com ${conversation.contact_name} ${reasonText} e foi transferida para você.`,
         conversation.id,
-        conversation.lead_id,
+        conversation.opportunity_id,
         agent.id,
         JSON.stringify({
           reason,
@@ -207,15 +212,15 @@ async function createHandoffNotification(conversation, agent, assignee, reason) 
           await db.query(`
             INSERT INTO notifications (
               account_id, user_id, type, title, message,
-              conversation_id, lead_id, agent_id, metadata
+              conversation_id, opportunity_id, agent_id, metadata
             ) VALUES ($1, $2, 'handoff', $3, $4, $5, $6, $7, $8)
           `, [
             user.account_id,
             user.id,
             'Nova conversa transferida',
-            `A conversa com ${conversation.lead_name} ${reasonText}.`,
+            `A conversa com ${conversation.contact_name} ${reasonText}.`,
             conversation.id,
-            conversation.lead_id,
+            conversation.opportunity_id,
             agent.id,
             JSON.stringify({
               reason,

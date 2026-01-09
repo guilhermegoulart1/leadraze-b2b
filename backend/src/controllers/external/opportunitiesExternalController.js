@@ -1,27 +1,25 @@
 /**
- * External Opportunities (Leads) Controller
- * Handles lead/opportunity operations via API key authentication
+ * External Opportunities Controller
+ * Handles opportunity operations via API key authentication
  */
 
 const db = require('../../config/database');
-const { calculatePagination, LEAD_STATUS } = require('../../utils/helpers');
+const { calculatePagination } = require('../../utils/helpers');
 const roundRobinService = require('../../services/roundRobinService');
-
-// Valid pipeline stages
-const VALID_STAGES = Object.values(LEAD_STATUS);
 
 /**
  * GET /external/v1/opportunities
- * List opportunities (leads) with pagination and filters
+ * List opportunities with pagination and filters
  */
 exports.listOpportunities = async (req, res) => {
   try {
     const accountId = req.apiKey.accountId;
     const {
       search,
-      status,
+      stage_id,
+      pipeline_id,
       campaign_id,
-      responsible_user_id,
+      owner_user_id,
       company,
       page = 1,
       limit = 50,
@@ -30,42 +28,47 @@ exports.listOpportunities = async (req, res) => {
     } = req.query;
 
     // Validate sort parameters
-    const allowedSortFields = ['created_at', 'updated_at', 'name', 'company', 'status', 'score'];
+    const allowedSortFields = ['created_at', 'updated_at', 'title', 'value'];
     const sortField = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
     const sortDirection = sort_order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     // Build query
-    let whereConditions = ['l.account_id = $1'];
+    let whereConditions = ['o.account_id = $1'];
     let queryParams = [accountId];
     let paramIndex = 2;
 
     if (search) {
-      whereConditions.push(`(l.name ILIKE $${paramIndex} OR l.company ILIKE $${paramIndex} OR l.title ILIKE $${paramIndex})`);
+      whereConditions.push(`(o.title ILIKE $${paramIndex} OR ct.name ILIKE $${paramIndex} OR ct.company ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
 
-    if (status) {
-      const statuses = status.split(',');
-      whereConditions.push(`l.status = ANY($${paramIndex}::text[])`);
-      queryParams.push(statuses);
+    if (stage_id) {
+      whereConditions.push(`o.stage_id = $${paramIndex}`);
+      queryParams.push(stage_id);
+      paramIndex++;
+    }
+
+    if (pipeline_id) {
+      whereConditions.push(`o.pipeline_id = $${paramIndex}`);
+      queryParams.push(pipeline_id);
       paramIndex++;
     }
 
     if (campaign_id) {
-      whereConditions.push(`l.campaign_id = $${paramIndex}`);
+      whereConditions.push(`o.campaign_id = $${paramIndex}`);
       queryParams.push(campaign_id);
       paramIndex++;
     }
 
-    if (responsible_user_id) {
-      whereConditions.push(`l.responsible_user_id = $${paramIndex}`);
-      queryParams.push(responsible_user_id);
+    if (owner_user_id) {
+      whereConditions.push(`o.owner_user_id = $${paramIndex}`);
+      queryParams.push(owner_user_id);
       paramIndex++;
     }
 
     if (company) {
-      whereConditions.push(`l.company ILIKE $${paramIndex}`);
+      whereConditions.push(`ct.company ILIKE $${paramIndex}`);
       queryParams.push(`%${company}%`);
       paramIndex++;
     }
@@ -74,7 +77,10 @@ exports.listOpportunities = async (req, res) => {
 
     // Count total
     const countResult = await db.query(
-      `SELECT COUNT(*) as total FROM leads l WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total
+       FROM opportunities o
+       LEFT JOIN contacts ct ON o.contact_id = ct.id
+       WHERE ${whereClause}`,
       queryParams
     );
     const total = parseInt(countResult.rows[0].total);
@@ -82,49 +88,59 @@ exports.listOpportunities = async (req, res) => {
     // Calculate pagination
     const pagination = calculatePagination(page, Math.min(limit, 100), total);
 
-    // Fetch leads
-    const leadsResult = await db.query(
+    // Fetch opportunities
+    const opportunitiesResult = await db.query(
       `SELECT
-        l.id,
-        l.name,
-        l.title,
-        l.company,
-        l.location,
-        l.headline,
-        l.profile_url,
-        l.profile_picture,
-        l.email,
-        l.phone,
-        l.status,
-        l.score,
-        l.notes,
-        l.discard_reason,
-        l.campaign_id,
-        l.responsible_user_id,
-        l.sent_at,
-        l.accepted_at,
-        l.qualifying_started_at,
-        l.qualified_at,
-        l.scheduled_at,
-        l.won_at,
-        l.lost_at,
-        l.created_at,
-        l.updated_at,
+        o.id,
+        o.title,
+        o.value,
+        o.currency,
+        o.probability,
+        o.expected_close_date,
+        o.pipeline_id,
+        o.stage_id,
+        o.campaign_id,
+        o.owner_user_id,
+        o.source,
+        o.notes,
+        o.sent_at,
+        o.accepted_at,
+        o.qualifying_started_at,
+        o.qualified_at,
+        o.scheduled_at,
+        o.won_at,
+        o.lost_at,
+        o.created_at,
+        o.updated_at,
+        ct.id as contact_id,
+        ct.name as contact_name,
+        ct.email as contact_email,
+        ct.phone as contact_phone,
+        ct.company as contact_company,
+        ct.title as contact_title,
+        ct.location as contact_location,
+        ct.profile_url as contact_profile_url,
+        ct.profile_picture as contact_profile_picture,
         c.name as campaign_name,
-        u.name as responsible_user_name,
-        u.email as responsible_user_email
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN users u ON l.responsible_user_id = u.id
+        u.name as owner_user_name,
+        u.email as owner_user_email,
+        ps.name as stage_name,
+        p.name as pipeline_name
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN campaigns c ON o.campaign_id = c.id
+      LEFT JOIN users u ON o.owner_user_id = u.id
+      LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+      LEFT JOIN pipelines p ON o.pipeline_id = p.id
       WHERE ${whereClause}
-      ORDER BY l.${sortField} ${sortDirection}
+      ORDER BY o.${sortField} ${sortDirection}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...queryParams, pagination.perPage, pagination.offset]
     );
 
     return res.json({
       success: true,
-      data: leadsResult.rows,
+      data: opportunitiesResult.rows,
       pagination: {
         page: pagination.currentPage,
         per_page: pagination.perPage,
@@ -132,8 +148,7 @@ exports.listOpportunities = async (req, res) => {
         total_pages: pagination.totalPages,
         has_next: pagination.hasNext,
         has_prev: pagination.hasPrev
-      },
-      available_stages: VALID_STAGES
+      }
     });
   } catch (error) {
     console.error('External API - Error listing opportunities:', error);
@@ -149,7 +164,7 @@ exports.listOpportunities = async (req, res) => {
 
 /**
  * GET /external/v1/opportunities/:id
- * Get a single opportunity (lead)
+ * Get a single opportunity
  */
 exports.getOpportunity = async (req, res) => {
   try {
@@ -158,26 +173,32 @@ exports.getOpportunity = async (req, res) => {
 
     const result = await db.query(
       `SELECT
-        l.*,
+        o.*,
+        ct.name as contact_name,
+        ct.email as contact_email,
+        ct.phone as contact_phone,
+        ct.company as contact_company,
+        ct.title as contact_title,
         c.name as campaign_name,
-        u.name as responsible_user_name,
-        u.email as responsible_user_email,
+        u.name as owner_user_name,
+        u.email as owner_user_email,
         COALESCE(
           (SELECT json_agg(json_build_object(
-            'id', lc.id,
-            'comment', lc.comment,
+            'id', oc.id,
+            'content', oc.content,
             'user_name', cu.name,
-            'created_at', lc.created_at
+            'created_at', oc.created_at
           ))
-           FROM lead_comments lc
-           JOIN users cu ON lc.user_id = cu.id
-           WHERE lc.lead_id = l.id AND lc.is_deleted = false),
+           FROM opportunity_comments oc
+           JOIN users cu ON oc.user_id = cu.id
+           WHERE oc.opportunity_id = o.id AND oc.deleted_at IS NULL),
           '[]'
         ) as comments
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN users u ON l.responsible_user_id = u.id
-      WHERE l.id = $1 AND l.account_id = $2`,
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN campaigns c ON o.campaign_id = c.id
+      LEFT JOIN users u ON o.owner_user_id = u.id
+      WHERE o.id = $1 AND o.account_id = $2`,
       [id, accountId]
     );
 
@@ -209,7 +230,7 @@ exports.getOpportunity = async (req, res) => {
 
 /**
  * POST /external/v1/opportunities
- * Create a new opportunity (lead)
+ * Create a new opportunity with contact
  */
 exports.createOpportunity = async (req, res) => {
   try {
@@ -224,12 +245,13 @@ exports.createOpportunity = async (req, res) => {
       profile_picture,
       email,
       phone,
-      status = 'leads',
       score,
       notes,
       campaign_id,
-      responsible_user_id,
+      owner_user_id,
       sector_id,
+      pipeline_id,
+      stage_id,
       source // linkedin, google_maps, list, paid_traffic, other
     } = req.body;
 
@@ -240,17 +262,6 @@ exports.createOpportunity = async (req, res) => {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Name is required'
-        }
-      });
-    }
-
-    // Validate status if provided
-    if (status && !VALID_STAGES.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `Invalid status. Must be one of: ${VALID_STAGES.join(', ')}`
         }
       });
     }
@@ -272,25 +283,52 @@ exports.createOpportunity = async (req, res) => {
       }
     }
 
-    // Create lead first (without responsible_user_id if not explicitly provided)
-    const result = await db.query(
-      `INSERT INTO leads
-        (account_id, name, title, company, location, headline, profile_url, profile_picture,
-         email, phone, status, score, notes, campaign_id, responsible_user_id, sector_id, source)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    // 1. Create or find contact
+    let contactId = null;
+
+    // Check if contact exists by email (if provided)
+    if (email) {
+      const existingContact = await db.query(
+        `SELECT id FROM contacts WHERE account_id = $1 AND email = $2 LIMIT 1`,
+        [accountId, email]
+      );
+      if (existingContact.rows.length > 0) {
+        contactId = existingContact.rows[0].id;
+      }
+    }
+
+    // If no contact found, create one
+    if (!contactId) {
+      const contactResult = await db.query(
+        `INSERT INTO contacts
+          (account_id, name, title, company, location, headline, profile_url, profile_picture,
+           email, phone, source, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        RETURNING id`,
+        [accountId, name.trim(), title, company, location, headline, profile_url, profile_picture,
+         email, phone, source || 'other']
+      );
+      contactId = contactResult.rows[0].id;
+    }
+
+    // 2. Create opportunity linked to contact
+    const oppResult = await db.query(
+      `INSERT INTO opportunities
+        (account_id, contact_id, title, score, notes, campaign_id, owner_user_id, sector_id,
+         pipeline_id, stage_id, source, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
       RETURNING *`,
-      [accountId, name.trim(), title, company, location, headline, profile_url, profile_picture,
-       email, phone, status, score || 0, notes, campaign_id, responsible_user_id || null, sector_id,
-       source || 'other'] // Default to 'other' for API-created leads
+      [accountId, contactId, name.trim(), score || 0, notes, campaign_id, owner_user_id || null,
+       sector_id, pipeline_id || null, stage_id || null, source || 'other']
     );
 
-    const lead = result.rows[0];
+    const opportunity = oppResult.rows[0];
 
-    // If no responsible_user_id was explicitly provided, use centralized auto-assignment
-    if (!responsible_user_id) {
+    // If no owner_user_id was explicitly provided, use centralized auto-assignment
+    if (!owner_user_id) {
       try {
-        const assignment = await roundRobinService.autoAssignLeadOnCreation({
-          leadId: lead.id,
+        const assignment = await roundRobinService.autoAssignOpportunityOnCreation({
+          opportunityId: opportunity.id,
           sectorId: sector_id,
           accountId,
           campaignId: campaign_id,
@@ -298,42 +336,37 @@ exports.createOpportunity = async (req, res) => {
         });
 
         if (assignment.assigned) {
-          lead.responsible_user_id = assignment.user.id;
-          console.log(`👤 [ExternalAPI] Lead ${lead.id} auto-atribuído a: ${assignment.user.name} (${assignment.method})`);
+          opportunity.owner_user_id = assignment.user.id;
+          console.log(`👤 [ExternalAPI] Opportunity ${opportunity.id} auto-atribuída a: ${assignment.user.name} (${assignment.method})`);
         }
       } catch (assignError) {
-        // Don't fail lead creation if auto-assignment fails
+        // Don't fail creation if auto-assignment fails
         console.log(`⚠️ [ExternalAPI] Auto-assignment falhou: ${assignError.message}`);
       }
     }
 
-    // Update campaign counters if campaign_id provided
-    if (campaign_id) {
-      const counterColumn = getCounterColumn(status);
-      if (counterColumn) {
-        await db.query(
-          `UPDATE campaigns SET ${counterColumn} = ${counterColumn} + 1, total_leads = total_leads + 1 WHERE id = $1`,
-          [campaign_id]
-        );
-      }
-    }
-
-    // Fetch complete lead with relations
-    const fullLead = await db.query(
-      `SELECT l.*,
+    // Fetch complete opportunity with relations
+    const fullOpp = await db.query(
+      `SELECT o.*,
+        ct.name as contact_name,
+        ct.email as contact_email,
+        ct.phone as contact_phone,
+        ct.company as contact_company,
+        ct.title as contact_title,
         c.name as campaign_name,
-        u.name as responsible_user_name,
-        u.email as responsible_user_email
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN users u ON l.responsible_user_id = u.id
-      WHERE l.id = $1`,
-      [lead.id]
+        u.name as owner_user_name,
+        u.email as owner_user_email
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN campaigns c ON o.campaign_id = c.id
+      LEFT JOIN users u ON o.owner_user_id = u.id
+      WHERE o.id = $1`,
+      [opportunity.id]
     );
 
     return res.status(201).json({
       success: true,
-      data: fullLead.rows[0]
+      data: fullOpp.rows[0]
     });
   } catch (error) {
     console.error('External API - Error creating opportunity:', error);
@@ -349,13 +382,14 @@ exports.createOpportunity = async (req, res) => {
 
 /**
  * PUT /external/v1/opportunities/:id
- * Update an opportunity (lead)
+ * Update an opportunity and its contact
  */
 exports.updateOpportunity = async (req, res) => {
   try {
     const accountId = req.apiKey.accountId;
     const { id } = req.params;
     const {
+      // Contact fields
       name,
       title,
       company,
@@ -365,18 +399,21 @@ exports.updateOpportunity = async (req, res) => {
       profile_picture,
       email,
       phone,
+      // Opportunity fields
       score,
       notes,
-      responsible_user_id
+      owner_user_id,
+      pipeline_id,
+      stage_id
     } = req.body;
 
-    // Check if lead exists
-    const existingLead = await db.query(
-      `SELECT id FROM leads WHERE id = $1 AND account_id = $2`,
+    // Check if opportunity exists and get contact_id
+    const existingOpp = await db.query(
+      `SELECT id, contact_id FROM opportunities WHERE id = $1 AND account_id = $2`,
       [id, accountId]
     );
 
-    if (existingLead.rows.length === 0) {
+    if (existingOpp.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: {
@@ -386,61 +423,92 @@ exports.updateOpportunity = async (req, res) => {
       });
     }
 
-    // Build update query
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
+    const contactId = existingOpp.rows[0].contact_id;
+
+    // Update contact fields if provided
+    const contactUpdates = [];
+    const contactValues = [];
+    let contactParamIndex = 1;
 
     if (name !== undefined) {
-      updates.push(`name = $${paramIndex++}`);
-      values.push(name.trim());
+      contactUpdates.push(`name = $${contactParamIndex++}`);
+      contactValues.push(name.trim());
     }
     if (title !== undefined) {
-      updates.push(`title = $${paramIndex++}`);
-      values.push(title);
+      contactUpdates.push(`title = $${contactParamIndex++}`);
+      contactValues.push(title);
     }
     if (company !== undefined) {
-      updates.push(`company = $${paramIndex++}`);
-      values.push(company);
+      contactUpdates.push(`company = $${contactParamIndex++}`);
+      contactValues.push(company);
     }
     if (location !== undefined) {
-      updates.push(`location = $${paramIndex++}`);
-      values.push(location);
+      contactUpdates.push(`location = $${contactParamIndex++}`);
+      contactValues.push(location);
     }
     if (headline !== undefined) {
-      updates.push(`headline = $${paramIndex++}`);
-      values.push(headline);
+      contactUpdates.push(`headline = $${contactParamIndex++}`);
+      contactValues.push(headline);
     }
     if (profile_url !== undefined) {
-      updates.push(`profile_url = $${paramIndex++}`);
-      values.push(profile_url);
+      contactUpdates.push(`profile_url = $${contactParamIndex++}`);
+      contactValues.push(profile_url);
     }
     if (profile_picture !== undefined) {
-      updates.push(`profile_picture = $${paramIndex++}`);
-      values.push(profile_picture);
+      contactUpdates.push(`profile_picture = $${contactParamIndex++}`);
+      contactValues.push(profile_picture);
     }
     if (email !== undefined) {
-      updates.push(`email = $${paramIndex++}`);
-      values.push(email);
+      contactUpdates.push(`email = $${contactParamIndex++}`);
+      contactValues.push(email);
     }
     if (phone !== undefined) {
-      updates.push(`phone = $${paramIndex++}`);
-      values.push(phone);
-    }
-    if (score !== undefined) {
-      updates.push(`score = $${paramIndex++}`);
-      values.push(score);
-    }
-    if (notes !== undefined) {
-      updates.push(`notes = $${paramIndex++}`);
-      values.push(notes);
-    }
-    if (responsible_user_id !== undefined) {
-      updates.push(`responsible_user_id = $${paramIndex++}`);
-      values.push(responsible_user_id);
+      contactUpdates.push(`phone = $${contactParamIndex++}`);
+      contactValues.push(phone);
     }
 
-    if (updates.length === 0) {
+    if (contactUpdates.length > 0 && contactId) {
+      contactUpdates.push(`updated_at = NOW()`);
+      contactValues.push(contactId);
+      await db.query(
+        `UPDATE contacts
+         SET ${contactUpdates.join(', ')}
+         WHERE id = $${contactParamIndex}`,
+        contactValues
+      );
+    }
+
+    // Update opportunity fields
+    const oppUpdates = [];
+    const oppValues = [];
+    let oppParamIndex = 1;
+
+    if (name !== undefined) {
+      oppUpdates.push(`title = $${oppParamIndex++}`);
+      oppValues.push(name.trim());
+    }
+    if (score !== undefined) {
+      oppUpdates.push(`score = $${oppParamIndex++}`);
+      oppValues.push(score);
+    }
+    if (notes !== undefined) {
+      oppUpdates.push(`notes = $${oppParamIndex++}`);
+      oppValues.push(notes);
+    }
+    if (owner_user_id !== undefined) {
+      oppUpdates.push(`owner_user_id = $${oppParamIndex++}`);
+      oppValues.push(owner_user_id);
+    }
+    if (pipeline_id !== undefined) {
+      oppUpdates.push(`pipeline_id = $${oppParamIndex++}`);
+      oppValues.push(pipeline_id);
+    }
+    if (stage_id !== undefined) {
+      oppUpdates.push(`stage_id = $${oppParamIndex++}`);
+      oppValues.push(stage_id);
+    }
+
+    if (oppUpdates.length === 0 && contactUpdates.length === 0) {
       return res.status(400).json({
         success: false,
         error: {
@@ -450,33 +518,40 @@ exports.updateOpportunity = async (req, res) => {
       });
     }
 
-    updates.push(`updated_at = NOW()`);
-    values.push(id, accountId);
+    if (oppUpdates.length > 0) {
+      oppUpdates.push(`updated_at = NOW()`);
+      oppValues.push(id, accountId);
 
-    const result = await db.query(
-      `UPDATE leads
-       SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND account_id = $${paramIndex}
-       RETURNING *`,
-      values
-    );
+      await db.query(
+        `UPDATE opportunities
+         SET ${oppUpdates.join(', ')}
+         WHERE id = $${oppParamIndex++} AND account_id = $${oppParamIndex}`,
+        oppValues
+      );
+    }
 
-    // Fetch complete lead
-    const fullLead = await db.query(
-      `SELECT l.*,
+    // Fetch complete opportunity
+    const fullOpp = await db.query(
+      `SELECT o.*,
+        ct.name as contact_name,
+        ct.email as contact_email,
+        ct.phone as contact_phone,
+        ct.company as contact_company,
+        ct.title as contact_title,
         c.name as campaign_name,
-        u.name as responsible_user_name,
-        u.email as responsible_user_email
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN users u ON l.responsible_user_id = u.id
-      WHERE l.id = $1`,
+        u.name as owner_user_name,
+        u.email as owner_user_email
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN campaigns c ON o.campaign_id = c.id
+      LEFT JOIN users u ON o.owner_user_id = u.id
+      WHERE o.id = $1`,
       [id]
     );
 
     return res.json({
       success: true,
-      data: fullLead.rows[0]
+      data: fullOpp.rows[0]
     });
   } catch (error) {
     console.error('External API - Error updating opportunity:', error);
@@ -492,32 +567,35 @@ exports.updateOpportunity = async (req, res) => {
 
 /**
  * PATCH /external/v1/opportunities/:id/stage
- * Update opportunity stage/status
+ * Update opportunity stage
  */
 exports.updateOpportunityStage = async (req, res) => {
   try {
     const accountId = req.apiKey.accountId;
     const { id } = req.params;
-    const { status, discard_reason } = req.body;
+    const { stage_id, discard_reason_id } = req.body;
 
-    // Validate status
-    if (!status || !VALID_STAGES.includes(status)) {
+    // Validate stage_id
+    if (!stage_id) {
       return res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: `Invalid status. Must be one of: ${VALID_STAGES.join(', ')}`
+          message: 'stage_id is required'
         }
       });
     }
 
-    // Get current lead
-    const currentLead = await db.query(
-      `SELECT * FROM leads WHERE id = $1 AND account_id = $2`,
+    // Get current opportunity
+    const currentOpp = await db.query(
+      `SELECT o.*, ps.name as stage_name
+       FROM opportunities o
+       LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+       WHERE o.id = $1 AND o.account_id = $2`,
       [id, accountId]
     );
 
-    if (currentLead.rows.length === 0) {
+    if (currentOpp.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: {
@@ -527,74 +605,71 @@ exports.updateOpportunityStage = async (req, res) => {
       });
     }
 
-    const lead = currentLead.rows[0];
-    const oldStatus = lead.status;
+    const opportunity = currentOpp.rows[0];
+    const oldStageId = opportunity.stage_id;
+    const oldStageName = opportunity.stage_name;
+
+    // Get new stage info
+    const newStageResult = await db.query(
+      `SELECT name FROM pipeline_stages WHERE id = $1`,
+      [stage_id]
+    );
+
+    const newStageName = newStageResult.rows[0]?.name;
 
     // Build update
-    const updates = ['status = $1', 'updated_at = NOW()'];
-    const values = [status];
+    const updates = ['stage_id = $1', 'updated_at = NOW()'];
+    const values = [stage_id];
     let paramIndex = 2;
 
-    // Set timestamp based on new status
-    const timestampField = getTimestampField(status);
+    // Set timestamp based on new stage
+    const timestampField = getTimestampField(newStageName);
     if (timestampField) {
       updates.push(`${timestampField} = NOW()`);
     }
 
-    // Set discard reason if moving to discarded/lost
-    if ((status === 'discarded' || status === 'lost') && discard_reason) {
-      updates.push(`discard_reason = $${paramIndex++}`);
-      values.push(discard_reason);
+    // Set discard reason if provided
+    if (discard_reason_id) {
+      updates.push(`discard_reason_id = $${paramIndex++}`);
+      values.push(discard_reason_id);
     }
 
     values.push(id, accountId);
 
-    const result = await db.query(
-      `UPDATE leads
+    await db.query(
+      `UPDATE opportunities
        SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND account_id = $${paramIndex}
-       RETURNING *`,
+       WHERE id = $${paramIndex++} AND account_id = $${paramIndex}`,
       values
     );
 
-    // Update campaign counters
-    if (lead.campaign_id) {
-      const oldCounter = getCounterColumn(oldStatus);
-      const newCounter = getCounterColumn(status);
-
-      if (oldCounter) {
-        await db.query(
-          `UPDATE campaigns SET ${oldCounter} = GREATEST(0, ${oldCounter} - 1) WHERE id = $1`,
-          [lead.campaign_id]
-        );
-      }
-      if (newCounter) {
-        await db.query(
-          `UPDATE campaigns SET ${newCounter} = ${newCounter} + 1 WHERE id = $1`,
-          [lead.campaign_id]
-        );
-      }
-    }
-
-    // Fetch complete lead
-    const fullLead = await db.query(
-      `SELECT l.*,
+    // Fetch complete opportunity
+    const fullOpp = await db.query(
+      `SELECT o.*,
+        ct.name as contact_name,
+        ct.email as contact_email,
+        ct.phone as contact_phone,
+        ct.company as contact_company,
+        ct.title as contact_title,
         c.name as campaign_name,
-        u.name as responsible_user_name,
-        u.email as responsible_user_email
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
-      LEFT JOIN users u ON l.responsible_user_id = u.id
-      WHERE l.id = $1`,
+        u.name as owner_user_name,
+        u.email as owner_user_email,
+        ps.name as stage_name
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN campaigns c ON o.campaign_id = c.id
+      LEFT JOIN users u ON o.owner_user_id = u.id
+      LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+      WHERE o.id = $1`,
       [id]
     );
 
     return res.json({
       success: true,
-      data: fullLead.rows[0],
+      data: fullOpp.rows[0],
       stage_change: {
-        from: oldStatus,
-        to: status
+        from: { id: oldStageId, name: oldStageName },
+        to: { id: stage_id, name: newStageName }
       }
     });
   } catch (error) {
@@ -611,20 +686,20 @@ exports.updateOpportunityStage = async (req, res) => {
 
 /**
  * DELETE /external/v1/opportunities/:id
- * Delete an opportunity (lead)
+ * Delete an opportunity
  */
 exports.deleteOpportunity = async (req, res) => {
   try {
     const accountId = req.apiKey.accountId;
     const { id } = req.params;
 
-    // Get lead before deleting for counter update
-    const leadResult = await db.query(
-      `SELECT campaign_id, status FROM leads WHERE id = $1 AND account_id = $2`,
+    // Check if opportunity exists
+    const oppResult = await db.query(
+      `SELECT id FROM opportunities WHERE id = $1 AND account_id = $2`,
       [id, accountId]
     );
 
-    if (leadResult.rows.length === 0) {
+    if (oppResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: {
@@ -634,24 +709,11 @@ exports.deleteOpportunity = async (req, res) => {
       });
     }
 
-    const lead = leadResult.rows[0];
-
-    // Delete lead
+    // Delete opportunity (contact remains)
     await db.query(
-      `DELETE FROM leads WHERE id = $1 AND account_id = $2`,
+      `DELETE FROM opportunities WHERE id = $1 AND account_id = $2`,
       [id, accountId]
     );
-
-    // Update campaign counters
-    if (lead.campaign_id) {
-      const counterColumn = getCounterColumn(lead.status);
-      if (counterColumn) {
-        await db.query(
-          `UPDATE campaigns SET ${counterColumn} = GREATEST(0, ${counterColumn} - 1), total_leads = GREATEST(0, total_leads - 1) WHERE id = $1`,
-          [lead.campaign_id]
-        );
-      }
-    }
 
     return res.json({
       success: true,

@@ -47,19 +47,33 @@ async function getCampaignMessage(campaignId) {
 }
 
 /**
- * Get lead data for template processing
- * @param {string} leadId - Lead ID
- * @returns {Promise<object|null>} Lead data
+ * Get opportunity data for template processing
+ * @param {string} opportunityId - Opportunity ID
+ * @returns {Promise<object|null>} Opportunity and contact data
  */
-async function getLeadData(leadId) {
+async function getOpportunityData(opportunityId) {
   const result = await db.query(
-    `SELECT id, name, title, company, location, industry, headline, summary
-     FROM leads
-     WHERE id = $1`,
-    [leadId]
+    `SELECT o.id, o.title as name, c.name as contact_name, c.title, c.company,
+            c.city as location, c.industry, c.headline, c.about as summary
+     FROM opportunities o
+     LEFT JOIN contacts c ON o.contact_id = c.id
+     WHERE o.id = $1`,
+    [opportunityId]
   );
 
-  return result.rows[0] || null;
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    name: row.contact_name || row.name,
+    title: row.title,
+    company: row.company,
+    location: row.location,
+    industry: row.industry,
+    headline: row.headline,
+    summary: row.summary
+  };
 }
 
 /**
@@ -84,8 +98,8 @@ async function getInviteExpiryDays(campaignId) {
 async function processSingleInvite(invite) {
   log.info(`───────────────────────────────────────────────────────────`);
   log.info(`PROCESSANDO CONVITE`);
-  log.info(`   Lead: ${invite.lead_name}`);
-  log.info(`   Lead ID: ${invite.lead_id}`);
+  log.info(`   Opportunity: ${invite.opportunity_name}`);
+  log.info(`   Opportunity ID: ${invite.opportunity_id}`);
   log.info(`   Queue ID: ${invite.id}`);
   log.info(`   Campaign: ${invite.campaign_name}`);
   log.info(`   LinkedIn Profile ID: ${invite.linkedin_profile_id}`);
@@ -98,10 +112,10 @@ async function processSingleInvite(invite) {
 
     let inviteMessage = null;
     if (initialApproach) {
-      // Get lead data for template processing
-      const leadData = await getLeadData(invite.lead_id);
-      if (leadData) {
-        const templateData = TemplateProcessor.extractLeadData(leadData);
+      // Get opportunity data for template processing
+      const opportunityData = await getOpportunityData(invite.opportunity_id);
+      if (opportunityData) {
+        const templateData = TemplateProcessor.extractLeadData(opportunityData);
         inviteMessage = TemplateProcessor.processTemplate(initialApproach, templateData);
 
         // LinkedIn limits invite messages to 300 characters
@@ -136,13 +150,13 @@ async function processSingleInvite(invite) {
     // 3. Mark as sent
     log.step('3', 'Marcando convite como enviado...');
     const expiryDays = await getInviteExpiryDays(invite.campaign_id);
-    await inviteQueueService.markInviteAsSent(invite.id, invite.lead_id, expiryDays);
+    await inviteQueueService.markInviteAsSent(invite.id, invite.opportunity_id, expiryDays);
 
     log.success(`CONVITE ENVIADO COM SUCESSO!`);
-    log.info(`   Lead: ${invite.lead_name}`);
+    log.info(`   Opportunity: ${invite.opportunity_name}`);
     log.info(`───────────────────────────────────────────────────────────`);
 
-    return { success: true, leadId: invite.lead_id, leadName: invite.lead_name };
+    return { success: true, opportunityId: invite.opportunity_id, opportunityName: invite.opportunity_name };
 
   } catch (error) {
     log.error(`Erro ao enviar convite: ${error.message}`);
@@ -163,11 +177,10 @@ async function processSingleInvite(invite) {
         [invite.id]
       );
 
+      // Find the first stage (position 0) for this opportunity's pipeline to mark as failed
       await db.query(
-        `UPDATE leads
-         SET status = 'invite_failed', updated_at = NOW()
-         WHERE id = $1`,
-        [invite.lead_id]
+        `UPDATE opportunities SET updated_at = NOW() WHERE id = $1`,
+        [invite.opportunity_id]
       );
 
       log.warn(`Convite marcado como falha no banco`);
@@ -177,7 +190,7 @@ async function processSingleInvite(invite) {
 
     log.info(`───────────────────────────────────────────────────────────`);
 
-    return { success: false, leadId: invite.lead_id, error: errorMessage };
+    return { success: false, opportunityId: invite.opportunity_id, error: errorMessage };
   }
 }
 
@@ -210,7 +223,7 @@ async function processScheduledInvites() {
 
     log.info(`Encontrados ${scheduledInvites.length} convites prontos para envio:`);
     scheduledInvites.forEach((inv, i) => {
-      log.info(`   ${i + 1}. ${inv.lead_name} (scheduled_for: ${inv.scheduled_for})`);
+      log.info(`   ${i + 1}. ${inv.opportunity_name} (scheduled_for: ${inv.scheduled_for})`);
     });
 
     // Process each invite

@@ -42,7 +42,7 @@ const getConversations = async (req, res) => {
       status,
       campaign_id,
       linkedin_account_id,
-      lead_id,
+      opportunity_id,
       search,
       page = 1,
       limit = 50
@@ -91,16 +91,16 @@ const getConversations = async (req, res) => {
       paramIndex++;
     }
 
-    // Filtro por lead_id (para modal de lead)
-    if (lead_id) {
-      whereConditions.push(`conv.lead_id = $${paramIndex}`);
-      queryParams.push(lead_id);
+    // Filtro por opportunity_id
+    if (opportunity_id) {
+      whereConditions.push(`conv.opportunity_id = $${paramIndex}`);
+      queryParams.push(opportunity_id);
       paramIndex++;
     }
 
-    // Busca por nome do lead OU contato
+    // Busca por nome do contato
     if (search) {
-      whereConditions.push(`(l.name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex} OR c.phone ILIKE $${paramIndex})`);
+      whereConditions.push(`(c.name ILIKE $${paramIndex} OR opp_contact.name ILIKE $${paramIndex} OR c.phone ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
@@ -108,24 +108,21 @@ const getConversations = async (req, res) => {
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
 
-    // Query principal - com suporte a contact_id (conversas orgânicas)
+    // Query principal - com suporte a contact_id (conversas orgânicas) e opportunity_id
     const query = `
       SELECT
         conv.*,
-        -- Dados do lead (se existir)
-        l.name as lead_name,
-        l.title as lead_title,
-        l.company as lead_company,
-        l.profile_picture as lead_picture,
-        l.profile_url as lead_profile_url,
-        l.status as lead_status,
-        -- Dados do contato (se existir)
-        c.id as contact_id,
-        c.name as contact_name,
-        c.phone as contact_phone,
-        c.title as contact_title,
-        c.company as contact_company,
-        c.profile_picture as contact_picture,
+        -- Dados da opportunity
+        opp.id as opportunity_id,
+        opp.title as opportunity_title,
+        opp.value as opportunity_value,
+        -- Dados do contato (via contact_id direto OU via opportunity)
+        COALESCE(c.id, opp_contact.id) as contact_id,
+        COALESCE(c.name, opp_contact.name) as contact_name,
+        COALESCE(c.phone, opp_contact.phone) as contact_phone,
+        COALESCE(c.title, opp_contact.title) as contact_title,
+        COALESCE(c.company, opp_contact.company) as contact_company,
+        COALESCE(c.profile_picture, opp_contact.profile_picture) as contact_picture,
         -- Outros campos
         camp.name as campaign_name,
         la.linkedin_username,
@@ -137,8 +134,9 @@ const getConversations = async (req, res) => {
         s.name as sector_name,
         s.color as sector_color
       FROM conversations conv
-      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
       LEFT JOIN contacts c ON conv.contact_id = c.id
+      LEFT JOIN contacts opp_contact ON opp.contact_id = opp_contact.id
       LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
@@ -154,16 +152,14 @@ const getConversations = async (req, res) => {
     const conversations = await db.query(query, queryParams);
 
     // Buscar tags para todas as conversas via contato (contact_tags)
-    const contactIds = [];
-    const leadIds = [];
+    const contactIds = new Set();
     conversations.rows.forEach(conv => {
-      if (conv.contact_id) contactIds.push(conv.contact_id);
-      if (conv.lead_id) leadIds.push(conv.lead_id);
+      if (conv.contact_id) contactIds.add(conv.contact_id);
     });
 
-    // Buscar tags via contact_id direto
+    // Buscar tags via contact_id
     let tagsByContactId = {};
-    if (contactIds.length > 0) {
+    if (contactIds.size > 0) {
       const tagsQuery = `
         SELECT ct.contact_id, t.id, t.name, t.color
         FROM tags t
@@ -171,7 +167,7 @@ const getConversations = async (req, res) => {
         WHERE ct.contact_id = ANY($1)
         ORDER BY t.name ASC
       `;
-      const tagsResult = await db.query(tagsQuery, [contactIds]);
+      const tagsResult = await db.query(tagsQuery, [Array.from(contactIds)]);
       tagsResult.rows.forEach(tag => {
         if (!tagsByContactId[tag.contact_id]) {
           tagsByContactId[tag.contact_id] = [];
@@ -180,48 +176,20 @@ const getConversations = async (req, res) => {
       });
     }
 
-    // Buscar tags via lead_id -> contact_leads -> contact_tags
-    let tagsByLeadId = {};
-    if (leadIds.length > 0) {
-      const tagsQuery = `
-        SELECT cl.lead_id, t.id, t.name, t.color
-        FROM tags t
-        JOIN contact_tags ct ON ct.tag_id = t.id
-        JOIN contact_leads cl ON cl.contact_id = ct.contact_id
-        WHERE cl.lead_id = ANY($1)
-        ORDER BY t.name ASC
-      `;
-      const tagsResult = await db.query(tagsQuery, [leadIds]);
-      tagsResult.rows.forEach(tag => {
-        if (!tagsByLeadId[tag.lead_id]) {
-          tagsByLeadId[tag.lead_id] = [];
-        }
-        tagsByLeadId[tag.lead_id].push({ id: tag.id, name: tag.name, color: tag.color });
-      });
-    }
-
-    // Processar conversas para unificar lead_name/contact_name e adicionar tags
+    // Processar conversas
     const processedConversations = conversations.rows.map(conv => ({
       ...conv,
-      // Usar nome do lead se existir, senão do contato
-      lead_name: conv.lead_name || conv.contact_name || 'Contato',
-      lead_title: conv.lead_title || conv.contact_title,
-      lead_company: conv.lead_company || conv.contact_company,
-      lead_picture: conv.lead_picture || conv.contact_picture,
-      lead_phone: conv.contact_phone, // Telefone só existe no contato
-      is_organic: !conv.lead_id && !!conv.contact_id, // Flag para conversas orgânicas
-      // Tags herdadas do contato
-      tags: conv.contact_id
-        ? (tagsByContactId[conv.contact_id] || [])
-        : (tagsByLeadId[conv.lead_id] || [])
+      is_organic: !conv.opportunity_id && !!conv.contact_id,
+      tags: tagsByContactId[conv.contact_id] || []
     }));
 
     // Contar total
     const countQuery = `
       SELECT COUNT(*)
       FROM conversations conv
-      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
       LEFT JOIN contacts c ON conv.contact_id = c.id
+      LEFT JOIN contacts opp_contact ON opp.contact_id = opp_contact.id
       LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       WHERE ${whereClause}
     `;
@@ -261,30 +229,23 @@ const getConversation = async (req, res) => {
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
     // Buscar conversa - MULTI-TENANCY + SECTOR: Filter by account_id and accessible sectors
-    // Suporte a conversas com contact_id (orgânicas) ou lead_id (campanhas)
     const convQuery = `
       SELECT
         conv.*,
-        -- Dados do lead (se existir)
-        l.name as lead_name,
-        l.title as lead_title,
-        l.company as lead_company,
-        l.location as lead_location,
-        l.email as lead_email,
-        l.phone as lead_phone,
-        l.profile_picture as lead_picture,
-        l.profile_url as lead_profile_url,
-        l.status as lead_status,
-        l.score as lead_score,
-        -- Dados do contato (se existir)
-        ct.id as contact_id,
-        ct.name as contact_name,
-        ct.phone as contact_phone,
-        ct.title as contact_title,
-        ct.company as contact_company,
-        ct.profile_picture as contact_picture,
-        ct.profile_url as contact_profile_url,
-        ct.location as contact_location,
+        -- Dados da opportunity
+        opp.id as opportunity_id,
+        opp.title as opportunity_title,
+        opp.value as opportunity_value,
+        -- Dados do contato (via contact_id direto OU via opportunity)
+        COALESCE(ct.id, opp_contact.id) as contact_id,
+        COALESCE(ct.name, opp_contact.name) as contact_name,
+        COALESCE(ct.phone, opp_contact.phone) as contact_phone,
+        COALESCE(ct.email, opp_contact.email) as contact_email,
+        COALESCE(ct.title, opp_contact.title) as contact_title,
+        COALESCE(ct.company, opp_contact.company) as contact_company,
+        COALESCE(ct.profile_picture, opp_contact.profile_picture) as contact_picture,
+        COALESCE(ct.profile_url, opp_contact.profile_url) as contact_profile_url,
+        COALESCE(ct.location, opp_contact.location) as contact_location,
         -- Outros campos
         camp.name as campaign_name,
         camp.id as campaign_id,
@@ -296,8 +257,9 @@ const getConversation = async (req, res) => {
         s.name as sector_name,
         s.color as sector_color
       FROM conversations conv
-      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
       LEFT JOIN contacts ct ON conv.contact_id = ct.id
+      LEFT JOIN contacts opp_contact ON opp.contact_id = opp_contact.id
       LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
@@ -318,7 +280,6 @@ const getConversation = async (req, res) => {
     // Buscar tags do contato vinculado
     let tags = [];
     if (conv.contact_id) {
-      // Tags direto do contact_id da conversa
       const tagsQuery = `
         SELECT t.id, t.name, t.color
         FROM tags t
@@ -328,33 +289,13 @@ const getConversation = async (req, res) => {
       `;
       const tagsResult = await db.query(tagsQuery, [conv.contact_id]);
       tags = tagsResult.rows;
-    } else if (conv.lead_id) {
-      // Tags via lead -> contact_leads -> contact_tags
-      const tagsQuery = `
-        SELECT t.id, t.name, t.color
-        FROM tags t
-        JOIN contact_tags ct ON ct.tag_id = t.id
-        JOIN contact_leads cl ON cl.contact_id = ct.contact_id
-        WHERE cl.lead_id = $1
-        ORDER BY t.name ASC
-      `;
-      const tagsResult = await db.query(tagsQuery, [conv.lead_id]);
-      tags = tagsResult.rows;
     }
 
-    // Processar para unificar dados de lead/contato
+    // Processar conversa
     const conversation = {
       ...conv,
-      // Usar dados do lead se existir, senão do contato
-      lead_name: conv.lead_name || conv.contact_name || 'Contato',
-      lead_title: conv.lead_title || conv.contact_title,
-      lead_company: conv.lead_company || conv.contact_company,
-      lead_picture: conv.lead_picture || conv.contact_picture,
-      lead_profile_url: conv.lead_profile_url || conv.contact_profile_url,
-      lead_location: conv.lead_location || conv.contact_location,
-      lead_phone: conv.lead_phone || conv.contact_phone,
-      is_organic: !conv.lead_id && !!conv.contact_id,
-      tags // Tags herdadas do contato
+      is_organic: !conv.opportunity_id && !!conv.contact_id,
+      tags
     };
 
     console.log(`✅ Conversa encontrada com ${tags.length} tags`);
@@ -381,20 +322,18 @@ const getMessages = async (req, res) => {
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
-    // Buscar conversa, conta LinkedIn e lead - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // ✅ CORRIGIDO: LEFT JOIN em campaigns para suportar conversas orgânicas (sem campanha)
-    // ✅ ADICIONADO: channel_identifier para detectar mensagens do próprio usuário
+    // Buscar conversa, conta LinkedIn e contato
     const convQuery = `
       SELECT
         conv.*,
         la.unipile_account_id,
         la.channel_identifier as own_number,
-        COALESCE(l.provider_id, ct.linkedin_profile_id) as lead_provider_id
+        COALESCE(ct.linkedin_profile_id, opp_contact.linkedin_profile_id, opp.linkedin_profile_id) as provider_id
       FROM conversations conv
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      LEFT JOIN campaigns camp ON conv.campaign_id = camp.id
-      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
       LEFT JOIN contacts ct ON conv.contact_id = ct.id
+      LEFT JOIN contacts opp_contact ON opp.contact_id = opp_contact.id
       WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
     `;
 
@@ -426,7 +365,7 @@ const getMessages = async (req, res) => {
       console.log(`✅ ${unipileMessages.items?.length || 0} mensagens obtidas da Unipile`);
 
       // Log para debug
-      console.log(`🔍 Lead provider_id da conversa: ${conversation.lead_provider_id}`);
+      console.log(`🔍 Provider ID da conversa: ${conversation.provider_id}`);
       console.log(`🔍 Own number (canal): ${conversation.own_number}`);
 
       // Normalizar número do próprio usuário para comparação
@@ -1785,10 +1724,13 @@ const updateContactName = async (req, res) => {
       throw new ValidationError('Nome é obrigatório');
     }
 
-    // Buscar conversa com contact_id
+    // Buscar conversa com contact_id (direto ou via opportunity)
     const convQuery = `
-      SELECT conv.*, conv.contact_id, conv.lead_id
+      SELECT
+        conv.*,
+        COALESCE(conv.contact_id, opp.contact_id) as effective_contact_id
       FROM conversations conv
+      LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
       WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3
     `;
     const convResult = await db.query(convQuery, [id, accountId, userId]);
@@ -1799,24 +1741,15 @@ const updateContactName = async (req, res) => {
 
     const conversation = convResult.rows[0];
 
-    // Se tem contact_id, atualizar o contato
-    if (conversation.contact_id) {
-      await db.query(
-        'UPDATE contacts SET name = $1, updated_at = NOW() WHERE id = $2',
-        [name.trim(), conversation.contact_id]
-      );
-      console.log(`✅ Contato ${conversation.contact_id} atualizado`);
+    if (!conversation.effective_contact_id) {
+      throw new ValidationError('Conversa não tem contato associado');
     }
-    // Se tem lead_id (e não contact_id), atualizar o lead
-    else if (conversation.lead_id) {
-      await db.query(
-        'UPDATE leads SET name = $1 WHERE id = $2',
-        [name.trim(), conversation.lead_id]
-      );
-      console.log(`✅ Lead ${conversation.lead_id} atualizado`);
-    } else {
-      throw new ValidationError('Conversa não tem contato ou lead associado');
-    }
+
+    await db.query(
+      'UPDATE contacts SET name = $1, updated_at = NOW() WHERE id = $2',
+      [name.trim(), conversation.effective_contact_id]
+    );
+    console.log(`✅ Contato ${conversation.effective_contact_id} atualizado`);
 
     sendSuccess(res, {
       message: 'Nome atualizado com sucesso',

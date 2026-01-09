@@ -268,7 +268,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   // Load full lead data with IA fields
   const loadFullLeadData = async () => {
     try {
-      const response = await api.getLead(lead.id);
+      const opportunityId = lead.opportunity_id || lead.id;
+      const response = await api.getLead(opportunityId);
       if (response.success) {
         setFullLeadData(response.data.lead || response.data);
       }
@@ -327,9 +328,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleAssignResponsible = async (userId) => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
       setAssigningUser(true);
-      const response = await api.assignLead(lead.id, userId);
+      const response = await api.assignLead(opportunityId, userId);
       if (response.success) {
         const responsible = response.data.responsible;
         setCurrentResponsible({
@@ -349,9 +353,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleRemoveResponsible = async () => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
       setAssigningUser(true);
-      const response = await api.assignLead(lead.id, null);
+      const response = await api.assignLead(opportunityId, null);
       if (response.success) {
         setCurrentResponsible({ id: null, name: null, avatar: null });
         setShowResponsibleDropdown(false);
@@ -365,9 +372,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleAutoAssign = async () => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
       setAssigningUser(true);
-      const response = await api.autoAssignLead(lead.id);
+      const response = await api.autoAssignLead(opportunityId);
       if (response.success) {
         const responsible = response.data.responsible;
         setCurrentResponsible({
@@ -394,8 +404,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
     try {
       setLoadingConversations(true);
 
-      // Load real conversations from API
-      const response = await api.getConversations({ lead_id: lead.id });
+      // Load real conversations from API - use opportunity_id
+      const opportunityId = lead.opportunity_id || lead.id;
+      const response = await api.getConversations({ opportunity_id: opportunityId });
 
       if (response.success) {
         // Group messages by channel
@@ -458,9 +469,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const loadComments = async () => {
+    // Use opportunity_id if available, otherwise fall back to lead.id
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) {
+      setComments([]);
+      return;
+    }
+
     try {
       setLoadingComments(true);
-      const response = await api.getLeadComments(lead.id);
+      const response = await api.getLeadComments(opportunityId);
       if (response.success) {
         setComments(response.data.comments);
       }
@@ -473,9 +491,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const loadTasks = async () => {
+    // Use opportunity_id if available, otherwise fall back to lead.id
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) {
+      setTasks([]);
+      return;
+    }
+
     try {
       setLoadingTasks(true);
-      const response = await api.getLeadTasks(lead.id);
+      const response = await api.getLeadTasks(opportunityId);
       if (response.success) {
         setTasks(response.data.tasks || []);
       }
@@ -586,8 +611,11 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
 
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
-      const response = await api.createLeadComment(lead.id, {
+      const response = await api.createLeadComment(opportunityId, {
         content: newComment,
         mentions: commentMentions
       });
@@ -618,10 +646,13 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       return;
     }
 
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     setCurrentStatus(newStatus);
 
     try {
-      await api.updateLeadStatus(lead.id, newStatus);
+      await api.updateLeadStatus(opportunityId, newStatus);
       if (onLeadUpdated) {
         onLeadUpdated({ ...lead, status: newStatus });
       }
@@ -634,9 +665,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const handleReactivate = async () => {
     if (reactivating) return;
 
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     setReactivating(true);
     try {
-      const response = await api.reactivateLead(lead.id);
+      const response = await api.reactivateLead(opportunityId);
       if (response.success) {
         const newStatus = response.data.status || 'leads';
         setCurrentStatus(newStatus);
@@ -652,11 +686,14 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleSourceChange = async (newSource) => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     setCurrentSource(newSource);
     setShowSourceDropdown(false);
 
     try {
-      await api.updateLead(lead.id, { source: newSource });
+      await api.updateLead(opportunityId, { source: newSource });
       if (onLeadUpdated) {
         onLeadUpdated({ ...lead, source: newSource });
       }
@@ -672,9 +709,12 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       return;
     }
 
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
       setSavingPhone(true);
-      await api.updateLead(lead.id, { phone: phoneValue });
+      await api.updateLead(opportunityId, { phone: phoneValue });
 
       // Update lead data
       if (onLeadUpdated) {
@@ -716,6 +756,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleAddTag = async (tag) => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
       // Check if tag already exists on lead
       const tagExists = leadTags.some(t => (t.name || t) === (tag.name || tag));
@@ -731,7 +774,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       }
 
       // Send to backend in background
-      await api.addTagToLead(lead.id, tag.id || tag.name);
+      await api.addTagToLead(opportunityId, tag.id || tag.name);
     } catch (error) {
       console.error('Error adding tag:', error);
       // Rollback on error
@@ -740,6 +783,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   };
 
   const handleRemoveTag = async (tag) => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
     try {
       // Optimistic update - remove tag immediately from UI
       const updatedTags = leadTags.filter(t => t.id !== tag.id);
@@ -751,7 +797,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       }
 
       // Send to backend in background
-      await api.removeTagFromLead(lead.id, tag.id);
+      await api.removeTagFromLead(opportunityId, tag.id);
     } catch (error) {
       console.error('Error removing tag:', error);
     }
@@ -1536,7 +1582,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                   {/* Checklists */}
                   <div className="mt-5 pt-5">
-                    <LeadChecklists leadId={lead?.id} sectorId={lead?.sector_id} />
+                    <LeadChecklists leadId={lead?.opportunity_id || lead?.id} sectorId={lead?.sector_id} />
                   </div>
 
                   {/* Enrichment Data (Skills, Certifications, Languages, etc.) */}
@@ -1615,7 +1661,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             onMentionsChange={setCommentMentions}
-                            leadId={lead.id}
+                            leadId={lead.opportunity_id || lead.id}
                             placeholder="Escreva um comentário... Use @ para mencionar"
                             className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent p-2.5 pr-9"
                             rows={2}
@@ -1958,7 +2004,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                 {/* Go to full conversation */}
                 <button
-                  onClick={() => onNavigateToConversation?.(lead.id, activeChannel)}
+                  onClick={() => onNavigateToConversation?.(lead.opportunity_id || lead.id, activeChannel)}
                   className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                 >
                   <span>Ver conversa completa</span>

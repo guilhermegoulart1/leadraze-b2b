@@ -1,4 +1,9 @@
 // backend/src/routes/leads.js
+// ⚠️ DEPRECATED: This routes file is deprecated.
+// All lead functionality has been migrated to opportunities.
+// Use /api/opportunities instead.
+// This file will be removed after frontend migration is complete.
+
 const express = require('express');
 const router = express.Router();
 const leadController = require('../controllers/leadController');

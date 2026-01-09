@@ -655,11 +655,11 @@ async function handleMessageReceived(payload) {
         const conversationQuery = await db.query(
           `SELECT conv.* FROM conversations conv
            LEFT JOIN contacts ct ON conv.contact_id = ct.id
-           LEFT JOIN leads ld ON conv.lead_id = ld.id
+           LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
            WHERE conv.linkedin_account_id = $1
            AND (
              ct.phone = $2 OR ct.phone = $3 OR ct.linkedin_profile_id = $4
-             OR ld.provider_id = $4 OR ld.provider_id = $5
+             OR opp.linkedin_profile_id = $4 OR opp.linkedin_profile_id = $5
            )
            ORDER BY conv.created_at DESC
            LIMIT 1`,
@@ -797,41 +797,42 @@ async function handleMessageReceived(payload) {
       );
 
       // ✅ PASSO 2: Verificar se existe LEAD (oportunidade) para este contato
-      // Lead só existe se estiver em uma campanha ativa
-      const leadQuery = await db.query(
-        `SELECT l.*, c.automation_active, c.ai_agent_id as campaign_ai_agent_id
-         FROM leads l
-         JOIN campaigns c ON l.campaign_id = c.id
+      // Opportunity só existe se estiver em uma campanha ativa
+      const opportunityQuery = await db.query(
+        `SELECT o.*, c.automation_active, c.ai_agent_id as campaign_ai_agent_id
+         FROM opportunities o
+         JOIN campaigns c ON o.campaign_id = c.id
          WHERE c.linkedin_account_id = $1
-         AND l.provider_id = $2
+         AND o.linkedin_profile_id = $2
          LIMIT 1`,
         [linkedinAccount.id, leadProviderId]
       );
 
-      if (leadQuery.rows.length > 0) {
-        leadData = leadQuery.rows[0];
-        shouldActivateAI = leadData.automation_active === true;
+      let opportunityData = null;
+      if (opportunityQuery.rows.length > 0) {
+        opportunityData = opportunityQuery.rows[0];
+        shouldActivateAI = opportunityData.automation_active === true;
       }
 
-      // Criar conversa - SEMPRE com contact_id, lead_id é opcional
+      // Criar conversa - SEMPRE com contact_id, opportunity_id é opcional
       conversation = await db.insert('conversations', {
         user_id: linkedinAccount.user_id,
         account_id: linkedinAccount.account_id, // Multi-tenancy
         linkedin_account_id: linkedinAccount.id,
-        // ✅ NOVA ARQUITETURA: contact_id SEMPRE, lead_id opcional (se for oportunidade)
+        // NOVA ARQUITETURA: contact_id SEMPRE, opportunity_id opcional (se for oportunidade)
         contact_id: contactData.id, // SEMPRE presente
-        lead_id: leadData?.id || null, // Opcional - só se tiver oportunidade/campanha
-        campaign_id: leadData?.campaign_id || null,
+        opportunity_id: opportunityData?.id || null, // Opcional - só se tiver oportunidade/campanha
+        campaign_id: opportunityData?.campaign_id || null,
         unipile_chat_id: chat_id,
         status: shouldActivateAI ? 'ai_active' : 'manual',
         ai_active: shouldActivateAI,
-        ai_agent_id: leadData?.campaign_ai_agent_id || null,
+        ai_agent_id: opportunityData?.campaign_ai_agent_id || null,
         is_connection: true,
-        // ✅ Só marcar como não lida se for mensagem DO LEAD (não enviada pelo usuário)
+        // Só marcar como não lida se for mensagem DO contato (não enviada pelo usuário)
         unread_count: isOwnMessage ? 0 : 1,
         last_message_at: timestamp ? new Date(timestamp) : new Date(),
         last_message_preview: messageContent?.substring(0, 100) || '',
-        // ✅ MULTI-CHANNEL: Novos campos
+        // MULTI-CHANNEL: Novos campos
         provider_type: providerType,
         is_group: isGroup,
         attendee_count: attendeeCount,
@@ -852,12 +853,12 @@ async function handleMessageReceived(payload) {
         }
       });
 
-      // Atualizar lead para "accepted" se ainda não estiver (só se tiver lead)
-      if (leadData && leadData.status === LEAD_STATUS.INVITE_SENT) {
-        await db.update('leads', {
-          status: LEAD_STATUS.ACCEPTED,
-          accepted_at: new Date()
-        }, { id: leadData.id });
+      // Atualizar opportunity para "accepted" se ainda não estiver (só se tiver opportunity)
+      if (opportunityData && !opportunityData.accepted_at) {
+        await db.query(
+          `UPDATE opportunities SET accepted_at = NOW() WHERE id = $1`,
+          [opportunityData.id]
+        );
 
         // Atualizar contadores da campanha
         await db.query(
@@ -865,7 +866,7 @@ async function handleMessageReceived(payload) {
            SET leads_sent = GREATEST(0, leads_sent - 1),
                leads_accepted = leads_accepted + 1
            WHERE id = $1`,
-          [leadData.campaign_id]
+          [opportunityData.campaign_id]
         );
       }
     } else {
@@ -934,14 +935,14 @@ async function handleMessageReceived(payload) {
     });
     console.log(`📡 WebSocket: Evento new_message emitido (isOwnMessage: ${isOwnMessage})`)
 
-    // ✅ CANCELAR JOB DE DELAY SE LEAD ENVIOU MENSAGEM
-    // (cancela o início automático de conversa se lead responder antes dos 5 minutos)
-    if (!isOwnMessage && conversation.lead_id) {
+    // CANCELAR JOB DE DELAY SE CONTATO ENVIOU MENSAGEM
+    // (cancela o início automático de conversa se contato responder antes dos 5 minutos)
+    if (!isOwnMessage && conversation.opportunity_id) {
       try {
         console.log('🛑 Verificando job de delay para cancelar...');
-        const canceled = await cancelDelayedConversation(conversation.lead_id);
+        const canceled = await cancelDelayedConversation(conversation.opportunity_id);
         if (canceled) {
-          console.log('✅ Job de delay cancelado (lead respondeu primeiro)');
+          console.log('✅ Job de delay cancelado (contato respondeu primeiro)');
         }
       } catch (cancelError) {
         console.error('⚠️ Erro ao cancelar job de delay:', cancelError.message);
@@ -1083,43 +1084,49 @@ async function handleNewRelation(payload) {
       };
     }
 
-    // Busca lead com status pendente - incluindo leads SEM campanha (criados da busca)
-    // Nota: contact_id é obtido via junction table contact_leads
-    const leadQuery = `
-      SELECT l.*,
+    // Busca opportunity com status pendente (invite_sent, invite_queued)
+    // contact_id é obtido diretamente da opportunity
+    const opportunityQuery = `
+      SELECT o.*,
+             o.contact_id,
+             ct.name as contact_name,
+             ct.linkedin_profile_id as contact_linkedin_profile_id,
+             ct.profile_url as contact_profile_url,
              c.user_id as campaign_user_id,
              c.ai_agent_id,
              c.automation_active,
              c.name as campaign_name,
-             COALESCE(c.account_id, l.account_id) as account_id,
+             COALESCE(c.account_id, o.account_id) as account_id,
              crc.sector_id, crc.round_robin_users, crc.ai_initiate_delay_min, crc.ai_initiate_delay_max,
-             aa.connection_strategy, aa.wait_time_after_accept, aa.require_lead_reply,
-             cl.contact_id as linked_contact_id
-      FROM leads l
-      LEFT JOIN campaigns c ON l.campaign_id = c.id
+             aa.connection_strategy, aa.wait_time_after_accept, aa.require_lead_reply
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN campaigns c ON o.campaign_id = c.id
       LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
-      LEFT JOIN linkedin_accounts la ON la.id = c.linkedin_account_id OR la.account_id = l.account_id
-      LEFT JOIN contact_leads cl ON cl.lead_id = l.id
+      LEFT JOIN linkedin_accounts la ON la.id = c.linkedin_account_id OR la.account_id = o.account_id
       WHERE (c.linkedin_account_id = $1 OR la.unipile_account_id = $5)
       AND (
-        l.provider_id = $2
-        OR l.linkedin_profile_id = $3
-        OR l.profile_url LIKE $4
+        o.linkedin_profile_id = $2
+        OR o.linkedin_profile_id = $3
+        OR ct.linkedin_profile_id = $2
+        OR ct.linkedin_profile_id = $3
+        OR ct.profile_url LIKE $4
       )
-      AND l.status IN ('invite_sent', 'invite_queued', 'invited')
+      AND o.sent_at IS NOT NULL
+      AND o.accepted_at IS NULL
       LIMIT 1
     `;
 
-    console.log('🔔 [NEW_RELATION] Buscando lead com parâmetros:');
+    console.log('🔔 [NEW_RELATION] Buscando opportunity com parâmetros:');
     console.log('🔔   - linkedin_account_id:', linkedinAccount.id);
     console.log('🔔   - provider_id:', user_provider_id);
     console.log('🔔   - linkedin_profile_id:', user_public_identifier);
     console.log('🔔   - profile_url LIKE:', `%${user_public_identifier}%`);
     console.log('🔔   - unipile_account_id:', account_id);
-    console.log('🔔   - status IN: (invite_sent, invite_queued, invited)');
+    console.log('🔔   - status: sent_at NOT NULL AND accepted_at IS NULL');
 
-    const leadResult = await db.query(leadQuery, [
+    const opportunityResult = await db.query(opportunityQuery, [
       linkedinAccount.id,
       user_provider_id,
       user_public_identifier,
@@ -1127,19 +1134,22 @@ async function handleNewRelation(payload) {
       account_id
     ]);
 
-    console.log('🔔 [NEW_RELATION] Resultado da busca:', leadResult.rows.length, 'lead(s) encontrado(s)');
+    console.log('🔔 [NEW_RELATION] Resultado da busca:', opportunityResult.rows.length, 'opportunity(s) encontrada(s)');
 
-    if (leadResult.rows.length === 0) {
-      // Log adicional: buscar lead sem filtro de status para debug
+    if (opportunityResult.rows.length === 0) {
+      // Log adicional: buscar opportunity sem filtro de status para debug
       const debugQuery = `
-        SELECT l.id, l.name, l.status, l.provider_id, l.linkedin_profile_id, l.profile_url, c.name as campaign_name
-        FROM leads l
-        JOIN campaigns c ON l.campaign_id = c.id
+        SELECT o.id, o.title, o.sent_at, o.accepted_at, o.linkedin_profile_id, ct.profile_url, c.name as campaign_name
+        FROM opportunities o
+        LEFT JOIN contacts ct ON o.contact_id = ct.id
+        LEFT JOIN campaigns c ON o.campaign_id = c.id
         WHERE c.linkedin_account_id = $1
         AND (
-          l.provider_id = $2
-          OR l.linkedin_profile_id = $3
-          OR l.profile_url LIKE $4
+          o.linkedin_profile_id = $2
+          OR o.linkedin_profile_id = $3
+          OR ct.linkedin_profile_id = $2
+          OR ct.linkedin_profile_id = $3
+          OR ct.profile_url LIKE $4
         )
         LIMIT 5
       `;
@@ -1150,327 +1160,232 @@ async function handleNewRelation(payload) {
         `%${user_public_identifier}%`
       ]);
 
-      console.log('❌ [NEW_RELATION] Lead NÃO encontrado com status pendente!');
-      console.log('🔍 [NEW_RELATION] Debug - Leads encontrados SEM filtro de status:');
+      console.log('❌ [NEW_RELATION] Opportunity NÃO encontrada com status pendente!');
+      console.log('🔍 [NEW_RELATION] Debug - Opportunities encontradas SEM filtro de status:');
       if (debugResult.rows.length > 0) {
-        debugResult.rows.forEach((l, i) => {
-          console.log(`🔍   [${i+1}] ID: ${l.id}, Nome: ${l.name}, Status: ${l.status}, Campanha: ${l.campaign_name}`);
-          console.log(`🔍       provider_id: ${l.provider_id}`);
-          console.log(`🔍       linkedin_profile_id: ${l.linkedin_profile_id}`);
-          console.log(`🔍       profile_url: ${l.profile_url}`);
+        debugResult.rows.forEach((o, i) => {
+          console.log(`🔍   [${i+1}] ID: ${o.id}, Título: ${o.title}, Campanha: ${o.campaign_name}`);
+          console.log(`🔍       sent_at: ${o.sent_at}, accepted_at: ${o.accepted_at}`);
+          console.log(`🔍       linkedin_profile_id: ${o.linkedin_profile_id}`);
+          console.log(`🔍       profile_url: ${o.profile_url}`);
         });
       } else {
-        console.log('🔍   Nenhum lead encontrado mesmo sem filtro de status');
-        console.log('🔍   Isso indica que os identificadores não batem com nenhum lead');
+        console.log('🔍   Nenhuma opportunity encontrada mesmo sem filtro de status');
+        console.log('🔍   Isso indica que os identificadores não batem com nenhuma opportunity');
       }
       console.log('🔔 ═══════════════════════════════════════════════════════════════');
       console.log('');
-      return { handled: false, reason: 'Lead not found' };
+      return { handled: false, reason: 'Opportunity not found' };
     }
 
-    const lead = leadResult.rows[0];
-    console.log('✅ [NEW_RELATION] Lead encontrado:');
-    console.log('✅   - ID:', lead.id);
-    console.log('✅   - Nome:', lead.name);
-    console.log('✅   - Status atual:', lead.status);
-    console.log('✅   - Campanha:', lead.campaign_name, '(ID:', lead.campaign_id, ')');
-    console.log('✅   - provider_id do lead:', lead.provider_id);
-    console.log('✅   - linkedin_profile_id do lead:', lead.linkedin_profile_id);
+    const opportunity = opportunityResult.rows[0];
+    console.log('✅ [NEW_RELATION] Opportunity encontrada:');
+    console.log('✅   - ID:', opportunity.id);
+    console.log('✅   - Título:', opportunity.title);
+    console.log('✅   - Contact:', opportunity.contact_name, '(ID:', opportunity.contact_id, ')');
+    console.log('✅   - Campanha:', opportunity.campaign_name, '(ID:', opportunity.campaign_id, ')');
+    console.log('✅   - linkedin_profile_id:', opportunity.linkedin_profile_id);
     console.log('🔔 ───────────────────────────────────────────────────────────────');
 
     // Buscar perfil completo via Unipile API
     const fullProfile = await fetchUserProfileFromUnipile(account_id, user_provider_id);
 
-    const leadUpdateData = {
-      status: LEAD_STATUS.ACCEPTED,
-      accepted_at: new Date()
+    // Dados para atualizar a opportunity (apenas timestamps e status)
+    const opportunityUpdateData = {
+      accepted_at: new Date(),
+      updated_at: new Date()
+    };
+
+    // Dados para atualizar o contact (dados enriquecidos do perfil)
+    const contactUpdateData = {
+      updated_at: new Date()
     };
 
     if (fullProfile) {
-      console.log('🔄 [NEW_RELATION] Enriquecendo com perfil COMPLETO de conexão de 1º grau...');
+      console.log('🔄 [NEW_RELATION] Enriquecendo contact com perfil COMPLETO de conexão de 1º grau...');
 
-      // Dados básicos
-      if (fullProfile.first_name) leadUpdateData.first_name = fullProfile.first_name;
-      if (fullProfile.last_name) leadUpdateData.last_name = fullProfile.last_name;
-      if (fullProfile.headline) leadUpdateData.headline = fullProfile.headline;
-      if (fullProfile.about || fullProfile.summary) leadUpdateData.about = fullProfile.about || fullProfile.summary;
-      if (fullProfile.location) leadUpdateData.location = fullProfile.location;
-      if (fullProfile.industry) leadUpdateData.industry = fullProfile.industry;
+      // Dados básicos → contact
+      if (fullProfile.first_name) contactUpdateData.first_name = fullProfile.first_name;
+      if (fullProfile.last_name) contactUpdateData.last_name = fullProfile.last_name;
+      if (fullProfile.headline) contactUpdateData.headline = fullProfile.headline;
+      if (fullProfile.about || fullProfile.summary) contactUpdateData.about = fullProfile.about || fullProfile.summary;
+      if (fullProfile.location) contactUpdateData.location = fullProfile.location;
+      if (fullProfile.industry) contactUpdateData.industry = fullProfile.industry;
 
       // Foto de perfil (preferir a maior disponível)
       const profilePic = fullProfile.profile_picture_url_large ||
                         fullProfile.profile_picture_url ||
                         fullProfile.picture_url ||
                         fullProfile.profile_picture;
-      if (profilePic) leadUpdateData.profile_picture = profilePic;
+      if (profilePic) contactUpdateData.profile_picture = profilePic;
 
-      // Dados ricos (JSON) - MÁXIMO de informações
+      // Dados ricos (JSON) - MÁXIMO de informações → contact
       if (fullProfile.experience && Array.isArray(fullProfile.experience)) {
-        leadUpdateData.experience = JSON.stringify(fullProfile.experience);
+        contactUpdateData.experience = JSON.stringify(fullProfile.experience);
       }
       if (fullProfile.education && Array.isArray(fullProfile.education)) {
-        leadUpdateData.education = JSON.stringify(fullProfile.education);
+        contactUpdateData.education = JSON.stringify(fullProfile.education);
       }
       if (fullProfile.skills && Array.isArray(fullProfile.skills)) {
-        leadUpdateData.skills = JSON.stringify(fullProfile.skills);
+        contactUpdateData.skills = JSON.stringify(fullProfile.skills);
       }
       if (fullProfile.websites && Array.isArray(fullProfile.websites)) {
-        leadUpdateData.websites = JSON.stringify(fullProfile.websites);
+        contactUpdateData.websites = JSON.stringify(fullProfile.websites);
       }
       if (fullProfile.languages && Array.isArray(fullProfile.languages)) {
-        leadUpdateData.languages = JSON.stringify(fullProfile.languages);
+        contactUpdateData.languages = JSON.stringify(fullProfile.languages);
       }
       if (fullProfile.certifications && Array.isArray(fullProfile.certifications)) {
-        leadUpdateData.certifications = JSON.stringify(fullProfile.certifications);
+        contactUpdateData.certifications = JSON.stringify(fullProfile.certifications);
       }
       if (fullProfile.publications && Array.isArray(fullProfile.publications)) {
-        leadUpdateData.publications = JSON.stringify(fullProfile.publications);
+        contactUpdateData.publications = JSON.stringify(fullProfile.publications);
       }
       if (fullProfile.volunteer_experience && Array.isArray(fullProfile.volunteer_experience)) {
-        leadUpdateData.volunteer_experience = JSON.stringify(fullProfile.volunteer_experience);
+        contactUpdateData.volunteer_experience = JSON.stringify(fullProfile.volunteer_experience);
       }
       if (fullProfile.honors_awards && Array.isArray(fullProfile.honors_awards)) {
-        leadUpdateData.honors_awards = JSON.stringify(fullProfile.honors_awards);
+        contactUpdateData.honors_awards = JSON.stringify(fullProfile.honors_awards);
       }
       if (fullProfile.projects && Array.isArray(fullProfile.projects)) {
-        leadUpdateData.projects = JSON.stringify(fullProfile.projects);
+        contactUpdateData.projects = JSON.stringify(fullProfile.projects);
       }
       if (fullProfile.courses && Array.isArray(fullProfile.courses)) {
-        leadUpdateData.courses = JSON.stringify(fullProfile.courses);
+        contactUpdateData.courses = JSON.stringify(fullProfile.courses);
       }
       if (fullProfile.patents && Array.isArray(fullProfile.patents)) {
-        leadUpdateData.patents = JSON.stringify(fullProfile.patents);
+        contactUpdateData.patents = JSON.stringify(fullProfile.patents);
       }
       if (fullProfile.recommendations && Array.isArray(fullProfile.recommendations)) {
-        leadUpdateData.recommendations = JSON.stringify(fullProfile.recommendations);
+        contactUpdateData.recommendations = JSON.stringify(fullProfile.recommendations);
       }
 
       // Contatos (se disponíveis - MUITO importante para conexões de 1º grau!)
-      if (fullProfile.email) leadUpdateData.email = fullProfile.email;
-      if (fullProfile.phone) leadUpdateData.phone = fullProfile.phone;
+      if (fullProfile.email) contactUpdateData.email = fullProfile.email;
+      if (fullProfile.phone) contactUpdateData.phone = fullProfile.phone;
 
       // Conexões e seguidores
-      if (fullProfile.connections_count) leadUpdateData.connections_count = fullProfile.connections_count;
-      if (fullProfile.follower_count) leadUpdateData.follower_count = fullProfile.follower_count;
+      if (fullProfile.connections_count) contactUpdateData.connections_count = fullProfile.connections_count;
+      if (fullProfile.follower_count) contactUpdateData.follower_count = fullProfile.follower_count;
 
       // Status e flags
-      if (fullProfile.is_premium !== undefined) leadUpdateData.is_premium = fullProfile.is_premium;
-      if (fullProfile.is_creator !== undefined) leadUpdateData.is_creator = fullProfile.is_creator;
-      if (fullProfile.is_influencer !== undefined) leadUpdateData.is_influencer = fullProfile.is_influencer;
-      if (fullProfile.is_open_to_work !== undefined) leadUpdateData.is_open_to_work = fullProfile.is_open_to_work;
-      if (fullProfile.is_hiring !== undefined) leadUpdateData.is_hiring = fullProfile.is_hiring;
+      if (fullProfile.is_premium !== undefined) contactUpdateData.is_premium = fullProfile.is_premium;
+      if (fullProfile.is_creator !== undefined) contactUpdateData.is_creator = fullProfile.is_creator;
+      if (fullProfile.is_influencer !== undefined) contactUpdateData.is_influencer = fullProfile.is_influencer;
+      if (fullProfile.is_open_to_work !== undefined) contactUpdateData.is_open_to_work = fullProfile.is_open_to_work;
+      if (fullProfile.is_hiring !== undefined) contactUpdateData.is_hiring = fullProfile.is_hiring;
 
       // Identificadores
-      if (fullProfile.public_identifier) leadUpdateData.public_identifier = fullProfile.public_identifier;
-      if (fullProfile.member_urn) leadUpdateData.member_urn = fullProfile.member_urn;
-      if (fullProfile.primary_locale) leadUpdateData.primary_locale = JSON.stringify(fullProfile.primary_locale);
+      if (fullProfile.public_identifier) contactUpdateData.public_identifier = fullProfile.public_identifier;
+      if (fullProfile.member_urn) contactUpdateData.member_urn = fullProfile.member_urn;
+      if (fullProfile.primary_locale) contactUpdateData.primary_locale = JSON.stringify(fullProfile.primary_locale);
 
       // Marcar que foi enriquecido
-      leadUpdateData.full_profile_fetched_at = new Date();
-      leadUpdateData.network_distance = 'FIRST_DEGREE';
+      contactUpdateData.full_profile_fetched_at = new Date();
+      contactUpdateData.network_distance = 'FIRST_DEGREE';
 
-      console.log('✅ [NEW_RELATION] Dados enriquecidos:', Object.keys(leadUpdateData).length, 'campos');
+      console.log('✅ [NEW_RELATION] Dados enriquecidos para contact:', Object.keys(contactUpdateData).length, 'campos');
     }
 
     // Distribuição via Round Robin
-    let responsibleUserId = null;
-    if (lead.sector_id && lead.round_robin_users && lead.round_robin_users.length > 0) {
+    let ownerUserId = null;
+    if (opportunity.sector_id && opportunity.round_robin_users && opportunity.round_robin_users.length > 0) {
       const sectorResult = await db.query(
         `SELECT last_assigned_user_id FROM sectors WHERE id = $1`,
-        [lead.sector_id]
+        [opportunity.sector_id]
       );
 
       const lastAssignedUserId = sectorResult.rows[0]?.last_assigned_user_id;
       let nextIndex = 0;
 
       if (lastAssignedUserId) {
-        const lastIndex = lead.round_robin_users.indexOf(lastAssignedUserId);
+        const lastIndex = opportunity.round_robin_users.indexOf(lastAssignedUserId);
         if (lastIndex !== -1) {
-          nextIndex = (lastIndex + 1) % lead.round_robin_users.length;
+          nextIndex = (lastIndex + 1) % opportunity.round_robin_users.length;
         }
       }
 
-      responsibleUserId = lead.round_robin_users[nextIndex];
+      ownerUserId = opportunity.round_robin_users[nextIndex];
 
       await db.query(
         `UPDATE sectors SET last_assigned_user_id = $1 WHERE id = $2`,
-        [responsibleUserId, lead.sector_id]
+        [ownerUserId, opportunity.sector_id]
       );
 
-      leadUpdateData.responsible_user_id = responsibleUserId;
-      leadUpdateData.round_robin_distributed_at = new Date();
+      opportunityUpdateData.owner_user_id = ownerUserId;
+      opportunityUpdateData.round_robin_distributed_at = new Date();
     }
 
-    // Atualizar lead
-    await db.update('leads', leadUpdateData, { id: lead.id });
-    console.log('✅ [NEW_RELATION] Lead atualizado para status ACCEPTED!');
-    console.log('✅ [NEW_RELATION] Lead ID:', lead.id, '| Novo status: accepted');
+    // Atualizar opportunity
+    await db.update('opportunities', opportunityUpdateData, { id: opportunity.id });
+    console.log('✅ [NEW_RELATION] Opportunity atualizada para ACCEPTED!');
+    console.log('✅ [NEW_RELATION] Opportunity ID:', opportunity.id, '| accepted_at:', opportunityUpdateData.accepted_at);
 
-    // ========== ATUALIZAR CONTATO ASSOCIADO COM DADOS ENRIQUECIDOS ==========
-    if (fullProfile && lead.linked_contact_id) {
-      console.log('🔄 [NEW_RELATION] Atualizando contato associado:', lead.linked_contact_id);
-      try {
-        const contactUpdateData = {};
-
-        // Dados básicos
-        if (fullProfile.first_name) contactUpdateData.first_name = fullProfile.first_name;
-        if (fullProfile.last_name) contactUpdateData.last_name = fullProfile.last_name;
-        if (fullProfile.headline) contactUpdateData.headline = fullProfile.headline;
-        if (fullProfile.about || fullProfile.summary) contactUpdateData.about = fullProfile.about || fullProfile.summary;
-        if (fullProfile.location) contactUpdateData.location = fullProfile.location;
-        if (fullProfile.industry) contactUpdateData.industry = fullProfile.industry;
-
-        // Foto de perfil
-        const profilePic = fullProfile.profile_picture_url_large ||
-                          fullProfile.profile_picture_url ||
-                          fullProfile.picture_url;
-        if (profilePic) contactUpdateData.profile_picture = profilePic;
-
-        // Dados ricos (JSON)
-        if (fullProfile.experience && Array.isArray(fullProfile.experience)) {
-          contactUpdateData.experience = JSON.stringify(fullProfile.experience);
-        }
-        if (fullProfile.education && Array.isArray(fullProfile.education)) {
-          contactUpdateData.education = JSON.stringify(fullProfile.education);
-        }
-        if (fullProfile.skills && Array.isArray(fullProfile.skills)) {
-          contactUpdateData.skills = JSON.stringify(fullProfile.skills);
-        }
-        if (fullProfile.websites && Array.isArray(fullProfile.websites)) {
-          contactUpdateData.websites = JSON.stringify(fullProfile.websites);
-        }
-        if (fullProfile.languages && Array.isArray(fullProfile.languages)) {
-          contactUpdateData.languages = JSON.stringify(fullProfile.languages);
-        }
-        if (fullProfile.certifications && Array.isArray(fullProfile.certifications)) {
-          contactUpdateData.certifications = JSON.stringify(fullProfile.certifications);
-        }
-
-        // Contatos (MUITO importante para conexões de 1º grau!)
-        if (fullProfile.email) contactUpdateData.email = fullProfile.email;
-        if (fullProfile.phone) contactUpdateData.phone = fullProfile.phone;
-
-        // Conexões
-        if (fullProfile.connections_count) contactUpdateData.connections_count = fullProfile.connections_count;
-        if (fullProfile.is_premium !== undefined) contactUpdateData.is_premium = fullProfile.is_premium;
-
-        contactUpdateData.updated_at = new Date();
-
-        await db.update('contacts', contactUpdateData, { id: lead.linked_contact_id });
-        console.log('✅ [NEW_RELATION] Contato atualizado com', Object.keys(contactUpdateData).length, 'campos');
-      } catch (contactError) {
-        console.error('⚠️ [NEW_RELATION] Erro ao atualizar contato:', contactError.message);
-        // Silent fail - não interromper o fluxo
-      }
-    } else if (fullProfile && !lead.linked_contact_id) {
-      // Lead sem contato associado - tentar encontrar ou criar
-      console.log('🔍 [NEW_RELATION] Lead sem contact_id, buscando contato...');
-      try {
-        const existingContact = await db.query(
-          `SELECT id FROM contacts WHERE account_id = $1 AND (linkedin_profile_id = $2 OR profile_url LIKE $3) LIMIT 1`,
-          [lead.account_id, user_provider_id, `%${user_public_identifier}%`]
-        );
-
-        if (existingContact.rows.length > 0) {
-          const contactId = existingContact.rows[0].id;
-          console.log('✅ [NEW_RELATION] Contato encontrado:', contactId);
-
-          // Criar relação contact_leads (N:N)
-          await db.query(
-            `INSERT INTO contact_leads (contact_id, lead_id, role)
-             VALUES ($1, $2, 'primary')
-             ON CONFLICT (contact_id, lead_id) DO NOTHING`,
-            [contactId, lead.id]
-          );
-          console.log('🔗 [NEW_RELATION] Lead vinculado ao contato via contact_leads');
-
-          // Atualizar contato com dados enriquecidos
-          const contactUpdateData = {
-            first_name: fullProfile.first_name || null,
-            last_name: fullProfile.last_name || null,
-            headline: fullProfile.headline || null,
-            about: fullProfile.about || fullProfile.summary || null,
-            location: fullProfile.location || null,
-            industry: fullProfile.industry || null,
-            updated_at: new Date()
-          };
-
-          if (fullProfile.email) contactUpdateData.email = fullProfile.email;
-          if (fullProfile.phone) contactUpdateData.phone = fullProfile.phone;
-          if (fullProfile.experience) contactUpdateData.experience = JSON.stringify(fullProfile.experience);
-          if (fullProfile.education) contactUpdateData.education = JSON.stringify(fullProfile.education);
-          if (fullProfile.skills) contactUpdateData.skills = JSON.stringify(fullProfile.skills);
-
-          await db.update('contacts', contactUpdateData, { id: contactId });
-          console.log('✅ [NEW_RELATION] Contato atualizado com dados enriquecidos');
-        }
-      } catch (contactSearchError) {
-        console.error('⚠️ [NEW_RELATION] Erro ao buscar/atualizar contato:', contactSearchError.message);
-      }
+    // Atualizar contact com dados enriquecidos
+    if (opportunity.contact_id && Object.keys(contactUpdateData).length > 1) {
+      await db.update('contacts', contactUpdateData, { id: opportunity.contact_id });
+      console.log('✅ [NEW_RELATION] Contact atualizado com dados enriquecidos:', opportunity.contact_id);
     }
 
     // Marcar convite como aceito na fila
     try {
-      await inviteQueueService.markInviteAsAccepted(lead.id);
+      await inviteQueueService.markInviteAsAccepted(opportunity.id);
     } catch (queueError) {
-      // Silent fail - pode não existir na fila (fluxo legado)
+      // Silent fail - pode não existir na fila
     }
 
-    // Atualizar log de convite para 'accepted' (legado)
+    // Atualizar log de convite para 'accepted'
     try {
       await db.query(
         `UPDATE linkedin_invite_logs
          SET status = 'accepted', accepted_at = NOW()
-         WHERE lead_id = $1 AND linkedin_account_id = $2 AND status = 'sent'`,
-        [lead.id, linkedinAccount.id]
+         WHERE opportunity_id = $1 AND linkedin_account_id = $2 AND status = 'sent'`,
+        [opportunity.id, linkedinAccount.id]
       );
     } catch (logError) {
       // Silent fail
     }
 
     // Atualizar contadores da campanha (apenas se tiver campaign_id)
-    if (lead.campaign_id) {
+    if (opportunity.campaign_id) {
       await db.query(
         `UPDATE campaigns
-         SET leads_sent = GREATEST(0, leads_sent - 1),
-             leads_accepted = leads_accepted + 1,
-             pending_invites_count = GREATEST(0, pending_invites_count - 1)
+         SET pending_invites_count = GREATEST(0, pending_invites_count - 1)
          WHERE id = $1`,
-        [lead.campaign_id]
+        [opportunity.campaign_id]
       );
     }
 
     // Criar notificação na plataforma
-    // Para leads sem campanha, usar o responsible_id do lead ou o dono da conta LinkedIn
-    const leadUserId = lead.campaign_user_id || lead.responsible_id || linkedinAccount.user_id;
-    const notifyUserId = responsibleUserId || leadUserId;
+    const opportunityUserId = opportunity.campaign_user_id || opportunity.owner_user_id || linkedinAccount.user_id;
+    const notifyUserId = ownerUserId || opportunityUserId;
     try {
       await notificationService.notifyInviteAccepted({
-        accountId: lead.account_id,
+        accountId: opportunity.account_id,
         userId: notifyUserId,
-        leadName: lead.name || user_full_name || 'Lead',
-        leadId: lead.id,
-        campaignId: lead.campaign_id || null,
-        campaignName: lead.campaign_name || 'Busca LinkedIn'
+        opportunityName: opportunity.contact_name || opportunity.title || user_full_name || 'Contato',
+        opportunityId: opportunity.id,
+        campaignId: opportunity.campaign_id || null,
+        campaignName: opportunity.campaign_name || 'Busca LinkedIn'
       });
     } catch (notifError) {
       // Silent fail
     }
 
     // IA ativa somente se campanha tem automação ativa
-    const shouldActivateAI = lead.campaign_id && lead.automation_active === true;
+    const shouldActivateAI = opportunity.campaign_id && opportunity.automation_active === true;
 
     // Criar conversa automaticamente
     const conversationData = {
-      user_id: leadUserId,
-      account_id: lead.account_id,
+      user_id: opportunityUserId,
+      account_id: opportunity.account_id,
       linkedin_account_id: linkedinAccount.id,
-      lead_id: lead.id,
-      campaign_id: lead.campaign_id || null,
-      unipile_chat_id: `temp_chat_${lead.id}`,
+      opportunity_id: opportunity.id,
+      campaign_id: opportunity.campaign_id || null,
+      unipile_chat_id: `temp_chat_${opportunity.id}`,
       status: shouldActivateAI ? 'ai_active' : 'manual',
       ai_active: shouldActivateAI,
-      ai_agent_id: lead.ai_agent_id || null,
+      ai_agent_id: opportunity.ai_agent_id || null,
       is_connection: true,
       unread_count: 0
     };
@@ -1479,22 +1394,22 @@ async function handleNewRelation(payload) {
 
     // Agendar início de conversa baseado na estratégia de conexão
     let delayedJobScheduled = false;
-    let connectionStrategy = lead.connection_strategy || 'with-intro';
+    let connectionStrategy = opportunity.connection_strategy || 'with-intro';
 
     try {
       if (shouldActivateAI) {
-        // Se estratégia é 'icebreaker', não agenda - só responde se lead falar primeiro
-        if (lead.require_lead_reply === true) {
-          console.log('🔗 [CONNECTION STRATEGY] Icebreaker: aguardando lead iniciar conversa');
-          // Não agenda job, apenas espera lead enviar mensagem
+        // Se estratégia é 'icebreaker', não agenda - só responde se contato falar primeiro
+        if (opportunity.require_lead_reply === true) {
+          console.log('🔗 [CONNECTION STRATEGY] Icebreaker: aguardando contato iniciar conversa');
+          // Não agenda job, apenas espera contato enviar mensagem
           delayedJobScheduled = false;
         } else {
           // Calcular delay baseado na estratégia
           let delayMinutes;
 
-          if (lead.wait_time_after_accept != null) {
+          if (opportunity.wait_time_after_accept != null) {
             // Usar configuração do agente
-            delayMinutes = lead.wait_time_after_accept;
+            delayMinutes = opportunity.wait_time_after_accept;
           } else {
             // Usar defaults da estratégia
             const strategyDefaults = {
@@ -1512,7 +1427,7 @@ async function handleNewRelation(payload) {
 
           console.log(`🔗 [CONNECTION STRATEGY] ${connectionStrategy}: agendando início em ${finalDelay} minutos`);
 
-          await scheduleDelayedConversation(lead.id, conversation.id, finalDelay * 60 * 1000);
+          await scheduleDelayedConversation(opportunity.id, conversation.id, finalDelay * 60 * 1000);
           delayedJobScheduled = true;
         }
       }
@@ -1524,8 +1439,8 @@ async function handleNewRelation(payload) {
     console.log('');
     console.log('🎉 ═══════════════════════════════════════════════════════════════');
     console.log('🎉 [NEW_RELATION] PROCESSAMENTO CONCLUÍDO COM SUCESSO!');
-    console.log('🎉   Lead ID:', lead.id);
-    console.log('🎉   Lead Nome:', lead.name);
+    console.log('🎉   Opportunity ID:', opportunity.id);
+    console.log('🎉   Contact:', opportunity.contact_name);
     console.log('🎉   Conversation ID:', conversation.id);
     console.log('🎉   Automação agendada:', delayedJobScheduled ? 'Sim' : 'Não');
     console.log('🎉 ═══════════════════════════════════════════════════════════════');
@@ -1533,13 +1448,13 @@ async function handleNewRelation(payload) {
 
     return {
       handled: true,
-      lead_id: lead.id,
+      opportunity_id: opportunity.id,
       conversation_id: conversation.id,
-      lead_status: LEAD_STATUS.ACCEPTED,
-      responsible_user_id: responsibleUserId,
+      accepted: true,
+      owner_user_id: ownerUserId,
       delayed_conversation_scheduled: delayedJobScheduled,
       connection_strategy: connectionStrategy,
-      require_lead_reply: lead.require_lead_reply || false,
+      require_contact_reply: opportunity.require_lead_reply || false,
       profile_enriched: !!fullProfile
     };
 

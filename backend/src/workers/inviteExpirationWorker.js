@@ -43,23 +43,20 @@ async function getExpiredInviteTagId() {
 }
 
 /**
- * Apply tag to lead
- * @param {string} leadId - Lead ID
+ * Apply tag to opportunity's contact
+ * @param {string} opportunityId - Opportunity ID
  * @param {string} tagId - Tag ID
  */
-async function applyTagToLead(leadId, tagId) {
+async function applyTagToOpportunity(opportunityId, tagId) {
   if (!tagId) return;
 
-  // First get contact_id from lead if exists
-  const leadResult = await db.query(
-    `SELECT l.id, c.id as contact_id
-     FROM leads l
-     LEFT JOIN contacts c ON c.linkedin_profile_id = l.linkedin_profile_id
-     WHERE l.id = $1`,
-    [leadId]
+  // Get contact_id from opportunity
+  const oppResult = await db.query(
+    `SELECT contact_id FROM opportunities WHERE id = $1`,
+    [opportunityId]
   );
 
-  const contactId = leadResult.rows[0]?.contact_id;
+  const contactId = oppResult.rows[0]?.contact_id;
 
   if (contactId) {
     await db.query(
@@ -177,8 +174,8 @@ async function processExpiredInvite(invite, tagId) {
 
     log.divider();
     log.info(`PROCESSANDO CONVITE EXPIRADO`);
-    log.info(`   Lead: ${invite.lead_name}`);
-    log.info(`   Lead ID: ${invite.lead_id}`);
+    log.info(`   Opportunity: ${invite.opportunity_name}`);
+    log.info(`   Opportunity ID: ${invite.opportunity_id}`);
     log.info(`   Queue ID: ${invite.id}`);
     log.info(`   Campanha: ${invite.campaign_id}`);
 
@@ -194,13 +191,13 @@ async function processExpiredInvite(invite, tagId) {
 
     // 2. Mark as expired
     log.step('2', 'Marcando convite como expirado...');
-    await inviteQueueService.markInviteAsExpired(invite.id, invite.lead_id);
+    await inviteQueueService.markInviteAsExpired(invite.id, invite.opportunity_id);
     log.success('Convite marcado como expirado');
 
     // 3. Apply tag
     log.step('3', 'Aplicando tag "Convite não aceito"...');
     if (tagId) {
-      await applyTagToLead(invite.lead_id, tagId);
+      await applyTagToOpportunity(invite.opportunity_id, tagId);
       log.success('Tag aplicada');
     } else {
       log.warn('Tag não encontrada no sistema');
@@ -219,12 +216,12 @@ async function processExpiredInvite(invite, tagId) {
 
       if (assignedUser) {
         await client.query(
-          `UPDATE leads
-           SET responsible_user_id = $1, round_robin_distributed_at = NOW()
+          `UPDATE opportunities
+           SET owner_user_id = $1, round_robin_distributed_at = NOW()
            WHERE id = $2`,
-          [assignedUser.id, invite.lead_id]
+          [assignedUser.id, invite.opportunity_id]
         );
-        log.success(`Lead distribuído para: ${assignedUser.name}`);
+        log.success(`Opportunity distribuída para: ${assignedUser.name}`);
       } else {
         log.warn('Não foi possível encontrar próximo usuário para distribuição');
       }
@@ -232,12 +229,11 @@ async function processExpiredInvite(invite, tagId) {
       log.info(`   Round Robin NÃO configurado`);
     }
 
-    // 5. Move to "Prospecção" (status already set to 'invite_expired' which is valid)
-    // The lead is now available in the CRM for follow-up
+    // 5. The opportunity is now available in the CRM for follow-up
 
     await client.query('COMMIT');
 
-    log.success(`Convite expirado processado: ${invite.lead_name}`);
+    log.success(`Convite expirado processado: ${invite.opportunity_name}`);
     log.divider();
 
     return { success: true, assignedUser };
@@ -280,7 +276,7 @@ async function processExpiredInvites() {
 
     log.info(`Encontrados ${expiredInvites.length} convites expirados:`);
     expiredInvites.forEach((inv, i) => {
-      log.info(`   ${i + 1}. ${inv.lead_name} (expires_at: ${inv.expires_at})`);
+      log.info(`   ${i + 1}. ${inv.opportunity_name} (expires_at: ${inv.expires_at})`);
     });
 
     // Get tag ID

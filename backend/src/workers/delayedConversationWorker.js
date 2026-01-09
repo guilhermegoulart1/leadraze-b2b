@@ -9,16 +9,16 @@ const TemplateProcessor = require('../utils/templateProcessor');
 /**
  * Delayed Conversation Worker
  *
- * Inicia conversas automaticamente após 5 minutos se o lead
+ * Inicia conversas automaticamente após 5 minutos se o contato
  * não enviar mensagem após aceitar o convite
  */
 
 /**
- * Verificar se lead já enviou mensagem
+ * Verificar se contato já enviou mensagem
  * @param {string} conversationId - ID da conversa
- * @returns {Promise<boolean>} True se lead já respondeu
+ * @returns {Promise<boolean>} True se contato já respondeu
  */
-async function hasLeadReplied(conversationId) {
+async function hasContactReplied(conversationId) {
   const result = await db.query(
     `SELECT COUNT(*) as count
      FROM messages
@@ -32,23 +32,25 @@ async function hasLeadReplied(conversationId) {
 }
 
 /**
- * Buscar dados do lead e campanha
- * @param {string} leadId - ID do lead
- * @returns {Promise<Object>} Dados do lead e campanha
+ * Buscar dados da opportunity e campanha
+ * @param {string} opportunityId - ID da opportunity
+ * @returns {Promise<Object>} Dados da opportunity, contato e campanha
  */
-async function getLeadAndCampaign(leadId) {
+async function getOpportunityAndCampaign(opportunityId) {
   const result = await db.query(
     `SELECT
-      l.id as lead_id,
-      l.name as lead_name,
-      l.title,
-      l.company,
-      l.location,
-      l.industry,
-      l.profile_url,
-      l.headline,
-      l.summary,
-      l.campaign_id,
+      o.id as opportunity_id,
+      o.title as opportunity_title,
+      o.campaign_id,
+      ct.id as contact_id,
+      ct.name as contact_name,
+      ct.title,
+      ct.company,
+      ct.city as location,
+      ct.industry,
+      ct.profile_url,
+      ct.headline,
+      ct.about as summary,
       c.name as campaign_name,
       c.ai_agent_id,
       c.linkedin_account_id,
@@ -69,16 +71,17 @@ async function getLeadAndCampaign(leadId) {
       ai.escalation_rules,
       ai.max_messages_before_transfer,
       la.unipile_account_id
-    FROM leads l
-    LEFT JOIN campaigns c ON l.campaign_id = c.id
+    FROM opportunities o
+    LEFT JOIN contacts ct ON o.contact_id = ct.id
+    LEFT JOIN campaigns c ON o.campaign_id = c.id
     LEFT JOIN ai_agents ai ON c.ai_agent_id = ai.id
     LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
-    WHERE l.id = $1`,
-    [leadId]
+    WHERE o.id = $1`,
+    [opportunityId]
   );
 
   if (!result.rows || result.rows.length === 0) {
-    throw new Error('Lead not found');
+    throw new Error('Opportunity not found');
   }
 
   return result.rows[0];
@@ -88,42 +91,42 @@ async function getLeadAndCampaign(leadId) {
  * Gerar mensagem inicial da IA
  * Usa aiResponseService.generateInitialMessage() para garantir consistencia
  * com o Test Mode e usar todas as configuracoes do agente (Contratar Vendedor)
- * @param {Object} leadData - Dados do lead e campanha
+ * @param {Object} opportunityData - Dados da opportunity, contato e campanha
  * @returns {Promise<string>} Mensagem gerada
  */
-async function generateInitialMessage(leadData) {
+async function generateInitialMessage(opportunityData) {
   // Montar objeto ai_agent com todos os campos necessarios
   const ai_agent = {
-    id: leadData.ai_agent_id,
-    name: leadData.ai_agent_name,
-    initial_approach: leadData.initial_approach,
-    objective: leadData.objective,
-    behavioral_profile: leadData.behavioral_profile,
-    tone: leadData.tone,
-    language: leadData.language,
-    system_prompt: leadData.system_prompt,
-    products_services: leadData.products_services,
-    response_style_instructions: leadData.response_style_instructions,
-    auto_schedule: leadData.auto_schedule,
-    scheduling_link: leadData.scheduling_link,
-    intent_detection_enabled: leadData.intent_detection_enabled,
-    priority_rules: leadData.priority_rules,
-    target_audience: leadData.target_audience,
-    escalation_rules: leadData.escalation_rules,
-    max_messages_before_transfer: leadData.max_messages_before_transfer,
+    id: opportunityData.ai_agent_id,
+    name: opportunityData.ai_agent_name,
+    initial_approach: opportunityData.initial_approach,
+    objective: opportunityData.objective,
+    behavioral_profile: opportunityData.behavioral_profile,
+    tone: opportunityData.tone,
+    language: opportunityData.language,
+    system_prompt: opportunityData.system_prompt,
+    products_services: opportunityData.products_services,
+    response_style_instructions: opportunityData.response_style_instructions,
+    auto_schedule: opportunityData.auto_schedule,
+    scheduling_link: opportunityData.scheduling_link,
+    intent_detection_enabled: opportunityData.intent_detection_enabled,
+    priority_rules: opportunityData.priority_rules,
+    target_audience: opportunityData.target_audience,
+    escalation_rules: opportunityData.escalation_rules,
+    max_messages_before_transfer: opportunityData.max_messages_before_transfer,
     agent_type: 'linkedin' // Sempre LinkedIn neste worker
   };
 
-  // Montar objeto lead_data para o aiResponseService
+  // Montar objeto lead_data para o aiResponseService (mantendo nome lead_data por compatibilidade com aiResponseService)
   const lead_data = {
-    name: leadData.lead_name,
-    title: leadData.title,
-    company: leadData.company,
-    location: leadData.location,
-    industry: leadData.industry,
-    headline: leadData.headline,
-    summary: leadData.summary,
-    profile_url: leadData.profile_url
+    name: opportunityData.contact_name,
+    title: opportunityData.title,
+    company: opportunityData.company,
+    location: opportunityData.location,
+    industry: opportunityData.industry,
+    headline: opportunityData.headline,
+    summary: opportunityData.summary,
+    profile_url: opportunityData.profile_url
   };
 
   // Usar aiResponseService.generateInitialMessage para consistencia com Test Mode
@@ -131,8 +134,8 @@ async function generateInitialMessage(leadData) {
     ai_agent,
     lead_data,
     campaign: {
-      id: leadData.campaign_id,
-      name: leadData.campaign_name
+      id: opportunityData.campaign_id,
+      name: opportunityData.campaign_name
     }
   });
 
@@ -144,14 +147,14 @@ async function generateInitialMessage(leadData) {
  * @param {Object} job - Job da fila Bull
  */
 async function processDelayedConversation(job) {
-  const { leadId, conversationId } = job.data;
+  const { opportunityId, conversationId } = job.data;
 
-  console.log(`\n💬 Processando início de conversa - Lead: ${leadId}, Conversation: ${conversationId}`);
+  console.log(`\n💬 Processando início de conversa - Opportunity: ${opportunityId}, Conversation: ${conversationId}`);
 
   try {
     // Verificar se conversa ainda existe e está ativa
     const conversationResult = await db.query(
-      `SELECT id, status, lead_id, unipile_chat_id
+      `SELECT id, status, opportunity_id, unipile_chat_id
        FROM conversations
        WHERE id = $1`,
       [conversationId]
@@ -170,30 +173,30 @@ async function processDelayedConversation(job) {
       return { canceled: true, reason: 'ai_not_active' };
     }
 
-    // Verificar se lead já enviou mensagem
-    const leadReplied = await hasLeadReplied(conversationId);
+    // Verificar se contato já enviou mensagem
+    const contactReplied = await hasContactReplied(conversationId);
 
-    if (leadReplied) {
-      console.log('✅ Lead já enviou mensagem, conversa já iniciada');
-      return { canceled: true, reason: 'lead_already_replied' };
+    if (contactReplied) {
+      console.log('✅ Contato já enviou mensagem, conversa já iniciada');
+      return { canceled: true, reason: 'contact_already_replied' };
     }
 
-    // Buscar dados do lead e campanha
-    const leadData = await getLeadAndCampaign(leadId);
+    // Buscar dados da opportunity e campanha
+    const opportunityData = await getOpportunityAndCampaign(opportunityId);
 
-    if (!leadData.unipile_account_id) {
+    if (!opportunityData.unipile_account_id) {
       throw new Error('LinkedIn account not configured');
     }
 
     // Gerar mensagem inicial
     console.log('🤖 Gerando mensagem inicial via IA...');
-    const message = await generateInitialMessage(leadData);
+    const message = await generateInitialMessage(opportunityData);
 
     console.log(`📤 Mensagem gerada (${message.length} chars):`, message.substring(0, 100) + '...');
 
     // Enviar mensagem via Unipile
     const unipileResponse = await unipileClient.messages.send({
-      account_id: leadData.unipile_account_id,
+      account_id: opportunityData.unipile_account_id,
       attendee_id: conversation.unipile_chat_id,
       text: message,
       type: 'TEXT'
@@ -224,10 +227,10 @@ async function processDelayedConversation(job) {
 
     return {
       success: true,
-      leadId,
+      opportunityId,
       conversationId,
       messageLength: message.length,
-      leadName: leadData.lead_name
+      contactName: opportunityData.contact_name
     };
 
   } catch (error) {
@@ -238,21 +241,21 @@ async function processDelayedConversation(job) {
 
 /**
  * Agendar início de conversa com delay configurável
- * @param {string} leadId - ID do lead
+ * @param {string} opportunityId - ID da opportunity
  * @param {string} conversationId - ID da conversa
  * @param {number} delayMs - Delay em milissegundos (opcional, padrão: 5 minutos)
  * @returns {Promise<Object>} Job agendado
  */
-async function scheduleDelayedConversation(leadId, conversationId, delayMs = null) {
+async function scheduleDelayedConversation(opportunityId, conversationId, delayMs = null) {
   const DEFAULT_DELAY = 5 * 60 * 1000; // 5 minutos em ms
   const actualDelay = delayMs || DEFAULT_DELAY;
   const delayMinutes = Math.round(actualDelay / 60000);
 
-  console.log(`📅 Agendando início de conversa para daqui ${delayMinutes} minuto(s) - Lead: ${leadId}`);
+  console.log(`📅 Agendando início de conversa para daqui ${delayMinutes} minuto(s) - Opportunity: ${opportunityId}`);
 
   const job = await delayedConversationQueue.add(
     {
-      leadId,
+      opportunityId,
       conversationId
     },
     {
@@ -276,12 +279,12 @@ async function scheduleDelayedConversation(leadId, conversationId, delayMs = nul
 
 /**
  * Cancelar início de conversa agendado
- * (quando lead envia mensagem antes dos 5 minutos)
- * @param {string} leadId - ID do lead
+ * (quando contato envia mensagem antes dos 5 minutos)
+ * @param {string} opportunityId - ID da opportunity
  * @returns {Promise<boolean>} True se cancelou algum job
  */
-async function cancelDelayedConversation(leadId) {
-  console.log(`🛑 Cancelando início de conversa agendado - Lead: ${leadId}`);
+async function cancelDelayedConversation(opportunityId) {
+  console.log(`🛑 Cancelando início de conversa agendado - Opportunity: ${opportunityId}`);
 
   try {
     // Buscar jobs pendentes
@@ -293,7 +296,7 @@ async function cancelDelayedConversation(leadId) {
     let canceledCount = 0;
 
     for (const job of allPendingJobs) {
-      if (job.data.leadId === leadId) {
+      if (job.data.opportunityId === opportunityId) {
         await job.remove();
         canceledCount++;
         console.log(`✅ Job ${job.id} cancelado`);
@@ -301,7 +304,7 @@ async function cancelDelayedConversation(leadId) {
     }
 
     if (canceledCount === 0) {
-      console.log('ℹ️ Nenhum job pendente encontrado para este lead');
+      console.log('ℹ️ Nenhum job pendente encontrado para esta opportunity');
     }
 
     return canceledCount > 0;
@@ -322,7 +325,7 @@ delayedConversationQueue.on('completed', (job, result) => {
   if (result.canceled) {
     console.log(`⏭️  Job ${job.id} cancelado: ${result.reason}`);
   } else {
-    console.log(`✅ Job ${job.id} concluído: conversa iniciada para ${result.leadName}`);
+    console.log(`✅ Job ${job.id} concluído: conversa iniciada para ${result.contactName}`);
   }
 });
 

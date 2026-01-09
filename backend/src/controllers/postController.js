@@ -206,65 +206,90 @@ const addAuthorsToCampaign = async (req, res) => {
 
     const campaign = campaignQuery.rows[0];
 
-    // Process each author and create leads
-    const createdLeads = [];
+    // Process each author and create contacts + opportunities
+    const createdOpportunities = [];
     const errors = [];
 
     for (const author of authors) {
       try {
-        // Check if lead already exists by provider_id
-        const existingLead = await db.query(
-          'SELECT id FROM leads WHERE campaign_id = $1 AND provider_id = $2',
+        // Check if opportunity already exists by linkedin_profile_id
+        const existingOpp = await db.query(
+          'SELECT id FROM opportunities WHERE campaign_id = $1 AND linkedin_profile_id = $2',
           [campaign_id, author.id]
         );
 
-        if (existingLead.rows.length > 0) {
-          errors.push({ author_id: author.id, error: 'Lead already exists' });
+        if (existingOpp.rows.length > 0) {
+          errors.push({ author_id: author.id, error: 'Opportunity already exists' });
           continue;
         }
 
-        // Create lead
-        const insertResult = await db.query(
-          `INSERT INTO leads (
-            campaign_id, account_id, user_id, provider_id,
-            name, title, company, location, profile_url, profile_picture,
-            source, status, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+        // 1. Check if contact exists, create if not
+        let contactId = null;
+        const existingContact = await db.query(
+          'SELECT id FROM contacts WHERE account_id = $1 AND linkedin_profile_id = $2',
+          [accountId, author.id]
+        );
+
+        if (existingContact.rows.length > 0) {
+          contactId = existingContact.rows[0].id;
+        } else {
+          const contactInsert = await db.query(
+            `INSERT INTO contacts (
+              account_id, linkedin_profile_id, name, title, company, location,
+              profile_url, profile_picture, source, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING id`,
+            [
+              accountId,
+              author.id,
+              author.name || 'Unknown',
+              author.title || null,
+              author.company || null,
+              author.location || null,
+              author.profile_url || null,
+              author.profile_picture || null,
+              'linkedin_posts'
+            ]
+          );
+          contactId = contactInsert.rows[0].id;
+        }
+
+        // 2. Create opportunity linked to contact
+        const oppInsert = await db.query(
+          `INSERT INTO opportunities (
+            account_id, contact_id, campaign_id, linkedin_profile_id,
+            title, source, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
           RETURNING id`,
           [
-            campaign_id,
             accountId,
-            userId,
+            contactId,
+            campaign_id,
             author.id,
             author.name || 'Unknown',
-            author.title || null,
-            author.company || null,
-            author.location || null,
-            author.profile_url || null,
-            author.profile_picture || null,
-            'linkedin_posts',
-            'leads'
+            'linkedin_posts'
           ]
         );
 
-        createdLeads.push({
-          lead_id: insertResult.rows[0].id,
+        createdOpportunities.push({
+          opportunity_id: oppInsert.rows[0].id,
+          contact_id: contactId,
           author_id: author.id,
           name: author.name
         });
       } catch (err) {
-        console.error('Error creating lead for author:', author.id, err);
+        console.error('Error creating opportunity for author:', author.id, err);
         errors.push({ author_id: author.id, error: err.message });
       }
     }
 
     sendSuccess(res, {
       data: {
-        created: createdLeads.length,
-        leads: createdLeads,
+        created: createdOpportunities.length,
+        opportunities: createdOpportunities,
         errors: errors.length > 0 ? errors : undefined
       }
-    }, `${createdLeads.length} leads created successfully`);
+    }, `${createdOpportunities.length} opportunities created successfully`);
 
   } catch (error) {
     console.error('❌ Error adding authors to campaign:', error);

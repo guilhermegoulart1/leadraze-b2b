@@ -1,43 +1,47 @@
+// backend/src/controllers/leadProductController.js
+// ⚠️ Migrated from lead_products to opportunity_products
+// Uses opportunityId but maintains compatibility with leadId param name in routes
+
 const db = require('../config/database');
 
-// Get all products for a lead
+// Get all products for an opportunity
 exports.getLeadProducts = async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { leadId } = req.params; // Actually opportunityId
     const accountId = req.user.account_id;
 
-    // Verify lead belongs to account
-    const leadCheck = await db.query(
-      'SELECT id FROM leads WHERE id = $1 AND account_id = $2',
+    // Verify opportunity belongs to account
+    const oppCheck = await db.query(
+      'SELECT id FROM opportunities WHERE id = $1 AND account_id = $2',
       [leadId, accountId]
     );
 
-    if (leadCheck.rows.length === 0) {
+    if (oppCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Lead nao encontrado'
+        message: 'Opportunity nao encontrada'
       });
     }
 
     const query = `
       SELECT
-        lp.id,
-        lp.lead_id,
-        lp.product_id,
-        lp.quantity,
-        lp.unit_price,
-        lp.total_price,
-        lp.payment_conditions,
-        lp.notes,
-        lp.created_at,
+        op.id,
+        op.opportunity_id,
+        op.product_id,
+        op.quantity,
+        op.unit_price,
+        op.total_price,
+        op.payment_conditions,
+        op.notes,
+        op.created_at,
         p.name as product_name,
         p.description as product_description,
         p.currency,
         p.time_unit
-      FROM lead_products lp
-      JOIN products p ON p.id = lp.product_id
-      WHERE lp.lead_id = $1
-      ORDER BY lp.created_at ASC
+      FROM opportunity_products op
+      JOIN products p ON p.id = op.product_id
+      WHERE op.opportunity_id = $1
+      ORDER BY op.created_at ASC
     `;
 
     const result = await db.query(query, [leadId]);
@@ -53,19 +57,19 @@ exports.getLeadProducts = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error getting lead products:', error);
+    console.error('Error getting opportunity products:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao buscar produtos do lead',
+      message: 'Erro ao buscar produtos da opportunity',
       error: error.message
     });
   }
 };
 
-// Add product to lead
+// Add product to opportunity
 exports.addLeadProduct = async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { leadId } = req.params; // Actually opportunityId
     const { product_id, quantity, unit_price, payment_conditions, notes } = req.body;
     const accountId = req.user.account_id;
 
@@ -76,16 +80,16 @@ exports.addLeadProduct = async (req, res) => {
       });
     }
 
-    // Verify lead belongs to account
-    const leadCheck = await db.query(
-      'SELECT id FROM leads WHERE id = $1 AND account_id = $2',
+    // Verify opportunity belongs to account
+    const oppCheck = await db.query(
+      'SELECT id FROM opportunities WHERE id = $1 AND account_id = $2',
       [leadId, accountId]
     );
 
-    if (leadCheck.rows.length === 0) {
+    if (oppCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Lead nao encontrado'
+        message: 'Opportunity nao encontrada'
       });
     }
 
@@ -106,9 +110,9 @@ exports.addLeadProduct = async (req, res) => {
     const totalPrice = qty * parseFloat(unit_price);
 
     const query = `
-      INSERT INTO lead_products (lead_id, product_id, quantity, unit_price, total_price, payment_conditions, notes)
+      INSERT INTO opportunity_products (opportunity_id, product_id, quantity, unit_price, total_price, payment_conditions, notes)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, lead_id, product_id, quantity, unit_price, total_price, payment_conditions, notes, created_at
+      RETURNING id, opportunity_id, product_id, quantity, unit_price, total_price, payment_conditions, notes, created_at
     `;
 
     const result = await db.query(query, [
@@ -134,32 +138,32 @@ exports.addLeadProduct = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error adding lead product:', error);
+    console.error('Error adding opportunity product:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao adicionar produto ao lead',
+      message: 'Erro ao adicionar produto a opportunity',
       error: error.message
     });
   }
 };
 
-// Update product in lead
+// Update product in opportunity
 exports.updateLeadProduct = async (req, res) => {
   try {
-    const { leadId, productItemId } = req.params;
+    const { leadId, productItemId } = req.params; // leadId is actually opportunityId
     const { quantity, unit_price, payment_conditions, notes } = req.body;
     const accountId = req.user.account_id;
 
-    // Verify lead belongs to account
-    const leadCheck = await db.query(
-      'SELECT id FROM leads WHERE id = $1 AND account_id = $2',
+    // Verify opportunity belongs to account
+    const oppCheck = await db.query(
+      'SELECT id FROM opportunities WHERE id = $1 AND account_id = $2',
       [leadId, accountId]
     );
 
-    if (leadCheck.rows.length === 0) {
+    if (oppCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Lead nao encontrado'
+        message: 'Opportunity nao encontrada'
       });
     }
 
@@ -167,10 +171,10 @@ exports.updateLeadProduct = async (req, res) => {
     const totalPrice = qty * parseFloat(unit_price);
 
     const query = `
-      UPDATE lead_products
+      UPDATE opportunity_products
       SET quantity = $1, unit_price = $2, total_price = $3, payment_conditions = $4, notes = $5
-      WHERE id = $6 AND lead_id = $7
-      RETURNING id, lead_id, product_id, quantity, unit_price, total_price, payment_conditions, notes, created_at
+      WHERE id = $6 AND opportunity_id = $7
+      RETURNING id, opportunity_id, product_id, quantity, unit_price, total_price, payment_conditions, notes, created_at
     `;
 
     const result = await db.query(query, [
@@ -197,37 +201,37 @@ exports.updateLeadProduct = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating lead product:', error);
+    console.error('Error updating opportunity product:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao atualizar produto do lead',
+      message: 'Erro ao atualizar produto da opportunity',
       error: error.message
     });
   }
 };
 
-// Remove product from lead
+// Remove product from opportunity
 exports.removeLeadProduct = async (req, res) => {
   try {
-    const { leadId, productItemId } = req.params;
+    const { leadId, productItemId } = req.params; // leadId is actually opportunityId
     const accountId = req.user.account_id;
 
-    // Verify lead belongs to account
-    const leadCheck = await db.query(
-      'SELECT id FROM leads WHERE id = $1 AND account_id = $2',
+    // Verify opportunity belongs to account
+    const oppCheck = await db.query(
+      'SELECT id FROM opportunities WHERE id = $1 AND account_id = $2',
       [leadId, accountId]
     );
 
-    if (leadCheck.rows.length === 0) {
+    if (oppCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Lead nao encontrado'
+        message: 'Opportunity nao encontrada'
       });
     }
 
     const query = `
-      DELETE FROM lead_products
-      WHERE id = $1 AND lead_id = $2
+      DELETE FROM opportunity_products
+      WHERE id = $1 AND opportunity_id = $2
       RETURNING id
     `;
 
@@ -245,10 +249,10 @@ exports.removeLeadProduct = async (req, res) => {
       message: 'Produto removido com sucesso'
     });
   } catch (error) {
-    console.error('Error removing lead product:', error);
+    console.error('Error removing opportunity product:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao remover produto do lead',
+      message: 'Erro ao remover produto da opportunity',
       error: error.message
     });
   }
@@ -257,7 +261,7 @@ exports.removeLeadProduct = async (req, res) => {
 // Complete deal (mark as won with products)
 exports.completeDeal = async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { leadId } = req.params; // Actually opportunityId
     const { products, closure_notes } = req.body;
     const accountId = req.user.account_id;
 
@@ -268,16 +272,16 @@ exports.completeDeal = async (req, res) => {
       });
     }
 
-    // Verify lead belongs to account
-    const leadCheck = await db.query(
-      'SELECT id, status FROM leads WHERE id = $1 AND account_id = $2',
+    // Verify opportunity belongs to account
+    const oppCheck = await db.query(
+      'SELECT id FROM opportunities WHERE id = $1 AND account_id = $2',
       [leadId, accountId]
     );
 
-    if (leadCheck.rows.length === 0) {
+    if (oppCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Lead nao encontrado'
+        message: 'Opportunity nao encontrada'
       });
     }
 
@@ -287,7 +291,7 @@ exports.completeDeal = async (req, res) => {
       await client.query('BEGIN');
 
       // Remove existing products (if any)
-      await client.query('DELETE FROM lead_products WHERE lead_id = $1', [leadId]);
+      await client.query('DELETE FROM opportunity_products WHERE opportunity_id = $1', [leadId]);
 
       // Insert new products
       let totalDealValue = 0;
@@ -297,7 +301,7 @@ exports.completeDeal = async (req, res) => {
         totalDealValue += totalPrice;
 
         await client.query(`
-          INSERT INTO lead_products (lead_id, product_id, quantity, unit_price, total_price, payment_conditions, notes)
+          INSERT INTO opportunity_products (opportunity_id, product_id, quantity, unit_price, total_price, payment_conditions, notes)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
         `, [
           leadId,
@@ -310,13 +314,12 @@ exports.completeDeal = async (req, res) => {
         ]);
       }
 
-      // Update lead status to qualified (won) and set timestamps
+      // Update opportunity - mark as won
       await client.query(`
-        UPDATE leads
-        SET status = 'qualified',
-            closure_notes = $1,
+        UPDATE opportunities
+        SET closure_notes = $1,
             won_at = CURRENT_TIMESTAMP,
-            deal_value = $2,
+            value = $2,
             qualified_at = COALESCE(qualified_at, CURRENT_TIMESTAMP)
         WHERE id = $3
       `, [closure_notes || null, totalDealValue, leadId]);
@@ -327,7 +330,7 @@ exports.completeDeal = async (req, res) => {
         success: true,
         message: 'Negocio fechado com sucesso',
         data: {
-          lead_id: leadId,
+          opportunity_id: leadId,
           total_value: totalDealValue,
           products_count: products.length
         }

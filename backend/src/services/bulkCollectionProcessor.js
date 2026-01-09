@@ -228,7 +228,7 @@ async function processJob(job) {
 }
 
 // ================================
-// SALVAR PERFIS COMO LEADS
+// SALVAR PERFIS COMO CONTACTS + OPPORTUNITIES
 // ================================
 async function saveProfiles(profiles, job) {
   let savedCount = 0;
@@ -236,23 +236,24 @@ async function saveProfiles(profiles, job) {
   for (const profile of profiles) {
     try {
       const profileId = profile.id || profile.provider_id || profile.urn_id;
-      
+
       if (!profileId) {
         console.warn('⚠️ Perfil sem ID, pulando');
         continue;
       }
 
-      // Verificar se já existe em QUALQUER campanha da conta (deduplicação global)
-      const existsCheck = await db.query(
-        `SELECT id, campaign_id FROM leads
-         WHERE account_id = $1
-         AND (linkedin_profile_id = $2 OR profile_url = $3)
+      // Verificar se já existe opportunity para este perfil na mesma campanha
+      const existsOppCheck = await db.query(
+        `SELECT o.id, o.campaign_id FROM opportunities o
+         WHERE o.account_id = $1
+         AND o.linkedin_profile_id = $2
+         AND o.campaign_id = $3
          LIMIT 1`,
-        [job.account_id, profileId, profile.profile_url || profile.url]
+        [job.account_id, profileId, job.campaign_id]
       );
 
-      if (existsCheck.rows.length > 0) {
-        console.log(`⏭️ Perfil ${profileId} já existe no CRM (campanha: ${existsCheck.rows[0].campaign_id}), pulando`);
+      if (existsOppCheck.rows.length > 0) {
+        console.log(`⏭️ Perfil ${profileId} já existe nesta campanha, pulando`);
         continue;
       }
 
@@ -289,67 +290,81 @@ async function saveProfiles(profiles, job) {
                     (profile.contact_info && profile.contact_info.phone) ||
                     null;
 
+      const name = profile.name || profile.full_name || 'Sem nome';
+      const title = profile.title || profile.headline || null;
+      const location = profile.location || profile.geo_location || null;
+      const profileUrl = profile.profile_url || profile.url || null;
+
       // 🔍 LOG DETALHADO - Campos extraídos para este perfil
       console.log(`\n👤 Perfil ${savedCount + 1}:`, {
         id: profileId,
-        name: profile.name || profile.full_name,
-        title: profile.title || profile.headline,
+        name: name,
+        title: title,
         company: company,
-        location: profile.location || profile.geo_location,
+        location: location,
         email: email,
-        phone: phone,
-        raw_company_fields: {
-          company: profile.company,
-          current_company: profile.current_company,
-          organization: profile.organization,
-          company_name: profile.company_name,
-          experience_first: profile.experience && profile.experience[0],
-          positions_first: profile.positions && profile.positions[0]
-        }
+        phone: phone
       });
 
-      // Inserir lead com campos expandidos (inclui account_id para multi-tenancy)
-      const insertQuery = `INSERT INTO leads
-         (account_id, campaign_id, linkedin_profile_id, provider_id, name, title, company,
-          location, profile_url, profile_picture, headline, status, score,
-          email, phone, email_captured_at, phone_captured_at, email_source, phone_source,
-          public_identifier, network_distance, profile_picture_large,
-          connections_count, follower_count, is_premium, member_urn, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-                 $20, $21, $22, $23, $24, $25, $26, $27)`;
+      // 1. Verificar se contact já existe (por linkedin_profile_id)
+      let contactId = null;
+      const existingContact = await db.query(
+        `SELECT id FROM contacts
+         WHERE account_id = $1
+         AND linkedin_profile_id = $2
+         LIMIT 1`,
+        [job.account_id, profileId]
+      );
 
-      const insertValues = [
-        job.account_id, // account_id para multi-tenancy
-        job.campaign_id,
-        profileId,
-        profile.provider_id || profile.id,
-        profile.name || profile.full_name || 'Sem nome',
-        profile.title || profile.headline || null,
-        company, // ✅ Usando a variável extraída com múltiplas tentativas
-        profile.location || profile.geo_location || null,
-        profile.profile_url || profile.url || null,
-        profilePicture,
-        profile.summary || profile.description || null,
-        'leads', // Status correto (plural) conforme LEAD_STATUS.LEADS
-        calculateProfileScore(profile),
-        email,
-        phone,
-        email ? new Date() : null, // email_captured_at
-        phone ? new Date() : null, // phone_captured_at
-        email ? 'profile' : null,  // email_source
-        phone ? 'profile' : null,   // phone_source
-        // Novos campos da busca básica
-        profile.public_identifier || null,
-        profile.network_distance || null,
-        profile.profile_picture_url_large || null,
-        profile.shared_connections_count || 0,
-        0, // follower_count (não vem na busca básica)
-        profile.premium || false, // is_premium
-        profile.member_urn || null,
-        'linkedin' // source - leads coletados do LinkedIn
-      ];
+      if (existingContact.rows.length > 0) {
+        contactId = existingContact.rows[0].id;
+        console.log(`📇 Contact existente encontrado: ${contactId}`);
+      } else {
+        // 2. Criar contact
+        const contactInsert = await db.query(
+          `INSERT INTO contacts
+           (account_id, linkedin_profile_id, name, title, company, location,
+            profile_url, profile_picture, headline, email, phone,
+            connections_count, is_premium, source, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+           RETURNING id`,
+          [
+            job.account_id,
+            profileId,
+            name,
+            title,
+            company,
+            location,
+            profileUrl,
+            profilePicture,
+            profile.summary || profile.description || null,
+            email,
+            phone,
+            profile.shared_connections_count || 0,
+            profile.premium || false,
+            'linkedin'
+          ]
+        );
+        contactId = contactInsert.rows[0].id;
+        console.log(`📇 Novo contact criado: ${contactId}`);
+      }
 
-      await db.query(insertQuery, insertValues);
+      // 3. Criar opportunity vinculada ao contact
+      await db.query(
+        `INSERT INTO opportunities
+         (account_id, contact_id, campaign_id, linkedin_profile_id,
+          title, score, source, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+        [
+          job.account_id,
+          contactId,
+          job.campaign_id,
+          profileId,
+          name,
+          calculateProfileScore(profile),
+          'linkedin'
+        ]
+      );
 
       // Log de contatos capturados
       if (email || phone) {

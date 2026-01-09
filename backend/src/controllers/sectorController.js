@@ -181,8 +181,8 @@ const deleteSector = async (req, res) => {
       [id]
     );
 
-    const leadsCheck = await db.query(
-      'SELECT COUNT(*) as count FROM leads WHERE sector_id = $1',
+    const opportunitiesCheck = await db.query(
+      'SELECT COUNT(*) as count FROM opportunities WHERE sector_id = $1',
       [id]
     );
 
@@ -198,12 +198,12 @@ const deleteSector = async (req, res) => {
 
     const totalUsage =
       parseInt(campaignsCheck.rows[0].count) +
-      parseInt(leadsCheck.rows[0].count) +
+      parseInt(opportunitiesCheck.rows[0].count) +
       parseInt(conversationsCheck.rows[0].count) +
       parseInt(contactsCheck.rows[0].count);
 
     if (totalUsage > 0) {
-      throw new ValidationError('Setor em uso por campanhas, leads, conversas ou contatos. Não é possível deletar.');
+      throw new ValidationError('Setor em uso por campanhas, oportunidades, conversas ou contatos. Não é possível deletar.');
     }
 
     await db.delete('sectors', { id });

@@ -1,4 +1,10 @@
 // backend/src/controllers/leadController.js
+// =====================================================
+// DEPRECATED: Este controller está em processo de migração
+// Novos registros devem usar opportunityController + contactController
+// A tabela LEADS será eliminada após validação completa
+// Ver migrations 106-110 para detalhes da migração
+// =====================================================
 const db = require('../config/database');
 const { sendSuccess, sendError } = require('../utils/responses');
 const {
@@ -378,6 +384,9 @@ const createLead = async (req, res) => {
 
 // ================================
 // 4. CRIAR LEADS EM LOTE
+// TODO (MIGRATION): This function will be migrated to create CONTACT + OPPORTUNITY instead of LEAD
+// The LinkedIn campaign workflow depends on LEAD status progression (invite_sent, accepted, etc.)
+// Full migration will happen in ETAPA 3 after opportunities table has campaign fields
 // ================================
 const createLeadsBulk = async (req, res) => {
   try {

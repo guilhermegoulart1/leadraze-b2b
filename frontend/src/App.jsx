@@ -18,7 +18,7 @@ import CampaignsPage from './pages/CampaignsPage';
 import CampaignReportPage from './pages/CampaignReportPage';
 import LinkedInPage from './pages/LinkedInPage';
 import ListasPage from './pages/ListasPage';
-import LeadsPage from './pages/LeadsPage';
+// LeadsPage removida - usar PipelinesPage
 import ContactsPage from './pages/ContactsPage';
 import ConversationsPage from './pages/ConversationsPage';
 import AgentsPage from './pages/AgentsPage';
@@ -142,7 +142,7 @@ function AppRoutes() {
         <Route path="google-maps-agents/:id" element={<GoogleMapsAgentDetailPage />} />
         <Route path="campaigns" element={<LinkedInPage />} />
         <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
-        <Route path="leads" element={<LeadsPage />} />
+        <Route path="leads" element={<Navigate to="/pipelines" replace />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
         <Route path="insights" element={<InsightsPage />} />

@@ -11,6 +11,7 @@ const emailService = require('../services/emailService');
 const affiliateService = require('../services/affiliateService');
 const partnerService = require('../services/partnerService');
 const { initializeAccountSector, assignUserToDefaultSector } = require('../services/sectorService');
+const pipelineService = require('../services/pipelineService');
 const { CREDIT_PACKAGES, getPlanByPriceId, TRIAL_LIMITS } = require('../config/stripe');
 const db = require('../config/database');
 const crypto = require('crypto');
@@ -342,6 +343,14 @@ async function createAccountFromStripe({ email, name, phone, address, stripeCust
       console.log(`✅ Created default sector and assigned admin for account ${accountId}`);
     } catch (sectorError) {
       console.error('Warning: Could not initialize default sector:', sectorError.message);
+    }
+
+    // Create default pipeline for the account
+    try {
+      await pipelineService.createDefaultPipeline(accountId, userId);
+      console.log(`✅ Created default pipeline for account ${accountId}`);
+    } catch (pipelineError) {
+      console.error('Warning: Could not create default pipeline:', pipelineError.message);
     }
 
     // Send welcome email with password setup link

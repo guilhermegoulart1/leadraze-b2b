@@ -190,33 +190,33 @@ async function processCampaignInvites(campaign) {
 }
 
 /**
- * Buscar leads pendentes de uma campanha
+ * Buscar opportunities pendentes de uma campanha
  * @param {string} campaignId - ID da campanha
- * @param {number} limit - Limite de leads a buscar
- * @returns {Promise<Array>} Lista de leads pendentes
+ * @param {number} limit - Limite de opportunities a buscar
+ * @returns {Promise<Array>} Lista de opportunities pendentes
  */
 async function getPendingLeads(campaignId, limit = 10) {
   const result = await db.query(
     `SELECT
-      id,
-      campaign_id,
-      linkedin_profile_id,
-      name,
-      title,
-      company,
-      location,
-      industry,
-      profile_url,
-      profile_picture,
-      summary,
-      headline,
-      connections_count,
-      status
-    FROM leads
-    WHERE campaign_id = $1
-      AND status = 'leads'
-      AND linkedin_profile_id IS NOT NULL
-    ORDER BY created_at ASC
+      o.id,
+      o.campaign_id,
+      o.linkedin_profile_id,
+      ct.name,
+      ct.title,
+      ct.company,
+      ct.location,
+      ct.industry,
+      ct.profile_url,
+      ct.profile_picture,
+      ct.about as summary,
+      ct.headline,
+      ct.connections_count
+    FROM opportunities o
+    LEFT JOIN contacts ct ON o.contact_id = ct.id
+    WHERE o.campaign_id = $1
+      AND o.sent_at IS NULL
+      AND o.linkedin_profile_id IS NOT NULL
+    ORDER BY o.created_at ASC
     LIMIT $2`,
     [campaignId, limit]
   );
@@ -286,15 +286,15 @@ async function sendAutomatedInvite(params) {
     await inviteService.logInviteSent({
       linkedinAccountId: linkedinAccountId,
       campaignId: campaign.id,
-      leadId: lead.id,
+      opportunityId: lead.id,
       status: 'sent'
     });
 
-    // Atualizar status do lead
+    // Atualizar sent_at da opportunity
     await db.update(
-      'leads',
+      'opportunities',
       {
-        status: 'invite_sent',
+        sent_at: new Date(),
         updated_at: new Date()
       },
       { id: lead.id }
@@ -313,15 +313,14 @@ async function sendAutomatedInvite(params) {
     await inviteService.logInviteSent({
       linkedinAccountId: linkedinAccountId,
       campaignId: campaign.id,
-      leadId: lead.id,
+      opportunityId: lead.id,
       status: 'failed'
     });
 
-    // Atualizar status do lead como falha
+    // Atualizar opportunity com falha (deixar sent_at null, mas marcar updated_at)
     await db.update(
-      'leads',
+      'opportunities',
       {
-        status: 'invite_failed',
         updated_at: new Date()
       },
       { id: lead.id }

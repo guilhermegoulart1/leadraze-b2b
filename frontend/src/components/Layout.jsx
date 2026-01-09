@@ -108,7 +108,7 @@ const Layout = () => {
       {/* Sidebar */}
       <aside
         className={`
-          ${isCollapsed ? 'w-16' : 'w-56'}
+          ${isCollapsed ? 'w-16 overflow-visible' : 'w-56'}
           bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col
           transition-all duration-300 ease-in-out relative
         `}
@@ -154,7 +154,7 @@ const Layout = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin">
+        <nav className={`flex-1 py-3 px-2 scrollbar-thin ${isCollapsed ? 'overflow-visible' : 'overflow-y-auto'}`}>
           {allNavItems.map((item, index) => {
             // Section Header
             if (item.sectionKey) {
@@ -200,14 +200,19 @@ const Layout = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`
-                    flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative
+                    flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative group
                     text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400
                   `}
-                  title={isCollapsed ? label : ''}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   {!isCollapsed && (
                     <span className="text-sm flex-1">{label}</span>
+                  )}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-150 z-50 shadow-lg">
+                      {label}
+                      <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700" />
+                    </div>
                   )}
                 </a>
               );
@@ -218,13 +223,12 @@ const Layout = () => {
                 key={item.path}
                 to={item.path}
                 className={`
-                  flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative
+                  flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative group
                   ${active
                     ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400'
                   }
                 `}
-                title={isCollapsed ? label : ''}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {!isCollapsed && (
@@ -237,8 +241,21 @@ const Layout = () => {
                     )}
                   </>
                 )}
-                {isCollapsed && item.badge > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm" />
+                {isCollapsed && (
+                  <>
+                    {item.badge > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm" />
+                    )}
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-150 z-50 shadow-lg">
+                      {label}
+                      {item.badge > 0 && (
+                        <span className="ml-2 px-1.5 py-0.5 bg-red-500 rounded-full text-[10px] font-bold">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
+                      <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700" />
+                    </div>
+                  </>
                 )}
               </Link>
             );

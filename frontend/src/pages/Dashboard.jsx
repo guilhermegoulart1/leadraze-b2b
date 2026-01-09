@@ -18,10 +18,27 @@ const Dashboard = () => {
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   useEffect(() => {
     loadDashboard();
   }, [period]);
+
+  const loadInitialData = async () => {
+    try {
+      // Load pipelines for funnel selector
+      const pipelinesRes = await api.getPipelines();
+      if (pipelinesRes.success) {
+        setPipelines(pipelinesRes.data?.pipelines || []);
+      }
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
@@ -75,7 +92,7 @@ const Dashboard = () => {
 
       {/* Section 2: Sales Funnel + Revenue */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <SalesFunnel pipeline={data.pipeline || {}} />
+        <SalesFunnel pipelines={pipelines} />
         <RevenueChart
           data={data.revenue_per_day || []}
           total={data.revenue_total || 0}

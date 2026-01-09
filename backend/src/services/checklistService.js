@@ -1,23 +1,23 @@
 // backend/src/services/checklistService.js
-// Service for applying checklist templates when leads change pipeline stages
+// Service for applying checklist templates when opportunities change pipeline stages
 const db = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
 /**
- * Create checklist from template when a lead enters a pipeline stage
- * Now creates checklist_items instead of tasks
+ * Create checklist from template when an opportunity enters a pipeline stage
+ * Now creates opportunity_checklist_items instead of checklist_items
  *
  * @param {object} params - Parameters for checklist creation
- * @param {string} params.leadId - The lead ID
- * @param {string} params.newStage - The new pipeline stage the lead entered
+ * @param {string} params.opportunityId - The opportunity ID
+ * @param {string} params.newStage - The new pipeline stage the opportunity entered
  * @param {string} params.accountId - The account ID
- * @param {string} [params.assignedTo] - User ID to assign items to (defaults to lead's responsible user)
+ * @param {string} [params.assignedTo] - User ID to assign items to (defaults to opportunity's owner)
  * @param {string} [params.createdBy] - User ID who triggered the change
  * @returns {object} Result with created checklist and items
  */
-const createChecklistFromTemplate = async ({ leadId, newStage, accountId, assignedTo = null, createdBy = null }) => {
+const createChecklistFromTemplate = async ({ opportunityId, newStage, accountId, assignedTo = null, createdBy = null }) => {
   try {
-    console.log(`📋 [Checklist] Creating checklist for lead ${leadId} entering stage: ${newStage}`);
+    console.log(`📋 [Checklist] Creating checklist for opportunity ${opportunityId} entering stage: ${newStage}`);
 
     // Get the active template for this stage
     const templateResult = await db.query(
@@ -47,42 +47,42 @@ const createChecklistFromTemplate = async ({ leadId, newStage, accountId, assign
       return { created: 0, items: [] };
     }
 
-    // Check if a checklist with this name already exists for this lead
+    // Check if a checklist with this name already exists for this opportunity
     const existingChecklist = await db.query(
-      `SELECT id FROM lead_checklists
-       WHERE lead_id = $1 AND name = $2 AND account_id = $3`,
-      [leadId, template.name, accountId]
+      `SELECT id FROM opportunity_checklists
+       WHERE opportunity_id = $1 AND name = $2 AND account_id = $3`,
+      [opportunityId, template.name, accountId]
     );
 
     if (existingChecklist.rows.length > 0) {
-      console.log(`⚠️ [Checklist] Checklist "${template.name}" already exists for this lead`);
+      console.log(`⚠️ [Checklist] Checklist "${template.name}" already exists for this opportunity`);
       return { created: 0, items: [], alreadyExists: true };
     }
 
-    // Get lead info to determine responsible user
-    const leadResult = await db.query(
-      'SELECT responsible_user_id FROM leads WHERE id = $1',
-      [leadId]
+    // Get opportunity info to determine owner
+    const oppResult = await db.query(
+      'SELECT owner_user_id FROM opportunities WHERE id = $1',
+      [opportunityId]
     );
 
-    const lead = leadResult.rows[0];
-    const itemAssignee = assignedTo || lead?.responsible_user_id || null;
+    const opportunity = oppResult.rows[0];
+    const itemAssignee = assignedTo || opportunity?.owner_user_id || null;
     const creator = createdBy || itemAssignee;
 
-    // Get next checklist position for this lead
+    // Get next checklist position for this opportunity
     const posResult = await db.query(
       `SELECT COALESCE(MAX(position), -1) + 1 as next_pos
-       FROM lead_checklists WHERE lead_id = $1`,
-      [leadId]
+       FROM opportunity_checklists WHERE opportunity_id = $1`,
+      [opportunityId]
     );
     const checklistPosition = posResult.rows[0].next_pos;
 
     // Create the checklist
     const checklistId = uuidv4();
-    await db.insert('lead_checklists', {
+    await db.insert('opportunity_checklists', {
       id: checklistId,
       account_id: accountId,
-      lead_id: leadId,
+      opportunity_id: opportunityId,
       name: template.name,
       position: checklistPosition,
       created_by: creator,
@@ -107,26 +107,16 @@ const createChecklistFromTemplate = async ({ leadId, newStage, accountId, assign
       const item = {
         id: itemId,
         checklist_id: checklistId,
-        title: templateItem.title,
-        task_type: templateItem.task_type || 'call',
+        content: templateItem.title,
         is_completed: false,
         due_date: dueDate,
+        assigned_to: itemAssignee,
         position: i,
         created_at: new Date(),
         updated_at: new Date()
       };
 
-      await db.insert('checklist_items', item);
-
-      // Assign to user if specified
-      if (itemAssignee) {
-        await db.query(
-          `INSERT INTO checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at)
-           VALUES ($1, $2, $3, NOW())
-           ON CONFLICT (checklist_item_id, user_id) DO NOTHING`,
-          [itemId, itemAssignee, creator]
-        );
-      }
+      await db.insert('opportunity_checklist_items', item);
 
       createdItems.push({
         id: itemId,
@@ -154,39 +144,42 @@ const createChecklistFromTemplate = async ({ leadId, newStage, accountId, assign
 };
 
 /**
- * Handle lead stage change - create checklist if template exists
+ * Handle opportunity stage change - create checklist if template exists
  *
  * @param {object} params - Parameters
- * @param {string} params.leadId - The lead ID
+ * @param {string} params.opportunityId - The opportunity ID
  * @param {string} params.oldStage - Previous pipeline stage
  * @param {string} params.newStage - New pipeline stage
  * @param {string} params.accountId - Account ID
  * @param {string} params.userId - User who made the change
  */
-const onLeadStageChange = async ({ leadId, oldStage, newStage, accountId, userId }) => {
+const onOpportunityStageChange = async ({ opportunityId, oldStage, newStage, accountId, userId }) => {
   // Only create checklist if the stage actually changed
   if (oldStage === newStage) {
     return { created: 0, items: [] };
   }
 
   return createChecklistFromTemplate({
-    leadId,
+    opportunityId,
     newStage,
     accountId,
     createdBy: userId
   });
 };
 
+// Alias for backwards compatibility
+const onLeadStageChange = onOpportunityStageChange;
+
 /**
- * Apply a specific template to a lead
+ * Apply a specific template to an opportunity
  * Used for manual template application
  *
  * @param {string} templateId - Template ID
- * @param {string} leadId - Lead ID
+ * @param {string} opportunityId - Opportunity ID
  * @param {string} accountId - Account ID
  * @param {string} userId - User ID
  */
-const applyTemplateToLead = async (templateId, leadId, accountId, userId) => {
+const applyTemplateToOpportunity = async (templateId, opportunityId, accountId, userId) => {
   try {
     // Get template
     const template = await db.findOne('checklist_templates', { id: templateId, account_id: accountId });
@@ -202,23 +195,23 @@ const applyTemplateToLead = async (templateId, leadId, accountId, userId) => {
       [templateId]
     );
 
-    // Get lead for responsible user
-    const lead = await db.findOne('leads', { id: leadId, account_id: accountId });
-    const defaultAssignee = lead?.responsible_user_id || null;
+    // Get opportunity for owner user
+    const opportunity = await db.findOne('opportunities', { id: opportunityId, account_id: accountId });
+    const defaultAssignee = opportunity?.owner_user_id || null;
 
     // Get next checklist position
     const posResult = await db.query(
       `SELECT COALESCE(MAX(position), -1) + 1 as next_pos
-       FROM lead_checklists WHERE lead_id = $1`,
-      [leadId]
+       FROM opportunity_checklists WHERE opportunity_id = $1`,
+      [opportunityId]
     );
 
     // Create checklist
     const checklistId = uuidv4();
-    await db.insert('lead_checklists', {
+    await db.insert('opportunity_checklists', {
       id: checklistId,
       account_id: accountId,
-      lead_id: leadId,
+      opportunity_id: opportunityId,
       name: template.name,
       position: posResult.rows[0].next_pos,
       created_by: userId,
@@ -240,31 +233,21 @@ const applyTemplateToLead = async (templateId, leadId, accountId, userId) => {
       }
 
       const itemId = uuidv4();
-      await db.insert('checklist_items', {
+      await db.insert('opportunity_checklist_items', {
         id: itemId,
         checklist_id: checklistId,
-        title: templateItem.title,
-        task_type: templateItem.task_type || 'call',
+        content: templateItem.title,
         is_completed: false,
         due_date: dueDate,
+        assigned_to: defaultAssignee,
         position: i,
         created_at: new Date(),
         updated_at: new Date()
       });
 
-      if (defaultAssignee) {
-        await db.query(
-          `INSERT INTO checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at)
-           VALUES ($1, $2, $3, NOW())
-           ON CONFLICT (checklist_item_id, user_id) DO NOTHING`,
-          [itemId, defaultAssignee, userId]
-        );
-      }
-
       createdItems.push({
         id: itemId,
         title: templateItem.title,
-        taskType: templateItem.task_type || 'call',
         isCompleted: false,
         dueDate: dueDate,
         position: i
@@ -278,10 +261,13 @@ const applyTemplateToLead = async (templateId, leadId, accountId, userId) => {
     };
 
   } catch (error) {
-    console.error('Error applying template to lead:', error);
+    console.error('Error applying template to opportunity:', error);
     throw error;
   }
 };
+
+// Alias for backwards compatibility
+const applyTemplateToLead = applyTemplateToOpportunity;
 
 /**
  * Get templates summary for all stages
@@ -323,7 +309,9 @@ const getTemplatesSummary = async (accountId) => {
 
 module.exports = {
   createChecklistFromTemplate,
-  onLeadStageChange,
-  applyTemplateToLead,
+  onOpportunityStageChange,
+  onLeadStageChange, // Alias for backwards compatibility
+  applyTemplateToOpportunity,
+  applyTemplateToLead, // Alias for backwards compatibility
   getTemplatesSummary
 };

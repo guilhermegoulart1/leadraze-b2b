@@ -108,35 +108,44 @@ async function extractContacts(message) {
 }
 
 /**
- * Atualiza os dados de contato de um lead
+ * Atualiza os dados de contato na tabela contacts via opportunity_id
  */
-async function updateLeadContacts(leadId, { email, phone, source = 'conversation' }) {
+async function updateContactInfo(opportunityId, { email, phone, source = 'conversation' }) {
+  // Primeiro, buscar o contact_id da opportunity
+  const oppResult = await db.query(
+    'SELECT contact_id FROM opportunities WHERE id = $1',
+    [opportunityId]
+  );
+
+  if (oppResult.rows.length === 0 || !oppResult.rows[0].contact_id) {
+    console.log(`Opportunity ${opportunityId} não encontrada ou sem contact_id`);
+    return null;
+  }
+
+  const contactId = oppResult.rows[0].contact_id;
+
   const updates = [];
   const values = [];
   let paramIndex = 1;
 
   if (email) {
     updates.push(`email = $${paramIndex++}`);
-    updates.push(`email_captured_at = NOW()`);
-    updates.push(`email_source = $${paramIndex++}`);
-    values.push(email, source);
+    values.push(email);
   }
 
   if (phone) {
     updates.push(`phone = $${paramIndex++}`);
-    updates.push(`phone_captured_at = NOW()`);
-    updates.push(`phone_source = $${paramIndex++}`);
-    values.push(phone, source);
+    values.push(phone);
   }
 
   if (updates.length === 0) {
     return null;
   }
 
-  values.push(leadId);
+  values.push(contactId);
 
   const query = `
-    UPDATE leads
+    UPDATE contacts
     SET ${updates.join(', ')}, updated_at = NOW()
     WHERE id = $${paramIndex}
     RETURNING *
@@ -147,36 +156,39 @@ async function updateLeadContacts(leadId, { email, phone, source = 'conversation
 }
 
 /**
- * Verifica se o lead já tem os dados de contato
+ * Verifica se a opportunity já tem os dados de contato (via contacts)
  */
-async function hasContactInfo(leadId) {
+async function hasContactInfo(opportunityId) {
   const result = await db.query(
-    'SELECT email, phone FROM leads WHERE id = $1',
-    [leadId]
+    `SELECT ct.email, ct.phone
+     FROM opportunities o
+     LEFT JOIN contacts ct ON o.contact_id = ct.id
+     WHERE o.id = $1`,
+    [opportunityId]
   );
 
   if (result.rows.length === 0) {
     return { hasEmail: false, hasPhone: false };
   }
 
-  const lead = result.rows[0];
+  const contact = result.rows[0];
   return {
-    hasEmail: !!lead.email,
-    hasPhone: !!lead.phone
+    hasEmail: !!contact.email,
+    hasPhone: !!contact.phone
   };
 }
 
 /**
- * Processa uma mensagem de lead e atualiza contatos se encontrados
+ * Processa uma mensagem de opportunity e atualiza contatos se encontrados
  */
-async function processMessageForContacts(leadId, message) {
+async function processMessageForContacts(opportunityId, message) {
   try {
     // Verificar se já tem os dados
-    const { hasEmail, hasPhone } = await hasContactInfo(leadId);
+    const { hasEmail, hasPhone } = await hasContactInfo(opportunityId);
 
     // Se já tem ambos, não precisa extrair
     if (hasEmail && hasPhone) {
-      console.log(`Lead ${leadId} já possui email e telefone`);
+      console.log(`Opportunity ${opportunityId} já possui email e telefone`);
       return { extracted: false, reason: 'already_has_contacts' };
     }
 
@@ -197,18 +209,18 @@ async function processMessageForContacts(leadId, message) {
       return { extracted: false, reason: 'no_new_contacts_found' };
     }
 
-    // Atualizar lead
-    const updated = await updateLeadContacts(leadId, {
+    // Atualizar contact via opportunity
+    const updated = await updateContactInfo(opportunityId, {
       ...toUpdate,
       source: 'conversation'
     });
 
-    console.log(`✅ Contatos atualizados para lead ${leadId}:`, toUpdate);
+    console.log(`✅ Contatos atualizados para opportunity ${opportunityId}:`, toUpdate);
 
     return {
       extracted: true,
       contacts: toUpdate,
-      lead: updated
+      contact: updated
     };
 
   } catch (error) {
@@ -221,7 +233,7 @@ module.exports = {
   extractContacts,
   extractContactsWithRegex,
   extractContactsWithAI,
-  updateLeadContacts,
+  updateContactInfo,
   hasContactInfo,
   processMessageForContacts
 };

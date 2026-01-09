@@ -148,16 +148,17 @@ class SecretAgentCoachingService {
    * Get conversation context (last 30 messages)
    */
   async getConversationContext(conversationId, accountId) {
-    // Get conversation with lead info
+    // Get conversation with opportunity/contact info
     const convResult = await db.query(
       `SELECT
         c.*,
-        l.name as lead_name,
-        l.company,
-        l.title,
-        l.headline
+        ct.name as lead_name,
+        ct.company,
+        ct.title,
+        ct.headline
        FROM conversations c
-       LEFT JOIN leads l ON c.lead_id = l.id
+       LEFT JOIN opportunities o ON c.opportunity_id = o.id
+       LEFT JOIN contacts ct ON o.contact_id = ct.id
        WHERE c.id = $1 AND c.account_id = $2`,
       [conversationId, accountId]
     );

@@ -852,28 +852,28 @@ const searchProfilesAdvanced = async (req, res) => {
     }
     console.log('🔍 === FIM DO LOG ===');
 
-    // ✅ PROCESSAR PERFIS COM VERIFICAÇÃO CORRETA DE LEADS
+    // ✅ PROCESSAR PERFIS COM VERIFICAÇÃO DE OPPORTUNITIES
     const processedProfiles = await Promise.all(
       profiles.map(async (profile, index) => {
         const profileId = profile.id || profile.provider_id || profile.urn_id;
-        
-        // ✅ VERIFICAR SE JÁ É LEAD (via campaigns do usuário)
-        let isLead = false;
+
+        // ✅ VERIFICAR SE JÁ É OPPORTUNITY (via campaigns do usuário)
+        let isOpportunity = false;
         if (profileId) {
           try {
-            const leadCheck = await db.query(
-              `SELECT l.id 
-               FROM leads l
-               INNER JOIN campaigns c ON l.campaign_id = c.id
-               WHERE l.linkedin_profile_id = $1 
-               AND c.user_id = $2
+            const opportunityCheck = await db.query(
+              `SELECT o.id
+               FROM opportunities o
+               LEFT JOIN campaigns c ON o.campaign_id = c.id
+               WHERE o.linkedin_profile_id = $1
+               AND o.account_id = $2
                LIMIT 1`,
-              [profileId, userId]
+              [profileId, accountId]
             );
-            isLead = leadCheck.rows.length > 0;
+            isOpportunity = opportunityCheck.rows.length > 0;
           } catch (checkError) {
-            console.warn('⚠️ Erro ao verificar lead:', checkError.message);
-            // Se der erro, continua sem marcar como lead
+            console.warn('⚠️ Erro ao verificar opportunity:', checkError.message);
+            // Se der erro, continua sem marcar
           }
         }
 
@@ -1055,7 +1055,7 @@ const getProfileDetails = async (req, res) => {
 // ================================
 const sendInvitation = async (req, res) => {
   try {
-    const { account_id, provider_id, message, campaign_id, lead_id } = req.body;
+    const { account_id, provider_id, message, campaign_id, opportunity_id } = req.body;
     const userId = req.user.id;
 
     console.log(`📨 Enviando convite de conexão`);
@@ -1105,7 +1105,7 @@ const sendInvitation = async (req, res) => {
       await inviteService.logInviteSent({
         linkedinAccountId: account_id,
         campaignId: campaign_id,
-        leadId: lead_id,
+        opportunityId: opportunity_id,
         status: 'sent'
       });
 
@@ -1124,7 +1124,7 @@ const sendInvitation = async (req, res) => {
       await inviteService.logInviteSent({
         linkedinAccountId: account_id,
         campaignId: campaign_id,
-        leadId: lead_id,
+        opportunityId: opportunity_id,
         status: 'failed'
       });
 
@@ -2006,13 +2006,13 @@ const sendInviteFromSearch = async (req, res) => {
     });
 
     let contactCreated = false;
-    let leadCreated = false;
+    let opportunityCreated = false;
     let contactId = null;
-    let leadId = null;
+    let opportunityId = null;
 
-    // Criar contato e lead se solicitado
+    // Criar contato e opportunity se solicitado
     if (include_in_crm) {
-      console.log('📊 Criando contato e lead no CRM...');
+      console.log('📊 Criando contato e opportunity no CRM...');
       try {
         // Verificar se já existe contato com este linkedin_profile_id
         const existingContact = await db.query(
@@ -2049,61 +2049,59 @@ const sendInviteFromSearch = async (req, res) => {
           console.log('✅ Contato criado:', contactId);
         }
 
-        // Verificar se já existe lead para este contato
-        const existingLead = await db.query(
-          `SELECT id FROM leads WHERE linkedin_profile_id = $1 AND account_id = $2 LIMIT 1`,
+        // Verificar se já existe opportunity para este perfil
+        const existingOpportunity = await db.query(
+          `SELECT id FROM opportunities WHERE linkedin_profile_id = $1 AND account_id = $2 LIMIT 1`,
           [profile_id, accountId]
         );
 
-        if (existingLead.rows.length > 0) {
-          console.log('⚠️ Lead já existe para este perfil');
-          leadId = existingLead.rows[0].id;
+        if (existingOpportunity.rows.length > 0) {
+          console.log('⚠️ Opportunity já existe para este perfil');
+          opportunityId = existingOpportunity.rows[0].id;
 
-          // Garantir que a relação contact_leads existe
+          // Atualizar contact_id se necessário
           if (contactId) {
             await db.query(
-              `INSERT INTO contact_leads (contact_id, lead_id, role)
-               VALUES ($1, $2, 'primary')
-               ON CONFLICT (contact_id, lead_id) DO NOTHING`,
-              [contactId, leadId]
+              `UPDATE opportunities SET contact_id = $1, updated_at = NOW() WHERE id = $2 AND contact_id IS NULL`,
+              [contactId, opportunityId]
             );
           }
         } else {
-          // Criar lead (sem campaign_id - relação com contato via contact_leads)
-          const leadData = {
+          // Buscar pipeline e stage padrão da conta
+          const pipelineResult = await db.query(
+            `SELECT p.id as pipeline_id, ps.id as stage_id
+             FROM pipelines p
+             LEFT JOIN pipeline_stages ps ON ps.pipeline_id = p.id AND ps.position = 0
+             WHERE p.account_id = $1 AND p.is_default = true
+             LIMIT 1`,
+            [accountId]
+          );
+
+          const pipelineId = pipelineResult.rows[0]?.pipeline_id || null;
+          const stageId = pipelineResult.rows[0]?.stage_id || null;
+
+          // Criar opportunity (com contact_id direto - sem junction table)
+          const opportunityData = {
             account_id: accountId,
+            contact_id: contactId,
+            pipeline_id: pipelineId,
+            stage_id: stageId,
+            title: profile_data?.name || 'Nome não disponível',
             linkedin_profile_id: profile_id,
             provider_id: profile_id,
-            name: profile_data?.name || 'Nome não disponível',
-            title: profile_data?.title || null,
-            company: profile_data?.company || null,
-            location: profile_data?.location || null,
-            profile_url: profile_data?.profile_url || null,
-            profile_picture: profile_data?.profile_picture || null,
             source: 'linkedin_search',
-            status: 'invited',
-            responsible_id: responsible_id || userId
+            owner_user_id: responsible_id || userId,
+            sent_at: new Date()
           };
 
-          const newLead = await db.insert('leads', leadData);
-          leadId = newLead.id;
-          leadCreated = true;
-          console.log('✅ Lead criado:', leadId);
-
-          // Criar relação contact_leads (N:N)
-          if (contactId) {
-            await db.query(
-              `INSERT INTO contact_leads (contact_id, lead_id, role)
-               VALUES ($1, $2, 'primary')
-               ON CONFLICT (contact_id, lead_id) DO NOTHING`,
-              [contactId, leadId]
-            );
-            console.log('🔗 Lead vinculado ao contato via contact_leads');
-          }
+          const newOpportunity = await db.insert('opportunities', opportunityData);
+          opportunityId = newOpportunity.id;
+          opportunityCreated = true;
+          console.log('✅ Opportunity criada:', opportunityId);
         }
 
         // Enriquecer dados se solicitado
-        if (enrich_data && leadId) {
+        if (enrich_data && (opportunityId || contactId)) {
           console.log('🔄 Iniciando enriquecimento de dados...');
           try {
             const leadEnrichmentService = require('../services/leadEnrichmentService');
@@ -2111,39 +2109,7 @@ const sendInviteFromSearch = async (req, res) => {
             // Buscar perfil completo via Unipile
             const fullProfile = await leadEnrichmentService.fetchFullProfile(profile_id, account.unipile_account_id);
 
-            // Atualizar lead com dados enriquecidos
-            const enrichUpdateQuery = `
-              UPDATE leads SET
-                first_name = COALESCE($1, first_name),
-                last_name = COALESCE($2, last_name),
-                connections_count = COALESCE($3, connections_count),
-                follower_count = COALESCE($4, follower_count),
-                is_premium = COALESCE($5, is_premium),
-                is_creator = COALESCE($6, is_creator),
-                is_influencer = COALESCE($7, is_influencer),
-                network_distance = COALESCE($8, network_distance),
-                public_identifier = COALESCE($9, public_identifier),
-                member_urn = COALESCE($10, member_urn),
-                full_profile_fetched_at = NOW(),
-                updated_at = NOW()
-              WHERE id = $11
-            `;
-
-            await db.query(enrichUpdateQuery, [
-              fullProfile.first_name || null,
-              fullProfile.last_name || null,
-              fullProfile.connections_count || null,
-              fullProfile.follower_count || null,
-              fullProfile.is_premium || null,
-              fullProfile.is_creator || null,
-              fullProfile.is_influencer || null,
-              fullProfile.network_distance || null,
-              fullProfile.public_identifier || null,
-              fullProfile.member_urn || null,
-              leadId
-            ]);
-
-            // Atualizar contato com dados enriquecidos
+            // Atualizar contato com dados enriquecidos (pessoa = contacts)
             if (contactId) {
               await db.query(`
                 UPDATE contacts SET
@@ -2152,26 +2118,28 @@ const sendInviteFromSearch = async (req, res) => {
                   headline = COALESCE($3, headline),
                   about = COALESCE($4, about),
                   industry = COALESCE($5, industry),
+                  connections_count = COALESCE($6, connections_count),
                   updated_at = NOW()
-                WHERE id = $6
+                WHERE id = $7
               `, [
                 fullProfile.first_name || null,
                 fullProfile.last_name || null,
                 fullProfile.headline || null,
                 fullProfile.about || null,
                 fullProfile.industry || null,
+                fullProfile.connections_count || null,
                 contactId
               ]);
             }
 
             console.log('✅ Dados enriquecidos com sucesso');
           } catch (enrichError) {
-            console.error('⚠️ Erro ao enriquecer dados (contato/lead já criados):', enrichError.message);
-            // Não lançar erro - o contato e lead já foram criados
+            console.error('⚠️ Erro ao enriquecer dados (contato/opportunity já criados):', enrichError.message);
+            // Não lançar erro - o contato e opportunity já foram criados
           }
         }
       } catch (crmError) {
-        console.error('⚠️ Erro ao criar contato/lead (convite já foi enviado):', crmError.message);
+        console.error('⚠️ Erro ao criar contato/opportunity (convite já foi enviado):', crmError.message);
         // Não lançar erro - o convite já foi enviado
       }
     }
@@ -2182,12 +2150,12 @@ const sendInviteFromSearch = async (req, res) => {
       invite_sent: true,
       contact_created: contactCreated,
       contact_id: contactId,
-      lead_created: leadCreated,
-      lead_id: leadId,
+      opportunity_created: opportunityCreated,
+      opportunity_id: opportunityId,
       invites_remaining: limitCheck.remaining - 1,
       daily_limit: limitCheck.limit
-    }, include_in_crm && (contactCreated || leadCreated)
-      ? 'Invite sent and contact/lead created successfully'
+    }, include_in_crm && (contactCreated || opportunityCreated)
+      ? 'Invite sent and contact/opportunity created successfully'
       : 'Invite sent successfully');
 
   } catch (error) {

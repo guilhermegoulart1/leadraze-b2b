@@ -176,12 +176,11 @@ exports.getContacts = async (req, res) => {
           WHERE contact_id = c.id
         ) as total_messages,
 
-        -- Count of active opportunities (leads)
+        -- Count of active opportunities
         (
           SELECT COUNT(*)
-          FROM contact_leads cl
-          JOIN leads l ON l.id = cl.lead_id
-          WHERE cl.contact_id = c.id
+          FROM opportunities o
+          WHERE o.contact_id = c.id
         ) as opportunities_count
 
       FROM contacts c
@@ -280,13 +279,14 @@ exports.getContact = async (req, res) => {
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
-              'id', l.id,
-              'name', l.name,
-              'status', l.status,
-              'role', cl.role,
-              'createdAt', cl.created_at
+              'id', o.id,
+              'title', o.title,
+              'stage_id', o.stage_id,
+              'pipeline_id', o.pipeline_id,
+              'value', o.value,
+              'createdAt', o.created_at
             )
-          ) FILTER (WHERE l.id IS NOT NULL),
+          ) FILTER (WHERE o.id IS NOT NULL),
           '[]'
         ) as opportunities
 
@@ -294,8 +294,7 @@ exports.getContact = async (req, res) => {
       LEFT JOIN contact_tags ct ON c.id = ct.contact_id
       LEFT JOIN tags t ON ct.tag_id = t.id AND t.account_id = $3
       LEFT JOIN contact_channels cc ON c.id = cc.contact_id
-      LEFT JOIN contact_leads cl ON c.id = cl.contact_id
-      LEFT JOIN leads l ON cl.lead_id = l.id
+      LEFT JOIN opportunities o ON o.contact_id = c.id
       WHERE c.id = $1 AND c.account_id = $3 AND c.user_id = ANY($2::uuid[]) ${sectorFilter}
       GROUP BY c.id
     `;
@@ -624,32 +623,31 @@ exports.deleteContact = async (req, res) => {
       throw new NotFoundError('Contact not found');
     }
 
-    // First, find all leads associated with this contact
-    const associatedLeads = await db.query(
-      `SELECT DISTINCT l.id
-       FROM leads l
-       INNER JOIN contact_leads cl ON cl.lead_id = l.id
-       WHERE cl.contact_id = $1`,
+    // First, find all opportunities associated with this contact
+    const associatedOpportunities = await db.query(
+      `SELECT DISTINCT o.id
+       FROM opportunities o
+       WHERE o.contact_id = $1`,
       [id]
     );
 
-    // Delete all associated leads
-    if (associatedLeads.rows.length > 0) {
-      const leadIds = associatedLeads.rows.map(row => row.id);
-      console.log(`🗑️  Deleting ${leadIds.length} lead(s) associated with contact ${id}`);
+    // Delete all associated opportunities
+    if (associatedOpportunities.rows.length > 0) {
+      const opportunityIds = associatedOpportunities.rows.map(row => row.id);
+      console.log(`🗑️  Deleting ${opportunityIds.length} opportunity(s) associated with contact ${id}`);
 
       await db.query(
-        'DELETE FROM leads WHERE id = ANY($1::uuid[])',
-        [leadIds]
+        'DELETE FROM opportunities WHERE id = ANY($1::uuid[])',
+        [opportunityIds]
       );
     }
 
-    // Delete contact (cascading deletes will handle contact_leads and other related records)
+    // Delete contact (cascading deletes will handle contact_tags and other related records)
     await db.query('DELETE FROM contacts WHERE id = $1 AND account_id = $2', [id, accountId]);
 
     sendSuccess(res, {
       message: 'Contact deleted successfully',
-      deleted_leads: associatedLeads.rows.length
+      deleted_opportunities: associatedOpportunities.rows.length
     });
 
   } catch (error) {
@@ -1126,7 +1124,7 @@ exports.getContactFull = async (req, res) => {
     const contact = contactResult.rows[0];
 
     // 2. Get all conversations for this contact
-    // Can be via contact_id directly OR via lead_id (through contact_leads)
+    // Via opportunity_id in conversations which links to contact
     const conversationsQuery = `
       SELECT DISTINCT ON (conv.id)
         conv.id,
@@ -1134,50 +1132,45 @@ exports.getContactFull = async (req, res) => {
         conv.last_message_at,
         conv.unread_count,
         conv.contact_id,
-        conv.lead_id,
+        conv.opportunity_id,
         conv.is_group,
         conv.group_name,
         COALESCE(conv.provider_type, 'LINKEDIN') as provider_type,
         LOWER(COALESCE(conv.provider_type, 'LINKEDIN')) as channel,
         conv.last_message_preview,
-        l.name as lead_name
+        ct.name as contact_name
       FROM conversations conv
-      LEFT JOIN contact_leads cl ON cl.lead_id = conv.lead_id
-      LEFT JOIN leads l ON l.id = conv.lead_id
+      LEFT JOIN opportunities o ON o.id = conv.opportunity_id
+      LEFT JOIN contacts ct ON ct.id = o.contact_id
       WHERE conv.account_id = $1
-        AND (conv.contact_id = $2 OR cl.contact_id = $2)
+        AND (conv.contact_id = $2 OR o.contact_id = $2)
       ORDER BY conv.id, conv.last_message_at DESC NULLS LAST
     `;
 
     const conversationsResult = await db.query(conversationsQuery, [accountId, id]);
 
-    // 3. Get all leads (opportunities) for this contact
-    // Note: pipeline_stages/pipelines tables don't exist in this system
-    // Leads have a simple status field
-    const leadsQuery = `
+    // 3. Get all opportunities for this contact
+    const opportunitiesQuery = `
       SELECT
-        l.id,
-        l.name,
-        l.status,
-        l.score,
-        l.title,
-        l.company,
-        l.headline,
-        l.profile_picture,
-        l.created_at,
-        l.updated_at,
-        cl.role as contact_role,
-        (cl.role = 'primary') as is_primary_contact,
+        o.id,
+        o.title,
+        ps.name as stage_name,
+        o.pipeline_id,
+        o.stage_id,
+        o.score,
+        o.value,
+        o.created_at,
+        o.updated_at,
         c.name as campaign_name
-      FROM leads l
-      JOIN contact_leads cl ON cl.lead_id = l.id
-      LEFT JOIN campaigns c ON c.id = l.campaign_id
-      WHERE cl.contact_id = $1
-        AND l.account_id = $2
-      ORDER BY l.updated_at DESC
+      FROM opportunities o
+      LEFT JOIN pipeline_stages ps ON ps.id = o.stage_id
+      LEFT JOIN campaigns c ON c.id = o.campaign_id
+      WHERE o.contact_id = $1
+        AND o.account_id = $2
+      ORDER BY o.updated_at DESC
     `;
 
-    const leadsResult = await db.query(leadsQuery, [id, accountId]);
+    const opportunitiesResult = await db.query(opportunitiesQuery, [id, accountId]);
 
     // 4. Get notes for this contact
     const notesQuery = `
@@ -1207,7 +1200,7 @@ exports.getContactFull = async (req, res) => {
       contact,
       channels: contact.channels,
       conversations: conversationsResult.rows,
-      leads: leadsResult.rows,
+      opportunities: opportunitiesResult.rows,
       notes
     });
 

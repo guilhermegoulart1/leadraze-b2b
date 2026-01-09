@@ -54,60 +54,62 @@ function calculateRandomDelay(remainingInvites, hoursRemaining = 8) {
  * @param {Object} job - Job da fila Bull
  */
 async function processInvite(job) {
-  const { campaignId, leadId, linkedinAccountId, unipileAccountId } = job.data;
+  const { campaignId, opportunityId, linkedinAccountId, unipileAccountId } = job.data;
 
   log.divider();
   log.info('PROCESSANDO ENVIO DE CONVITE');
   log.info(`   Job ID: ${job.id}`);
   log.info(`   Campaign ID: ${campaignId}`);
-  log.info(`   Lead ID: ${leadId}`);
+  log.info(`   Opportunity ID: ${opportunityId}`);
   log.info(`   LinkedIn Account ID: ${linkedinAccountId}`);
   log.info(`   Unipile Account ID: ${unipileAccountId}`);
   log.info(`   Timestamp: ${new Date().toISOString()}`);
 
   try {
-    // Buscar dados do lead
-    log.step('1', 'Buscando dados do lead no banco...');
-    const leadResult = await db.query(
+    // Buscar dados da opportunity com contact
+    log.step('1', 'Buscando dados da opportunity no banco...');
+    const opportunityResult = await db.query(
       `SELECT
-        id,
-        campaign_id,
-        linkedin_profile_id,
-        name,
-        title,
-        company,
-        location,
-        industry,
-        profile_url,
-        profile_picture,
-        summary,
-        headline,
-        connections_count,
-        status
-      FROM leads
-      WHERE id = $1`,
-      [leadId]
+        o.id,
+        o.campaign_id,
+        o.linkedin_profile_id,
+        o.title as opportunity_title,
+        o.sent_at,
+        ct.id as contact_id,
+        ct.name,
+        ct.title,
+        ct.company,
+        ct.location,
+        ct.industry,
+        ct.profile_url,
+        ct.profile_picture,
+        ct.about as summary,
+        ct.headline,
+        ct.connections_count
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      WHERE o.id = $1`,
+      [opportunityId]
     );
 
-    if (!leadResult.rows || leadResult.rows.length === 0) {
-      log.error('Lead não encontrado no banco!');
-      throw new Error('Lead not found');
+    if (!opportunityResult.rows || opportunityResult.rows.length === 0) {
+      log.error('Opportunity não encontrada no banco!');
+      throw new Error('Opportunity not found');
     }
 
-    const lead = leadResult.rows[0];
-    log.success(`Lead encontrado: ${lead.name}`);
-    log.info(`   Status atual: ${lead.status}`);
-    log.info(`   LinkedIn Profile ID: ${lead.linkedin_profile_id}`);
-    log.info(`   Empresa: ${lead.company || 'N/A'}`);
-    log.info(`   Cargo: ${lead.title || 'N/A'}`);
+    const opportunity = opportunityResult.rows[0];
+    log.success(`Opportunity encontrada: ${opportunity.name}`);
+    log.info(`   LinkedIn Profile ID: ${opportunity.linkedin_profile_id}`);
+    log.info(`   Empresa: ${opportunity.company || 'N/A'}`);
+    log.info(`   Cargo: ${opportunity.title || 'N/A'}`);
 
-    // Verificar se lead ainda está pendente
-    log.step('2', 'Verificando se lead ainda está pendente...');
-    if (lead.status !== 'lead') {
-      log.warn(`Lead já processado (status: ${lead.status}), ignorando`);
+    // Verificar se opportunity ainda está pendente (não enviada)
+    log.step('2', 'Verificando se opportunity ainda está pendente...');
+    if (opportunity.sent_at) {
+      log.warn(`Convite já enviado em ${opportunity.sent_at}, ignorando`);
       return { skipped: true, reason: 'already_processed' };
     }
-    log.success('Lead está pendente, pode enviar convite');
+    log.success('Opportunity está pendente, pode enviar convite');
 
     // Verificar limite diário
     log.step('3', 'Verificando limite diário de convites...');
@@ -163,10 +165,10 @@ async function processInvite(job) {
     let inviteMessage = null;
 
     if (campaign.initial_approach) {
-      const leadData = TemplateProcessor.extractLeadData(lead);
+      const contactData = TemplateProcessor.extractLeadData(opportunity);
       inviteMessage = TemplateProcessor.processTemplate(
         campaign.initial_approach,
-        leadData
+        contactData
       );
 
       // LinkedIn limita mensagens de convite a 300 caracteres
@@ -183,12 +185,12 @@ async function processInvite(job) {
 
     // Enviar convite via Unipile
     log.step('6', 'Enviando convite via Unipile API...');
-    log.info(`   Profile ID: ${lead.linkedin_profile_id}`);
+    log.info(`   Profile ID: ${opportunity.linkedin_profile_id}`);
     log.info(`   Account ID: ${unipileAccountId}`);
 
     const inviteParams = {
       account_id: unipileAccountId,
-      user_id: lead.linkedin_profile_id
+      user_id: opportunity.linkedin_profile_id
     };
 
     if (inviteMessage) {
@@ -198,64 +200,52 @@ async function processInvite(job) {
     const result = await unipileClient.users.sendConnectionRequest(inviteParams);
     log.success('Convite enviado via API Unipile!');
 
-    // Atualizar status do lead para 'invite_sent'
-    log.step('7', 'Atualizando status do lead...');
+    // Atualizar opportunity com sent_at
+    log.step('7', 'Atualizando opportunity...');
     await db.update(
-      'leads',
+      'opportunities',
       {
-        status: 'invite_sent',
         sent_at: new Date(),
         updated_at: new Date()
       },
-      { id: lead.id }
+      { id: opportunity.id }
     );
-    log.success('Lead atualizado para status: invite_sent');
+    log.success('Opportunity atualizada com sent_at');
 
     // Registrar log de convite enviado
     log.step('8', 'Registrando log de convite...');
     await inviteService.logInviteSent({
       linkedinAccountId: linkedinAccountId,
       campaignId: campaignId,
-      leadId: lead.id,
+      opportunityId: opportunity.id,
       status: 'sent'
     });
     log.success('Log de convite registrado');
 
     log.divider();
     log.success(`CONVITE ENVIADO COM SUCESSO!`);
-    log.info(`   Lead: ${lead.name}`);
-    log.info(`   Empresa: ${lead.company || 'N/A'}`);
-    log.info(`   Cargo: ${lead.title || 'N/A'}`);
+    log.info(`   Contato: ${opportunity.name}`);
+    log.info(`   Empresa: ${opportunity.company || 'N/A'}`);
+    log.info(`   Cargo: ${opportunity.title || 'N/A'}`);
     log.info(`   Mensagem: ${inviteMessage ? inviteMessage.length + ' chars' : 'Sem nota'}`);
     log.divider();
 
     return {
       success: true,
-      leadId: lead.id,
-      leadName: lead.name,
+      opportunityId: opportunity.id,
+      contactName: opportunity.name,
       messageLength: inviteMessage ? inviteMessage.length : 0
     };
 
   } catch (error) {
     log.error(`Erro ao enviar convite: ${error.message}`);
 
-    // Atualizar status do lead como falha
-    log.info('   Atualizando lead para status: invite_failed');
-    await db.update(
-      'leads',
-      {
-        status: 'invite_failed',
-        updated_at: new Date()
-      },
-      { id: leadId }
-    );
-
     // Registrar falha no log
     log.info('   Registrando falha no log');
     await inviteService.logInviteSent({
       linkedinAccountId: linkedinAccountId,
       campaignId: campaignId,
-      leadId: leadId,
+      opportunityId: opportunityId,
       status: 'failed'
     });
 
@@ -303,42 +293,43 @@ async function startCampaignInvites(campaignId, options = {}) {
     const campaign = campaignResult.rows[0];
     log.success(`Campanha encontrada: ${campaign.name}`);
 
-    // Buscar leads pendentes
-    log.step('2', 'Buscando leads pendentes...');
-    const pendingLeadsResult = await db.query(
-      `SELECT id, name
-       FROM leads
-       WHERE campaign_id = $1
-         AND status = 'lead'
-         AND linkedin_profile_id IS NOT NULL
-       ORDER BY created_at ASC`,
+    // Buscar opportunities pendentes (sem sent_at)
+    log.step('2', 'Buscando opportunities pendentes...');
+    const pendingOpportunitiesResult = await db.query(
+      `SELECT o.id, ct.name
+       FROM opportunities o
+       LEFT JOIN contacts ct ON o.contact_id = ct.id
+       WHERE o.campaign_id = $1
+         AND o.sent_at IS NULL
+         AND o.linkedin_profile_id IS NOT NULL
+       ORDER BY o.created_at ASC`,
       [campaignId]
     );
 
-    const pendingLeads = pendingLeadsResult.rows || [];
+    const pendingOpportunities = pendingOpportunitiesResult.rows || [];
 
-    if (pendingLeads.length === 0) {
-      log.info('Nenhum lead pendente encontrado');
+    if (pendingOpportunities.length === 0) {
+      log.info('Nenhuma opportunity pendente encontrada');
       return { success: true, scheduled: 0 };
     }
 
-    log.success(`${pendingLeads.length} leads pendentes encontrados`);
-    pendingLeads.slice(0, 5).forEach((l, i) => {
-      log.info(`   ${i + 1}. ${l.name}`);
+    log.success(`${pendingOpportunities.length} opportunities pendentes encontradas`);
+    pendingOpportunities.slice(0, 5).forEach((o, i) => {
+      log.info(`   ${i + 1}. ${o.name}`);
     });
-    if (pendingLeads.length > 5) {
-      log.info(`   ... e mais ${pendingLeads.length - 5} leads`);
+    if (pendingOpportunities.length > 5) {
+      log.info(`   ... e mais ${pendingOpportunities.length - 5} opportunities`);
     }
 
-    // Calcular limite efetivo (menor entre dailyLimit e leads disponíveis)
+    // Calcular limite efetivo (menor entre dailyLimit e opportunities disponíveis)
     log.step('3', 'Calculando limite efetivo...');
     const todayRemaining = (campaign.daily_limit || dailyLimit) - (campaign.today_sent || 0);
-    const effectiveLimit = Math.min(todayRemaining, pendingLeads.length, dailyLimit);
+    const effectiveLimit = Math.min(todayRemaining, pendingOpportunities.length, dailyLimit);
 
     log.info(`   Limite diário: ${campaign.daily_limit || dailyLimit}`);
     log.info(`   Já enviados hoje: ${campaign.today_sent || 0}`);
     log.info(`   Restantes: ${todayRemaining}`);
-    log.info(`   Leads pendentes: ${pendingLeads.length}`);
+    log.info(`   Opportunities pendentes: ${pendingOpportunities.length}`);
     log.success(`Limite efetivo: ${effectiveLimit} convites`);
 
     if (effectiveLimit <= 0) {
@@ -358,7 +349,7 @@ async function startCampaignInvites(campaignId, options = {}) {
     let scheduledCount = 0;
 
     for (let i = 0; i < effectiveLimit; i++) {
-      const lead = pendingLeads[i];
+      const opportunity = pendingOpportunities[i];
       const remainingInvites = effectiveLimit - i;
 
       // Calcular delay randomizado
@@ -368,7 +359,7 @@ async function startCampaignInvites(campaignId, options = {}) {
       await linkedinInviteQueue.add(
         {
           campaignId: campaign.id,
-          leadId: lead.id,
+          opportunityId: opportunity.id,
           linkedinAccountId: campaign.linkedin_account_id,
           unipileAccountId: campaign.unipile_account_id
         },
@@ -385,7 +376,7 @@ async function startCampaignInvites(campaignId, options = {}) {
       scheduledCount++;
 
       const delayMinutes = Math.round((delay * i) / 60000);
-      log.info(`   📅 ${i + 1}/${effectiveLimit}: ${lead.name} → daqui ${delayMinutes} min`);
+      log.info(`   📅 ${i + 1}/${effectiveLimit}: ${opportunity.name} → daqui ${delayMinutes} min`);
     }
 
     log.divider();

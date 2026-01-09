@@ -9,6 +9,7 @@
   "newProject": "Novo Projeto",
   "newPipeline": "Nova Pipeline",
   "createPipeline": "Criar Pipeline",
+  "deleteProject": "Excluir Projeto",
   "empty": "Vazio",
   "selectPipeline": "Selecione uma Pipeline",
   "selectPipelineSubtitle": "Escolha uma pipeline no menu lateral ou crie uma nova",
@@ -48,5 +49,15 @@
     "manual": "Manual",
     "other": "Outro"
   },
-  "loadingDetails": "Carregando detalhes..."
+  "loadingDetails": "Carregando detalhes...",
+  "deleteProjectModal": {
+    "title": "Excluir Projeto",
+    "warning": "Este projeto contém dados que serão excluídos permanentemente. Considere mover as pipelines para outro projeto antes de excluir.",
+    "pipelines": "Pipelines",
+    "opportunities": "Oportunidades",
+    "irreversible": "Esta ação não pode ser desfeita.",
+    "cancel": "Cancelar",
+    "confirm": "Excluir Tudo",
+    "deleting": "Excluindo..."
+  }
 }

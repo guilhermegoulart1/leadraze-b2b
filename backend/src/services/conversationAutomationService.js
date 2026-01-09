@@ -108,12 +108,12 @@ async function processIncomingMessage(params) {
     // 📧📞 Extrair email/telefone da mensagem se houver
     try {
       const extractionResult = await contactExtractionService.processMessageForContacts(
-        conversation.lead_id,
+        conversation.opportunity_id,
         message_content
       );
 
       if (extractionResult.extracted) {
-        console.log(`📧📞 Contatos capturados do lead ${conversation.lead_id}:`, extractionResult.contacts);
+        console.log(`📧📞 Contatos capturados da opportunity ${conversation.opportunity_id}:`, extractionResult.contacts);
       }
     } catch (error) {
       // Não bloquear o fluxo se a extração falhar
@@ -179,16 +179,16 @@ async function processIncomingMessage(params) {
     console.log(`✅ Workflow processed message, executed ${workflowResult.executedNodes?.length || 0} nodes`);
 
     // ========================================
-    // ENRIQUECIMENTO: Atualizar lead com dados extraídos pela IA
+    // ENRIQUECIMENTO: Atualizar contact com dados extraídos pela IA
     // ========================================
     if (workflowResult.enrichedData?.extractedData) {
       try {
-        await updateLeadWithExtractedData(
-          conversation.lead_id,
+        await updateContactWithExtractedData(
+          conversation.opportunity_id,
           workflowResult.enrichedData.extractedData
         );
       } catch (error) {
-        console.error('⚠️ Erro ao atualizar lead com dados extraídos:', error.message);
+        console.error('⚠️ Erro ao atualizar contact com dados extraídos:', error.message);
       }
     }
 
@@ -240,22 +240,40 @@ async function processIncomingMessage(params) {
  */
 async function processInviteAccepted(params) {
   const {
-    lead_id,
+    opportunity_id,
     campaign_id,
     linkedin_account_id,
     lead_unipile_id
   } = params;
 
   try {
-    console.log(`🎉 Processando convite aceito para lead ${lead_id}`);
+    console.log(`🎉 Processando convite aceito para opportunity ${opportunity_id}`);
 
-    // Buscar dados do lead e campanha
-    const leadData = await db.findOne('leads', { id: lead_id });
+    // Buscar dados da opportunity, contact e campanha
+    const opportunityData = await db.findOne('opportunities', { id: opportunity_id });
     const campaign = await db.findOne('campaigns', { id: campaign_id });
     const linkedinAccount = await db.findOne('linkedin_accounts', { id: linkedin_account_id });
 
-    if (!leadData || !campaign || !linkedinAccount) {
-      throw new Error('Lead, campaign or LinkedIn account not found');
+    if (!opportunityData || !campaign || !linkedinAccount) {
+      throw new Error('Opportunity, campaign or LinkedIn account not found');
+    }
+
+    // Buscar contact data para templates (leadData para compatibilidade)
+    let leadData = {};
+    if (opportunityData.contact_id) {
+      const contactData = await db.findOne('contacts', { id: opportunityData.contact_id });
+      if (contactData) {
+        leadData = {
+          id: contactData.id,
+          name: contactData.name,
+          email: contactData.email,
+          phone: contactData.phone,
+          company: contactData.company,
+          title: contactData.title,
+          headline: contactData.headline,
+          linkedin_profile_id: contactData.linkedin_profile_id
+        };
+      }
     }
 
     // Buscar AI agent da campanha
@@ -269,7 +287,7 @@ async function processInviteAccepted(params) {
 
     const conversationData = {
       id: conversationId,
-      lead_id: lead_id,
+      opportunity_id: opportunity_id,
       campaign_id: campaign_id,
       user_id: campaign.user_id,
       linkedin_account_id: linkedin_account_id,
@@ -286,23 +304,23 @@ async function processInviteAccepted(params) {
 
     console.log(`✅ Conversa criada: ${conversationId}`);
 
-    // Atualizar status do lead
+    // Atualizar opportunity (aceite)
     await db.update(
-      'leads',
+      'opportunities',
       {
-        status: 'connected',
+        accepted_at: new Date(),
         updated_at: new Date()
       },
-      { id: lead_id }
+      { id: opportunity_id }
     );
 
     // Atualizar log de convite
     await db.query(
       `UPDATE linkedin_invite_logs
        SET status = 'accepted'
-       WHERE lead_id = $1
+       WHERE opportunity_id = $1
        AND status = 'sent'`,
-      [lead_id]
+      [opportunity_id]
     );
 
     // Verificar se deve enviar mensagem inicial automática
@@ -467,14 +485,15 @@ async function getConversationDetails(conversationId) {
       conv.current_step,
       conv.step_history,
       conv.step_advanced_at,
-      l.id as lead_id,
-      l.name as lead_name,
-      l.title as lead_title,
-      l.company as lead_company,
-      l.location as lead_location,
-      l.industry as lead_industry,
-      l.linkedin_profile_id as lead_unipile_id,
-      l.profile_picture as lead_picture,
+      o.id as opportunity_id,
+      ct.id as contact_id,
+      ct.name as contact_name,
+      ct.title as contact_title,
+      ct.company as contact_company,
+      ct.location as contact_location,
+      ct.industry as contact_industry,
+      ct.linkedin_profile_id as contact_unipile_id,
+      ct.profile_picture as contact_picture,
       c.name as campaign_name,
       c.automation_active,
       la.unipile_account_id,
@@ -504,9 +523,10 @@ async function getConversationDetails(conversationId) {
       aa.workflow_enabled,
       aa.config
     FROM conversations conv
-    JOIN leads l ON conv.lead_id = l.id
-    JOIN campaigns c ON conv.campaign_id = c.id
-    JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
+    LEFT JOIN opportunities o ON conv.opportunity_id = o.id
+    LEFT JOIN contacts ct ON o.contact_id = ct.id
+    LEFT JOIN campaigns c ON conv.campaign_id = c.id
+    LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
     LEFT JOIN ai_agents aa ON conv.ai_agent_id = aa.id
     WHERE conv.id = $1`,
     [conversationId]
@@ -752,54 +772,79 @@ async function enableAIForConversation(conversationId, userId) {
 }
 
 /**
- * Atualizar lead com dados extraídos pela IA durante a conversa
- * @param {string} leadId - ID do lead
+ * Atualizar contact com dados extraídos pela IA durante a conversa
+ * @param {string} opportunityId - ID da opportunity
  * @param {Object} extractedData - Dados extraídos (email, phone, company, etc)
  */
-async function updateLeadWithExtractedData(leadId, extractedData) {
+async function updateContactWithExtractedData(opportunityId, extractedData) {
   if (!extractedData || Object.keys(extractedData).length === 0) {
     return;
   }
 
-  // Mapear campos extraídos para campos do banco
+  // Mapear campos extraídos para campos do banco (contact)
   const fieldMapping = {
     email: 'email',
     phone: 'phone',
     company: 'company',
     role: 'title',  // role mapeia para title no banco
-    company_size: 'company_size',
-    budget: 'budget',
-    timeline: 'timeline'
   };
 
-  // Buscar lead atual para não sobrescrever dados existentes
-  const currentLead = await db.findOne('leads', { id: leadId });
-  if (!currentLead) {
-    console.log(`⚠️ Lead ${leadId} não encontrado para atualização`);
+  // Buscar opportunity para pegar o contact_id
+  const opportunity = await db.findOne('opportunities', { id: opportunityId });
+  if (!opportunity || !opportunity.contact_id) {
+    console.log(`⚠️ Opportunity ${opportunityId} ou contact não encontrado para atualização`);
     return;
   }
 
-  const updates = {};
+  // Buscar contact atual para não sobrescrever dados existentes
+  const currentContact = await db.findOne('contacts', { id: opportunity.contact_id });
+  if (!currentContact) {
+    console.log(`⚠️ Contact ${opportunity.contact_id} não encontrado para atualização`);
+    return;
+  }
+
+  const contactUpdates = {};
   const updatedFields = [];
 
   for (const [extractedField, dbField] of Object.entries(fieldMapping)) {
     const value = extractedData[extractedField];
     // Só atualizar se o valor foi extraído E o campo atual está vazio
-    if (value && !currentLead[dbField]) {
-      updates[dbField] = value;
+    if (value && !currentContact[dbField]) {
+      contactUpdates[dbField] = value;
       updatedFields.push(dbField);
     }
   }
 
-  if (Object.keys(updates).length === 0) {
-    return;
+  // Atualizar opportunity com dados de qualificação (company_size, budget, timeline)
+  const opportunityUpdates = {};
+  if (extractedData.company_size && !opportunity.company_size) {
+    opportunityUpdates.company_size = extractedData.company_size;
+    updatedFields.push('company_size');
+  }
+  if (extractedData.budget && !opportunity.budget) {
+    opportunityUpdates.budget = extractedData.budget;
+    updatedFields.push('budget');
+  }
+  if (extractedData.timeline && !opportunity.timeline) {
+    opportunityUpdates.timeline = extractedData.timeline;
+    updatedFields.push('timeline');
   }
 
-  updates.updated_at = new Date();
+  if (Object.keys(contactUpdates).length > 0) {
+    contactUpdates.updated_at = new Date();
+    await db.update('contacts', contactUpdates, { id: opportunity.contact_id });
+    console.log(`📋 Contact ${opportunity.contact_id} atualizado com dados extraídos`);
+  }
 
-  await db.update('leads', updates, { id: leadId });
+  if (Object.keys(opportunityUpdates).length > 0) {
+    opportunityUpdates.updated_at = new Date();
+    await db.update('opportunities', opportunityUpdates, { id: opportunityId });
+    console.log(`📋 Opportunity ${opportunityId} atualizada com dados de qualificação`);
+  }
 
-  console.log(`📋 Lead ${leadId} atualizado com dados extraídos: ${updatedFields.join(', ')}`);
+  if (updatedFields.length > 0) {
+    console.log(`📋 Campos atualizados: ${updatedFields.join(', ')}`);
+  }
 }
 
 /**
@@ -883,6 +928,6 @@ module.exports = {
   getConversationDetails,
   getConversationHistory,
   getConversationContext,
-  updateLeadWithExtractedData,
+  updateContactWithExtractedData,
   updateConversationQualification
 };

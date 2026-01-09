@@ -249,81 +249,81 @@ class ApiService {
   }
 
   // ================================
-  // LEADS
+  // OPPORTUNITIES (former LEADS)
   // ================================
-  
+
   async getLeads(params = {}) {
     const query = new URLSearchParams(params).toString();
-    return this.request(`/leads?${query}`);
+    return this.request(`/opportunities?${query}`);
   }
 
   async getLead(id) {
-    return this.request(`/leads/${id}`);
+    return this.request(`/opportunities/${id}`);
   }
 
   async createLead(data) {
-    return this.request('/leads', {
+    return this.request('/opportunities', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async createLeadsBulk(data) {
-    return this.request('/leads/bulk', {
+    return this.request('/opportunities/bulk', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async createManualLead(data) {
-    return this.request('/leads/manual', {
+    return this.request('/opportunities/manual', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updateLead(id, data) {
-    return this.request(`/leads/${id}`, {
+    return this.request(`/opportunities/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteLead(id) {
-    return this.request(`/leads/${id}`, {
+    return this.request(`/opportunities/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getCampaignLeads(campaignId, params = {}) {
     const query = new URLSearchParams(params).toString();
-    return this.request(`/leads/campaign/${campaignId}?${query}`);
+    return this.request(`/opportunities/campaign/${campaignId}?${query}`);
   }
 
-  async updateLeadStatus(leadId, status) {
-    return this.request(`/leads/${leadId}/status`, {
+  async updateLeadStatus(opportunityId, status) {
+    return this.request(`/opportunities/${opportunityId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
   }
 
-  // Lead Assignment
-  async assignLead(leadId, userId) {
-    return this.request(`/leads/${leadId}/assign`, {
+  // Opportunity Assignment
+  async assignLead(opportunityId, userId) {
+    return this.request(`/opportunities/${opportunityId}/assign`, {
       method: 'PATCH',
       body: JSON.stringify({ user_id: userId }),
     });
   }
 
-  async autoAssignLead(leadId) {
-    return this.request(`/leads/${leadId}/auto-assign`, {
+  async autoAssignLead(opportunityId) {
+    return this.request(`/opportunities/${opportunityId}/auto-assign`, {
       method: 'POST',
     });
   }
 
   async getAssignableUsers(sectorId = null) {
     const params = sectorId ? `?sector_id=${sectorId}` : '';
-    return this.request(`/leads/assignable-users${params}`);
+    return this.request(`/opportunities/assignable-users${params}`);
   }
 
   // ================================
@@ -1003,15 +1003,15 @@ class ApiService {
     });
   }
 
-  async addTagToLead(leadId, tagId) {
-    return this.request(`/leads/${leadId}/tags`, {
+  async addTagToLead(opportunityId, tagId) {
+    return this.request(`/opportunities/${opportunityId}/tags`, {
       method: 'POST',
       body: JSON.stringify({ tag_id: tagId }),
     });
   }
 
-  async removeTagFromLead(leadId, tagId) {
-    return this.request(`/leads/${leadId}/tags/${tagId}`, {
+  async removeTagFromLead(opportunityId, tagId) {
+    return this.request(`/opportunities/${opportunityId}/tags/${tagId}`, {
       method: 'DELETE',
     });
   }
@@ -1056,35 +1056,35 @@ class ApiService {
   }
 
   // ================================
-  // LEAD PRODUCTS (Win Deal)
+  // OPPORTUNITY PRODUCTS (Win Deal)
   // ================================
 
-  async getLeadProducts(leadId) {
-    return this.request(`/leads/${leadId}/products`);
+  async getLeadProducts(opportunityId) {
+    return this.request(`/opportunities/${opportunityId}/products`);
   }
 
-  async addLeadProduct(leadId, productData) {
-    return this.request(`/leads/${leadId}/products`, {
+  async addLeadProduct(opportunityId, productData) {
+    return this.request(`/opportunities/${opportunityId}/products`, {
       method: 'POST',
       body: JSON.stringify(productData),
     });
   }
 
-  async updateLeadProduct(leadId, productItemId, productData) {
-    return this.request(`/leads/${leadId}/products/${productItemId}`, {
+  async updateLeadProduct(opportunityId, productItemId, productData) {
+    return this.request(`/opportunities/${opportunityId}/products/${productItemId}`, {
       method: 'PUT',
       body: JSON.stringify(productData),
     });
   }
 
-  async removeLeadProduct(leadId, productItemId) {
-    return this.request(`/leads/${leadId}/products/${productItemId}`, {
+  async removeLeadProduct(opportunityId, productItemId) {
+    return this.request(`/opportunities/${opportunityId}/products/${productItemId}`, {
       method: 'DELETE',
     });
   }
 
-  async completeDeal(leadId, dealData) {
-    return this.request(`/leads/${leadId}/products/complete-deal`, {
+  async completeDeal(opportunityId, dealData) {
+    return this.request(`/opportunities/${opportunityId}/products/complete-deal`, {
       method: 'POST',
       body: JSON.stringify(dealData),
     });
@@ -1129,9 +1129,9 @@ class ApiService {
     });
   }
 
-  // Discard lead
-  async discardLead(leadId, discardData) {
-    return this.request(`/leads/${leadId}`, {
+  // Discard opportunity
+  async discardLead(opportunityId, discardData) {
+    return this.request(`/opportunities/${opportunityId}`, {
       method: 'PUT',
       body: JSON.stringify({
         status: 'discarded',
@@ -1142,9 +1142,9 @@ class ApiService {
     });
   }
 
-  // Reactivate lead
-  async reactivateLead(leadId) {
-    return this.request(`/leads/${leadId}/reactivate`, {
+  // Reactivate opportunity
+  async reactivateLead(opportunityId) {
+    return this.request(`/opportunities/${opportunityId}/reactivate`, {
       method: 'POST',
     });
   }
@@ -2056,36 +2056,36 @@ class ApiService {
   }
 
   // ================================
-  // 💬 LEAD COMMENTS
+  // 💬 OPPORTUNITY COMMENTS
   // ================================
 
-  async getLeadComments(leadId) {
-    return this.request(`/leads/${leadId}/comments`);
+  async getLeadComments(opportunityId) {
+    return this.request(`/opportunities/${opportunityId}/comments`);
   }
 
-  async createLeadComment(leadId, data) {
-    return this.request(`/leads/${leadId}/comments`, {
+  async createLeadComment(opportunityId, data) {
+    return this.request(`/opportunities/${opportunityId}/comments`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateLeadComment(leadId, commentId, data) {
-    return this.request(`/leads/${leadId}/comments/${commentId}`, {
+  async updateLeadComment(opportunityId, commentId, data) {
+    return this.request(`/opportunities/${opportunityId}/comments/${commentId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteLeadComment(leadId, commentId) {
-    return this.request(`/leads/${leadId}/comments/${commentId}`, {
+  async deleteLeadComment(opportunityId, commentId) {
+    return this.request(`/opportunities/${opportunityId}/comments/${commentId}`, {
       method: 'DELETE',
     });
   }
 
-  async searchUsersForMentions(leadId, query) {
+  async searchUsersForMentions(opportunityId, query) {
     const params = new URLSearchParams({ query });
-    return this.request(`/leads/${leadId}/comments/search-users?${params}`);
+    return this.request(`/opportunities/${opportunityId}/comments/search-users?${params}`);
   }
 
   // ================================
@@ -2559,8 +2559,8 @@ class ApiService {
     return this.request(`/tasks/stats${query ? '?' + query : ''}`);
   }
 
-  async getLeadTasks(leadId) {
-    return this.request(`/leads/${leadId}/tasks`);
+  async getLeadTasks(opportunityId) {
+    return this.request(`/opportunities/${opportunityId}/tasks`);
   }
 
   // Task Comments
@@ -2646,15 +2646,15 @@ class ApiService {
   }
 
   // ================================
-  // LEAD CHECKLISTS (ClickUp-style)
+  // OPPORTUNITY CHECKLISTS (ClickUp-style)
   // ================================
 
-  async getLeadChecklists(leadId) {
-    return this.request(`/leads/${leadId}/checklists`);
+  async getLeadChecklists(opportunityId) {
+    return this.request(`/opportunities/${opportunityId}/checklists`);
   }
 
-  async createLeadChecklist(leadId, data) {
-    return this.request(`/leads/${leadId}/checklists`, {
+  async createLeadChecklist(opportunityId, data) {
+    return this.request(`/opportunities/${opportunityId}/checklists`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -2745,14 +2745,14 @@ class ApiService {
 
     getBriefing: (id) => this.request(`/secret-agent/briefings/${id}`),
 
-    linkBriefingToLead: (briefingId, leadId) =>
-      this.request(`/secret-agent/briefings/${briefingId}/link-lead`, {
+    linkBriefingToOpportunity: (briefingId, opportunityId) =>
+      this.request(`/secret-agent/briefings/${briefingId}/link-opportunity`, {
         method: 'POST',
-        body: JSON.stringify({ leadId }),
+        body: JSON.stringify({ opportunityId }),
       }),
 
-    unlinkBriefingFromLead: (briefingId, leadId) =>
-      this.request(`/secret-agent/briefings/${briefingId}/link-lead/${leadId}`, {
+    unlinkBriefingFromOpportunity: (briefingId, opportunityId) =>
+      this.request(`/secret-agent/briefings/${briefingId}/link-opportunity/${opportunityId}`, {
         method: 'DELETE',
       }),
 
@@ -3130,6 +3130,10 @@ class ApiService {
 
   async getPipelineStats(id) {
     return this.request(`/pipelines/${id}/stats`);
+  }
+
+  async getPipelineFunnel(id) {
+    return this.request(`/pipelines/${id}/funnel`);
   }
 
   async movePipelineToProject(id, projectId) {

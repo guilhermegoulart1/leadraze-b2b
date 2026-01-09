@@ -13,7 +13,7 @@ const VALID_TASK_TYPES = ['call', 'meeting', 'email', 'follow_up', 'proposal', '
 const getItemAssignees = async (itemId) => {
   const query = `
     SELECT u.id, u.name, u.email, u.avatar_url as "avatarUrl"
-    FROM checklist_item_assignees cia
+    FROM opportunity_checklist_item_assignees cia
     JOIN users u ON cia.user_id = u.id
     WHERE cia.checklist_item_id = $1
     ORDER BY cia.assigned_at
@@ -26,7 +26,7 @@ const getItemAssignees = async (itemId) => {
  * Helper function to set assignees for a checklist item
  */
 const setItemAssignees = async (itemId, userIds, assignedBy) => {
-  await db.query('DELETE FROM checklist_item_assignees WHERE checklist_item_id = $1', [itemId]);
+  await db.query('DELETE FROM opportunity_checklist_item_assignees WHERE checklist_item_id = $1', [itemId]);
 
   if (userIds && userIds.length > 0) {
     const values = userIds.map((userId, idx) =>
@@ -35,7 +35,7 @@ const setItemAssignees = async (itemId, userIds, assignedBy) => {
 
     const params = [itemId, ...userIds, assignedBy];
     await db.query(
-      `INSERT INTO checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at) VALUES ${values}`,
+      `INSERT INTO opportunity_checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at) VALUES ${values}`,
       params
     );
   }
@@ -47,7 +47,7 @@ const setItemAssignees = async (itemId, userIds, assignedBy) => {
 const formatTask = (row, assignees = []) => {
   return {
     id: row.id,
-    title: row.title,
+    title: row.title || row.content,
     description: row.description || null,
     taskType: row.task_type || 'call',
     status: row.status || (row.is_completed ? 'completed' : 'pending'),
@@ -59,10 +59,11 @@ const formatTask = (row, assignees = []) => {
     updatedAt: row.updated_at,
     checklistId: row.checklist_id,
     checklistName: row.checklist_name,
-    lead: row.lead_id ? {
-      id: row.lead_id,
-      name: row.lead_name,
-      company: row.lead_company
+    opportunity: row.opportunity_id ? {
+      id: row.opportunity_id,
+      title: row.opportunity_title,
+      contactName: row.contact_name,
+      contactCompany: row.contact_company
     } : null,
     assignees: assignees,
     // Keep backward compatibility with single assignee
@@ -81,7 +82,7 @@ const getTasks = async (req, res) => {
     const userRole = req.user.role;
 
     const {
-      lead_id,
+      opportunity_id,
       assigned_to,
       status,
       task_type,
@@ -99,16 +100,16 @@ const getTasks = async (req, res) => {
 
     let whereClause = 'WHERE c.account_id = $1';
 
-    // Filter by lead
-    if (lead_id) {
-      whereClause += ` AND c.lead_id = $${paramIndex++}`;
-      params.push(lead_id);
+    // Filter by opportunity
+    if (opportunity_id) {
+      whereClause += ` AND c.opportunity_id = $${paramIndex++}`;
+      params.push(opportunity_id);
     }
 
     // Filter by assigned user
     if (assigned_to) {
       whereClause += ` AND EXISTS (
-        SELECT 1 FROM checklist_item_assignees cia
+        SELECT 1 FROM opportunity_checklist_item_assignees cia
         WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex++}
       )`;
       params.push(assigned_to);
@@ -144,15 +145,16 @@ const getTasks = async (req, res) => {
 
     // Search in title
     if (search) {
-      whereClause += ` AND i.title ILIKE $${paramIndex++}`;
+      whereClause += ` AND (i.title ILIKE $${paramIndex} OR i.content ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
+      paramIndex++;
     }
 
-    // Role-based visibility (non-admin users see tasks from their leads or assigned to them)
+    // Role-based visibility (non-admin users see tasks from their opportunities or assigned to them)
     if (userRole !== 'admin' && userRole !== 'supervisor') {
       whereClause += ` AND (
-        l.responsible_user_id = $${paramIndex} OR
-        EXISTS (SELECT 1 FROM checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
+        o.owner_user_id = $${paramIndex} OR
+        EXISTS (SELECT 1 FROM opportunity_checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
       )`;
       params.push(userId);
       paramIndex++;
@@ -161,9 +163,10 @@ const getTasks = async (req, res) => {
     // Count total
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       ${whereClause}
     `;
     const countResult = await db.query(countQuery, params);
@@ -174,12 +177,14 @@ const getTasks = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       ${whereClause}
       ORDER BY
         CASE WHEN i.is_completed THEN 1 ELSE 0 END,
@@ -201,7 +206,7 @@ const getTasks = async (req, res) => {
         SELECT
           cia.checklist_item_id,
           u.id, u.name, u.email, u.avatar_url as "avatarUrl"
-        FROM checklist_item_assignees cia
+        FROM opportunity_checklist_item_assignees cia
         JOIN users u ON cia.user_id = u.id
         WHERE cia.checklist_item_id = ANY($1)
         ORDER BY cia.assigned_at
@@ -249,7 +254,7 @@ const getTasksBoard = async (req, res) => {
     const {
       group_by = 'due_date',
       assigned_to,
-      lead_id
+      opportunity_id
     } = req.query;
 
     const params = [accountId];
@@ -260,22 +265,22 @@ const getTasksBoard = async (req, res) => {
 
     if (assigned_to) {
       whereClause += ` AND EXISTS (
-        SELECT 1 FROM checklist_item_assignees cia
+        SELECT 1 FROM opportunity_checklist_item_assignees cia
         WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex++}
       )`;
       params.push(assigned_to);
     }
 
-    if (lead_id) {
-      whereClause += ` AND c.lead_id = $${paramIndex++}`;
-      params.push(lead_id);
+    if (opportunity_id) {
+      whereClause += ` AND c.opportunity_id = $${paramIndex++}`;
+      params.push(opportunity_id);
     }
 
     // Role-based visibility
     if (userRole !== 'admin' && userRole !== 'supervisor') {
       whereClause += ` AND (
-        l.responsible_user_id = $${paramIndex} OR
-        EXISTS (SELECT 1 FROM checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
+        o.owner_user_id = $${paramIndex} OR
+        EXISTS (SELECT 1 FROM opportunity_checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
       )`;
       params.push(userId);
       paramIndex++;
@@ -285,12 +290,14 @@ const getTasksBoard = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       ${whereClause}
       ORDER BY
         CASE WHEN i.due_date IS NULL THEN 1 ELSE 0 END,
@@ -309,7 +316,7 @@ const getTasksBoard = async (req, res) => {
         SELECT
           cia.checklist_item_id,
           u.id, u.name, u.email, u.avatar_url as "avatarUrl"
-        FROM checklist_item_assignees cia
+        FROM opportunity_checklist_item_assignees cia
         JOIN users u ON cia.user_id = u.id
         WHERE cia.checklist_item_id = ANY($1)
         ORDER BY cia.assigned_at
@@ -401,7 +408,7 @@ const getTaskStats = async (req, res) => {
     const accountId = req.user.account_id;
     const userId = req.user.id;
     const userRole = req.user.role;
-    const { assigned_to, lead_id } = req.query;
+    const { assigned_to, opportunity_id } = req.query;
 
     const params = [accountId];
     let paramIndex = 2;
@@ -409,21 +416,21 @@ const getTaskStats = async (req, res) => {
 
     if (assigned_to) {
       whereClause += ` AND EXISTS (
-        SELECT 1 FROM checklist_item_assignees cia
+        SELECT 1 FROM opportunity_checklist_item_assignees cia
         WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex++}
       )`;
       params.push(assigned_to);
     }
 
-    if (lead_id) {
-      whereClause += ` AND c.lead_id = $${paramIndex++}`;
-      params.push(lead_id);
+    if (opportunity_id) {
+      whereClause += ` AND c.opportunity_id = $${paramIndex++}`;
+      params.push(opportunity_id);
     }
 
     if (userRole !== 'admin' && userRole !== 'supervisor') {
       whereClause += ` AND (
-        l.responsible_user_id = $${paramIndex} OR
-        EXISTS (SELECT 1 FROM checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
+        o.owner_user_id = $${paramIndex} OR
+        EXISTS (SELECT 1 FROM opportunity_checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
       )`;
       params.push(userId);
       paramIndex++;
@@ -436,9 +443,9 @@ const getTaskStats = async (req, res) => {
         COUNT(*) FILTER (WHERE i.is_completed = true) as completed,
         COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date < CURRENT_DATE) as overdue,
         COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date::date = CURRENT_DATE) as due_today
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
       ${whereClause}
     `;
 
@@ -475,12 +482,14 @@ const getTask = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
 
@@ -509,7 +518,7 @@ const createTask = async (req, res) => {
     const userId = req.user.id;
 
     const {
-      lead_id,
+      opportunity_id,
       checklist_id,
       title,
       task_type = 'call',
@@ -522,14 +531,14 @@ const createTask = async (req, res) => {
       throw new ValidationError('Task title is required');
     }
 
-    if (!lead_id) {
-      throw new ValidationError('Lead is required');
+    if (!opportunity_id) {
+      throw new ValidationError('Opportunity is required');
     }
 
-    // Verify lead exists
-    const lead = await db.findOne('leads', { id: lead_id, account_id: accountId });
-    if (!lead) {
-      throw new ValidationError('Lead not found');
+    // Verify opportunity exists
+    const opportunity = await db.findOne('opportunities', { id: opportunity_id, account_id: accountId });
+    if (!opportunity) {
+      throw new ValidationError('Opportunity not found');
     }
 
     let targetChecklistId = checklist_id;
@@ -537,8 +546,8 @@ const createTask = async (req, res) => {
     // If no checklist specified, create or use default "Tarefas" checklist
     if (!targetChecklistId) {
       const existingChecklist = await db.query(
-        `SELECT id FROM lead_checklists WHERE lead_id = $1 AND name = 'Tarefas' AND account_id = $2`,
-        [lead_id, accountId]
+        `SELECT id FROM opportunity_checklists WHERE opportunity_id = $1 AND name = 'Tarefas' AND account_id = $2`,
+        [opportunity_id, accountId]
       );
 
       if (existingChecklist.rows.length > 0) {
@@ -546,10 +555,10 @@ const createTask = async (req, res) => {
       } else {
         // Create default checklist
         targetChecklistId = uuidv4();
-        await db.insert('lead_checklists', {
+        await db.insert('opportunity_checklists', {
           id: targetChecklistId,
           account_id: accountId,
-          lead_id: lead_id,
+          opportunity_id: opportunity_id,
           name: 'Tarefas',
           position: 0,
           created_by: userId,
@@ -559,7 +568,7 @@ const createTask = async (req, res) => {
       }
     } else {
       // Verify checklist exists
-      const checklist = await db.findOne('lead_checklists', { id: checklist_id, account_id: accountId });
+      const checklist = await db.findOne('opportunity_checklists', { id: checklist_id, account_id: accountId });
       if (!checklist) {
         throw new ValidationError('Checklist not found');
       }
@@ -567,7 +576,7 @@ const createTask = async (req, res) => {
 
     // Get max position
     const posResult = await db.query(
-      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM checklist_items WHERE checklist_id = $1',
+      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM opportunity_checklist_items WHERE checklist_id = $1',
       [targetChecklistId]
     );
     const position = posResult.rows[0].next_pos;
@@ -575,10 +584,11 @@ const createTask = async (req, res) => {
     const itemId = uuidv4();
     const validTaskType = VALID_TASK_TYPES.includes(task_type) ? task_type : 'call';
 
-    await db.insert('checklist_items', {
+    await db.insert('opportunity_checklist_items', {
       id: itemId,
       checklist_id: targetChecklistId,
       title: title.trim(),
+      content: title.trim(),
       task_type: validTaskType,
       is_completed: false,
       due_date: due_date || null,
@@ -598,12 +608,14 @@ const createTask = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       WHERE i.id = $1
     `;
     const result = await db.query(query, [itemId]);
@@ -639,8 +651,8 @@ const updateTask = async (req, res) => {
     // Get existing item
     const existingQuery = `
       SELECT i.*, c.account_id
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const existingResult = await db.query(existingQuery, [id, accountId]);
@@ -657,6 +669,7 @@ const updateTask = async (req, res) => {
         throw new ValidationError('Task title cannot be empty');
       }
       updates.title = title.trim();
+      updates.content = title.trim();
     }
 
     if (description !== undefined) {
@@ -690,7 +703,7 @@ const updateTask = async (req, res) => {
       }
     }
 
-    await db.update('checklist_items', updates, { id });
+    await db.update('opportunity_checklist_items', updates, { id });
 
     // Handle assignees update
     if (assignees !== undefined) {
@@ -703,12 +716,14 @@ const updateTask = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       WHERE i.id = $1
     `;
     const result = await db.query(query, [id]);
@@ -732,8 +747,8 @@ const deleteTask = async (req, res) => {
 
     const checkQuery = `
       SELECT i.id
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const checkResult = await db.query(checkQuery, [id, accountId]);
@@ -742,7 +757,7 @@ const deleteTask = async (req, res) => {
       throw new NotFoundError('Task not found');
     }
 
-    await db.query('DELETE FROM checklist_items WHERE id = $1', [id]);
+    await db.query('DELETE FROM opportunity_checklist_items WHERE id = $1', [id]);
 
     return sendSuccess(res, null, 'Task deleted successfully');
 
@@ -763,8 +778,8 @@ const completeTask = async (req, res) => {
 
     const checkQuery = `
       SELECT i.*
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const checkResult = await db.query(checkQuery, [id, accountId]);
@@ -776,7 +791,7 @@ const completeTask = async (req, res) => {
     const item = checkResult.rows[0];
     const newCompleted = !item.is_completed;
 
-    await db.update('checklist_items', {
+    await db.update('opportunity_checklist_items', {
       is_completed: newCompleted,
       completed_at: newCompleted ? new Date() : null,
       completed_by: newCompleted ? userId : null,
@@ -788,12 +803,14 @@ const completeTask = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       WHERE i.id = $1
     `;
     const result = await db.query(query, [id]);
@@ -821,8 +838,8 @@ const updateTaskStatus = async (req, res) => {
 
     const checkQuery = `
       SELECT i.*
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
       WHERE i.id = $1 AND c.account_id = $2
     `;
     const checkResult = await db.query(checkQuery, [id, accountId]);
@@ -834,7 +851,7 @@ const updateTaskStatus = async (req, res) => {
     // Map status to is_completed and save status field
     const isCompleted = status === 'completed';
 
-    await db.update('checklist_items', {
+    await db.update('opportunity_checklist_items', {
       status: status,
       is_completed: isCompleted,
       completed_at: isCompleted ? new Date() : null,
@@ -847,12 +864,14 @@ const updateTaskStatus = async (req, res) => {
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
       WHERE i.id = $1
     `;
     const result = await db.query(query, [id]);
@@ -866,31 +885,33 @@ const updateTaskStatus = async (req, res) => {
 };
 
 /**
- * Get tasks for a specific lead
- * GET /api/leads/:leadId/tasks
+ * Get tasks for a specific opportunity
+ * GET /api/opportunities/:opportunityId/tasks
  */
-const getLeadTasks = async (req, res) => {
+const getOpportunityTasks = async (req, res) => {
   try {
-    const { leadId } = req.params;
+    const { opportunityId } = req.params;
     const accountId = req.user.account_id;
 
-    // Verify lead exists
-    const lead = await db.findOne('leads', { id: leadId, account_id: accountId });
-    if (!lead) {
-      throw new NotFoundError('Lead not found');
+    // Verify opportunity exists
+    const opportunity = await db.findOne('opportunities', { id: opportunityId, account_id: accountId });
+    if (!opportunity) {
+      throw new NotFoundError('Opportunity not found');
     }
 
     const query = `
       SELECT
         i.*,
         c.name as checklist_name,
-        c.lead_id,
-        l.name as lead_name,
-        l.company as lead_company
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      LEFT JOIN leads l ON c.lead_id = l.id
-      WHERE c.lead_id = $1 AND c.account_id = $2
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      WHERE c.opportunity_id = $1 AND c.account_id = $2
       ORDER BY
         CASE WHEN i.is_completed THEN 1 ELSE 0 END,
         CASE WHEN i.due_date IS NULL THEN 1 ELSE 0 END,
@@ -898,7 +919,7 @@ const getLeadTasks = async (req, res) => {
         i.created_at DESC
     `;
 
-    const result = await db.query(query, [leadId, accountId]);
+    const result = await db.query(query, [opportunityId, accountId]);
 
     // Get assignees for all items
     const itemIds = result.rows.map(r => r.id);
@@ -909,7 +930,7 @@ const getLeadTasks = async (req, res) => {
         SELECT
           cia.checklist_item_id,
           u.id, u.name, u.email, u.avatar_url as "avatarUrl"
-        FROM checklist_item_assignees cia
+        FROM opportunity_checklist_item_assignees cia
         JOIN users u ON cia.user_id = u.id
         WHERE cia.checklist_item_id = ANY($1)
         ORDER BY cia.assigned_at
@@ -948,5 +969,5 @@ module.exports = {
   deleteTask,
   completeTask,
   updateTaskStatus,
-  getLeadTasks
+  getOpportunityTasks
 };

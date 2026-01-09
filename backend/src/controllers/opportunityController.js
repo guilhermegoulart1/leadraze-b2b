@@ -7,6 +7,7 @@ const {
   ForbiddenError
 } = require('../utils/errors');
 const pipelineService = require('../services/pipelineService');
+const roundRobinService = require('../services/roundRobinService');
 
 // ================================
 // Helper: Verificar acesso à oportunidade
@@ -321,10 +322,11 @@ const getOpportunity = async (req, res) => {
 
     const { opportunity } = await checkOpportunityAccess(userId, id, accountId);
 
-    // Buscar dados completos
+    // Buscar dados completos (incluindo todos os campos do contato para exibição completa)
     const query = `
       SELECT
         o.*,
+        -- Contact basic info
         c.id as contact_id,
         c.name as contact_name,
         c.email as contact_email,
@@ -332,26 +334,57 @@ const getOpportunity = async (req, res) => {
         c.company as contact_company,
         c.title as contact_title,
         c.profile_picture as contact_picture,
+        c.location as contact_location,
+        c.linkedin_profile_id as contact_linkedin_id,
+        c.profile_url as contact_profile_url,
+        -- Contact AI/scraped data
+        c.headline as contact_headline,
+        c.about as contact_about,
+        c.website as contact_website,
+        c.company_description as contact_company_description,
+        c.company_services as contact_company_services,
+        c.pain_points as contact_pain_points,
+        -- Contact additional fields
+        c.industry as contact_industry,
+        c.city as contact_city,
+        c.state as contact_state,
+        c.country as contact_country,
+        c.connections_count as contact_connections,
+        c.emails as contact_emails,
+        c.phones as contact_phones,
+        c.social_links as contact_social_links,
+        c.team_members as contact_team_members,
+        c.rating as contact_rating,
+        c.review_count as contact_review_count,
+        c.business_category as contact_business_category,
+        -- Pipeline info
         p.id as pipeline_id,
         p.name as pipeline_name,
         p.color as pipeline_color,
+        -- Stage info
         ps.id as stage_id,
         ps.name as stage_name,
         ps.color as stage_color,
         ps.is_win_stage,
         ps.is_loss_stage,
+        -- Owner info
         u.name as owner_name,
         u.email as owner_email,
         u.avatar_url as owner_avatar,
+        -- Creator info
         cb.name as created_by_name,
-        dr.name as loss_reason_name
+        -- Loss reason
+        dr.name as loss_reason_name,
+        -- Discard reason (also for opportunities)
+        dr2.name as discard_reason_name
       FROM opportunities o
-      JOIN contacts c ON o.contact_id = c.id
+      LEFT JOIN contacts c ON o.contact_id = c.id
       JOIN pipelines p ON o.pipeline_id = p.id
       JOIN pipeline_stages ps ON o.stage_id = ps.id
       LEFT JOIN users u ON o.owner_user_id = u.id
       LEFT JOIN users cb ON o.created_by = cb.id
       LEFT JOIN discard_reasons dr ON o.loss_reason_id = dr.id
+      LEFT JOIN discard_reasons dr2 ON o.discard_reason_id = dr2.id
       WHERE o.id = $1
     `;
 
@@ -406,6 +439,7 @@ const createOpportunity = async (req, res) => {
     const { pipelineId } = req.params;
     const {
       contact_id,
+      new_contact,  // Optional: create a new contact inline
       stage_id,
       title,
       value,
@@ -418,8 +452,8 @@ const createOpportunity = async (req, res) => {
       tags
     } = req.body;
 
-    if (!contact_id) {
-      throw new ValidationError('ID do contato é obrigatório');
+    if (!contact_id && !new_contact) {
+      throw new ValidationError('ID do contato ou dados de novo contato são obrigatórios');
     }
 
     // Verificar acesso à pipeline
@@ -432,17 +466,67 @@ const createOpportunity = async (req, res) => {
       throw new ForbiddenError('Você não tem acesso a esta pipeline');
     }
 
-    // Verificar contato
-    const contactCheck = await db.query(
-      'SELECT id, name, company FROM contacts WHERE id = $1 AND account_id = $2',
-      [contact_id, accountId]
-    );
+    let contact;
 
-    if (contactCheck.rows.length === 0) {
-      throw new NotFoundError('Contato não encontrado');
+    // If new_contact is provided, create the contact first
+    if (new_contact) {
+      const { name, email, phone, company, title: contactTitle, location, website, notes } = new_contact;
+
+      if (!name) {
+        throw new ValidationError('Nome do contato é obrigatório');
+      }
+
+      // Check if contact with same email already exists
+      if (email) {
+        const existingContact = await db.query(
+          'SELECT id, name, company FROM contacts WHERE email = $1 AND account_id = $2',
+          [email.toLowerCase(), accountId]
+        );
+
+        if (existingContact.rows.length > 0) {
+          // Use existing contact instead of creating duplicate
+          contact = existingContact.rows[0];
+          console.log(`📋 Usando contato existente ${contact.name} (email: ${email})`);
+        }
+      }
+
+      // Create new contact if not found
+      if (!contact) {
+        const contactResult = await db.query(
+          `INSERT INTO contacts (
+            account_id, user_id, name, email, phone, company, title, location, website, notes, source
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id, name, company`,
+          [
+            accountId,
+            userId,
+            name,
+            email ? email.toLowerCase() : null,
+            phone || null,
+            company || null,
+            contactTitle || null,
+            location || null,
+            website || null,
+            notes || null,
+            'manual'
+          ]
+        );
+        contact = contactResult.rows[0];
+        console.log(`✅ Novo contato criado: ${contact.name}`);
+      }
+    } else {
+      // Verificar contato existente
+      const contactCheck = await db.query(
+        'SELECT id, name, company FROM contacts WHERE id = $1 AND account_id = $2',
+        [contact_id, accountId]
+      );
+
+      if (contactCheck.rows.length === 0) {
+        throw new NotFoundError('Contato não encontrado');
+      }
+
+      contact = contactCheck.rows[0];
     }
-
-    const contact = contactCheck.rows[0];
 
     // Determinar stage inicial
     let targetStageId = stage_id;
@@ -483,7 +567,7 @@ const createOpportunity = async (req, res) => {
         RETURNING *`,
         [
           accountId,
-          contact_id,
+          contact.id,  // Use contact.id (supports both existing and new contacts)
           pipelineId,
           targetStageId,
           oppTitle,
@@ -522,7 +606,12 @@ const createOpportunity = async (req, res) => {
       console.log(`✅ Oportunidade "${oppTitle}" criada na pipeline ${pipelineId}`);
 
       sendSuccess(res, {
-        opportunity,
+        opportunity: {
+          ...opportunity,
+          contact_name: contact.name,
+          contact_company: contact.company
+        },
+        contact: new_contact ? contact : undefined,  // Include created contact info if new_contact was used
         message: 'Oportunidade criada com sucesso'
       }, 201);
     } catch (error) {
@@ -913,6 +1002,650 @@ const reorderOpportunities = async (req, res) => {
   }
 };
 
+// ================================
+// 10. OBTER OPORTUNIDADES DE UMA CAMPANHA
+// ================================
+const getCampaignOpportunities = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { status, page = 1, limit = 50 } = req.query;
+
+    console.log(`📋 Buscando oportunidades da campanha ${campaignId}`);
+
+    // Verificar se campanha pertence ao usuário E à conta
+    const campaign = await db.query(
+      `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3`,
+      [campaignId, userId, accountId]
+    );
+
+    if (campaign.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Construir query - derive status from date fields
+    let whereConditions = ['o.campaign_id = $1'];
+    let queryParams = [campaignId];
+    let paramIndex = 2;
+
+    // Filter by derived status using date fields
+    if (status) {
+      switch (status) {
+        case 'leads':
+          whereConditions.push('o.sent_at IS NULL AND o.discarded_at IS NULL');
+          break;
+        case 'invite_sent':
+          whereConditions.push('o.sent_at IS NOT NULL AND o.accepted_at IS NULL AND o.discarded_at IS NULL');
+          break;
+        case 'accepted':
+          whereConditions.push('o.accepted_at IS NOT NULL AND o.qualifying_started_at IS NULL AND o.discarded_at IS NULL');
+          break;
+        case 'qualifying':
+          whereConditions.push('o.qualifying_started_at IS NOT NULL AND o.qualified_at IS NULL AND o.discarded_at IS NULL');
+          break;
+        case 'qualified':
+          whereConditions.push('o.qualified_at IS NOT NULL AND o.scheduled_at IS NULL AND o.discarded_at IS NULL');
+          break;
+        case 'scheduled':
+          whereConditions.push('o.scheduled_at IS NOT NULL AND o.won_at IS NULL AND o.lost_at IS NULL AND o.discarded_at IS NULL');
+          break;
+        case 'won':
+          whereConditions.push('o.won_at IS NOT NULL');
+          break;
+        case 'lost':
+          whereConditions.push('o.lost_at IS NOT NULL');
+          break;
+        case 'discarded':
+          whereConditions.push('o.discarded_at IS NOT NULL');
+          break;
+      }
+    }
+
+    const offset = (page - 1) * limit;
+    const whereClause = whereConditions.join(' AND ');
+
+    const query = `
+      SELECT
+        o.*,
+        c.name as contact_name,
+        c.email as contact_email,
+        c.phone as contact_phone,
+        c.company as contact_company,
+        c.title as contact_title,
+        c.profile_url as contact_profile_url,
+        c.profile_picture as contact_profile_picture,
+        CASE
+          WHEN o.discarded_at IS NOT NULL THEN 'discarded'
+          WHEN o.won_at IS NOT NULL THEN 'won'
+          WHEN o.lost_at IS NOT NULL THEN 'lost'
+          WHEN o.scheduled_at IS NOT NULL THEN 'scheduled'
+          WHEN o.qualified_at IS NOT NULL THEN 'qualified'
+          WHEN o.qualifying_started_at IS NOT NULL THEN 'qualifying'
+          WHEN o.accepted_at IS NOT NULL THEN 'accepted'
+          WHEN o.sent_at IS NOT NULL THEN 'invite_sent'
+          ELSE 'leads'
+        END as status,
+        CASE
+          WHEN o.sent_at IS NOT NULL AND o.accepted_at IS NULL
+          THEN EXTRACT(DAY FROM NOW() - o.sent_at)::INTEGER
+          ELSE 0
+        END as days_since_invite
+      FROM opportunities o
+      LEFT JOIN contacts c ON o.contact_id = c.id
+      WHERE ${whereClause}
+      ORDER BY
+        CASE
+          WHEN o.qualified_at IS NOT NULL THEN 1
+          WHEN o.qualifying_started_at IS NOT NULL THEN 2
+          WHEN o.accepted_at IS NOT NULL THEN 3
+          WHEN o.sent_at IS NOT NULL THEN 4
+          ELSE 5
+        END,
+        o.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    queryParams.push(limit, offset);
+
+    const opportunities = await db.query(query, queryParams);
+
+    // Contar total
+    const countQuery = `SELECT COUNT(*) FROM opportunities o WHERE ${whereClause}`;
+    const countResult = await db.query(countQuery, queryParams.slice(0, -2));
+    const total = parseInt(countResult.rows[0].count);
+
+    console.log(`✅ Encontradas ${opportunities.rows.length} oportunidades`);
+
+    sendSuccess(res, {
+      campaign_id: campaignId,
+      campaign_name: campaign.rows[0].name,
+      opportunities: opportunities.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 11. LISTAR USUÁRIOS PARA ATRIBUIÇÃO
+// ================================
+const getAssignableUsers = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { sector_id } = req.query;
+
+    console.log(`👥 Listando usuários atribuíveis`);
+
+    let users;
+
+    if (sector_id) {
+      // Se setor especificado, listar usuários do setor
+      users = await roundRobinService.getSectorUsers(sector_id);
+    } else {
+      // Senão, listar todos os usuários ativos da conta
+      const result = await db.query(
+        `SELECT id, name, email, avatar_url
+         FROM users
+         WHERE account_id = $1 AND is_active = true
+         ORDER BY name`,
+        [accountId]
+      );
+      users = result.rows;
+    }
+
+    sendSuccess(res, { users });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 12. ATRIBUIR RESPONSÁVEL À OPORTUNIDADE
+// ================================
+const assignOpportunity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    const accountId = req.user.account_id;
+
+    console.log(`👤 Atribuindo oportunidade ${id} ao usuário ${user_id}`);
+
+    // Verificar se oportunidade existe e pertence à conta
+    const oppCheck = await db.query(
+      `SELECT o.* FROM opportunities o WHERE o.id = $1 AND o.account_id = $2`,
+      [id, accountId]
+    );
+
+    if (oppCheck.rows.length === 0) {
+      throw new NotFoundError('Opportunity not found');
+    }
+
+    // Se user_id for null, estamos removendo o responsável
+    if (user_id === null) {
+      await db.query(
+        `UPDATE opportunities SET owner_user_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [id]
+      );
+
+      console.log(`✅ Responsável removido da oportunidade`);
+      return sendSuccess(res, { id, owner_user_id: null }, 'Responsible removed');
+    }
+
+    // Verificar se o usuário existe e pertence à mesma conta
+    const userCheck = await db.query(
+      `SELECT id, name, email, avatar_url FROM users WHERE id = $1 AND account_id = $2 AND is_active = true`,
+      [user_id, accountId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      throw new NotFoundError('User not found or not in this account');
+    }
+
+    const assignedUser = userCheck.rows[0];
+
+    // Atribuir a oportunidade
+    await db.query(
+      `UPDATE opportunities SET owner_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [user_id, id]
+    );
+
+    console.log(`✅ Oportunidade atribuída ao usuário ${assignedUser.name}`);
+
+    sendSuccess(res, {
+      id,
+      owner_user_id: user_id,
+      responsible: {
+        id: assignedUser.id,
+        name: assignedUser.name,
+        email: assignedUser.email,
+        avatar_url: assignedUser.avatar_url
+      }
+    }, 'Opportunity assigned successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 13. ATRIBUIÇÃO AUTOMÁTICA (ROUND-ROBIN)
+// ================================
+const autoAssignOpportunity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+
+    console.log(`🔄 Atribuição automática da oportunidade ${id}`);
+
+    // Verificar se oportunidade existe e pertence à conta
+    const oppCheck = await db.query(
+      `SELECT o.*, p.sector_id
+       FROM opportunities o
+       LEFT JOIN pipelines p ON o.pipeline_id = p.id
+       WHERE o.id = $1 AND o.account_id = $2`,
+      [id, accountId]
+    );
+
+    if (oppCheck.rows.length === 0) {
+      throw new NotFoundError('Opportunity not found');
+    }
+
+    const opportunity = oppCheck.rows[0];
+    const sectorId = opportunity.sector_id;
+
+    if (!sectorId) {
+      throw new ValidationError('Opportunity must be in a sector to use auto-assignment');
+    }
+
+    // Tentar atribuição automática usando o roundRobinService
+    const assignedUser = await roundRobinService.autoAssignOpportunity(id, sectorId, accountId);
+
+    if (!assignedUser) {
+      throw new ValidationError('Round-robin not enabled for this sector or no users available');
+    }
+
+    console.log(`✅ Oportunidade auto-atribuída ao usuário ${assignedUser.name}`);
+
+    sendSuccess(res, {
+      id,
+      owner_user_id: assignedUser.user_id,
+      responsible: {
+        id: assignedUser.user_id,
+        name: assignedUser.name,
+        email: assignedUser.email,
+        avatar_url: assignedUser.avatar_url
+      }
+    }, 'Opportunity auto-assigned successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 14. CRIAR OPORTUNIDADES EM LOTE
+// ================================
+const createOpportunitiesBulk = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { campaign_id, opportunities: oppsData, pipeline_id } = req.body;
+
+    console.log(`📦 Criando ${oppsData?.length || 0} oportunidades em lote`);
+
+    // Validações
+    if (!oppsData || !Array.isArray(oppsData) || oppsData.length === 0) {
+      throw new ValidationError('opportunities array is required');
+    }
+
+    if (oppsData.length > 100) {
+      throw new ValidationError('Maximum 100 opportunities per batch');
+    }
+
+    // Verificar campanha se especificada
+    let campaign = null;
+    if (campaign_id) {
+      const campaignCheck = await db.query(
+        `SELECT * FROM campaigns WHERE id = $1 AND user_id = $2 AND account_id = $3`,
+        [campaign_id, userId, accountId]
+      );
+
+      if (campaignCheck.rows.length === 0) {
+        throw new NotFoundError('Campaign not found');
+      }
+      campaign = campaignCheck.rows[0];
+    }
+
+    // Verificar pipeline
+    let targetPipelineId = pipeline_id;
+    if (!targetPipelineId) {
+      // Get default pipeline
+      const defaultPipeline = await db.query(
+        `SELECT id FROM pipelines WHERE account_id = $1 AND is_default = true LIMIT 1`,
+        [accountId]
+      );
+      if (defaultPipeline.rows.length === 0) {
+        throw new ValidationError('No default pipeline found');
+      }
+      targetPipelineId = defaultPipeline.rows[0].id;
+    }
+
+    // Get first stage of pipeline
+    const firstStage = await db.query(
+      `SELECT id FROM pipeline_stages WHERE pipeline_id = $1 ORDER BY position ASC LIMIT 1`,
+      [targetPipelineId]
+    );
+    if (firstStage.rows.length === 0) {
+      throw new ValidationError('Pipeline has no stages');
+    }
+    const stageId = firstStage.rows[0].id;
+
+    const createdOpportunities = [];
+    const errors = [];
+
+    // Processar cada oportunidade
+    for (let i = 0; i < oppsData.length; i++) {
+      const oppData = oppsData[i];
+
+      try {
+        // Validação básica
+        if (!oppData.name && !oppData.contact_id) {
+          throw new Error('name or contact_id is required');
+        }
+
+        // Criar ou encontrar contato
+        let contactId = oppData.contact_id;
+        if (!contactId && oppData.name) {
+          // Verificar duplicatas por linkedin_profile_id
+          if (oppData.linkedin_profile_id) {
+            const existingContact = await db.query(
+              'SELECT id FROM contacts WHERE account_id = $1 AND linkedin_profile_id = $2',
+              [accountId, oppData.linkedin_profile_id]
+            );
+            if (existingContact.rows.length > 0) {
+              contactId = existingContact.rows[0].id;
+            }
+          }
+
+          // Criar contato se não existe
+          if (!contactId) {
+            const contactResult = await db.query(
+              `INSERT INTO contacts (account_id, name, email, phone, company, title, location, profile_url, profile_picture, linkedin_profile_id, source)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               RETURNING id`,
+              [accountId, oppData.name, oppData.email || null, oppData.phone || null,
+               oppData.company || null, oppData.title || null, oppData.location || null,
+               oppData.profile_url || null, oppData.profile_picture || null,
+               oppData.linkedin_profile_id || null, oppData.source || 'list']
+            );
+            contactId = contactResult.rows[0].id;
+          }
+        }
+
+        // Criar oportunidade
+        const oppResult = await db.query(
+          `INSERT INTO opportunities (account_id, contact_id, pipeline_id, stage_id, campaign_id,
+           title, source, owner_user_id, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING *`,
+          [accountId, contactId, targetPipelineId, stageId, campaign_id || null,
+           oppData.name || 'New Opportunity', oppData.source || 'list', userId, userId]
+        );
+
+        createdOpportunities.push(oppResult.rows[0]);
+
+      } catch (error) {
+        errors.push({
+          index: i,
+          opportunity: oppData.name || 'Unknown',
+          error: error.message
+        });
+      }
+    }
+
+    // Atualizar contadores da campanha
+    if (campaign_id && createdOpportunities.length > 0) {
+      await db.query(
+        'UPDATE campaigns SET total_leads = total_leads + $1, leads_pending = leads_pending + $1 WHERE id = $2',
+        [createdOpportunities.length, campaign_id]
+      );
+    }
+
+    console.log(`✅ ${createdOpportunities.length} oportunidades criadas, ${errors.length} erros`);
+
+    sendSuccess(res, {
+      created: createdOpportunities.length,
+      failed: errors.length,
+      opportunities: createdOpportunities,
+      errors: errors.length > 0 ? errors : undefined
+    }, 'Bulk opportunity creation completed', 201);
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 15. CRIAR OPORTUNIDADE MANUAL
+// ================================
+const createManualOpportunity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const {
+      name,
+      company,
+      title,
+      email,
+      phone,
+      location,
+      profile_url,
+      source = 'manual',
+      notes,
+      contact_id,
+      new_contact,
+      pipeline_id,
+      stage_id,
+      value
+    } = req.body;
+
+    console.log(`📝 Criando oportunidade manual: ${name}`);
+
+    // Validations
+    if (!name && !contact_id) {
+      throw new ValidationError('Nome ou contact_id é obrigatório');
+    }
+
+    let contactId = contact_id;
+
+    // If creating a new contact
+    if (new_contact && !contact_id) {
+      if (!new_contact.name) {
+        throw new ValidationError('Nome do contato é obrigatório');
+      }
+
+      // Create the contact first
+      const contactResult = await db.query(
+        `INSERT INTO contacts (account_id, name, email, phone, company, title, location, profile_url, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'manual')
+         RETURNING id`,
+        [accountId, new_contact.name, new_contact.email || email || null,
+         new_contact.phone || phone || null, new_contact.company || company || null,
+         new_contact.title || title || null, new_contact.location || location || null,
+         new_contact.profile_url || profile_url || null]
+      );
+      contactId = contactResult.rows[0].id;
+      console.log(`✅ Contato criado: ${contactId}`);
+    }
+
+    // Verificar pipeline
+    let targetPipelineId = pipeline_id;
+    let targetStageId = stage_id;
+
+    if (!targetPipelineId) {
+      // Get default pipeline
+      const defaultPipeline = await db.query(
+        `SELECT id FROM pipelines WHERE account_id = $1 AND is_default = true LIMIT 1`,
+        [accountId]
+      );
+      if (defaultPipeline.rows.length === 0) {
+        throw new ValidationError('No default pipeline found');
+      }
+      targetPipelineId = defaultPipeline.rows[0].id;
+    }
+
+    if (!targetStageId) {
+      // Get first stage of pipeline
+      const firstStage = await db.query(
+        `SELECT id FROM pipeline_stages WHERE pipeline_id = $1 ORDER BY position ASC LIMIT 1`,
+        [targetPipelineId]
+      );
+      if (firstStage.rows.length === 0) {
+        throw new ValidationError('Pipeline has no stages');
+      }
+      targetStageId = firstStage.rows[0].id;
+    }
+
+    // Create opportunity
+    const oppResult = await db.query(
+      `INSERT INTO opportunities (account_id, contact_id, pipeline_id, stage_id, title, value, source, notes, owner_user_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [accountId, contactId, targetPipelineId, targetStageId, name, value || null, source, notes || null, userId, userId]
+    );
+
+    const opportunity = oppResult.rows[0];
+
+    // Get contact info for response
+    if (contactId) {
+      const contactInfo = await db.query(
+        `SELECT name, email, phone, company, title FROM contacts WHERE id = $1`,
+        [contactId]
+      );
+      if (contactInfo.rows.length > 0) {
+        opportunity.contact = contactInfo.rows[0];
+      }
+    }
+
+    console.log(`✅ Oportunidade manual criada: ${opportunity.id}`);
+
+    sendSuccess(res, opportunity, 'Opportunity created successfully', 201);
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// 16. REATIVAR OPORTUNIDADE DESCARTADA
+// ================================
+const reactivateOpportunity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+    const { target_stage_id } = req.body;
+
+    console.log(`🔄 Reativando oportunidade ${id}`);
+
+    // Verificar se oportunidade pertence à conta
+    const oppCheck = await db.query(
+      `SELECT o.*, dr.name as discard_reason_name
+       FROM opportunities o
+       LEFT JOIN discard_reasons dr ON o.discard_reason_id = dr.id
+       WHERE o.id = $1 AND o.account_id = $2`,
+      [id, accountId]
+    );
+
+    if (oppCheck.rows.length === 0) {
+      throw new NotFoundError('Opportunity not found');
+    }
+
+    const opportunity = oppCheck.rows[0];
+
+    if (!opportunity.discarded_at) {
+      throw new ValidationError('Opportunity is not discarded');
+    }
+
+    // Determinar stage de destino
+    let newStageId = target_stage_id || opportunity.previous_stage_id;
+
+    if (!newStageId) {
+      // Get first stage of pipeline
+      const firstStage = await db.query(
+        `SELECT id FROM pipeline_stages WHERE pipeline_id = $1 ORDER BY position ASC LIMIT 1`,
+        [opportunity.pipeline_id]
+      );
+      if (firstStage.rows.length > 0) {
+        newStageId = firstStage.rows[0].id;
+      }
+    }
+
+    // Atualizar oportunidade
+    await db.query(
+      `UPDATE opportunities SET
+         stage_id = $1,
+         discard_reason_id = NULL,
+         discard_notes = NULL,
+         previous_stage_id = NULL,
+         discarded_at = NULL,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [newStageId, id]
+    );
+
+    // Atualizar contadores da campanha se houver
+    if (opportunity.campaign_id) {
+      await db.query(
+        `UPDATE campaigns SET leads_discarded = GREATEST(0, leads_discarded - 1) WHERE id = $1`,
+        [opportunity.campaign_id]
+      );
+    }
+
+    // Log na conversa se existir
+    const conversationCheck = await db.query(
+      `SELECT id FROM conversations WHERE opportunity_id = $1`,
+      [id]
+    );
+
+    if (conversationCheck.rows.length > 0) {
+      const conversationId = conversationCheck.rows[0].id;
+      const previousReason = opportunity.discard_reason_name ? ` (estava: ${opportunity.discard_reason_name})` : '';
+      const message = `🔄 Oportunidade reativada${previousReason}`;
+
+      await db.query(
+        `INSERT INTO messages (conversation_id, sender_type, content, sent_at)
+         VALUES ($1, 'system', $2, NOW())`,
+        [conversationId, message]
+      );
+    }
+
+    console.log(`✅ Oportunidade reativada`);
+
+    // Return updated opportunity
+    const updatedOpp = await db.query(
+      `SELECT o.*, ps.name as stage_name
+       FROM opportunities o
+       LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+       WHERE o.id = $1`,
+      [id]
+    );
+
+    sendSuccess(res, updatedOpp.rows[0], 'Opportunity reactivated successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getOpportunities,
   getOpportunitiesKanban,
@@ -922,5 +1655,12 @@ module.exports = {
   moveOpportunity,
   deleteOpportunity,
   getContactOpportunities,
-  reorderOpportunities
+  reorderOpportunities,
+  getCampaignOpportunities,
+  getAssignableUsers,
+  assignOpportunity,
+  autoAssignOpportunity,
+  createOpportunitiesBulk,
+  createManualOpportunity,
+  reactivateOpportunity
 };

@@ -28,6 +28,9 @@ router.delete('/:id', checkPermission('pipelines:delete'), pipelineController.de
 // Obter estatísticas da pipeline
 router.get('/:id/stats', pipelineController.getPipelineStats);
 
+// Obter dados do funil para dashboard
+router.get('/:id/funnel', pipelineController.getPipelineFunnel);
+
 // Mover pipeline para outro projeto
 router.patch('/:id/move', checkPermission('pipelines:edit'), pipelineController.movePipelineToProject);
 

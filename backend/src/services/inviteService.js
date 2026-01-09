@@ -69,7 +69,7 @@ async function getInvitesSentToday(linkedinAccountId) {
  * @param {Object} data - Dados do convite
  * @param {string} data.linkedinAccountId - ID da conta LinkedIn
  * @param {string} data.campaignId - ID da campanha
- * @param {string} data.leadId - ID do lead
+ * @param {string} data.opportunityId - ID da opportunity
  * @param {string} data.status - Status do envio ('sent', 'failed', 'pending')
  * @returns {Promise<Object>}
  */
@@ -79,7 +79,7 @@ async function logInviteSent(data) {
       id: uuidv4(),
       linkedin_account_id: data.linkedinAccountId,
       campaign_id: data.campaignId || null,
-      lead_id: data.leadId || null,
+      opportunity_id: data.opportunityId || null,
       status: data.status || 'sent',
       sent_at: new Date()
     };

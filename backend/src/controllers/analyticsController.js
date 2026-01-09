@@ -21,15 +21,15 @@ const getDashboard = async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - periodDays);
 
-    // 1. Totais gerais - usando account_id para incluir todos os leads (incluindo Google Maps)
+    // 1. Totais gerais - usando account_id para incluir todas as opportunities
     const totalsQuery = `
       SELECT
         (SELECT COUNT(*) FROM campaigns WHERE account_id = $1) as total_campaigns,
         (SELECT COUNT(*) FROM campaigns WHERE account_id = $1 AND status = 'active') as active_campaigns,
-        (SELECT COUNT(*) FROM leads WHERE account_id = $1) as total_leads,
-        (SELECT COUNT(*) FROM leads WHERE account_id = $1 AND status = 'qualified') as qualified_leads,
-        (SELECT COUNT(*) FROM leads WHERE account_id = $1 AND status = 'invite_sent') as invite_sent,
-        (SELECT COUNT(*) FROM leads WHERE account_id = $1 AND status = 'accepted') as accepted,
+        (SELECT COUNT(*) FROM opportunities WHERE account_id = $1) as total_leads,
+        (SELECT COUNT(*) FROM opportunities WHERE account_id = $1 AND qualified_at IS NOT NULL) as qualified_leads,
+        (SELECT COUNT(*) FROM opportunities WHERE account_id = $1 AND sent_at IS NOT NULL AND accepted_at IS NULL) as invite_sent,
+        (SELECT COUNT(*) FROM opportunities WHERE account_id = $1 AND accepted_at IS NOT NULL) as accepted,
         (SELECT COUNT(*) FROM conversations WHERE account_id = $1) as total_conversations,
         (SELECT COUNT(*) FROM conversations WHERE account_id = $1 AND ai_active = true) as ai_conversations,
         (SELECT COUNT(*) FROM linkedin_accounts WHERE account_id = $1) as linkedin_accounts
@@ -38,18 +38,25 @@ const getDashboard = async (req, res) => {
     const totalsResult = await db.query(totalsQuery, [accountId]);
     const totals = totalsResult.rows[0];
 
-    // 2. Pipeline de Leads - usando account_id e normalizando status 'lead'/'leads' para 'leads'
+    // 2. Pipeline de Opportunities - usando campos de data para determinar status
     const pipelineQuery = `
       SELECT
-        CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END as status,
+        CASE
+          WHEN o.discarded_at IS NOT NULL THEN 'discarded'
+          WHEN o.qualified_at IS NOT NULL THEN 'qualified'
+          WHEN o.qualifying_started_at IS NOT NULL THEN 'qualifying'
+          WHEN o.accepted_at IS NOT NULL THEN 'accepted'
+          WHEN o.sent_at IS NOT NULL THEN 'invite_sent'
+          ELSE 'leads'
+        END as status,
         COUNT(*) as count
-      FROM leads l
-      WHERE l.account_id = $1
-      GROUP BY CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END
+      FROM opportunities o
+      WHERE o.account_id = $1
+      GROUP BY 1
     `;
 
     const pipelineResult = await db.query(pipelineQuery, [accountId]);
-    
+
     const pipeline = {
       leads: 0,
       invite_sent: 0,
@@ -97,11 +104,11 @@ const getDashboard = async (req, res) => {
     // 5. Atividade recente (último período) - usando account_id
     const activityQuery = `
       SELECT
-        DATE(l.created_at) as date,
+        DATE(o.created_at) as date,
         COUNT(*) as count
-      FROM leads l
-      WHERE l.account_id = $1 AND l.created_at >= $2
-      GROUP BY DATE(l.created_at)
+      FROM opportunities o
+      WHERE o.account_id = $1 AND o.created_at >= $2
+      GROUP BY DATE(o.created_at)
       ORDER BY date ASC
     `;
 
@@ -113,12 +120,12 @@ const getDashboard = async (req, res) => {
         c.id,
         c.name,
         c.status,
-        COUNT(l.id) as total_leads,
-        COUNT(l.id) FILTER (WHERE l.status = 'qualified') as qualified_leads,
-        COUNT(l.id) FILTER (WHERE l.sent_at IS NOT NULL) as sent,
-        COUNT(l.id) FILTER (WHERE l.accepted_at IS NOT NULL) as accepted
+        COUNT(o.id) as total_leads,
+        COUNT(o.id) FILTER (WHERE o.qualified_at IS NOT NULL) as qualified_leads,
+        COUNT(o.id) FILTER (WHERE o.sent_at IS NOT NULL) as sent,
+        COUNT(o.id) FILTER (WHERE o.accepted_at IS NOT NULL) as accepted
       FROM campaigns c
-      LEFT JOIN leads l ON c.id = l.campaign_id
+      LEFT JOIN opportunities o ON c.id = o.campaign_id
       WHERE c.account_id = $1
       GROUP BY c.id, c.name, c.status
       ORDER BY qualified_leads DESC, total_leads DESC
@@ -176,33 +183,34 @@ const getDashboard = async (req, res) => {
       avg_messages_per_lead: totalConvs > 0 ? ((parseInt(msgMetrics.total_messages) || 0) / totalConvs).toFixed(1) : 0
     };
 
-    // 9. Leads mais engajados (mais mensagens)
+    // 9. Contacts mais engajados (mais mensagens)
     const engagedLeadsQuery = `
       SELECT
-        l.id,
-        l.name,
-        l.title,
-        l.company,
+        o.id,
+        ct.name,
+        ct.title,
+        ct.company,
         COUNT(m.id) as message_count,
         COUNT(m.id) FILTER (WHERE m.sender_type = 'lead') as lead_responses
-      FROM leads l
-      LEFT JOIN conversations conv ON conv.lead_id = l.id
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      LEFT JOIN conversations conv ON conv.opportunity_id = o.id
       LEFT JOIN messages m ON m.conversation_id = conv.id
-      WHERE l.account_id = $1 AND conv.id IS NOT NULL
-      GROUP BY l.id, l.name, l.title, l.company
+      WHERE o.account_id = $1 AND conv.id IS NOT NULL
+      GROUP BY o.id, ct.id, ct.name, ct.title, ct.company
       ORDER BY message_count DESC
       LIMIT 5
     `;
     const engagedLeads = await db.query(engagedLeadsQuery, [accountId]);
 
-    // 10. Leads por dia (novos leads criados) - usando account_id
+    // 10. Opportunities por dia (novas opportunities criadas)
     const leadsPerDayQuery = `
       SELECT
-        DATE(l.created_at) as date,
+        DATE(o.created_at) as date,
         COUNT(*) as count
-      FROM leads l
-      WHERE l.account_id = $1 AND l.created_at >= $2
-      GROUP BY DATE(l.created_at)
+      FROM opportunities o
+      WHERE o.account_id = $1 AND o.created_at >= $2
+      GROUP BY DATE(o.created_at)
       ORDER BY date ASC
     `;
     const leadsPerDayData = await db.query(leadsPerDayQuery, [accountId, startDate]);
@@ -210,14 +218,14 @@ const getDashboard = async (req, res) => {
     // 11. Faturamento por dia (deals ganhos) - usando account_id
     const revenuePerDayQuery = `
       SELECT
-        DATE(l.won_at) as date,
-        COALESCE(SUM(l.deal_value), 0) as value,
+        DATE(o.won_at) as date,
+        COALESCE(SUM(o.value), 0) as value,
         COUNT(*) as count
-      FROM leads l
-      WHERE l.account_id = $1
-        AND l.won_at IS NOT NULL
-        AND l.won_at >= $2
-      GROUP BY DATE(l.won_at)
+      FROM opportunities o
+      WHERE o.account_id = $1
+        AND o.won_at IS NOT NULL
+        AND o.won_at >= $2
+      GROUP BY DATE(o.won_at)
       ORDER BY date ASC
     `;
     const revenuePerDayData = await db.query(revenuePerDayQuery, [accountId, startDate]);
@@ -225,22 +233,22 @@ const getDashboard = async (req, res) => {
     // 12. Total de faturamento no período - usando account_id
     const revenueTotalQuery = `
       SELECT
-        COALESCE(SUM(l.deal_value), 0) as total
-      FROM leads l
-      WHERE l.account_id = $1
-        AND l.won_at IS NOT NULL
-        AND l.won_at >= $2
+        COALESCE(SUM(o.value), 0) as total
+      FROM opportunities o
+      WHERE o.account_id = $1
+        AND o.won_at IS NOT NULL
+        AND o.won_at >= $2
     `;
     const revenueTotalData = await db.query(revenueTotalQuery, [accountId, startDate]);
 
-    // 13. Leads por fonte - usando account_id
+    // 13. Opportunities por fonte - usando account_id
     const leadsBySourceQuery = `
       SELECT
-        COALESCE(l.source, 'linkedin') as source,
+        COALESCE(o.source, 'linkedin') as source,
         COUNT(*) as count
-      FROM leads l
-      WHERE l.account_id = $1 AND l.created_at >= $2
-      GROUP BY COALESCE(l.source, 'linkedin')
+      FROM opportunities o
+      WHERE o.account_id = $1 AND o.created_at >= $2
+      GROUP BY COALESCE(o.source, 'linkedin')
       ORDER BY count DESC
     `;
     const leadsBySourceData = await db.query(leadsBySourceQuery, [accountId, startDate]);
@@ -261,15 +269,25 @@ const getDashboard = async (req, res) => {
       percentage: totalLeadsBySource > 0 ? parseFloat(((parseInt(row.count) / totalLeadsBySource) * 100).toFixed(1)) : 0
     }));
 
-    // 14. Pipeline expandido com scheduled, won e lost - usando account_id e normalizando status
+    // 14. Pipeline expandido com scheduled, won e lost - usando campos de data
     const pipelineExpandedQuery = `
       SELECT
-        CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END as status,
+        CASE
+          WHEN o.lost_at IS NOT NULL THEN 'lost'
+          WHEN o.won_at IS NOT NULL THEN 'won'
+          WHEN o.discarded_at IS NOT NULL THEN 'discarded'
+          WHEN o.scheduled_at IS NOT NULL THEN 'scheduled'
+          WHEN o.qualified_at IS NOT NULL THEN 'qualified'
+          WHEN o.qualifying_started_at IS NOT NULL THEN 'qualifying'
+          WHEN o.accepted_at IS NOT NULL THEN 'accepted'
+          WHEN o.sent_at IS NOT NULL THEN 'invite_sent'
+          ELSE 'leads'
+        END as status,
         COUNT(*) as count,
-        COALESCE(SUM(l.deal_value), 0) as value
-      FROM leads l
-      WHERE l.account_id = $1
-      GROUP BY CASE WHEN l.status IN ('lead', 'leads') THEN 'leads' ELSE l.status END
+        COALESCE(SUM(o.value), 0) as value
+      FROM opportunities o
+      WHERE o.account_id = $1
+      GROUP BY 1
     `;
     const pipelineExpandedResult = await db.query(pipelineExpandedQuery, [accountId]);
 
@@ -299,9 +317,8 @@ const getDashboard = async (req, res) => {
         COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date::date = CURRENT_DATE) as today,
         COUNT(*) FILTER (WHERE i.is_completed = false AND i.due_date::date = CURRENT_DATE + INTERVAL '1 day') as tomorrow,
         COUNT(*) FILTER (WHERE i.is_completed = false) as total_pending
-      FROM checklist_items i
-      JOIN lead_checklists c ON i.checklist_id = c.id
-      JOIN checklist_item_assignees cia ON cia.checklist_item_id = i.id
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklist_item_assignees cia ON cia.checklist_item_id = i.id
       WHERE cia.user_id = $1
     `;
     const userTasksData = await db.query(userTasksQuery, [userId]);
@@ -409,18 +426,18 @@ const getCampaignAnalytics = async (req, res) => {
 
     // 1. Métricas gerais
     const metricsQuery = `
-      SELECT 
+      SELECT
         COUNT(*) as total_leads,
-        COUNT(*) FILTER (WHERE status = 'leads') as pending,
-        COUNT(*) FILTER (WHERE status = 'invite_sent') as sent,
-        COUNT(*) FILTER (WHERE status = 'accepted') as accepted,
-        COUNT(*) FILTER (WHERE status = 'qualifying') as qualifying,
-        COUNT(*) FILTER (WHERE status = 'qualified') as qualified,
-        COUNT(*) FILTER (WHERE status = 'discarded') as discarded,
-        AVG(score) FILTER (WHERE status = 'qualified') as avg_qualified_score,
+        COUNT(*) FILTER (WHERE sent_at IS NULL) as pending,
+        COUNT(*) FILTER (WHERE sent_at IS NOT NULL AND accepted_at IS NULL) as sent,
+        COUNT(*) FILTER (WHERE accepted_at IS NOT NULL AND qualifying_started_at IS NULL) as accepted,
+        COUNT(*) FILTER (WHERE qualifying_started_at IS NOT NULL AND qualified_at IS NULL) as qualifying,
+        COUNT(*) FILTER (WHERE qualified_at IS NOT NULL) as qualified,
+        COUNT(*) FILTER (WHERE discarded_at IS NOT NULL) as discarded,
+        AVG(score) FILTER (WHERE qualified_at IS NOT NULL) as avg_qualified_score,
         COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '7 days') as sent_last_7_days,
         COUNT(*) FILTER (WHERE accepted_at >= NOW() - INTERVAL '7 days') as accepted_last_7_days
-      FROM leads
+      FROM opportunities
       WHERE campaign_id = $1
     `;
 
@@ -429,10 +446,10 @@ const getCampaignAnalytics = async (req, res) => {
 
     // 2. Timeline de atividade (últimos 30 dias)
     const timelineQuery = `
-      SELECT 
+      SELECT
         DATE(sent_at) as date,
         COUNT(*) as invites_sent
-      FROM leads
+      FROM opportunities
       WHERE campaign_id = $1 AND sent_at >= NOW() - INTERVAL '30 days'
       GROUP BY DATE(sent_at)
       ORDER BY date ASC
@@ -442,11 +459,11 @@ const getCampaignAnalytics = async (req, res) => {
 
     // 3. Taxa de resposta por dia da semana
     const dayOfWeekQuery = `
-      SELECT 
+      SELECT
         EXTRACT(DOW FROM sent_at) as day_of_week,
         COUNT(*) as sent,
         COUNT(*) FILTER (WHERE accepted_at IS NOT NULL) as accepted
-      FROM leads
+      FROM opportunities
       WHERE campaign_id = $1 AND sent_at IS NOT NULL
       GROUP BY EXTRACT(DOW FROM sent_at)
       ORDER BY day_of_week
@@ -462,18 +479,19 @@ const getCampaignAnalytics = async (req, res) => {
       acceptance_rate: row.sent > 0 ? ((row.accepted / row.sent) * 100).toFixed(2) : 0
     }));
 
-    // 4. Top leads qualificados
+    // 4. Top opportunities qualificadas
     const topLeadsQuery = `
-      SELECT 
-        id,
-        name,
-        title,
-        company,
-        score,
-        qualified_at
-      FROM leads
-      WHERE campaign_id = $1 AND status = 'qualified'
-      ORDER BY score DESC, qualified_at DESC
+      SELECT
+        o.id,
+        ct.name,
+        ct.title,
+        ct.company,
+        o.score,
+        o.qualified_at
+      FROM opportunities o
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      WHERE o.campaign_id = $1 AND o.qualified_at IS NOT NULL
+      ORDER BY o.score DESC, o.qualified_at DESC
       LIMIT 10
     `;
 
@@ -481,9 +499,9 @@ const getCampaignAnalytics = async (req, res) => {
 
     // 5. Tempo médio para aceitar
     const avgTimeQuery = `
-      SELECT 
+      SELECT
         AVG(EXTRACT(EPOCH FROM (accepted_at - sent_at))/86400) as avg_days_to_accept
-      FROM leads
+      FROM opportunities
       WHERE campaign_id = $1 AND accepted_at IS NOT NULL AND sent_at IS NOT NULL
     `;
 
@@ -549,20 +567,20 @@ const getConversionFunnel = async (req, res) => {
     let queryParams = [userId];
 
     if (campaign_id) {
-      whereClause += ' AND l.campaign_id = $2';
+      whereClause += ' AND o.campaign_id = $2';
       queryParams.push(campaign_id);
     }
 
     const funnelQuery = `
-      SELECT 
+      SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE l.status IN ('leads', 'invite_sent', 'accepted', 'qualifying', 'qualified')) as in_funnel,
-        COUNT(*) FILTER (WHERE l.status = 'invite_sent') as invites_sent,
-        COUNT(*) FILTER (WHERE l.status = 'accepted') as accepted,
-        COUNT(*) FILTER (WHERE l.status = 'qualifying') as qualifying,
-        COUNT(*) FILTER (WHERE l.status = 'qualified') as qualified
-      FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
+        COUNT(*) FILTER (WHERE o.discarded_at IS NULL) as in_funnel,
+        COUNT(*) FILTER (WHERE o.sent_at IS NOT NULL AND o.accepted_at IS NULL) as invites_sent,
+        COUNT(*) FILTER (WHERE o.accepted_at IS NOT NULL AND o.qualifying_started_at IS NULL) as accepted,
+        COUNT(*) FILTER (WHERE o.qualifying_started_at IS NOT NULL AND o.qualified_at IS NULL) as qualifying,
+        COUNT(*) FILTER (WHERE o.qualified_at IS NOT NULL) as qualified
+      FROM opportunities o
+      JOIN campaigns c ON o.campaign_id = c.id
       WHERE ${whereClause}
     `;
 
@@ -631,7 +649,7 @@ const getLinkedInAccountsPerformance = async (req, res) => {
     console.log(`📊 Calculando performance das contas LinkedIn`);
 
     const performanceQuery = `
-      SELECT 
+      SELECT
         la.id,
         la.linkedin_username,
         la.profile_name,
@@ -639,14 +657,14 @@ const getLinkedInAccountsPerformance = async (req, res) => {
         la.daily_limit,
         la.today_sent,
         COUNT(DISTINCT c.id) as campaigns_count,
-        COUNT(DISTINCT l.id) as total_leads,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'invite_sent') as sent,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'accepted') as accepted,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'qualified') as qualified,
+        COUNT(DISTINCT o.id) as total_leads,
+        COUNT(DISTINCT o.id) FILTER (WHERE o.sent_at IS NOT NULL AND o.accepted_at IS NULL) as sent,
+        COUNT(DISTINCT o.id) FILTER (WHERE o.accepted_at IS NOT NULL) as accepted,
+        COUNT(DISTINCT o.id) FILTER (WHERE o.qualified_at IS NOT NULL) as qualified,
         COUNT(DISTINCT conv.id) as conversations_count
       FROM linkedin_accounts la
       LEFT JOIN campaigns c ON la.id = c.linkedin_account_id
-      LEFT JOIN leads l ON c.id = l.campaign_id
+      LEFT JOIN opportunities o ON c.id = o.campaign_id
       LEFT JOIN conversations conv ON la.id = conv.linkedin_account_id
       WHERE la.user_id = $1
       GROUP BY la.id, la.linkedin_username, la.profile_name, la.status, la.daily_limit, la.today_sent
@@ -697,12 +715,12 @@ const getAIAgentsPerformance = async (req, res) => {
         COUNT(DISTINCT conv.id) as conversations_count,
         COUNT(DISTINCT conv.id) FILTER (WHERE conv.ai_active = true) as active_conversations,
         COUNT(DISTINCT m.id) FILTER (WHERE m.sender_type = 'ai') as messages_sent,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'qualified') as leads_qualified
+        COUNT(DISTINCT o.id) FILTER (WHERE o.qualified_at IS NOT NULL) as leads_qualified
       FROM ai_agents aa
       LEFT JOIN campaigns c ON aa.id = c.ai_agent_id
       LEFT JOIN conversations conv ON aa.id = conv.ai_agent_id
       LEFT JOIN messages m ON conv.id = m.conversation_id
-      LEFT JOIN leads l ON conv.lead_id = l.id
+      LEFT JOIN opportunities o ON conv.opportunity_id = o.id
       WHERE aa.user_id = $1
       GROUP BY aa.id, aa.name, aa.personality_tone, aa.is_active, aa.usage_count
       ORDER BY leads_qualified DESC, messages_sent DESC
@@ -744,13 +762,13 @@ const getDailyActivity = async (req, res) => {
     startDate.setDate(startDate.getDate() - daysInt);
 
     const activityQuery = `
-      SELECT 
+      SELECT
         DATE(sent_at) as date,
         COUNT(*) as invites_sent,
         COUNT(*) FILTER (WHERE accepted_at IS NOT NULL) as invites_accepted,
         COUNT(DISTINCT campaign_id) as active_campaigns
-      FROM leads l
-      JOIN campaigns c ON l.campaign_id = c.id
+      FROM opportunities o
+      JOIN campaigns c ON o.campaign_id = c.id
       WHERE c.user_id = $1 AND sent_at >= $2
       GROUP BY DATE(sent_at)
       ORDER BY date ASC

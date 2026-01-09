@@ -967,22 +967,24 @@ function findNextNode(workflowDef, currentNode, nodeResult) {
  * Build execution context for workflow processing
  */
 async function buildExecutionContext(conversationId, state, event, payload, options) {
-  // Fetch conversation details
+  // Fetch conversation details (using opportunities + contacts instead of leads)
   const convResult = await db.query(
     `SELECT
       c.*,
-      l.id as lead_id,
-      l.name as lead_name,
-      l.email as lead_email,
-      l.phone as lead_phone,
-      l.company as lead_company,
-      l.title as lead_title,
-      l.linkedin_profile_id as lead_unipile_id,
+      o.id as opportunity_id,
+      ct.id as contact_id,
+      ct.name as contact_name,
+      ct.email as contact_email,
+      ct.phone as contact_phone,
+      ct.company as contact_company,
+      ct.title as contact_title,
+      ct.linkedin_profile_id as contact_unipile_id,
       la.unipile_account_id,
       camp.id as campaign_id,
       aa.*
      FROM conversations c
-     LEFT JOIN leads l ON c.lead_id = l.id
+     LEFT JOIN opportunities o ON c.opportunity_id = o.id
+     LEFT JOIN contacts ct ON o.contact_id = ct.id
      LEFT JOIN campaigns camp ON c.campaign_id = camp.id
      LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
      LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
@@ -1010,7 +1012,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     // IDs
     conversationId,
     agentId: state.agentId,
-    leadId: conv.lead_id,
+    opportunityId: conv.opportunity_id,
     contactId: conv.contact_id,
     campaignId: conv.campaign_id,
     accountId: conv.account_id,
@@ -1022,14 +1024,14 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     message: payload.message || payload.content,
     hasResponse: !!payload.message,
 
-    // Lead data
+    // Contact/Lead data (kept as 'lead' for workflow compatibility)
     lead: {
-      id: conv.lead_id,
-      name: conv.lead_name,
-      email: conv.lead_email,
-      phone: conv.lead_phone,
-      company: conv.lead_company,
-      title: conv.lead_title,
+      id: conv.contact_id,
+      name: conv.contact_name,
+      email: conv.contact_email,
+      phone: conv.contact_phone,
+      company: conv.contact_company,
+      title: conv.contact_title,
       status: conv.status
     },
 

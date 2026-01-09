@@ -991,8 +991,8 @@ class GoogleMapsAgentService {
 
         // Auto-assign to user using centralized round-robin service
         try {
-          await roundRobinService.autoAssignLeadOnCreation({
-            leadId: contact.lead_id,
+          await roundRobinService.autoAssignOpportunityOnCreation({
+            opportunityId: contact.opportunity_id,
             sectorId: agent.sector_id,
             accountId: agent.account_id,
             campaignId: null,
@@ -1117,62 +1117,98 @@ class GoogleMapsAgentService {
     const contactResult = await db.query(contactQuery, contactValues);
     const contact = contactResult.rows[0];
 
-    // 2. Create LEAD (sales opportunity)
-    const leadQuery = `
-      INSERT INTO leads (
-        account_id, sector_id,
-        campaign_id,
-        linkedin_profile_id,
-        name, company, location,
-        city, state, country,
-        profile_picture,
-        status, score,
-        source
+    // 2. Create OPPORTUNITY (instead of LEAD)
+    // First, get the default pipeline and its first stage for this account
+    const pipelineQuery = `
+      SELECT p.id as pipeline_id, ps.id as stage_id
+      FROM pipelines p
+      JOIN pipeline_stages ps ON ps.pipeline_id = p.id
+      WHERE p.account_id = $1 AND p.is_default = true AND p.is_active = true
+      ORDER BY ps.position ASC
+      LIMIT 1
+    `;
+    const pipelineResult = await db.query(pipelineQuery, [agent.account_id]);
+
+    if (pipelineResult.rows.length === 0) {
+      // No default pipeline found - create one using pipelineService
+      const pipelineService = require('./pipelineService');
+      const defaultPipeline = await pipelineService.createDefaultPipeline(agent.account_id, agent.user_id);
+
+      // Get first stage of newly created pipeline
+      const stageQuery = `
+        SELECT id FROM pipeline_stages
+        WHERE pipeline_id = $1
+        ORDER BY position ASC
+        LIMIT 1
+      `;
+      const stageResult = await db.query(stageQuery, [defaultPipeline.id]);
+      pipelineResult.rows = [{
+        pipeline_id: defaultPipeline.id,
+        stage_id: stageResult.rows[0].id
+      }];
+    }
+
+    const { pipeline_id, stage_id } = pipelineResult.rows[0];
+
+    // Build opportunity title
+    const opportunityTitle = contactData.company
+      ? `${contactData.name} - ${contactData.company}`
+      : contactData.name;
+
+    const opportunityQuery = `
+      INSERT INTO opportunities (
+        account_id, contact_id, pipeline_id, stage_id,
+        title, value, currency, probability,
+        owner_user_id, source, custom_fields,
+        created_by, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()
       )
       RETURNING *
     `;
 
-    // Extract thumbnail from photos array (first photo)
-    const profilePicture = contactData.photos && contactData.photos.length > 0
-      ? contactData.photos[0]
-      : null;
+    const opportunityCustomFields = {
+      place_id: contactData.place_id,
+      google_maps_agent_id: agent.id,
+      rating: contactData.rating,
+      review_count: contactData.review_count
+    };
 
-    const leadValues = [
-      agent.account_id,
-      agent.sector_id,
-      null, // No campaign for Google Maps agents
-      contactData.place_id, // Use place_id as unique identifier
-      contactData.name,
-      contactData.company,
-      contactData.location || contactData.address,
-      contactData.city || null,         // city
-      contactData.state || null,        // state
-      contactData.country || null,      // country
-      profilePicture, // Thumbnail from Google Maps
-      'leads', // Default status (valid value from check_status constraint)
-      0, // Default score
-      'google_maps' // Source
+    const opportunityValues = [
+      agent.account_id,                      // $1
+      contact.id,                            // $2 contact_id (FK)
+      pipeline_id,                           // $3
+      stage_id,                              // $4
+      opportunityTitle,                      // $5 title
+      0,                                     // $6 value (default)
+      'BRL',                                 // $7 currency
+      10,                                    // $8 probability (initial)
+      agent.user_id,                         // $9 owner_user_id
+      'google_maps',                         // $10 source
+      JSON.stringify(opportunityCustomFields), // $11 custom_fields
+      agent.user_id                          // $12 created_by
     ];
 
-    const leadResult = await db.query(leadQuery, leadValues);
-    const lead = leadResult.rows[0];
+    const opportunityResult = await db.query(opportunityQuery, opportunityValues);
+    const opportunity = opportunityResult.rows[0];
 
-    // 3. Link CONTACT to LEAD via contact_leads
-    const linkQuery = `
-      INSERT INTO contact_leads (
-        contact_id, lead_id, role
-      ) VALUES ($1, $2, $3)
-      ON CONFLICT (contact_id, lead_id) DO NOTHING
-    `;
+    // Register in opportunity_history
+    await db.query(
+      `INSERT INTO opportunity_history (opportunity_id, user_id, action, to_stage_id, notes, metadata)
+       VALUES ($1, $2, 'created', $3, $4, $5)`,
+      [
+        opportunity.id,
+        agent.user_id,
+        stage_id,
+        'Oportunidade criada via Google Maps Agent',
+        JSON.stringify({ source: 'google_maps', agent_id: agent.id })
+      ]
+    );
 
-    await db.query(linkQuery, [contact.id, lead.id, 'primary']);
-
-    // Return contact with lead_id attached
+    // Return contact with opportunity_id attached
     return {
       ...contact,
-      lead_id: lead.id
+      opportunity_id: opportunity.id
     };
   }
 

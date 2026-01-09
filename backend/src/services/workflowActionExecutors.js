@@ -208,8 +208,8 @@ const executors = {
             SELECT assigned_user_id FROM conversations
             WHERE id IN (
               SELECT c.id FROM conversations c
-              JOIN leads l ON c.lead_id = l.id
-              WHERE l.sector_id = $1
+              JOIN opportunities o ON c.opportunity_id = o.id
+              WHERE o.sector_id = $1
             )
             ORDER BY updated_at DESC
             LIMIT 1
@@ -904,12 +904,12 @@ const executors = {
           ]
         );
         targetContactId = contactResult.rows[0].id;
-        console.log(`✅ [create_opportunity] Created contact: ${targetContactId} from lead ${leadId}`);
+        console.log(`✅ [create_opportunity] Created contact: ${targetContactId} from opportunity ${leadId}`);
 
-        // Update lead with contact_id
+        // Update opportunity with contact_id
         if (leadId) {
           await db.query(
-            'UPDATE leads SET contact_id = $1 WHERE id = $2',
+            'UPDATE opportunities SET contact_id = $1 WHERE id = $2',
             [targetContactId, leadId]
           );
         }

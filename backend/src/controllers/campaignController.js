@@ -478,26 +478,26 @@ const deleteCampaign = async (req, res) => {
       throw new ForbiddenError('Cannot delete campaign with collection in progress. Please wait for collection to complete.');
     }
 
-    // Não permitir deletar campanhas com automação ativa E que tenham leads
+    // Não permitir deletar campanhas com automação ativa E que tenham opportunities
     if (campaignData.automation_active) {
-      // Verificar se tem leads
-      const leadsCheck = await db.query(
-        'SELECT COUNT(*) FROM leads WHERE campaign_id = $1',
+      // Verificar se tem opportunities
+      const oppsCheck = await db.query(
+        'SELECT COUNT(*) FROM opportunities WHERE campaign_id = $1',
         [id]
       );
-      const leadsCount = parseInt(leadsCheck.rows[0].count);
+      const oppsCount = parseInt(oppsCheck.rows[0].count);
 
-      if (leadsCount > 0) {
-        throw new ForbiddenError('Cannot delete active campaign with leads. Pause it first.');
+      if (oppsCount > 0) {
+        throw new ForbiddenError('Cannot delete active campaign with opportunities. Pause it first.');
       }
 
-      // Se não tem leads, pode deletar mesmo estando com automação ativa
-      console.log('⚠️ Deletando campanha ativa sem leads');
+      // Se não tem opportunities, pode deletar mesmo estando com automação ativa
+      console.log('⚠️ Deletando campanha ativa sem opportunities');
     }
 
     // Deletar dados relacionados
     await db.query('DELETE FROM bulk_collection_jobs WHERE campaign_id = $1', [id]);
-    await db.query('DELETE FROM leads WHERE campaign_id = $1', [id]);
+    await db.query('DELETE FROM opportunities WHERE campaign_id = $1', [id]);
 
     // Deletar campanha
     await db.delete('campaigns', { id });
@@ -563,18 +563,18 @@ const startCampaign = async (req, res) => {
       throw new ValidationError('Campaign is already active');
     }
 
-    // Verificar se tem leads pendentes
-    const leadsCount = await db.query(
-      `SELECT COUNT(*) FROM leads WHERE campaign_id = $1 AND status IN ('leads', 'lead')`,
+    // Verificar se tem opportunities pendentes (sem convite enviado)
+    const oppsCount = await db.query(
+      `SELECT COUNT(*) FROM opportunities WHERE campaign_id = $1 AND sent_at IS NULL`,
       [id]
     );
 
-    const pendingLeads = parseInt(leadsCount.rows[0].count);
-    console.log(`🚀 [STEP 2] Leads pendentes: ${pendingLeads}`);
+    const pendingOpps = parseInt(oppsCount.rows[0].count);
+    console.log(`🚀 [STEP 2] Opportunities pendentes: ${pendingOpps}`);
 
-    if (pendingLeads === 0) {
-      console.log('🚀 ❌ Nenhum lead pendente!');
-      throw new ValidationError('Campaign has no pending leads. Add leads first.');
+    if (pendingOpps === 0) {
+      console.log('🚀 ❌ Nenhuma opportunity pendente!');
+      throw new ValidationError('Campaign has no pending opportunities. Add contacts first.');
     }
 
     // 🆕 CRIAR FILA DE CONVITES
@@ -600,7 +600,7 @@ const startCampaign = async (req, res) => {
     console.log('🚀 ═══════════════════════════════════════════════════════════');
     console.log('🚀 ✅ CAMPANHA INICIADA COM SUCESSO!');
     console.log(`🚀    Nome: ${campaignData.name}`);
-    console.log(`🚀    Leads pendentes: ${pendingLeads}`);
+    console.log(`🚀    Opportunities pendentes: ${pendingOpps}`);
     if (queueResult) {
       console.log(`🚀    Convites na fila: ${queueResult.totalQueued}`);
       console.log(`🚀    Agendados para hoje: ${queueResult.scheduledToday}`);
@@ -613,7 +613,7 @@ const startCampaign = async (req, res) => {
 
     sendSuccess(res, {
       ...updatedCampaign,
-      pending_leads: pendingLeads,
+      pending_opportunities: pendingOpps,
       queue: queueResult
     }, 'Campaign started successfully');
 
@@ -700,16 +700,16 @@ const resumeCampaign = async (req, res) => {
       throw new ValidationError('Campaign is not paused');
     }
 
-    // Verificar se tem leads pendentes
-    const leadsCount = await db.query(
-      'SELECT COUNT(*) FROM leads WHERE campaign_id = $1 AND status = $2',
-      [id, 'leads']
+    // Verificar se tem opportunities pendentes
+    const oppsCount = await db.query(
+      'SELECT COUNT(*) FROM opportunities WHERE campaign_id = $1 AND sent_at IS NULL',
+      [id]
     );
 
-    const pendingLeads = parseInt(leadsCount.rows[0].count);
+    const pendingOpps = parseInt(oppsCount.rows[0].count);
 
-    if (pendingLeads === 0) {
-      throw new ValidationError('Campaign has no pending leads');
+    if (pendingOpps === 0) {
+      throw new ValidationError('Campaign has no pending opportunities');
     }
 
     // Atualizar campanha
@@ -718,11 +718,11 @@ const resumeCampaign = async (req, res) => {
       status: CAMPAIGN_STATUS.ACTIVE
     }, { id });
 
-    console.log(`✅ Campanha retomada - ${pendingLeads} leads pendentes`);
+    console.log(`✅ Campanha retomada - ${pendingOpps} opportunities pendentes`);
 
     sendSuccess(res, {
       ...updatedCampaign,
-      pending_leads: pendingLeads
+      pending_opportunities: pendingOpps
     }, 'Campaign resumed successfully');
 
   } catch (error) {
@@ -863,14 +863,21 @@ const getCampaignStats = async (req, res) => {
 
     const campaign = campaignResult.rows[0];
 
-    // Buscar estatísticas dos leads
+    // Buscar estatísticas das opportunities usando campos de data
     const statsQuery = `
-      SELECT 
-        status,
+      SELECT
+        CASE
+          WHEN discarded_at IS NOT NULL THEN 'discarded'
+          WHEN qualified_at IS NOT NULL THEN 'qualified'
+          WHEN qualifying_started_at IS NOT NULL THEN 'qualifying'
+          WHEN accepted_at IS NOT NULL THEN 'accepted'
+          WHEN sent_at IS NOT NULL THEN 'invite_sent'
+          ELSE 'leads'
+        END as status,
         COUNT(*) as count
-      FROM leads
+      FROM opportunities
       WHERE campaign_id = $1
-      GROUP BY status
+      GROUP BY 1
     `;
 
     const statsResult = await db.query(statsQuery, [id]);
@@ -1322,9 +1329,10 @@ const getQueueStatus = async (req, res) => {
 
     // Buscar próximos agendados
     const nextScheduled = await db.query(
-      `SELECT ciq.id, ciq.scheduled_for, l.name as lead_name
+      `SELECT ciq.id, ciq.scheduled_for, ct.name as contact_name
        FROM campaign_invite_queue ciq
-       JOIN leads l ON ciq.lead_id = l.id
+       JOIN opportunities o ON ciq.opportunity_id = o.id
+       LEFT JOIN contacts ct ON o.contact_id = ct.id
        WHERE ciq.campaign_id = $1 AND ciq.status = 'scheduled'
        ORDER BY ciq.scheduled_for ASC
        LIMIT 5`,
@@ -1333,9 +1341,10 @@ const getQueueStatus = async (req, res) => {
 
     // Buscar últimos enviados
     const lastSent = await db.query(
-      `SELECT ciq.id, ciq.sent_at, l.name as lead_name
+      `SELECT ciq.id, ciq.sent_at, ct.name as contact_name
        FROM campaign_invite_queue ciq
-       JOIN leads l ON ciq.lead_id = l.id
+       JOIN opportunities o ON ciq.opportunity_id = o.id
+       LEFT JOIN contacts ct ON o.contact_id = ct.id
        WHERE ciq.campaign_id = $1 AND ciq.status IN ('sent', 'accepted')
        ORDER BY ciq.sent_at DESC
        LIMIT 5`,
@@ -1388,9 +1397,9 @@ const cancelCampaign = async (req, res) => {
 
     // Cancelar todos os convites pendentes e agendados
     const pendingInvites = await db.query(
-      `SELECT ciq.*, l.linkedin_profile_id, la.unipile_account_id
+      `SELECT ciq.*, o.linkedin_profile_id, la.unipile_account_id
        FROM campaign_invite_queue ciq
-       JOIN leads l ON ciq.lead_id = l.id
+       JOIN opportunities o ON ciq.opportunity_id = o.id
        JOIN linkedin_accounts la ON ciq.linkedin_account_id = la.id
        WHERE ciq.campaign_id = $1 AND ciq.status IN ('pending', 'scheduled', 'sent')`,
       [id]

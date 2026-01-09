@@ -518,11 +518,17 @@ const deletePipeline = async (req, res) => {
       [id]
     );
 
-    if (parseInt(oppsCheck.rows[0].count) > 0) {
+    const opportunitiesCount = parseInt(oppsCheck.rows[0].count);
+
+    if (opportunitiesCount > 0) {
       if (force !== 'true') {
-        throw new ValidationError(
-          `Esta pipeline contém ${oppsCheck.rows[0].count} oportunidade(s). Use force=true para deletar junto com as oportunidades.`
-        );
+        // Retorna informação para confirmação no frontend
+        return sendSuccess(res, {
+          requires_confirmation: true,
+          opportunities_count: opportunitiesCount,
+          pipeline_name: pipeline.name,
+          message: `Esta pipeline contém ${opportunitiesCount} oportunidade(s). Deseja excluir tudo?`
+        });
       }
     }
 
@@ -532,10 +538,13 @@ const deletePipeline = async (req, res) => {
       [id, accountId]
     );
 
-    console.log(`🗑️ Pipeline ${id} deletada por usuário ${userId}`);
+    console.log(`🗑️ Pipeline ${id} deletada por usuário ${userId}${opportunitiesCount > 0 ? ` (com ${opportunitiesCount} oportunidades)` : ''}`);
 
     sendSuccess(res, {
-      message: 'Pipeline deletada com sucesso'
+      message: 'Pipeline deletada com sucesso',
+      deleted: {
+        opportunities: opportunitiesCount
+      }
     });
   } catch (error) {
     console.error('Erro ao deletar pipeline:', error);
@@ -574,7 +583,73 @@ const getPipelineStats = async (req, res) => {
 };
 
 // ================================
-// 7. MOVER PIPELINE PARA PROJETO
+// 7. OBTER DADOS DO FUNIL
+// ================================
+const getPipelineFunnel = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+
+    // Verificar acesso
+    const { hasAccess, reason } = await pipelineService.canUserAccessPipeline(userId, id, accountId);
+
+    if (!hasAccess) {
+      if (reason === 'pipeline_not_found') {
+        throw new NotFoundError('Pipeline não encontrada');
+      }
+      throw new ForbiddenError('Você não tem acesso a esta pipeline');
+    }
+
+    // Buscar stages com contagem de opportunities
+    const stagesQuery = `
+      SELECT
+        ps.id,
+        ps.name,
+        ps.color,
+        ps.position,
+        ps.is_win_stage,
+        ps.is_loss_stage,
+        COUNT(o.id) as count,
+        COALESCE(SUM(o.value), 0) as value
+      FROM pipeline_stages ps
+      LEFT JOIN opportunities o ON o.stage_id = ps.id AND o.lost_at IS NULL AND o.discarded_at IS NULL
+      WHERE ps.pipeline_id = $1
+      GROUP BY ps.id, ps.name, ps.color, ps.position, ps.is_win_stage, ps.is_loss_stage
+      ORDER BY ps.position ASC
+    `;
+
+    const stagesResult = await db.query(stagesQuery, [id]);
+
+    // Contar perdidos
+    const lostQuery = `
+      SELECT COUNT(*) as count
+      FROM opportunities
+      WHERE pipeline_id = $1 AND (lost_at IS NOT NULL OR discarded_at IS NOT NULL)
+    `;
+    const lostResult = await db.query(lostQuery, [id]);
+
+    sendSuccess(res, {
+      stages: stagesResult.rows.map(s => ({
+        id: s.id,
+        name: s.name,
+        color: s.color,
+        position: s.position,
+        is_won_stage: s.is_win_stage,
+        is_lost_stage: s.is_loss_stage,
+        count: parseInt(s.count) || 0,
+        value: parseFloat(s.value) || 0
+      })),
+      lost_count: parseInt(lostResult.rows[0]?.count) || 0
+    });
+  } catch (error) {
+    console.error('Erro ao obter funil:', error);
+    sendError(res, error);
+  }
+};
+
+// ================================
+// 8. MOVER PIPELINE PARA PROJETO
 // ================================
 const movePipelineToProject = async (req, res) => {
   try {
@@ -747,6 +822,7 @@ module.exports = {
   updatePipeline,
   deletePipeline,
   getPipelineStats,
+  getPipelineFunnel,
   movePipelineToProject,
   addPipelineUser,
   removePipelineUser

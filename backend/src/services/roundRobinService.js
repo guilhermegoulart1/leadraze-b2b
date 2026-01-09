@@ -67,24 +67,24 @@ const getNextUser = async (sectorId, accountId) => {
 };
 
 /**
- * Assign a lead to a user and update round-robin tracking
- * @param {string} leadId - The lead ID
+ * Assign an opportunity to a user and update round-robin tracking
+ * @param {string} opportunityId - The opportunity ID
  * @param {string} userId - The user ID to assign
  * @param {string} sectorId - The sector ID (for updating last_assigned)
  * @param {string} accountId - The account ID
  */
-const assignLeadToUser = async (leadId, userId, sectorId, accountId) => {
+const assignOpportunityToUser = async (opportunityId, userId, sectorId, accountId) => {
   const client = await db.pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Update the lead with the responsible user
+    // Update the opportunity with the owner user
     await client.query(
-      `UPDATE leads
-       SET responsible_user_id = $1, updated_at = CURRENT_TIMESTAMP
+      `UPDATE opportunities
+       SET owner_user_id = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 AND account_id = $3`,
-      [userId, leadId, accountId]
+      [userId, opportunityId, accountId]
     );
 
     // Update the sector's last assigned user (for round-robin tracking)
@@ -109,20 +109,20 @@ const assignLeadToUser = async (leadId, userId, sectorId, accountId) => {
 };
 
 /**
- * Auto-assign a lead using round-robin if the sector has it enabled
- * @param {string} leadId - The lead ID
+ * Auto-assign an opportunity using round-robin if the sector has it enabled
+ * @param {string} opportunityId - The opportunity ID
  * @param {string} sectorId - The sector ID
  * @param {string} accountId - The account ID
  * @returns {object|null} The assigned user, or null if not auto-assigned
  */
-const autoAssignLead = async (leadId, sectorId, accountId) => {
+const autoAssignOpportunity = async (opportunityId, sectorId, accountId) => {
   const nextUser = await getNextUser(sectorId, accountId);
 
   if (!nextUser) {
     return null;
   }
 
-  await assignLeadToUser(leadId, nextUser.user_id, sectorId, accountId);
+  await assignOpportunityToUser(opportunityId, nextUser.user_id, sectorId, accountId);
 
   return nextUser;
 };
@@ -195,8 +195,8 @@ const toggleRoundRobin = async (sectorId, accountId, enabled) => {
 };
 
 /**
- * CENTRALIZED: Auto-assign a lead on creation based on sector/campaign settings
- * This is the main entry point for all lead assignment across the system.
+ * CENTRALIZED: Auto-assign an opportunity on creation based on sector/campaign settings
+ * This is the main entry point for all opportunity assignment across the system.
  *
  * Priority:
  * 1. If sector has round-robin enabled AND has users -> use round-robin
@@ -204,15 +204,15 @@ const toggleRoundRobin = async (sectorId, accountId, enabled) => {
  * 3. Otherwise -> leave unassigned
  *
  * @param {object} params - Assignment parameters
- * @param {string} params.leadId - The lead ID to assign
- * @param {string} params.sectorId - The sector ID (from lead or campaign)
+ * @param {string} params.opportunityId - The opportunity ID to assign
+ * @param {string} params.sectorId - The sector ID (from opportunity or campaign)
  * @param {string} params.accountId - The account ID
  * @param {string} [params.campaignId] - Optional campaign ID to check default responsible
- * @param {string} [params.source] - Source of the lead (for logging): 'google_maps', 'linkedin', 'api', 'manual'
+ * @param {string} [params.source] - Source of the opportunity (for logging): 'google_maps', 'linkedin', 'api', 'manual'
  * @returns {object} Result with assigned user info or null
  */
-const autoAssignLeadOnCreation = async ({ leadId, sectorId, accountId, campaignId = null, source = 'unknown' }) => {
-  console.log(`🔄 [RoundRobin] Auto-assigning lead ${leadId} from source: ${source}`);
+const autoAssignOpportunityOnCreation = async ({ opportunityId, sectorId, accountId, campaignId = null, source = 'unknown' }) => {
+  console.log(`🔄 [RoundRobin] Auto-assigning opportunity ${opportunityId} from source: ${source}`);
 
   // If no sector, can't auto-assign via round-robin
   if (!sectorId) {
@@ -237,8 +237,8 @@ const autoAssignLeadOnCreation = async ({ leadId, sectorId, accountId, campaignI
         } else if (campaign.default_responsible_user_id) {
           // Use campaign's default responsible
           await db.query(
-            `UPDATE leads SET responsible_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-            [campaign.default_responsible_user_id, leadId]
+            `UPDATE opportunities SET owner_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [campaign.default_responsible_user_id, opportunityId]
           );
           console.log(`✅ [RoundRobin] Assigned to campaign default: ${campaign.name}`);
           return {
@@ -256,7 +256,7 @@ const autoAssignLeadOnCreation = async ({ leadId, sectorId, accountId, campaignI
     }
 
     if (!sectorId) {
-      console.log(`⚠️ [RoundRobin] No sector available, lead remains unassigned`);
+      console.log(`⚠️ [RoundRobin] No sector available, opportunity remains unassigned`);
       return { assigned: false, method: 'none', reason: 'no_sector' };
     }
   }
@@ -281,7 +281,7 @@ const autoAssignLeadOnCreation = async ({ leadId, sectorId, accountId, campaignI
     const nextUser = await getNextUser(sectorId, accountId);
 
     if (nextUser) {
-      await assignLeadToUser(leadId, nextUser.user_id, sectorId, accountId);
+      await assignOpportunityToUser(opportunityId, nextUser.user_id, sectorId, accountId);
       console.log(`✅ [RoundRobin] Assigned via round-robin to: ${nextUser.name}`);
       return {
         assigned: true,
@@ -312,8 +312,8 @@ const autoAssignLeadOnCreation = async ({ leadId, sectorId, accountId, campaignI
     if (campaignResult.rows.length > 0 && campaignResult.rows[0].default_responsible_user_id) {
       const campaign = campaignResult.rows[0];
       await db.query(
-        `UPDATE leads SET responsible_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-        [campaign.default_responsible_user_id, leadId]
+        `UPDATE opportunities SET owner_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [campaign.default_responsible_user_id, opportunityId]
       );
       console.log(`✅ [RoundRobin] Assigned to campaign default: ${campaign.name}`);
       return {
@@ -329,12 +329,12 @@ const autoAssignLeadOnCreation = async ({ leadId, sectorId, accountId, campaignI
     }
   }
 
-  console.log(`⚠️ [RoundRobin] No assignment method available, lead remains unassigned`);
+  console.log(`⚠️ [RoundRobin] No assignment method available, opportunity remains unassigned`);
   return { assigned: false, method: 'none', reason: 'no_assignment_method' };
 };
 
 /**
- * Get lead assignment statistics for a sector
+ * Get opportunity assignment statistics for a sector
  * @param {string} sectorId - The sector ID
  * @param {string} accountId - The account ID
  */
@@ -344,13 +344,13 @@ const getSectorAssignmentStats = async (sectorId, accountId) => {
        u.id as user_id,
        u.name,
        u.avatar_url,
-       COUNT(l.id) as total_leads,
-       COUNT(CASE WHEN l.stage = 'won' THEN 1 END) as won_leads,
-       COUNT(CASE WHEN l.stage = 'lost' THEN 1 END) as lost_leads,
-       COUNT(CASE WHEN l.stage NOT IN ('won', 'lost') THEN 1 END) as active_leads
+       COUNT(o.id) as total_opportunities,
+       COUNT(CASE WHEN o.won_at IS NOT NULL THEN 1 END) as won_opportunities,
+       COUNT(CASE WHEN o.lost_at IS NOT NULL THEN 1 END) as lost_opportunities,
+       COUNT(CASE WHEN o.won_at IS NULL AND o.lost_at IS NULL THEN 1 END) as active_opportunities
      FROM sector_users su
      JOIN users u ON u.id = su.user_id
-     LEFT JOIN leads l ON l.responsible_user_id = u.id AND l.sector_id = $1
+     LEFT JOIN opportunities o ON o.owner_user_id = u.id
      WHERE su.sector_id = $1 AND su.is_active = true
      GROUP BY u.id, u.name, u.avatar_url
      ORDER BY u.name`,
@@ -362,9 +362,9 @@ const getSectorAssignmentStats = async (sectorId, accountId) => {
 
 module.exports = {
   getNextUser,
-  assignLeadToUser,
-  autoAssignLead,
-  autoAssignLeadOnCreation, // Centralized entry point for all lead sources
+  assignOpportunityToUser,
+  autoAssignOpportunity,
+  autoAssignOpportunityOnCreation, // Centralized entry point for all opportunity sources
   getSectorUsers,
   addUserToSector,
   removeUserFromSector,

@@ -267,36 +267,89 @@ const deleteProject = async (req, res) => {
       throw new NotFoundError('Projeto não encontrado');
     }
 
-    // Verificar se tem pipelines
-    const pipelinesCheck = await db.query(
-      'SELECT COUNT(*) as count FROM pipelines WHERE project_id = $1',
-      [id]
-    );
+    // Verificar se tem pipelines e contar dados relacionados
+    const statsQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM pipelines WHERE project_id = $1) as pipelines_count,
+        (SELECT COUNT(*) FROM opportunities o
+         JOIN pipelines p ON o.pipeline_id = p.id
+         WHERE p.project_id = $1) as opportunities_count
+    `;
+    const stats = await db.query(statsQuery, [id]);
+    const pipelinesCount = parseInt(stats.rows[0].pipelines_count);
+    const opportunitiesCount = parseInt(stats.rows[0].opportunities_count);
 
-    if (parseInt(pipelinesCheck.rows[0].count) > 0) {
-      if (force === 'true') {
-        // Mover pipelines para "sem projeto" (project_id = null)
-        await db.query(
-          'UPDATE pipelines SET project_id = NULL WHERE project_id = $1',
+    if (pipelinesCount > 0) {
+      if (force !== 'true') {
+        // Retorna erro com informações para o frontend exibir
+        return sendSuccess(res, {
+          requires_confirmation: true,
+          pipelines_count: pipelinesCount,
+          opportunities_count: opportunitiesCount,
+          message: `Este projeto contém ${pipelinesCount} pipeline(s) e ${opportunitiesCount} oportunidade(s). Deseja excluir tudo?`
+        });
+      }
+
+      // force=true: Deletar tudo em cascata
+      const client = await db.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Obter IDs das pipelines do projeto
+        const pipelineIds = await client.query(
+          'SELECT id FROM pipelines WHERE project_id = $1',
           [id]
         );
-      } else {
-        throw new ValidationError(
-          `Este projeto contém ${pipelinesCheck.rows[0].count} pipeline(s). Remova as pipelines primeiro ou use force=true para mover para "Sem projeto".`
-        );
+
+        for (const row of pipelineIds.rows) {
+          const pipelineId = row.id;
+
+          // Deletar oportunidades da pipeline (cascata cuida dos relacionamentos)
+          await client.query('DELETE FROM opportunities WHERE pipeline_id = $1', [pipelineId]);
+
+          // Deletar stages da pipeline
+          await client.query('DELETE FROM pipeline_stages WHERE pipeline_id = $1', [pipelineId]);
+
+          // Deletar pipeline_users
+          await client.query('DELETE FROM pipeline_users WHERE pipeline_id = $1', [pipelineId]);
+        }
+
+        // Deletar todas as pipelines do projeto
+        await client.query('DELETE FROM pipelines WHERE project_id = $1', [id]);
+
+        // Deletar o projeto
+        await client.query('DELETE FROM crm_projects WHERE id = $1 AND account_id = $2', [id, accountId]);
+
+        await client.query('COMMIT');
+
+        console.log(`🗑️ Projeto ${id} deletado com ${pipelinesCount} pipelines e ${opportunitiesCount} oportunidades`);
+
+        sendSuccess(res, {
+          message: 'Projeto e todos os dados relacionados foram excluídos com sucesso',
+          deleted: {
+            pipelines: pipelinesCount,
+            opportunities: opportunitiesCount
+          }
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
       }
+    } else {
+      // Projeto vazio, pode deletar diretamente
+      await db.query(
+        'DELETE FROM crm_projects WHERE id = $1 AND account_id = $2',
+        [id, accountId]
+      );
+
+      console.log(`🗑️ Projeto ${id} deletado (vazio)`);
+
+      sendSuccess(res, {
+        message: 'Projeto deletado com sucesso'
+      });
     }
-
-    await db.query(
-      'DELETE FROM crm_projects WHERE id = $1 AND account_id = $2',
-      [id, accountId]
-    );
-
-    console.log(`🗑️ Projeto ${id} deletado`);
-
-    sendSuccess(res, {
-      message: 'Projeto deletado com sucesso'
-    });
   } catch (error) {
     console.error('Erro ao deletar projeto:', error);
     sendError(res, error);

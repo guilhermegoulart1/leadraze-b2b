@@ -95,6 +95,12 @@ const PipelinesPage = () => {
   const [pendingLoseOpp, setPendingLoseOpp] = useState(null);
   const [pendingLoseStageId, setPendingLoseStageId] = useState(null);
 
+  // Delete project modal
+  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(null);
+  const [deleteProjectInfo, setDeleteProjectInfo] = useState(null);
+  const [deletingProjectLoading, setDeletingProjectLoading] = useState(false);
+
   // Kanban column limit
   const KANBAN_COLUMN_LIMIT = 20;
   const columnScrollRefs = useRef({});
@@ -155,11 +161,25 @@ const PipelinesPage = () => {
         pipelinesData = pipelinesRes.data?.pipelines || [];
         setPipelines(pipelinesData);
 
-        // Auto-select first pipeline if none selected
-        if (!selectedPipelineId && pipelinesData.length > 0) {
+        // Check if selected pipeline from URL exists
+        const urlPipelineId = searchParams.get('pipeline');
+        const pipelineExists = urlPipelineId && pipelinesData.some(p => p.id === urlPipelineId);
+
+        if (pipelineExists) {
+          // Pipeline exists, keep selection
+          setSelectedPipelineId(urlPipelineId);
+        } else if (pipelinesData.length > 0) {
+          // Pipeline doesn't exist or no selection - select first
           const firstPipeline = pipelinesData[0];
           setSelectedPipelineId(firstPipeline.id);
           setSearchParams({ pipeline: firstPipeline.id });
+        } else {
+          // No pipelines available - clear selection
+          setSelectedPipelineId(null);
+          setSelectedPipeline(null);
+          setStages([]);
+          setOpportunities([]);
+          setSearchParams({});
         }
       }
 
@@ -186,8 +206,17 @@ const PipelinesPage = () => {
 
       // Load pipeline details first
       const pipelineRes = await api.getPipeline(selectedPipelineId);
-      if (pipelineRes.success) {
+      if (pipelineRes.success && pipelineRes.data.pipeline) {
         setSelectedPipeline(pipelineRes.data.pipeline);
+      } else {
+        // Pipeline doesn't exist - clear selection and redirect
+        setSelectedPipelineId(null);
+        setSelectedPipeline(null);
+        setStages([]);
+        setOpportunities([]);
+        setSearchParams({});
+        setLoadingContent(false);
+        return;
       }
 
       // Load kanban data
@@ -286,9 +315,18 @@ const PipelinesPage = () => {
 
       // Load pipeline details
       const pipelineRes = await api.getPipeline(selectedPipelineId);
-      if (pipelineRes.success) {
+      if (pipelineRes.success && pipelineRes.data.pipeline) {
         setSelectedPipeline(pipelineRes.data.pipeline);
         setStages(pipelineRes.data.pipeline.stages || []);
+      } else {
+        // Pipeline doesn't exist - clear selection and redirect
+        setSelectedPipelineId(null);
+        setSelectedPipeline(null);
+        setStages([]);
+        setOpportunities([]);
+        setSearchParams({});
+        setLoadingContent(false);
+        return;
       }
 
       const params = {
@@ -384,6 +422,70 @@ const PipelinesPage = () => {
       handleProjectNameSave(projectId);
     } else if (e.key === 'Escape') {
       setEditingProjectId(null);
+    }
+  };
+
+  // Handle delete project
+  const handleDeleteProject = async (project) => {
+    setProjectMenuOpen(null);
+    setDeletingProject(project);
+    setDeletingProjectLoading(true);
+
+    try {
+      // First call without force to check if has pipelines
+      const response = await api.deleteCrmProject(project.id, false);
+
+      if (response.success && response.data?.requires_confirmation) {
+        // Has pipelines - show confirmation modal
+        setDeleteProjectInfo(response.data);
+        setShowDeleteProjectModal(true);
+      } else if (response.success) {
+        // Empty project - deleted directly
+        setProjects(prev => prev.filter(p => p.id !== project.id));
+        setDeletingProject(null);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir projeto:', error);
+      setDeletingProject(null);
+    } finally {
+      setDeletingProjectLoading(false);
+    }
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!deletingProject) return;
+
+    setDeletingProjectLoading(true);
+    try {
+      const response = await api.deleteCrmProject(deletingProject.id, true);
+
+      if (response.success) {
+        // Remove project from list
+        setProjects(prev => prev.filter(p => p.id !== deletingProject.id));
+
+        // If selected pipeline was in this project, clear selection
+        const deletedPipelineIds = pipelines
+          .filter(p => p.project_id === deletingProject.id)
+          .map(p => p.id);
+
+        if (deletedPipelineIds.includes(selectedPipelineId)) {
+          setSelectedPipelineId(null);
+          setSelectedPipeline(null);
+          setStages([]);
+          setOpportunities([]);
+          setSearchParams({});
+        }
+
+        // Remove pipelines from list
+        setPipelines(prev => prev.filter(p => p.project_id !== deletingProject.id));
+      }
+    } catch (error) {
+      console.error('Erro ao excluir projeto:', error);
+    } finally {
+      setShowDeleteProjectModal(false);
+      setDeletingProject(null);
+      setDeleteProjectInfo(null);
+      setDeletingProjectLoading(false);
     }
   };
 
@@ -594,23 +696,68 @@ const PipelinesPage = () => {
   const handleOpenLeadDetail = async (opportunity) => {
     if (!opportunity) return;
 
-    // If opportunity has source_lead_id, load the full lead
-    if (opportunity.source_lead_id) {
-      try {
-        setLoadingLeadModal(true);
-        const response = await api.getLead(opportunity.source_lead_id);
-        if (response.success) {
-          setSelectedLead(response.data.lead || response.data);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar lead:', error);
-      } finally {
-        setLoadingLeadModal(false);
+    try {
+      setLoadingLeadModal(true);
+      // Load full opportunity data (includes all contact fields + AI enrichment + source, etc.)
+      const response = await api.getLead(opportunity.id);
+      if (response.success) {
+        const opp = response.data.opportunity || response.data;
+        // Map opportunity to lead-like structure for LeadDetailModal
+        setSelectedLead({
+          id: opp.contact_id || opp.id,
+          contact_id: opp.contact_id,
+          opportunity_id: opp.id,
+          name: opp.contact_name || opp.title,
+          title: opp.contact_title,
+          company: opp.contact_company,
+          location: opp.contact_location,
+          email: opp.contact_email,
+          phone: opp.contact_phone,
+          profile_picture: opp.contact_picture,
+          public_identifier: opp.contact_linkedin_id,
+          profile_url: opp.contact_profile_url,
+          about: opp.contact_about,
+          headline: opp.contact_headline,
+          website: opp.contact_website,
+          company_description: opp.contact_company_description,
+          company_services: opp.contact_company_services,
+          pain_points: opp.contact_pain_points,
+          photos: opp.contact_photos,
+          business_category: opp.contact_business_category,
+          rating: opp.contact_rating,
+          review_count: opp.contact_review_count,
+          industry: opp.contact_industry,
+          city: opp.contact_city,
+          state: opp.contact_state,
+          country: opp.contact_country,
+          connections_count: opp.contact_connections,
+          emails: opp.contact_emails,
+          phones: opp.contact_phones,
+          social_links: opp.contact_social_links,
+          team_members: opp.contact_team_members,
+          status: opp.won_at ? 'qualified' : opp.lost_at ? 'discarded' : 'leads',
+          source: opp.source,
+          created_at: opp.created_at,
+          tags: opp.tags || [],
+          responsible_id: opp.owner_user_id,
+          responsible_name: opp.owner_name,
+          responsible_avatar: opp.owner_avatar,
+          opportunity_value: opp.value,
+          // Pipeline info
+          pipeline_id: opp.pipeline_id,
+          pipeline_name: opp.pipeline_name,
+          stage_id: opp.stage_id,
+          stage_name: opp.stage_name,
+          // History
+          history: opp.history
+        });
       }
-    } else {
-      // Create a lead-like object from opportunity data for display
+    } catch (error) {
+      console.error('Erro ao carregar oportunidade:', error);
+      // Fallback: Use data from kanban card
       setSelectedLead({
         id: opportunity.id,
+        opportunity_id: opportunity.id,
         name: opportunity.contact_name,
         title: opportunity.contact_title,
         company: opportunity.contact_company,
@@ -627,6 +774,8 @@ const PipelinesPage = () => {
         responsible_name: opportunity.owner_name,
         responsible_avatar: opportunity.owner_avatar
       });
+    } finally {
+      setLoadingLeadModal(false);
     }
   };
 
@@ -1370,13 +1519,13 @@ const PipelinesPage = () => {
                                           e.stopPropagation();
                                           setProjectMenuOpen(projectMenuOpen === project.id ? null : project.id);
                                         }}
-                                        className="opacity-0 group-hover/project:opacity-100 p-0.5 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all"
-                                        title="Adicionar"
+                                        className="opacity-0 group-hover/project:opacity-100 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all"
+                                        title="Opções"
                                       >
-                                        <Plus className="w-3 h-3" />
+                                        <MoreVertical className="w-3 h-3" />
                                       </button>
                                       {projectMenuOpen === project.id && (
-                                        <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+                                        <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -1390,6 +1539,18 @@ const PipelinesPage = () => {
                                             <Target className="w-3.5 h-3.5" />
                                             {t('newPipeline')}
                                           </button>
+                                          {hasPermission('pipelines:delete') && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteProject(project);
+                                              }}
+                                              className="w-full px-3 py-1.5 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                              {t('deleteProject')}
+                                            </button>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -1624,6 +1785,86 @@ const PipelinesPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center gap-3">
             <Loader className="w-8 h-8 text-purple-500 animate-spin" />
             <span className="text-sm text-gray-600 dark:text-gray-400">{t('loadingDetails')}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Project Confirmation Modal */}
+      {showDeleteProjectModal && deletingProject && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {t('deleteProjectModal.title')}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {deletingProject.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                {t('deleteProjectModal.warning')}
+              </p>
+
+              {deleteProjectInfo && (
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">{t('deleteProjectModal.pipelines')}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{deleteProjectInfo.pipelines_count}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">{t('deleteProjectModal.opportunities')}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{deleteProjectInfo.opportunities_count}</span>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-sm text-red-600 dark:text-red-400 mt-4 font-medium">
+                {t('deleteProjectModal.irreversible')}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteProjectModal(false);
+                  setDeletingProject(null);
+                  setDeleteProjectInfo(null);
+                }}
+                disabled={deletingProjectLoading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {t('deleteProjectModal.cancel')}
+              </button>
+              <button
+                onClick={confirmDeleteProject}
+                disabled={deletingProjectLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingProjectLoading ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    {t('deleteProjectModal.deleting')}
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    {t('deleteProjectModal.confirm')}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

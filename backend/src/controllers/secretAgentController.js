@@ -449,16 +449,16 @@ const getBriefing = async (req, res) => {
 };
 
 /**
- * Link a briefing to a lead
+ * Link a briefing to a contact
  */
-const linkBriefingToLead = async (req, res) => {
+const linkBriefingToContact = async (req, res) => {
   try {
     const { accountId } = req.user;
     const { id } = req.params;
-    const { leadId } = req.body;
+    const { contactId } = req.body;
 
-    if (!leadId) {
-      throw new ValidationError('Lead ID is required');
+    if (!contactId) {
+      throw new ValidationError('Contact ID is required');
     }
 
     // Verify briefing exists
@@ -471,7 +471,7 @@ const linkBriefingToLead = async (req, res) => {
       throw new NotFoundError('Briefing not found');
     }
 
-    // Add lead to linked_lead_ids array
+    // Add contact to linked_lead_ids array (column name kept for compatibility)
     const result = await db.query(
       `UPDATE secret_agent_briefings
        SET linked_lead_ids = array_append(
@@ -480,30 +480,30 @@ const linkBriefingToLead = async (req, res) => {
        )
        WHERE id = $2 AND NOT ($1::uuid = ANY(COALESCE(linked_lead_ids, '{}')))
        RETURNING *`,
-      [leadId, id]
+      [contactId, id]
     );
 
     sendSuccess(res, result.rows[0]);
   } catch (error) {
-    console.error('Error linking briefing to lead:', error);
+    console.error('Error linking briefing to contact:', error);
     sendError(res, error.message);
   }
 };
 
 /**
- * Unlink a briefing from a lead
+ * Unlink a briefing from a contact
  */
-const unlinkBriefingFromLead = async (req, res) => {
+const unlinkBriefingFromContact = async (req, res) => {
   try {
     const { accountId } = req.user;
-    const { id, leadId } = req.params;
+    const { id, contactId } = req.params;
 
     const result = await db.query(
       `UPDATE secret_agent_briefings
        SET linked_lead_ids = array_remove(linked_lead_ids, $1::uuid)
        WHERE id = $2 AND account_id = $3
        RETURNING *`,
-      [leadId, id, accountId]
+      [contactId, id, accountId]
     );
 
     if (result.rows.length === 0) {
@@ -713,8 +713,8 @@ module.exports = {
   // Briefings
   getBriefings,
   getBriefing,
-  linkBriefingToLead,
-  unlinkBriefingFromLead,
+  linkBriefingToContact,
+  unlinkBriefingFromContact,
   deepAnalysisBriefing,
   deleteBriefing,
 
