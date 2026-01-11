@@ -24,6 +24,9 @@ const inviteExpirationWorker = require('./workers/inviteExpirationWorker');
 // ✅ Import Invite Send Worker (processes scheduled invites)
 const inviteSendWorker = require('./workers/inviteSendWorker');
 
+// ✅ Import Invitation Polling Worker (polls for received invitations every 4h)
+const invitationPollingWorker = require('./workers/invitationPollingWorker');
+
 const PORT = process.env.PORT || 3001;
 
 // Create HTTP server
@@ -66,6 +69,10 @@ async function startServer() {
     // ✅ Start Invite Send Worker
     inviteSendWorker.startProcessor();
     console.log('✅ Invite send worker started (processes scheduled invites every 2 min)');
+
+    // ✅ Start Invitation Polling Worker
+    invitationPollingWorker.startProcessor();
+    console.log('✅ Invitation polling worker started (polls for received invitations every 4h)');
 
     // ✅ Initialize Ably for realtime
     initializeAbly();

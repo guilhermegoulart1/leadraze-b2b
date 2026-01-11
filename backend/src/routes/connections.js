@@ -36,6 +36,28 @@ router.get('/daily-limit', connectionController.getDailyLimit);
 router.put('/daily-limit', connectionController.updateDailyLimit);
 
 // ================================
+// CONVITES DO LINKEDIN
+// ================================
+
+// Listar convites enviados pendentes
+router.get('/invitations/sent', connectionController.getSentInvitations);
+
+// Listar convites recebidos pendentes
+router.get('/invitations/received', connectionController.getReceivedInvitations);
+
+// Aceitar convite recebido
+router.post('/invitations/:invitation_id/accept', connectionController.acceptInvitation);
+
+// Rejeitar convite recebido
+router.post('/invitations/:invitation_id/reject', connectionController.rejectInvitation);
+
+// Cancelar convite enviado
+router.delete('/invitations/:invitation_id', connectionController.cancelInvitation);
+
+// Enviar convite para um usuário (usado nas conversas)
+router.post('/invitations/send', connectionController.sendInvitation);
+
+// ================================
 // CAMPANHAS DE ATIVAÇÃO DE CONEXÕES
 // ================================
 

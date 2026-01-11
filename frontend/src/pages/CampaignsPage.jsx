@@ -18,6 +18,7 @@ const CampaignsPage = () => {
   const { t } = useTranslation(['campaigns', 'common']);
   const { completeStep } = useOnboarding();
   const navigate = useNavigate();
+
   const [campaigns, setCampaigns] = useState([]);
   const [collectionStatuses, setCollectionStatuses] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -383,22 +384,22 @@ const CampaignsPage = () => {
     <div className="p-6">
       {/* Filtros Rápidos */}
       <div className="flex items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por:</span>
-          <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setStatusFilter('all');
-              setPagination(prev => ({ ...prev, page: 1 }));
-            }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              statusFilter === 'all'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900'
-            }`}
-          >
-            Todas
-          </button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por:</span>
+              <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setStatusFilter('all');
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === 'all'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900'
+                }`}
+              >
+                Todas
+              </button>
           <button
             onClick={() => {
               setStatusFilter('review');

@@ -47,7 +47,12 @@ const unipileClient = {
     getOne: (accountId, userId) => provider.users.getOne(accountId, userId),
     search: (params) => provider.users.search(params),
     sendConnectionRequest: (params) => provider.users.sendConnectionRequest(params),
-    getFullProfile: (accountId, userId) => provider.users.getFullProfile(accountId, userId)
+    getFullProfile: (accountId, userId) => provider.users.getFullProfile(accountId, userId),
+    // Invitations (v1.6.0+)
+    listSentInvitations: (params) => provider.users.listSentInvitations(params),
+    listReceivedInvitations: (params) => provider.users.listReceivedInvitations(params),
+    handleReceivedInvitation: (params) => provider.users.handleReceivedInvitation(params),
+    cancelInvitation: (params) => provider.users.cancelInvitation(params)
   },
 
   // ================================

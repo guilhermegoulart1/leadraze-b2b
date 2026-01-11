@@ -1,17 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Award, Search, Users, FileText } from 'lucide-react';
+import { Award, Search, Users, FileText, UserPlus } from 'lucide-react';
 import CampaignsPage from './CampaignsPage';
 import SearchPage from './SearchPage';
 import MyConnectionsPage from './MyConnectionsPage';
 import SearchPostsPage from './SearchPostsPage';
+import InvitationsTab from '../components/InvitationsTab';
+import api from '../services/api';
 
 const LinkedInPage = () => {
   const { t } = useTranslation('linkedin');
   const [activeTab, setActiveTab] = useState('campaigns');
+  const [linkedinAccounts, setLinkedinAccounts] = useState([]);
+
+  // Carregar contas LinkedIn para a aba de convites
+  useEffect(() => {
+    const loadLinkedinAccounts = async () => {
+      try {
+        const response = await api.getLinkedInAccounts();
+        if (response.success && response.data) {
+          setLinkedinAccounts(response.data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar contas LinkedIn:', error);
+      }
+    };
+    loadLinkedinAccounts();
+  }, []);
 
   const tabs = [
     { id: 'campaigns', label: t('tabs.campaigns'), icon: Award },
+    { id: 'invitations', label: t('tabs.invitations', 'Convites'), icon: UserPlus },
     { id: 'search', label: t('tabs.searchProfiles'), icon: Search },
     { id: 'posts', label: t('tabs.searchPosts'), icon: FileText },
     { id: 'connections', label: t('tabs.myConnections'), icon: Users },
@@ -21,6 +40,8 @@ const LinkedInPage = () => {
     switch (activeTab) {
       case 'campaigns':
         return <CampaignsPage />;
+      case 'invitations':
+        return <InvitationsTab linkedinAccounts={linkedinAccounts} />;
       case 'search':
         return <SearchPage />;
       case 'posts':

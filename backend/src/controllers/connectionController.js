@@ -385,6 +385,348 @@ const saveConnectionToCRM = async (req, res) => {
 };
 
 // ================================
+// CONVITES DO LINKEDIN
+// ================================
+
+/**
+ * Listar convites enviados pendentes
+ */
+const getSentInvitations = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { linkedin_account_id, limit, cursor } = req.query;
+
+    console.log(`📤 [Invitations] Buscando convites enviados`);
+
+    if (!linkedin_account_id) {
+      throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    // Buscar conta LinkedIn do usuário
+    const linkedinResult = await db.query(
+      `SELECT id, unipile_account_id FROM linkedin_accounts
+       WHERE id = $1 AND account_id = $2`,
+      [linkedin_account_id, accountId]
+    );
+
+    if (linkedinResult.rows.length === 0) {
+      throw new NotFoundError('Conta LinkedIn não encontrada');
+    }
+
+    const linkedinAccount = linkedinResult.rows[0];
+
+    if (!linkedinAccount.unipile_account_id) {
+      throw new ValidationError('Conta LinkedIn não está conectada à Unipile');
+    }
+
+    // Buscar convites enviados via Unipile
+    const invitationsData = await unipileClient.users.listSentInvitations({
+      account_id: linkedinAccount.unipile_account_id,
+      limit: limit ? parseInt(limit) : undefined,
+      cursor
+    });
+
+    // Normalizar dados dos convites enviados
+    const invitations = (invitationsData.items || []).map(invite => ({
+      id: invite.id,
+      provider_id: invite.invited_user_id,
+      name: invite.invited_user || 'Usuário LinkedIn',
+      first_name: extractFirstName(invite.invited_user),
+      headline: invite.invited_user_description || '',
+      profile_picture: invite.invited_user_profile_picture_url || null,
+      profile_url: invite.invited_user_public_id ? `https://linkedin.com/in/${invite.invited_user_public_id}` : null,
+      sent_at: invite.parsed_datetime || null,
+      message: invite.invitation_text || null
+    }));
+
+    console.log(`✅ [Invitations] Encontrados ${invitations.length} convites enviados`);
+
+    sendSuccess(res, {
+      invitations,
+      cursor: invitationsData.cursor || null,
+      has_more: !!invitationsData.cursor
+    });
+
+  } catch (error) {
+    console.error('❌ [Invitations] Erro ao buscar convites enviados:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Listar convites recebidos pendentes
+ */
+const getReceivedInvitations = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { linkedin_account_id, limit, cursor } = req.query;
+
+    console.log(`📥 [Invitations] Buscando convites recebidos`);
+
+    if (!linkedin_account_id) {
+      throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    // Buscar conta LinkedIn do usuário
+    const linkedinResult = await db.query(
+      `SELECT id, unipile_account_id FROM linkedin_accounts
+       WHERE id = $1 AND account_id = $2`,
+      [linkedin_account_id, accountId]
+    );
+
+    if (linkedinResult.rows.length === 0) {
+      throw new NotFoundError('Conta LinkedIn não encontrada');
+    }
+
+    const linkedinAccount = linkedinResult.rows[0];
+
+    if (!linkedinAccount.unipile_account_id) {
+      throw new ValidationError('Conta LinkedIn não está conectada à Unipile');
+    }
+
+    // Buscar convites recebidos via Unipile
+    const invitationsData = await unipileClient.users.listReceivedInvitations({
+      account_id: linkedinAccount.unipile_account_id,
+      limit: limit ? parseInt(limit) : undefined,
+      cursor
+    });
+
+    // Normalizar dados dos convites recebidos
+    // Campos: sender_user, sender_user_id, sender_user_public_id, sender_user_profile_picture_url, sender_user_description
+    const invitations = (invitationsData.items || []).map(invite => ({
+      id: invite.id,
+      provider_id: invite.sender_user_id || invite.invited_user_id,
+      name: invite.sender_user || invite.invited_user || 'Usuário LinkedIn',
+      first_name: extractFirstName(invite.sender_user || invite.invited_user),
+      headline: invite.sender_user_description || invite.invited_user_description || '',
+      profile_picture: invite.sender_user_profile_picture_url || invite.invited_user_profile_picture_url || null,
+      profile_url: (invite.sender_user_public_id || invite.invited_user_public_id)
+        ? `https://linkedin.com/in/${invite.sender_user_public_id || invite.invited_user_public_id}`
+        : null,
+      received_at: invite.parsed_datetime || null,
+      message: invite.invitation_text || null
+    }));
+
+    console.log(`✅ [Invitations] Encontrados ${invitations.length} convites recebidos`);
+
+    sendSuccess(res, {
+      invitations,
+      cursor: invitationsData.cursor || null,
+      has_more: !!invitationsData.cursor
+    });
+
+  } catch (error) {
+    console.error('❌ [Invitations] Erro ao buscar convites recebidos:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Aceitar convite recebido
+ */
+const acceptInvitation = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { invitation_id } = req.params;
+    const { linkedin_account_id } = req.body;
+
+    console.log(`✅ [Invitations] Aceitando convite: ${invitation_id}`);
+
+    if (!linkedin_account_id) {
+      throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    // Buscar conta LinkedIn do usuário
+    const linkedinResult = await db.query(
+      `SELECT id, unipile_account_id FROM linkedin_accounts
+       WHERE id = $1 AND account_id = $2`,
+      [linkedin_account_id, accountId]
+    );
+
+    if (linkedinResult.rows.length === 0) {
+      throw new NotFoundError('Conta LinkedIn não encontrada');
+    }
+
+    const linkedinAccount = linkedinResult.rows[0];
+
+    // Aceitar convite via Unipile
+    const result = await unipileClient.users.handleReceivedInvitation({
+      account_id: linkedinAccount.unipile_account_id,
+      invitation_id,
+      action: 'accept'
+    });
+
+    console.log(`✅ [Invitations] Convite aceito com sucesso`);
+
+    sendSuccess(res, { success: true, result });
+
+  } catch (error) {
+    console.error('❌ [Invitations] Erro ao aceitar convite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Rejeitar convite recebido
+ */
+const rejectInvitation = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { invitation_id } = req.params;
+    const { linkedin_account_id } = req.body;
+
+    console.log(`❌ [Invitations] Rejeitando convite: ${invitation_id}`);
+
+    if (!linkedin_account_id) {
+      throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    // Buscar conta LinkedIn do usuário
+    const linkedinResult = await db.query(
+      `SELECT id, unipile_account_id FROM linkedin_accounts
+       WHERE id = $1 AND account_id = $2`,
+      [linkedin_account_id, accountId]
+    );
+
+    if (linkedinResult.rows.length === 0) {
+      throw new NotFoundError('Conta LinkedIn não encontrada');
+    }
+
+    const linkedinAccount = linkedinResult.rows[0];
+
+    // Rejeitar convite via Unipile
+    const result = await unipileClient.users.handleReceivedInvitation({
+      account_id: linkedinAccount.unipile_account_id,
+      invitation_id,
+      action: 'reject'
+    });
+
+    console.log(`✅ [Invitations] Convite rejeitado com sucesso`);
+
+    sendSuccess(res, { success: true, result });
+
+  } catch (error) {
+    console.error('❌ [Invitations] Erro ao rejeitar convite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Cancelar/retirar convite enviado
+ */
+const cancelInvitation = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { invitation_id } = req.params;
+    const { linkedin_account_id } = req.query;
+
+    console.log(`🚫 [Invitations] Cancelando convite: ${invitation_id}`);
+
+    if (!linkedin_account_id) {
+      throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    // Buscar conta LinkedIn do usuário
+    const linkedinResult = await db.query(
+      `SELECT id, unipile_account_id FROM linkedin_accounts
+       WHERE id = $1 AND account_id = $2`,
+      [linkedin_account_id, accountId]
+    );
+
+    if (linkedinResult.rows.length === 0) {
+      throw new NotFoundError('Conta LinkedIn não encontrada');
+    }
+
+    const linkedinAccount = linkedinResult.rows[0];
+
+    // Cancelar convite via Unipile
+    const result = await unipileClient.users.cancelInvitation({
+      account_id: linkedinAccount.unipile_account_id,
+      invitation_id
+    });
+
+    console.log(`✅ [Invitations] Convite cancelado com sucesso`);
+
+    sendSuccess(res, { success: true, result });
+
+  } catch (error) {
+    console.error('❌ [Invitations] Erro ao cancelar convite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
+ * Enviar convite para um usuário (usado nas conversas)
+ */
+const sendInvitation = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const { linkedin_account_id, provider_id, message } = req.body;
+
+    console.log(`📨 [Invitations] Enviando convite para: ${provider_id}`);
+
+    if (!linkedin_account_id) {
+      throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    if (!provider_id) {
+      throw new ValidationError('provider_id é obrigatório');
+    }
+
+    // Buscar conta LinkedIn do usuário
+    const linkedinResult = await db.query(
+      `SELECT id, unipile_account_id FROM linkedin_accounts
+       WHERE id = $1 AND account_id = $2`,
+      [linkedin_account_id, accountId]
+    );
+
+    if (linkedinResult.rows.length === 0) {
+      throw new NotFoundError('Conta LinkedIn não encontrada');
+    }
+
+    const linkedinAccount = linkedinResult.rows[0];
+
+    // Enviar convite via Unipile
+    const result = await unipileClient.users.sendConnectionRequest({
+      account_id: linkedinAccount.unipile_account_id,
+      user_id: provider_id,
+      message: message || undefined
+    });
+
+    console.log(`✅ [Invitations] Convite enviado com sucesso`);
+
+    // Salvar no snapshot para detectar aceitação
+    // Se tem mensagem, podemos detectar via MessageReceived webhook (tempo real)
+    // Se não tem mensagem, detectamos via NewRelation webhook (delay até 8h)
+    try {
+      await db.query(
+        `INSERT INTO invitation_snapshots
+         (account_id, linkedin_account_id, invitation_type, invitation_id, provider_id, invitation_message, detected_at)
+         VALUES ($1, $2, 'sent', $3, $4, $5, NOW())
+         ON CONFLICT (linkedin_account_id, invitation_id) DO NOTHING`,
+        [
+          accountId,
+          linkedinAccount.id,
+          result?.invitation_id || `sent_${provider_id}_${Date.now()}`,
+          provider_id,
+          message || null
+        ]
+      );
+      console.log(`📸 [Invitations] Snapshot salvo para detectar aceitação`);
+    } catch (snapshotError) {
+      // Silent fail - não deve bloquear o envio
+      console.error('⚠️ [Invitations] Erro ao salvar snapshot:', snapshotError.message);
+    }
+
+    sendSuccess(res, { success: true, result });
+
+  } catch (error) {
+    console.error('❌ [Invitations] Erro ao enviar convite:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
 // 4. OBTER LIMITE DIÁRIO DO USUÁRIO
 // ================================
 const getDailyLimit = async (req, res) => {
@@ -458,5 +800,12 @@ module.exports = {
   getDailyLimit,
   updateDailyLimit,
   extractFirstName,
-  normalizeProfile
+  normalizeProfile,
+  // Invitations
+  getSentInvitations,
+  getReceivedInvitations,
+  acceptInvitation,
+  rejectInvitation,
+  cancelInvitation,
+  sendInvitation
 };

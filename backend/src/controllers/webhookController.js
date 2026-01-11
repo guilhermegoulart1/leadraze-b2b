@@ -951,6 +951,56 @@ async function handleMessageReceived(payload) {
       });
 
       // =====================================================
+      // 📸 DETECÇÃO DE CONVITE ACEITO EM TEMPO REAL
+      // Se é LinkedIn + mensagem própria + nova conversa = possível convite com mensagem aceito
+      // =====================================================
+      if (providerType === 'LINKEDIN' && isOwnMessage) {
+        try {
+          // Verificar se tínhamos enviado um convite para esse usuário
+          const invitationResult = await db.query(
+            `SELECT * FROM invitation_snapshots
+             WHERE linkedin_account_id = $1
+             AND provider_id = $2
+             AND invitation_type = 'sent'
+             LIMIT 1`,
+            [linkedinAccount.id, leadProviderId]
+          );
+
+          if (invitationResult.rows.length > 0) {
+            const sentInvitation = invitationResult.rows[0];
+            console.log(`🎉 [Invitations] Convite aceito detectado em TEMPO REAL! Usuário: ${contactData.name}`);
+
+            // Criar notificação de convite aceito
+            await notificationService.create({
+              account_id: linkedinAccount.account_id,
+              user_id: linkedinAccount.user_id,
+              type: 'invite_accepted',
+              title: 'Convite aceito',
+              message: `${contactData.name || 'Usuário LinkedIn'} aceitou seu convite de conexão`,
+              conversation_id: conversation.id,
+              metadata: {
+                contact_name: contactData.name,
+                profile_picture: contactData.profile_picture || profilePicture || null,
+                linkedin_account_id: linkedinAccount.id,
+                provider_id: leadProviderId,
+                detected_via: 'message_received_realtime'
+              }
+            });
+
+            // Remover do snapshot (já processado)
+            await db.query(
+              `DELETE FROM invitation_snapshots WHERE id = $1`,
+              [sentInvitation.id]
+            );
+            console.log(`📸 [Invitations] Snapshot removido após detecção de aceitação`);
+          }
+        } catch (invitationError) {
+          console.error('⚠️ [Invitations] Erro ao detectar convite aceito:', invitationError.message);
+          // Não falhar webhook por erro de detecção de convite
+        }
+      }
+
+      // =====================================================
       // ENRIQUECIMENTO: Se é conexão de 1º grau do LinkedIn,
       // buscar perfil completo e dados da empresa
       // =====================================================
@@ -1403,6 +1453,7 @@ async function handleNewRelation(payload) {
     // Criar notificação na plataforma
     const opportunityUserId = opportunity.campaign_user_id || opportunity.owner_user_id || linkedinAccount.user_id;
     const notifyUserId = ownerUserId || opportunityUserId;
+    const contactProfilePicture = contactUpdateData.profile_picture || user_picture_url || null;
     try {
       await notificationService.notifyInviteAccepted({
         accountId: opportunity.account_id,
@@ -1410,10 +1461,27 @@ async function handleNewRelation(payload) {
         opportunityName: opportunity.contact_name || opportunity.title || user_full_name || 'Contato',
         opportunityId: opportunity.id,
         campaignId: opportunity.campaign_id || null,
-        campaignName: opportunity.campaign_name || 'Busca LinkedIn'
+        campaignName: opportunity.campaign_name || 'Busca LinkedIn',
+        profilePicture: contactProfilePicture,
+        linkedinAccountId: linkedinAccount.id,
+        providerId: user_provider_id
       });
     } catch (notifError) {
       // Silent fail
+    }
+
+    // 📸 Limpar snapshot do convite (já foi aceito)
+    try {
+      await db.query(
+        `DELETE FROM invitation_snapshots
+         WHERE linkedin_account_id = $1
+         AND provider_id = $2
+         AND invitation_type = 'sent'`,
+        [linkedinAccount.id, user_provider_id]
+      );
+      console.log(`📸 [Invitations] Snapshot limpo após NewRelation`);
+    } catch (snapshotError) {
+      // Silent fail - pode não existir snapshot
     }
 
     // IA ativa somente se campanha tem automação ativa

@@ -12,6 +12,8 @@ import { joinConversation, leaveConversation, onNewMessage } from '../services/a
 import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 import SecretAgentModal from './SecretAgentModal';
+import ConversationInviteModal from './ConversationInviteModal';
+import { UserPlus } from 'lucide-react';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const { t, i18n } = useTranslation('conversations');
@@ -36,6 +38,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const audioRefs = useRef({}); // Refs para os elementos audio
   // Secret Agent Modal
   const [showSecretAgentModal, setShowSecretAgentModal] = useState(false);
+  // Invite Modal (para não-conexões)
+  const [showInviteModal, setShowInviteModal] = useState(false);
   // Message context menu
   const [messageMenu, setMessageMenu] = useState({ isOpen: false, messageId: null, x: 0, y: 0 });
   const [copySuccess, setCopySuccess] = useState(null);
@@ -1140,6 +1144,20 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             <Sparkles className="w-5 h-5" />
           </button>
 
+          {/* Send Invite Button - só aparece para não-conexões do LinkedIn */}
+          {conversation?.channel !== 'email' &&
+           conversation?.source !== 'email' &&
+           conversation?.contact?.network_distance !== 'FIRST_DEGREE' &&
+           !conversation?.contact?.is_connection && (
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+              title="Enviar convite de conexão"
+            >
+              <UserPlus className="w-5 h-5" />
+            </button>
+          )}
+
           {/* Channel Indicator */}
           {conversation?.channel === 'email' || conversation?.source === 'email' ? (
             <div
@@ -1887,6 +1905,24 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         conversationId={conversationId}
         onSuccess={() => {
           setShowSecretAgentModal(false);
+        }}
+      />
+
+      {/* Conversation Invite Modal */}
+      <ConversationInviteModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        linkedinAccountId={conversation?.linkedin_account_id}
+        contact={{
+          name: conversation?.lead_name || conversation?.contact?.name,
+          provider_id: conversation?.contact?.provider_id || conversation?.lead_provider_id,
+          profile_picture: conversation?.lead_profile_picture || conversation?.contact?.profile_picture,
+          headline: conversation?.contact?.headline,
+          company: conversation?.contact?.company,
+          title: conversation?.contact?.title
+        }}
+        onSuccess={() => {
+          setShowInviteModal(false);
         }}
       />
 

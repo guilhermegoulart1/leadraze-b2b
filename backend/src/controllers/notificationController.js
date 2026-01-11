@@ -2,6 +2,8 @@
 
 const notificationService = require('../services/notificationService');
 const { sendSuccess, sendError } = require('../utils/responses');
+const db = require('../config/database');
+const unipileClient = require('../config/unipile');
 
 /**
  * Get notifications for the authenticated user
@@ -111,10 +113,123 @@ const deleteNotification = async (req, res) => {
   }
 };
 
+/**
+ * Handle invitation action (accept/reject) from notification
+ * POST /api/notifications/:id/invitation-action
+ *
+ * Body: { action: 'accept' | 'reject' }
+ */
+const handleInvitationAction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const notificationId = req.params.id;
+    const { action } = req.body;
+
+    if (!action || !['accept', 'reject'].includes(action)) {
+      return sendError(res, { message: 'Invalid action. Must be "accept" or "reject"' }, 400);
+    }
+
+    // Get the notification
+    const notifResult = await db.query(
+      `SELECT * FROM notifications WHERE id = $1 AND user_id = $2`,
+      [notificationId, userId]
+    );
+
+    if (notifResult.rows.length === 0) {
+      return sendError(res, { message: 'Notification not found' }, 404);
+    }
+
+    const notification = notifResult.rows[0];
+
+    // Verify it's an invitation_received notification
+    if (notification.type !== 'invitation_received') {
+      return sendError(res, { message: 'This notification is not an invitation' }, 400);
+    }
+
+    // Parse metadata
+    const metadata = typeof notification.metadata === 'string'
+      ? JSON.parse(notification.metadata)
+      : notification.metadata;
+
+    // Check if already handled
+    if (metadata?.handled) {
+      return sendError(res, { message: 'This invitation has already been handled' }, 400);
+    }
+
+    const { invitation_id: invitationId, linkedin_account_id: linkedinAccountId } = metadata;
+
+    if (!invitationId || !linkedinAccountId) {
+      return sendError(res, { message: 'Missing invitation data' }, 400);
+    }
+
+    // Get the LinkedIn account
+    const accountResult = await db.query(
+      `SELECT unipile_account_id FROM linkedin_accounts WHERE id = $1`,
+      [linkedinAccountId]
+    );
+
+    if (accountResult.rows.length === 0) {
+      return sendError(res, { message: 'LinkedIn account not found' }, 404);
+    }
+
+    const unipileAccountId = accountResult.rows[0].unipile_account_id;
+
+    // Perform the action via Unipile API
+    console.log(`📬 [Invitation] Handling invitation action: ${action} for ${invitationId}`);
+
+    try {
+      if (action === 'accept') {
+        await unipileClient.users.handleReceivedInvitation({
+          account_id: unipileAccountId,
+          invitation_id: invitationId,
+          action: 'accept'
+        });
+        console.log(`✅ [Invitation] Invitation accepted: ${invitationId}`);
+      } else {
+        await unipileClient.users.handleReceivedInvitation({
+          account_id: unipileAccountId,
+          invitation_id: invitationId,
+          action: 'reject'
+        });
+        console.log(`✅ [Invitation] Invitation rejected: ${invitationId}`);
+      }
+    } catch (apiError) {
+      console.error(`❌ [Invitation] API error: ${apiError.message}`);
+      return sendError(res, { message: `Failed to ${action} invitation: ${apiError.message}` }, 500);
+    }
+
+    // Update notification metadata to mark as handled
+    const updatedMetadata = { ...metadata, handled: true, action_taken: action, action_at: new Date().toISOString() };
+    await db.query(
+      `UPDATE notifications SET metadata = $1, is_read = true, read_at = NOW() WHERE id = $2`,
+      [JSON.stringify(updatedMetadata), notificationId]
+    );
+
+    // Remove from invitation_snapshots
+    await db.query(
+      `DELETE FROM invitation_snapshots
+       WHERE linkedin_account_id = $1
+       AND invitation_id = $2
+       AND invitation_type = 'received'`,
+      [linkedinAccountId, invitationId]
+    );
+
+    sendSuccess(res, {
+      success: true,
+      action,
+      message: action === 'accept' ? 'Convite aceito com sucesso' : 'Convite rejeitado com sucesso'
+    });
+  } catch (error) {
+    console.error('[NotificationController] Error handling invitation action:', error);
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getNotifications,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
-  deleteNotification
+  deleteNotification,
+  handleInvitationAction
 };

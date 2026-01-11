@@ -1109,6 +1109,26 @@ const sendInvitation = async (req, res) => {
         status: 'sent'
       });
 
+      // 📸 Salvar no snapshot para detectar aceitação
+      try {
+        await db.query(
+          `INSERT INTO invitation_snapshots
+           (account_id, linkedin_account_id, invitation_type, invitation_id, provider_id, invitation_message, detected_at)
+           VALUES ($1, $2, 'sent', $3, $4, $5, NOW())
+           ON CONFLICT (linkedin_account_id, invitation_id) DO NOTHING`,
+          [
+            account.account_id,
+            account.id,
+            result?.invitation_id || `sent_${provider_id}_${Date.now()}`,
+            provider_id,
+            message || null
+          ]
+        );
+        console.log(`📸 Snapshot salvo para detectar aceitação`);
+      } catch (snapshotError) {
+        console.error('⚠️ Erro ao salvar snapshot:', snapshotError.message);
+      }
+
       console.log('✅ Convite enviado com sucesso');
 
       sendSuccess(res, {
@@ -2004,6 +2024,29 @@ const sendInviteFromSearch = async (req, res) => {
       campaignId: null,
       status: 'sent'
     });
+
+    // 📸 Salvar no snapshot para detectar aceitação
+    try {
+      await db.query(
+        `INSERT INTO invitation_snapshots
+         (account_id, linkedin_account_id, invitation_type, invitation_id, provider_id, user_name, user_headline, user_profile_picture, invitation_message, detected_at)
+         VALUES ($1, $2, 'sent', $3, $4, $5, $6, $7, $8, NOW())
+         ON CONFLICT (linkedin_account_id, invitation_id) DO NOTHING`,
+        [
+          accountId,
+          account.id,
+          inviteResult?.invitation_id || `sent_${profile_id}_${Date.now()}`,
+          profile_id,
+          profile_data?.name || null,
+          profile_data?.title || null,
+          profile_data?.profile_picture || null,
+          finalMessage || null
+        ]
+      );
+      console.log(`📸 Snapshot salvo para detectar aceitação`);
+    } catch (snapshotError) {
+      console.error('⚠️ Erro ao salvar snapshot:', snapshotError.message);
+    }
 
     let contactCreated = false;
     let opportunityCreated = false;

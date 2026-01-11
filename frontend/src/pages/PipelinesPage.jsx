@@ -801,7 +801,6 @@ const PipelinesPage = () => {
           email: opp.contact_email,
           phone: opp.contact_phone,
           profile_picture: opp.contact_picture,
-          public_identifier: opp.contact_linkedin_id,
           profile_url: opp.contact_profile_url,
           about: opp.contact_about,
           headline: opp.contact_headline,

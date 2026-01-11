@@ -1867,6 +1867,57 @@ class ApiService {
     });
   }
 
+  // ================================
+  // LINKEDIN INVITATIONS
+  // ================================
+
+  // Listar convites enviados pendentes
+  async getSentInvitations(linkedinAccountId, params = {}) {
+    const query = new URLSearchParams({ linkedin_account_id: linkedinAccountId, ...params }).toString();
+    return this.request(`/connections/invitations/sent?${query}`);
+  }
+
+  // Listar convites recebidos pendentes
+  async getReceivedInvitations(linkedinAccountId, params = {}) {
+    const query = new URLSearchParams({ linkedin_account_id: linkedinAccountId, ...params }).toString();
+    return this.request(`/connections/invitations/received?${query}`);
+  }
+
+  // Aceitar convite recebido
+  async acceptInvitation(invitationId, linkedinAccountId) {
+    return this.request(`/connections/invitations/${invitationId}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ linkedin_account_id: linkedinAccountId }),
+    });
+  }
+
+  // Rejeitar convite recebido
+  async rejectInvitation(invitationId, linkedinAccountId) {
+    return this.request(`/connections/invitations/${invitationId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ linkedin_account_id: linkedinAccountId }),
+    });
+  }
+
+  // Cancelar convite enviado
+  async cancelInvitation(invitationId, linkedinAccountId) {
+    return this.request(`/connections/invitations/${invitationId}?linkedin_account_id=${linkedinAccountId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Enviar convite para um usuário
+  async sendInvitation(linkedinAccountId, providerId, message = null) {
+    return this.request('/connections/invitations/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        linkedin_account_id: linkedinAccountId,
+        provider_id: providerId,
+        message
+      }),
+    });
+  }
+
   // ==========================================
   // CONNECTED ACCOUNTS
   // ==========================================
@@ -3323,6 +3374,13 @@ class ApiService {
   async deleteNotification(notificationId) {
     return this.request(`/notifications/${notificationId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async handleNotificationInvitationAction(notificationId, action) {
+    return this.request(`/notifications/${notificationId}/invitation-action`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
     });
   }
 

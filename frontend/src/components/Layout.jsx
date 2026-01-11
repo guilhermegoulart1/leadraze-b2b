@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
   Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo,
-  AlertCircle
+  AlertCircle, Check, X, UserPlus, Loader
 } from 'lucide-react';
 import { onAccountDisconnected } from '../services/ably';
 import { useTranslation } from 'react-i18next';
@@ -128,6 +128,47 @@ const Layout = () => {
     } catch (error) {
       console.error('Erro ao marcar todas como lidas:', error);
     }
+  };
+
+  // Handle invitation action (accept/reject) from notification
+  const handleInvitationAction = async (e, notification, action) => {
+    e.stopPropagation(); // Prevent notification click handler
+    try {
+      const response = await api.handleNotificationInvitationAction(notification.id, action);
+      if (response.success) {
+        // Update notification metadata to mark as handled
+        setNotifications(prev => prev.map(n => {
+          if (n.id === notification.id) {
+            const metadata = typeof n.metadata === 'string' ? JSON.parse(n.metadata) : n.metadata;
+            return {
+              ...n,
+              is_read: true,
+              metadata: { ...metadata, handled: true, action_taken: action }
+            };
+          }
+          return n;
+        }));
+        setUnreadNotifications(prev => Math.max(0, prev - 1));
+      } else {
+        alert(response.message || `Erro ao ${action === 'accept' ? 'aceitar' : 'rejeitar'} convite`);
+      }
+    } catch (error) {
+      console.error(`Erro ao ${action} convite:`, error);
+      alert(`Erro ao ${action === 'accept' ? 'aceitar' : 'rejeitar'} convite`);
+    }
+  };
+
+  // Check if notification is an invitation type
+  const isInvitationNotification = (notification) => {
+    return ['invitation_received', 'invite_accepted'].includes(notification.type);
+  };
+
+  // Get invitation metadata (handles both string and object)
+  const getNotificationMetadata = (notification) => {
+    if (!notification.metadata) return {};
+    return typeof notification.metadata === 'string'
+      ? JSON.parse(notification.metadata)
+      : notification.metadata;
   };
 
   const formatRelativeTime = (dateString) => {
@@ -545,39 +586,97 @@ const Layout = () => {
                           Nenhuma notificação
                         </div>
                       ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            onClick={() => handleNotificationClick(notification)}
-                            className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
-                              !notification.is_read ? 'bg-purple-50 dark:bg-purple-900/20' : ''
-                            }`}
-                          >
-                            <div className="flex items-start gap-2">
-                              {notification.type === 'channel_disconnected' && (
-                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-xs font-medium ${
-                                  !notification.is_read
-                                    ? 'text-gray-900 dark:text-gray-100'
-                                    : 'text-gray-700 dark:text-gray-300'
-                                }`}>
-                                  {notification.title}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
-                                  {notification.message}
-                                </p>
-                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                                  {formatRelativeTime(notification.created_at)}
-                                </p>
+                        notifications.map((notification) => {
+                          const metadata = getNotificationMetadata(notification);
+                          const isInvitation = isInvitationNotification(notification);
+                          const isHandled = metadata?.handled;
+
+                          return (
+                            <div
+                              key={notification.id}
+                              onClick={() => !isInvitation || isHandled ? handleNotificationClick(notification) : null}
+                              className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                !isInvitation || isHandled ? 'cursor-pointer' : ''
+                              } ${
+                                !notification.is_read ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                {/* Icon/Avatar based on notification type */}
+                                {isInvitation && metadata?.profile_picture ? (
+                                  <img
+                                    src={metadata.profile_picture}
+                                    alt={metadata.contact_name || metadata.inviter_name || 'Perfil'}
+                                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : isInvitation ? (
+                                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                                    <UserPlus className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                  </div>
+                                ) : notification.type === 'channel_disconnected' ? (
+                                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                    <AlertCircle className="w-5 h-5 text-red-500" />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                                    <Bell className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                  </div>
+                                )}
+
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs font-medium ${
+                                    !notification.is_read
+                                      ? 'text-gray-900 dark:text-gray-100'
+                                      : 'text-gray-700 dark:text-gray-300'
+                                  }`}>
+                                    {notification.title}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                                    {formatRelativeTime(notification.created_at)}
+                                  </p>
+
+                                  {/* Action buttons for received invitations */}
+                                  {notification.type === 'invitation_received' && !isHandled && (
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        onClick={(e) => handleInvitationAction(e, notification, 'accept')}
+                                        className="flex items-center gap-1 px-2.5 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+                                      >
+                                        <Check className="w-3 h-3" />
+                                        Aceitar
+                                      </button>
+                                      <button
+                                        onClick={(e) => handleInvitationAction(e, notification, 'reject')}
+                                        className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+                                      >
+                                        <X className="w-3 h-3" />
+                                        Rejeitar
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Show status for handled invitations */}
+                                  {notification.type === 'invitation_received' && isHandled && (
+                                    <p className={`text-[10px] mt-1 font-medium ${
+                                      metadata.action_taken === 'accept'
+                                        ? 'text-green-600 dark:text-green-400'
+                                        : 'text-red-500 dark:text-red-400'
+                                    }`}>
+                                      {metadata.action_taken === 'accept' ? '✓ Convite aceito' : '✗ Convite rejeitado'}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {!notification.is_read && (
+                                  <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0 mt-1" />
+                                )}
                               </div>
-                              {!notification.is_read && (
-                                <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0" />
-                              )}
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                     {notifications.length > 0 && (

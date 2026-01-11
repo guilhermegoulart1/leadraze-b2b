@@ -26,6 +26,11 @@ router.post('/read-all', notificationController.markAllAsRead);
 // POST /api/notifications/:id/read
 router.post('/:id/read', notificationController.markAsRead);
 
+// Handle invitation action (accept/reject) from notification dropdown
+// POST /api/notifications/:id/invitation-action
+// Body: { action: 'accept' | 'reject' }
+router.post('/:id/invitation-action', notificationController.handleInvitationAction);
+
 // Delete a notification
 // DELETE /api/notifications/:id
 router.delete('/:id', notificationController.deleteNotification);

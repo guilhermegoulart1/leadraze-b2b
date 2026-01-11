@@ -271,7 +271,7 @@ async function createBulk(userIds, notificationData) {
  * @param {object} data - Notification data
  * @returns {Promise<object>}
  */
-async function notifyInviteAccepted({ accountId, userId, opportunityName, opportunityId, campaignId, campaignName }) {
+async function notifyInviteAccepted({ accountId, userId, opportunityName, opportunityId, campaignId, campaignName, profilePicture = null, linkedinAccountId = null, providerId = null }) {
   return create({
     account_id: accountId,
     user_id: userId,
@@ -283,7 +283,37 @@ async function notifyInviteAccepted({ accountId, userId, opportunityName, opport
       campaign_id: campaignId,
       campaign_name: campaignName,
       contact_name: opportunityName,
-      link: `/campaigns/${campaignId}/report`
+      profile_picture: profilePicture,
+      linkedin_account_id: linkedinAccountId,
+      provider_id: providerId,
+      link: campaignId ? `/campaigns/${campaignId}/report` : null
+    }
+  });
+}
+
+/**
+ * Create notification for invitation received (someone sent you a connection request)
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyInvitationReceived({ accountId, userId, inviterName, inviterId, invitationId, headline = null, profilePicture = null, message = null, linkedinAccountId = null }) {
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'invitation_received',
+    title: 'Novo convite de conexão',
+    message: message
+      ? `${inviterName} quer se conectar: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`
+      : `${inviterName} quer se conectar com você`,
+    metadata: {
+      invitation_id: invitationId,
+      inviter_name: inviterName,
+      inviter_id: inviterId,
+      headline: headline,
+      profile_picture: profilePicture,
+      invitation_message: message,
+      linkedin_account_id: linkedinAccountId,
+      handled: false // Will be set to true after accept/reject
     }
   });
 }
@@ -341,6 +371,7 @@ module.exports = {
   deleteOldNotifications,
   createBulk,
   notifyInviteAccepted,
+  notifyInvitationReceived,
   notifyInviteExpired,
   notifyChannelDisconnected
 };
