@@ -3358,6 +3358,38 @@ class ApiService {
     });
   }
 
+  // ===================================
+  // CHANNEL PERMISSIONS
+  // ===================================
+
+  async getUserChannelPermissions(userId) {
+    return this.request(`/channel-permissions/user/${userId}`);
+  }
+
+  async getChannelPermissions(channelId) {
+    return this.request(`/channel-permissions/channel/${channelId}`);
+  }
+
+  async setChannelPermission(data) {
+    return this.request('/channel-permissions', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async setBulkChannelPermissions(userId, permissions) {
+    return this.request(`/channel-permissions/user/${userId}/bulk`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissions }),
+    });
+  }
+
+  async deleteChannelPermission(permissionId) {
+    return this.request(`/channel-permissions/${permissionId}`, {
+      method: 'DELETE',
+    });
+  }
+
 }
 
 export default new ApiService();

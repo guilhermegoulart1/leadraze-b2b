@@ -32,6 +32,89 @@ async function buildSectorFilter(userId, accountId, paramIndex = 4) {
 }
 
 // ================================
+// HELPER: Build channel permissions filter for queries
+// ================================
+async function buildChannelPermissionsFilter(userId, accountId, paramIndex = 4) {
+  // First, check if user has ANY permissions configured (including 'none')
+  const checkQuery = `
+    SELECT COUNT(*) as count
+    FROM user_channel_permissions
+    WHERE user_id = $1 AND account_id = $2
+  `;
+  const checkResult = await db.query(checkQuery, [userId, accountId]);
+  const hasAnyPermissions = parseInt(checkResult.rows[0].count) > 0;
+
+  // If no permissions configured at all, allow all channels (backward compatibility)
+  if (!hasAnyPermissions) {
+    return {
+      filter: '',
+      params: [],
+      hasPermissions: false
+    };
+  }
+
+  // Get user's channel permissions that grant access
+  const permQuery = `
+    SELECT linkedin_account_id, access_type
+    FROM user_channel_permissions
+    WHERE user_id = $1 AND account_id = $2 AND access_type != 'none'
+  `;
+  const permResult = await db.query(permQuery, [userId, accountId]);
+
+  // User has permissions configured but all are 'none' - block all channels
+  if (permResult.rows.length === 0) {
+    return {
+      filter: 'AND FALSE',
+      params: [],
+      hasPermissions: true
+    };
+  }
+
+  // Separate channels by access type
+  const allAccessChannels = permResult.rows
+    .filter(p => p.access_type === 'all')
+    .map(p => p.linkedin_account_id);
+
+  const assignedOnlyChannels = permResult.rows
+    .filter(p => p.access_type === 'assigned_only')
+    .map(p => p.linkedin_account_id);
+
+  // Build filter:
+  // - For 'all' channels: user sees all conversations
+  // - For 'assigned_only' channels: user only sees assigned conversations
+  const conditions = [];
+  const params = [];
+
+  if (allAccessChannels.length > 0) {
+    conditions.push(`conv.linkedin_account_id = ANY($${paramIndex})`);
+    params.push(allAccessChannels);
+    paramIndex++;
+  }
+
+  if (assignedOnlyChannels.length > 0) {
+    conditions.push(`(conv.linkedin_account_id = ANY($${paramIndex}) AND conv.assigned_user_id = $${paramIndex + 1})`);
+    params.push(assignedOnlyChannels);
+    params.push(userId);
+    paramIndex += 2;
+  }
+
+  if (conditions.length === 0) {
+    // User has no access to any channel
+    return {
+      filter: 'AND FALSE',
+      params: [],
+      hasPermissions: true
+    };
+  }
+
+  return {
+    filter: `AND (${conditions.join(' OR ')})`,
+    params,
+    hasPermissions: true
+  };
+}
+
+// ================================
 // 1. LISTAR CONVERSAS
 // ================================
 const getConversations = async (req, res) => {
@@ -68,6 +151,15 @@ const getConversations = async (req, res) => {
     } else {
       // User has no sectors assigned, can only see conversations without sector
       whereConditions.push('conv.sector_id IS NULL');
+    }
+
+    // CHANNEL PERMISSIONS FILTER: User can only see conversations from channels they have access to
+    const channelFilter = await buildChannelPermissionsFilter(userId, accountId, paramIndex);
+    if (channelFilter.filter) {
+      // Remove the leading 'AND ' since we'll join with AND
+      whereConditions.push(channelFilter.filter.replace(/^AND /, ''));
+      queryParams.push(...channelFilter.params);
+      paramIndex += channelFilter.params.length;
     }
 
     // Filtro por status (ai_active ou manual)
@@ -1088,11 +1180,20 @@ const getConversationStats = async (req, res) => {
       sectorFilter = 'AND conv.sector_id IS NULL';
     }
 
+    // Build channel permissions filter
+    const channelFilter = await buildChannelPermissionsFilter(userId, accountId, paramIndex);
+    let channelFilterSQL = '';
+    if (channelFilter.filter) {
+      channelFilterSQL = channelFilter.filter;
+      queryParams.push(...channelFilter.params);
+      paramIndex += channelFilter.params.length;
+    }
+
     // Total de conversas (usando conv.account_id e conv.user_id diretamente)
     const totalQuery = `
       SELECT COUNT(*) as total
       FROM conversations conv
-      WHERE conv.account_id = $1 AND conv.user_id = $2 ${sectorFilter}
+      WHERE conv.account_id = $1 AND conv.user_id = $2 ${sectorFilter} ${channelFilterSQL}
     `;
     const totalResult = await db.query(totalQuery, queryParams);
 
@@ -1105,6 +1206,7 @@ const getConversationStats = async (req, res) => {
         AND conv.assigned_user_id = $2
         AND conv.status != 'closed'
         ${sectorFilter}
+        ${channelFilterSQL}
     `;
     const mineResult = await db.query(mineQuery, queryParams);
 
@@ -1117,6 +1219,7 @@ const getConversationStats = async (req, res) => {
         AND conv.assigned_user_id IS NULL
         AND conv.status != 'closed'
         ${sectorFilter}
+        ${channelFilterSQL}
     `;
     const unassignedResult = await db.query(unassignedQuery, queryParams);
 
@@ -1128,6 +1231,7 @@ const getConversationStats = async (req, res) => {
         AND conv.user_id = $2
         AND conv.status = 'closed'
         ${sectorFilter}
+        ${channelFilterSQL}
     `;
     const closedResult = await db.query(closedQuery, queryParams);
 
@@ -1135,7 +1239,7 @@ const getConversationStats = async (req, res) => {
     const unreadQuery = `
       SELECT COUNT(*) as unread_conversations
       FROM conversations conv
-      WHERE conv.account_id = $1 AND conv.user_id = $2 AND conv.unread_count > 0 ${sectorFilter}
+      WHERE conv.account_id = $1 AND conv.user_id = $2 AND conv.unread_count > 0 ${sectorFilter} ${channelFilterSQL}
     `;
     const unreadResult = await db.query(unreadQuery, queryParams);
 

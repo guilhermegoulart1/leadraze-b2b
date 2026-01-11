@@ -581,6 +581,14 @@ try {
   console.error('❌ Error loading Quick Replies routes:', error.message);
 }
 
+// Channel Permissions (user access per channel)
+try {
+  app.use('/api/channel-permissions', require('./routes/channelPermissions'));
+  console.log('✅ Channel Permissions routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Channel Permissions routes:', error.message);
+}
+
 // ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================
