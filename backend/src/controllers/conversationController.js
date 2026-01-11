@@ -112,9 +112,19 @@ const getConversations = async (req, res) => {
     const query = `
       SELECT
         conv.*,
-        -- Dados da opportunity
-        opp.id as opportunity_id,
-        opp.title as opportunity_title,
+        -- Dados da opportunity (direta ou via contato)
+        COALESCE(opp.id, (
+          SELECT o.id FROM opportunities o
+          WHERE o.contact_id = COALESCE(c.id, opp_contact.id)
+          AND o.account_id = conv.account_id
+          ORDER BY o.created_at DESC LIMIT 1
+        )) as opportunity_id,
+        COALESCE(opp.title, (
+          SELECT o.title FROM opportunities o
+          WHERE o.contact_id = COALESCE(c.id, opp_contact.id)
+          AND o.account_id = conv.account_id
+          ORDER BY o.created_at DESC LIMIT 1
+        )) as opportunity_title,
         opp.value as opportunity_value,
         -- Dados do contato (via contact_id direto OU via opportunity)
         COALESCE(c.id, opp_contact.id) as contact_id,
@@ -123,6 +133,12 @@ const getConversations = async (req, res) => {
         COALESCE(c.title, opp_contact.title) as contact_title,
         COALESCE(c.company, opp_contact.company) as contact_company,
         COALESCE(c.profile_picture, opp_contact.profile_picture) as contact_picture,
+        COALESCE(c.profile_url, opp_contact.profile_url) as contact_profile_url,
+        -- Aliases para compatibilidade com frontend (usa lead_*)
+        COALESCE(c.name, opp_contact.name) as lead_name,
+        COALESCE(c.phone, opp_contact.phone) as lead_phone,
+        COALESCE(c.profile_picture, opp_contact.profile_picture) as lead_picture,
+        COALESCE(c.profile_url, opp_contact.profile_url) as lead_profile_url,
         -- Outros campos
         camp.name as campaign_name,
         la.linkedin_username,
@@ -223,8 +239,6 @@ const getConversation = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
 
-    console.log(`🔍 Buscando conversa ${id}`);
-
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
 
@@ -232,10 +246,25 @@ const getConversation = async (req, res) => {
     const convQuery = `
       SELECT
         conv.*,
-        -- Dados da opportunity
-        opp.id as opportunity_id,
-        opp.title as opportunity_title,
-        opp.value as opportunity_value,
+        -- Dados da opportunity (direta ou via contact_id)
+        COALESCE(opp.id, (
+          SELECT o.id FROM opportunities o
+          WHERE o.contact_id = COALESCE(ct.id, opp_contact.id)
+          AND o.account_id = conv.account_id
+          ORDER BY o.created_at DESC LIMIT 1
+        )) as opportunity_id,
+        COALESCE(opp.title, (
+          SELECT o.title FROM opportunities o
+          WHERE o.contact_id = COALESCE(ct.id, opp_contact.id)
+          AND o.account_id = conv.account_id
+          ORDER BY o.created_at DESC LIMIT 1
+        )) as opportunity_title,
+        COALESCE(opp.value, (
+          SELECT o.value FROM opportunities o
+          WHERE o.contact_id = COALESCE(ct.id, opp_contact.id)
+          AND o.account_id = conv.account_id
+          ORDER BY o.created_at DESC LIMIT 1
+        )) as opportunity_value,
         -- Dados do contato (via contact_id direto OU via opportunity)
         COALESCE(ct.id, opp_contact.id) as contact_id,
         COALESCE(ct.name, opp_contact.name) as contact_name,
@@ -246,6 +275,11 @@ const getConversation = async (req, res) => {
         COALESCE(ct.profile_picture, opp_contact.profile_picture) as contact_picture,
         COALESCE(ct.profile_url, opp_contact.profile_url) as contact_profile_url,
         COALESCE(ct.location, opp_contact.location) as contact_location,
+        -- Aliases para compatibilidade com frontend (usa lead_*)
+        COALESCE(ct.name, opp_contact.name) as lead_name,
+        COALESCE(ct.phone, opp_contact.phone) as lead_phone,
+        COALESCE(ct.profile_picture, opp_contact.profile_picture) as lead_picture,
+        COALESCE(ct.profile_url, opp_contact.profile_url) as lead_profile_url,
         -- Outros campos
         camp.name as campaign_name,
         camp.id as campaign_id,
@@ -328,6 +362,7 @@ const getMessages = async (req, res) => {
         conv.*,
         la.unipile_account_id,
         la.channel_identifier as own_number,
+        la.provider_type as channel_provider_type,
         COALESCE(ct.linkedin_profile_id, opp_contact.linkedin_profile_id, opp.linkedin_profile_id) as provider_id
       FROM conversations conv
       INNER JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
@@ -362,83 +397,70 @@ const getMessages = async (req, res) => {
         limit: parseInt(limit)
       });
 
-      console.log(`✅ ${unipileMessages.items?.length || 0} mensagens obtidas da Unipile`);
-
-      // Log para debug
-      console.log(`🔍 Provider ID da conversa: ${conversation.provider_id}`);
-      console.log(`🔍 Own number (canal): ${conversation.own_number}`);
-
       // Normalizar número do próprio usuário para comparação
       const ownNumberClean = conversation.own_number?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
 
-      // 🔍 DEBUG: Contagem de mensagens por tipo
-      const allMessages = unipileMessages.items || [];
-      let userCount = 0;
-      let leadCount = 0;
-      let unknownCount = 0;
+      // Detectar tipo de canal para aplicar lógica correta
+      const isLinkedIn = conversation.channel_provider_type === 'LINKEDIN';
 
-      allMessages.forEach((msg) => {
-        try {
-          const originalData = typeof msg.original === 'string' ? JSON.parse(msg.original) : msg.original;
-          if (originalData?.key?.fromMe === true) userCount++;
-          else if (originalData?.key?.fromMe === false) leadCount++;
-          else unknownCount++;
-        } catch (e) {
-          unknownCount++;
-        }
-      });
-
-      console.log('🔍 DEBUG - Own number clean:', ownNumberClean);
-      console.log(`📊 CONTAGEM: Total=${allMessages.length} | USER(fromMe=true)=${userCount} | LEAD(fromMe=false)=${leadCount} | UNKNOWN=${unknownCount}`);
-
-      // Log algumas mensagens do LEAD para debug
-      const leadMessages = allMessages.filter(msg => {
-        try {
-          const originalData = typeof msg.original === 'string' ? JSON.parse(msg.original) : msg.original;
-          return originalData?.key?.fromMe === false;
-        } catch (e) { return false; }
-      }).slice(0, 3);
-
-      console.log(`🔍 DEBUG - Primeiras 3 mensagens do LEAD:`);
-      leadMessages.forEach((msg, i) => {
-        console.log(`   [${i}] sender_id=${msg.sender_id || ''} | "${(msg.text || '').substring(0, 40)}"`);
-      });
+      // Para LinkedIn: usar lead_provider_id da conversa para comparação
+      const leadProviderId = conversation.provider_id || '';
 
       // Processar mensagens para formato esperado pelo frontend
-      const messages = (unipileMessages.items || []).map((msg) => {
-        // ✅ FIX: Usar campo 'original' que contém dados reais do WhatsApp
-        // O WhatsApp introduziu novos IDs de privacidade (@lid) que não contêm o telefone
+      const messages = (unipileMessages.items || []).map((msg, index) => {
         let senderType = 'lead'; // default
 
-        // Método 1: Usar original.key.fromMe (mais confiável)
-        if (msg.original) {
-          try {
-            const originalData = typeof msg.original === 'string'
-              ? JSON.parse(msg.original)
-              : msg.original;
+        // LINKEDIN: Comparar sender_id com lead_provider_id da conversa
+        if (isLinkedIn) {
+          const senderProviderId = msg.sender?.attendee_provider_id
+            || msg.sender?.provider_id
+            || msg.sender_id
+            || '';
 
-            if (originalData?.key?.fromMe !== undefined) {
-              senderType = originalData.key.fromMe ? 'user' : 'lead';
-            } else if (originalData?.key?.senderPn) {
-              // Método 2: Comparar senderPn com own_number
-              const senderPn = originalData.key.senderPn?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
-              senderType = senderPn === ownNumberClean ? 'user' : 'lead';
-            }
-          } catch (e) {
-            console.warn('Erro ao parsear original:', e.message);
+          // Comparar com lead_provider_id: se igual, é do lead; se diferente, é do user
+          if (senderProviderId && leadProviderId) {
+            senderType = (senderProviderId === leadProviderId) ? 'lead' : 'user';
+          }
+
+          // Fallback: verificar flag is_self
+          if (msg.sender?.is_self === true) {
+            senderType = 'user';
           }
         }
+        // ========================================
+        // WHATSAPP/OUTROS: Lógica existente
+        // ========================================
+        else {
+          // Método 1: Usar original.key.fromMe (mais confiável para WhatsApp)
+          if (msg.original) {
+            try {
+              const originalData = typeof msg.original === 'string'
+                ? JSON.parse(msg.original)
+                : msg.original;
 
-        // Método 3 (fallback): Comparar sender.attendee_specifics.phone_number ou sender_id
-        if (senderType === 'lead') {
-          const senderPhone = msg.sender?.attendee_specifics?.phone_number
-            || msg.sender_id
-            || msg.sender?.attendee_provider_id
-            || '';
-          const senderPhoneClean = senderPhone.replace(/@s\.whatsapp\.net|@c\.us|@lid/gi, '');
+              if (originalData?.key?.fromMe !== undefined) {
+                senderType = originalData.key.fromMe ? 'user' : 'lead';
+              } else if (originalData?.key?.senderPn) {
+                // Método 2: Comparar senderPn com own_number
+                const senderPn = originalData.key.senderPn?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
+                senderType = senderPn === ownNumberClean ? 'user' : 'lead';
+              }
+            } catch (e) {
+              console.warn('Erro ao parsear original:', e.message);
+            }
+          }
 
-          if (senderPhoneClean && senderPhoneClean === ownNumberClean) {
-            senderType = 'user';
+          // Método 3 (fallback): Comparar sender.attendee_specifics.phone_number ou sender_id
+          if (senderType === 'lead') {
+            const senderPhone = msg.sender?.attendee_specifics?.phone_number
+              || msg.sender_id
+              || msg.sender?.attendee_provider_id
+              || '';
+            const senderPhoneClean = senderPhone.replace(/@s\.whatsapp\.net|@c\.us|@lid/gi, '');
+
+            if (senderPhoneClean && senderPhoneClean === ownNumberClean) {
+              senderType = 'user';
+            }
           }
         }
 
@@ -478,21 +500,6 @@ const getMessages = async (req, res) => {
 
       // Ordenar por data (mais antiga primeiro para exibição correta)
       messages.sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
-
-      // 🔍 DEBUG: Verificar sender_type das mensagens mapeadas
-      const userMapped = messages.filter(m => m.sender_type === 'user').length;
-      const leadMapped = messages.filter(m => m.sender_type === 'lead').length;
-      const otherMapped = messages.filter(m => m.sender_type !== 'user' && m.sender_type !== 'lead').length;
-      console.log(`📊 MAPPED: user=${userMapped} | lead=${leadMapped} | other=${otherMapped}`);
-
-      // Log primeiras 3 mensagens lead mapeadas
-      const leadMappedMsgs = messages.filter(m => m.sender_type === 'lead').slice(0, 3);
-      console.log(`🔍 Primeiras 3 msgs LEAD mapeadas:`);
-      leadMappedMsgs.forEach((m, i) => {
-        console.log(`   [${i}] sender_type=${m.sender_type} | content="${(m.content || '').substring(0, 40)}"`);
-      });
-
-      console.log(`✅ ${messages.length} mensagens processadas`);
 
       sendSuccess(res, {
         messages,
@@ -1761,6 +1768,146 @@ const updateContactName = async (req, res) => {
   }
 };
 
+// ================================
+// START WHATSAPP CONVERSATION
+// Inicia ou retorna conversa existente com um telefone
+// ================================
+const startWhatsAppConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const {
+      phone_number,           // Telefone de destino (formato internacional)
+      whatsapp_account_id,    // ID da conta WhatsApp (linkedin_accounts.id)
+      sector_id,              // Setor para atribuir
+      user_id: assignedUserId,// Usuario responsavel
+      contact_id,             // ID do contato (opcional)
+      opportunity_id          // ID da oportunidade (opcional)
+    } = req.body;
+
+    if (!phone_number) {
+      throw new ValidationError('phone_number is required');
+    }
+
+    if (!whatsapp_account_id) {
+      throw new ValidationError('whatsapp_account_id is required');
+    }
+
+    console.log(`📱 [WhatsApp] Iniciando conversa: ${phone_number} via conta ${whatsapp_account_id}`);
+
+    // 1. Verificar se a conta WhatsApp existe e esta ativa
+    const accountResult = await db.query(`
+      SELECT id, unipile_account_id, display_name, status, provider_type, attendant_id
+      FROM linkedin_accounts
+      WHERE id = $1 AND account_id = $2 AND provider_type = 'WHATSAPP' AND status = 'active'
+    `, [whatsapp_account_id, accountId]);
+
+    if (accountResult.rows.length === 0) {
+      throw new NotFoundError('WhatsApp account not found or not active');
+    }
+
+    const whatsappAccount = accountResult.rows[0];
+    const unipileAccountId = whatsappAccount.unipile_account_id;
+
+    // 2. Formatar o telefone (remover caracteres especiais, manter apenas digitos e +)
+    const formattedPhone = phone_number.replace(/[^\d+]/g, '');
+
+    // 3. Verificar se ja existe uma conversa com esse telefone nesta conta
+    const existingConversation = await db.query(`
+      SELECT c.id, c.unipile_chat_id, c.status
+      FROM conversations c
+      WHERE c.linkedin_account_id = $1
+        AND c.lead_phone = $2
+        AND c.account_id = $3
+      ORDER BY c.last_message_at DESC
+      LIMIT 1
+    `, [whatsapp_account_id, formattedPhone, accountId]);
+
+    if (existingConversation.rows.length > 0) {
+      const conv = existingConversation.rows[0];
+      console.log(`✅ [WhatsApp] Conversa existente encontrada: ${conv.id}`);
+      return sendSuccess(res, {
+        conversation_id: conv.id,
+        existing: true
+      }, 'Existing conversation found');
+    }
+
+    // 4. Buscar o attendee_id do telefone via Unipile (ou construir)
+    // Para WhatsApp, o attendee_id geralmente é no formato: phone_number@s.whatsapp.net
+    const attendeeId = `${formattedPhone.replace('+', '')}@s.whatsapp.net`;
+
+    // 5. Tentar iniciar um chat via Unipile (enviar mensagem inicial silenciosa ou apenas criar chat)
+    // Nota: Dependendo da API Unipile, pode ser necessário enviar uma mensagem para criar o chat
+    let unipileChatId;
+
+    try {
+      // Tentar obter ou criar chat via API
+      // Primeiro, verificar se ja existe chat no Unipile
+      const chatsResult = await unipileClient.messaging.getChats({
+        account_id: unipileAccountId,
+        limit: 1,
+        attendee_id: attendeeId
+      });
+
+      if (chatsResult?.items?.length > 0) {
+        unipileChatId = chatsResult.items[0].id;
+        console.log(`📱 [WhatsApp] Chat existente no Unipile: ${unipileChatId}`);
+      } else {
+        // Chat nao existe - sera criado quando enviar a primeira mensagem
+        // Por enquanto, criar um ID temporario
+        unipileChatId = `pending_${formattedPhone}_${Date.now()}`;
+        console.log(`📱 [WhatsApp] Chat sera criado ao enviar mensagem: ${unipileChatId}`);
+      }
+    } catch (unipileError) {
+      console.error(`⚠️ [WhatsApp] Erro ao buscar chat Unipile:`, unipileError.message);
+      // Usar ID temporario
+      unipileChatId = `pending_${formattedPhone}_${Date.now()}`;
+    }
+
+    // 6. Criar a conversa no banco de dados
+    const conversationResult = await db.query(`
+      INSERT INTO conversations (
+        unipile_chat_id,
+        linkedin_account_id,
+        lead_phone,
+        lead_name,
+        contact_id,
+        opportunity_id,
+        sector_id,
+        assigned_user_id,
+        status,
+        account_id,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'manual', $9, NOW(), NOW())
+      RETURNING id
+    `, [
+      unipileChatId,
+      whatsapp_account_id,
+      formattedPhone,
+      formattedPhone, // lead_name = phone por enquanto
+      contact_id || null,
+      opportunity_id || null,
+      sector_id || null,
+      assignedUserId || userId,
+      accountId
+    ]);
+
+    const newConversationId = conversationResult.rows[0].id;
+    console.log(`✅ [WhatsApp] Nova conversa criada: ${newConversationId}`);
+
+    sendSuccess(res, {
+      conversation_id: newConversationId,
+      existing: false,
+      unipile_chat_id: unipileChatId
+    }, 'Conversation created successfully');
+
+  } catch (error) {
+    console.error(`❌ [WhatsApp] Erro ao iniciar conversa:`, error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getConversations,
   getConversation,
@@ -1785,5 +1932,7 @@ module.exports = {
   generateSummary,
   updateSummary,
   // Contact name update
-  updateContactName
+  updateContactName,
+  // WhatsApp conversation start
+  startWhatsAppConversation
 };

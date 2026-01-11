@@ -22,30 +22,24 @@ import {
 import api from '../services/api';
 
 const TASK_TYPES = [
-  { value: 'call', label: 'Ligação', icon: Phone, color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' },
-  { value: 'meeting', label: 'Reunião', icon: Video, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20' },
-  { value: 'email', label: 'Email', icon: Mail, color: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' },
-  { value: 'follow_up', label: 'Follow-up', icon: MessageSquare, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
-  { value: 'proposal', label: 'Proposta', icon: FileCheck, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' },
-  { value: 'other', label: 'Outro', icon: MoreHorizontal, color: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50' }
+  { value: 'call', label: 'Ligação', icon: Phone, color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30' },
+  { value: 'meeting', label: 'Reunião', icon: Video, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30' },
+  { value: 'email', label: 'Email', icon: Mail, color: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30' },
+  { value: 'follow_up', label: 'Follow-up', icon: MessageSquare, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30' },
+  { value: 'proposal', label: 'Proposta', icon: FileCheck, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' },
+  { value: 'other', label: 'Outro', icon: MoreHorizontal, color: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700' }
 ];
 
 // Portal Dropdown component for proper z-index handling
 const PortalDropdown = ({ isOpen, anchorRef, children, align = 'left', width = 140, onClose }) => {
-  const [position, setPosition] = useState({ top: 0, left: 0, openUpward: false });
+  const [position, setPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (isOpen && anchorRef?.current) {
       const rect = anchorRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const dropdownHeight = 300; // Estimated max height
-      const spaceBelow = viewportHeight - rect.bottom;
-      const openUpward = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
-
       setPosition({
-        top: openUpward ? rect.top - 4 : rect.bottom + 4,
-        left: align === 'right' ? rect.right - width : rect.left,
-        openUpward
+        top: rect.bottom + 4,
+        left: align === 'right' ? rect.right - width : rect.left
       });
     }
   }, [isOpen, anchorRef, align, width]);
@@ -66,7 +60,7 @@ const PortalDropdown = ({ isOpen, anchorRef, children, align = 'left', width = 1
       <div
         className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 py-1"
         style={{
-          [position.openUpward ? 'bottom' : 'top']: position.openUpward ? window.innerHeight - position.top : position.top,
+          top: position.top,
           left: position.left,
           minWidth: width,
           zIndex: 9999
@@ -80,44 +74,49 @@ const PortalDropdown = ({ isOpen, anchorRef, children, align = 'left', width = 1
   );
 };
 
+// Parse date string as local date (avoiding timezone issues)
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  // If it's already a Date object, return it
+  if (dateStr instanceof Date) return dateStr;
+  // Parse YYYY-MM-DD as local date
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 // Format date for display
 const formatDate = (date) => {
   if (!date) return null;
-
-  // Extract date string in format YYYY-MM-DD (ignore timezone)
-  const dateStr = typeof date === 'string' ? date.split('T')[0] : date.toISOString().split('T')[0];
+  const d = parseLocalDate(date);
+  if (!d) return null;
 
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
+  today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  const itemDate = new Date(d);
+  itemDate.setHours(0, 0, 0, 0);
 
-  if (dateStr === todayStr) return 'Hoje';
-  if (dateStr === tomorrowStr) return 'Amanhã';
-  if (dateStr < todayStr) {
-    const [year, month, day] = dateStr.split('-');
-    return `Atrasado (${day}/${month})`;
-  }
-
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}`;
+  if (itemDate.getTime() === today.getTime()) return 'Hoje';
+  if (itemDate.getTime() === tomorrow.getTime()) return 'Amanhã';
+  if (itemDate < today) return `Atrasado (${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })})`;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 };
 
 // Get due date color class
 const getDueDateColor = (date) => {
-  if (!date) return 'text-gray-400';
-
-  // Extract date string in format YYYY-MM-DD (ignore timezone)
-  const dateStr = typeof date === 'string' ? date.split('T')[0] : date.toISOString().split('T')[0];
+  if (!date) return 'text-gray-400 dark:text-gray-500';
+  const d = parseLocalDate(date);
+  if (!d) return 'text-gray-400 dark:text-gray-500';
 
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  today.setHours(0, 0, 0, 0);
+  const itemDate = new Date(d);
+  itemDate.setHours(0, 0, 0, 0);
 
-  if (dateStr < todayStr) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
-  if (dateStr === todayStr) return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20';
-  return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+  if (itemDate < today) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30';
+  if (itemDate.getTime() === today.getTime()) return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30';
+  return 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700';
 };
 
 const LeadChecklists = ({ leadId, sectorId }) => {
@@ -135,10 +134,6 @@ const LeadChecklists = ({ leadId, sectorId }) => {
   const [editingChecklistId, setEditingChecklistId] = useState(null);
   const [editingChecklistName, setEditingChecklistName] = useState('');
 
-  // Editing task item title
-  const [editingItemId, setEditingItemId] = useState(null);
-  const [editingItemTitle, setEditingItemTitle] = useState('');
-
   // New item form state per checklist
   const [newItemForms, setNewItemForms] = useState({});
   const [showTypeDropdown, setShowTypeDropdown] = useState(null);
@@ -148,7 +143,6 @@ const LeadChecklists = ({ leadId, sectorId }) => {
   const newChecklistInputRef = useRef(null);
   const newItemInputRefs = useRef({});
   const editChecklistInputRef = useRef(null);
-  const editItemInputRef = useRef(null);
 
   // Refs for dropdown positioning (used by PortalDropdown)
   const typeButtonRefs = useRef({});
@@ -176,13 +170,6 @@ const LeadChecklists = ({ leadId, sectorId }) => {
       editChecklistInputRef.current.select();
     }
   }, [editingChecklistId]);
-
-  useEffect(() => {
-    if (editingItemId && editItemInputRef.current) {
-      editItemInputRef.current.focus();
-      editItemInputRef.current.select();
-    }
-  }, [editingItemId]);
 
   // Helper to close all dropdowns
   const closeAllDropdowns = () => {
@@ -309,42 +296,6 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     }
   };
 
-  const startEditingItem = (item) => {
-    setEditingItemId(item.id);
-    setEditingItemTitle(item.title);
-  };
-
-  const cancelEditingItem = () => {
-    setEditingItemId(null);
-    setEditingItemTitle('');
-  };
-
-  const handleRenameItem = async (checklistId) => {
-    if (!editingItemTitle.trim() || !editingItemId) {
-      cancelEditingItem();
-      return;
-    }
-
-    try {
-      const response = await api.updateChecklistItem(editingItemId, { title: editingItemTitle.trim() });
-      if (response.success) {
-        setChecklists(prev => prev.map(c => {
-          if (c.id === checklistId) {
-            return {
-              ...c,
-              items: c.items.map(i => i.id === editingItemId ? { ...i, title: editingItemTitle.trim() } : i)
-            };
-          }
-          return c;
-        }));
-      }
-    } catch (error) {
-      console.error('Error renaming item:', error);
-    } finally {
-      cancelEditingItem();
-    }
-  };
-
   const handleAddItem = async (checklistId) => {
     const form = getNewItemForm(checklistId);
     if (!form.title.trim()) return;
@@ -379,33 +330,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
 
   const handleToggleItem = async (checklistId, itemId) => {
     try {
-      // Optimistic update - update UI immediately
-      setChecklists(prev => prev.map(c => {
-        if (c.id === checklistId) {
-          const updatedItems = c.items.map(i => {
-            if (i.id === itemId) {
-              const newCompleted = !i.isCompleted;
-              return {
-                ...i,
-                isCompleted: newCompleted,
-                completedAt: newCompleted ? new Date().toISOString() : null
-              };
-            }
-            return i;
-          });
-          return {
-            ...c,
-            items: updatedItems,
-            completedCount: updatedItems.filter(i => i.isCompleted).length
-          };
-        }
-        return c;
-      }));
-
-      // Then update on server
       const response = await api.toggleChecklistItem(itemId);
-
-      // Sync with server response
       if (response.success) {
         setChecklists(prev => prev.map(c => {
           if (c.id === checklistId) {
@@ -423,8 +348,6 @@ const LeadChecklists = ({ leadId, sectorId }) => {
       }
     } catch (error) {
       console.error('Error toggling item:', error);
-      // Reload checklists to get correct state
-      loadChecklists();
     }
   };
 
@@ -457,30 +380,11 @@ const LeadChecklists = ({ leadId, sectorId }) => {
 
       const currentAssignees = item.assignees || [];
       const exists = currentAssignees.some(a => a.id === userId);
+      const newAssigneeIds = exists
+        ? currentAssignees.filter(a => a.id !== userId).map(a => a.id)
+        : [...currentAssignees.map(a => a.id), userId];
 
-      // Find user data
-      const user = assignableUsers.find(u => u.id === userId);
-
-      // Optimistic update - update UI immediately
-      const newAssignees = exists
-        ? currentAssignees.filter(a => a.id !== userId)
-        : [...currentAssignees, user];
-
-      setChecklists(prev => prev.map(c => {
-        if (c.id === checklistId) {
-          return {
-            ...c,
-            items: c.items.map(i => i.id === itemId ? { ...i, assignees: newAssignees } : i)
-          };
-        }
-        return c;
-      }));
-
-      // Then update on server
-      const newAssigneeIds = newAssignees.map(a => a.id);
       const response = await api.updateChecklistItem(itemId, { assignees: newAssigneeIds });
-
-      // Sync with server response (in case server modified something)
       if (response.success) {
         setChecklists(prev => prev.map(c => {
           if (c.id === checklistId) {
@@ -494,31 +398,12 @@ const LeadChecklists = ({ leadId, sectorId }) => {
       }
     } catch (error) {
       console.error('Error updating assignees:', error);
-      // Reload checklists to get correct state
-      loadChecklists();
     }
   };
 
   const handleUpdateItemDueDate = async (itemId, dueDate, checklistId) => {
     try {
-      // Optimistic update - update UI immediately
-      setChecklists(prev => prev.map(c => {
-        if (c.id === checklistId) {
-          return {
-            ...c,
-            items: c.items.map(i => i.id === itemId ? { ...i, dueDate: dueDate } : i)
-          };
-        }
-        return c;
-      }));
-
-      // Close dropdown immediately
-      setActiveDateDropdown(null);
-
-      // Then update on server
       const response = await api.updateChecklistItem(itemId, { due_date: dueDate });
-
-      // Sync with server response
       if (response.success) {
         setChecklists(prev => prev.map(c => {
           if (c.id === checklistId) {
@@ -532,8 +417,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
       }
     } catch (error) {
       console.error('Error updating due date:', error);
-      // Reload checklists to get correct state
-      loadChecklists();
+    } finally {
       setActiveDateDropdown(null);
     }
   };
@@ -550,30 +434,19 @@ const LeadChecklists = ({ leadId, sectorId }) => {
   };
 
   const renderUserAvatar = (user, size = 'sm') => {
-    const sizeClasses = size === 'sm' ? 'w-5 h-5 text-[9px]' : 'w-6 h-6 text-xs';
+    const sizeClasses = size === 'sm' ? 'w-6 h-6 text-xs' : 'w-7 h-7 text-sm';
     if (user?.avatar_url || user?.avatarUrl) {
-      const avatarUrl = user.avatar_url || user.avatarUrl;
       return (
         <img
-          src={
-            avatarUrl.startsWith('http')
-              ? `${avatarUrl}?v=${user.updated_at || user.updatedAt || Date.now()}`
-              : avatarUrl
-          }
+          src={user.avatar_url || user.avatarUrl}
           alt={user.name}
           className={`${sizeClasses} rounded-full object-cover`}
         />
       );
     }
-    const names = (user?.name || '').trim().split(' ').filter(n => n.length > 0);
-    const initials = names.length === 1
-      ? names[0].substring(0, 2).toUpperCase()
-      : names.length >= 2
-        ? (names[0][0] + names[1][0]).toUpperCase()
-        : '?';
     return (
-      <div className={`${sizeClasses} rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-medium`}>
-        {initials}
+      <div className={`${sizeClasses} rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-medium`}>
+        {user?.name?.charAt(0) || '?'}
       </div>
     );
   };
@@ -591,7 +464,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
           </div>
         ))}
         {remaining > 0 && (
-          <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[9px] text-gray-600 dark:text-gray-400 border-2 border-white dark:border-gray-800">
+          <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xs text-gray-600 dark:text-gray-300 border-2 border-white dark:border-gray-800">
             +{remaining}
           </div>
         )}
@@ -599,15 +472,16 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     );
   };
 
+  // Format date to local YYYY-MM-DD (avoiding timezone issues)
+  const toLocalDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Quick date options
   const getQuickDates = () => {
-    const formatLocalDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -615,42 +489,43 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     nextWeek.setDate(nextWeek.getDate() + 7);
 
     return [
-      { label: 'Hoje', value: formatLocalDate(today) },
-      { label: 'Amanhã', value: formatLocalDate(tomorrow) },
-      { label: 'Em 1 semana', value: formatLocalDate(nextWeek) }
+      { label: 'Hoje', value: toLocalDateString(today) },
+      { label: 'Amanhã', value: toLocalDateString(tomorrow) },
+      { label: 'Em 1 semana', value: toLocalDateString(nextWeek) }
     ];
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader className="w-6 h-6 text-purple-600 dark:text-purple-400 animate-spin" />
+        <Loader className="w-6 h-6 text-purple-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-          <CheckSquare className="w-3.5 h-3.5" />
-          <span>Checklists</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <CheckSquare className="w-4 h-4" />
+          <span>Tarefas</span>
           {checklists.length > 0 && (
-            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-[10px] font-normal">
-              {checklists.reduce((acc, c) => acc + c.completedCount, 0)}/{checklists.reduce((acc, c) => acc + c.totalCount, 0)}
+            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+              {checklists.reduce((acc, c) => acc + c.completedCount, 0)}/
+              {checklists.reduce((acc, c) => acc + c.totalCount, 0)}
             </span>
           )}
         </div>
       </div>
 
       {/* Checklists */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {checklists.map(checklist => (
-          <div key={checklist.id} className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+          <div key={checklist.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg overflow-hidden">
             {/* Checklist Header */}
             <div
-              className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 group"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-150 dark:hover:bg-gray-700 group"
               onClick={() => {
                 if (editingChecklistId !== checklist.id) {
                   toggleExpanded(checklist.id);
@@ -658,9 +533,9 @@ const LeadChecklists = ({ leadId, sectorId }) => {
               }}
             >
               {expandedChecklists[checklist.id] ? (
-                <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               ) : (
-                <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               )}
 
               {/* Editable Name */}
@@ -680,11 +555,11 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                     }
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 text-xs font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-purple-400 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="flex-1 font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-purple-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               ) : (
                 <span
-                  className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-1 hover:text-purple-600 dark:hover:text-purple-400 cursor-text"
+                  className="font-medium text-gray-700 dark:text-gray-200 flex-1 hover:text-purple-600 dark:hover:text-purple-400 cursor-text"
                   onClick={(e) => {
                     e.stopPropagation();
                     startEditingChecklist(checklist);
@@ -695,23 +570,23 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                 </span>
               )}
 
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
-                {checklist.completedCount}/{checklist.totalCount}
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                ({checklist.completedCount}/{checklist.totalCount})
               </span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteChecklist(checklist.id);
                 }}
-                className="p-0.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Checklist Items */}
             {expandedChecklists[checklist.id] && (
-              <div className="px-1.5 py-1 space-y-0.5">
+              <div className="px-3 py-2 space-y-1">
                 {checklist.items.map(item => {
                   const typeInfo = getTaskTypeInfo(item.taskType);
                   const TypeIcon = typeInfo.icon;
@@ -719,66 +594,35 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center gap-1.5 py-1 group hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded px-1.5"
+                      className="flex items-center gap-2 py-1.5 group hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded px-2 -mx-2"
                     >
                       {/* Checkbox */}
                       <button
                         onClick={() => handleToggleItem(checklist.id, item.id)}
-                        className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                           item.isCompleted
                             ? 'bg-green-500 border-green-500 text-white'
-                            : 'border-gray-300 dark:border-gray-600 hover:border-green-400'
+                            : 'border-gray-300 hover:border-green-400'
                         }`}
                       >
                         {item.isCompleted && (
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         )}
                       </button>
 
                       {/* Task Type Icon */}
-                      <div className={`p-0.5 rounded ${typeInfo.color}`} title={typeInfo.label}>
-                        <TypeIcon className="w-2.5 h-2.5" />
+                      <div className={`p-1 rounded ${typeInfo.color}`} title={typeInfo.label}>
+                        <TypeIcon className="w-3 h-3" />
                       </div>
 
-                      {/* Title - Editable */}
-                      {editingItemId === item.id ? (
-                        <input
-                          ref={editItemInputRef}
-                          type="text"
-                          value={editingItemTitle}
-                          onChange={(e) => setEditingItemTitle(e.target.value)}
-                          onBlur={() => handleRenameItem(checklist.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleRenameItem(checklist.id);
-                            } else if (e.key === 'Escape') {
-                              cancelEditingItem();
-                            }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 text-xs bg-white dark:bg-gray-700 border border-purple-400 dark:border-purple-500 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-gray-900 dark:text-gray-100"
-                        />
-                      ) : (
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!item.isCompleted) {
-                              startEditingItem(item);
-                            }
-                          }}
-                          className={`flex-1 text-xs ${
-                            item.isCompleted
-                              ? 'text-gray-400 dark:text-gray-500 line-through'
-                              : 'text-gray-700 dark:text-gray-300 cursor-text hover:text-purple-600 dark:hover:text-purple-400'
-                          }`}
-                          title={!item.isCompleted ? 'Clique para editar' : ''}
-                        >
-                          {item.title}
-                        </span>
-                      )}
+                      {/* Title */}
+                      <span className={`flex-1 text-sm ${
+                        item.isCompleted ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-700 dark:text-gray-200'
+                      }`}>
+                        {item.title}
+                      </span>
 
                       {/* Due Date */}
                       <div className="relative">
@@ -794,14 +638,14 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                   e.stopPropagation();
                                   setActiveDateDropdown(activeDateDropdown === item.id ? null : item.id);
                                 }}
-                                className={`date-trigger px-1 py-0.5 rounded text-[10px] flex items-center gap-0.5 transition-all ${
+                                className={`date-trigger px-1.5 py-0.5 rounded text-xs flex items-center gap-1 transition-all ${
                                   item.dueDate
                                     ? getDueDateColor(item.dueDate)
-                                    : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    : 'text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-gray-700'
                                 }`}
                               >
-                                <Calendar className="w-2.5 h-2.5" />
-                                {item.dueDate && <span>{formatDate(item.dueDate)}</span>}
+                                <Calendar className="w-3 h-3" />
+                                {item.dueDate ? formatDate(item.dueDate) : 'Prazo'}
                               </button>
 
                               <PortalDropdown
@@ -811,29 +655,29 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                 width={200}
                                 onClose={() => setActiveDateDropdown(null)}
                               >
-                                <div className="p-1.5">
+                                <div className="p-2">
                                   {getQuickDates().map(opt => (
                                     <button
                                       key={opt.value}
                                       onClick={() => handleUpdateItemDueDate(item.id, opt.value, checklist.id)}
-                                      className="w-full text-left px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300"
+                                      className="w-full text-left px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
                                     >
                                       {opt.label}
                                     </button>
                                   ))}
-                                  <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                  <div className="border-t my-1" />
                                   <input
                                     type="date"
-                                    className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                     onChange={(e) => handleUpdateItemDueDate(item.id, e.target.value, checklist.id)}
                                     onClick={e => e.stopPropagation()}
                                   />
                                   {item.dueDate && (
                                     <>
-                                      <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                      <div className="border-t my-1" />
                                       <button
                                         onClick={() => handleUpdateItemDueDate(item.id, null, checklist.id)}
-                                        className="w-full text-left px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                        className="w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded"
                                       >
                                         Remover prazo
                                       </button>
@@ -863,13 +707,13 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                 className={`user-trigger flex items-center transition-all ${
                                   assignees.length > 0
                                     ? ''
-                                    : 'w-5 h-5 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-500 opacity-0 group-hover:opacity-100 justify-center'
+                                    : 'w-6 h-6 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-500 opacity-0 group-hover:opacity-100 justify-center'
                                 }`}
                               >
                                 {assignees.length > 0 ? (
                                   renderAssigneesAvatars(assignees)
                                 ) : (
-                                  <Users className="w-2.5 h-2.5" />
+                                  <Users className="w-3 h-3" />
                                 )}
                               </button>
 
@@ -881,7 +725,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                 onClose={() => setActiveAssignDropdown(null)}
                               >
                                 <div className="max-h-[250px] overflow-y-auto">
-                                  <div className="px-2 py-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
+                                  <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
                                     Selecione os responsáveis
                                   </div>
                                   {assignableUsers.map(user => {
@@ -890,17 +734,17 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                       <button
                                         key={user.id}
                                         onClick={() => handleToggleItemAssignee(item.id, user.id, checklist.id)}
-                                        className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                                          isSelected ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                          isSelected ? 'bg-purple-50 dark:bg-purple-900/30' : ''
                                         }`}
                                       >
-                                        <div className={`w-3 h-3 rounded border-2 flex items-center justify-center ${
-                                          isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                          isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-300'
                                         }`}>
-                                          {isSelected && <Check className="w-2 h-2" />}
+                                          {isSelected && <Check className="w-3 h-3" />}
                                         </div>
                                         {renderUserAvatar(user)}
-                                        <span className="text-gray-700 dark:text-gray-300 flex-1 text-left">{user.name}</span>
+                                        <span className="text-gray-700 dark:text-gray-200 flex-1 text-left">{user.name}</span>
                                       </button>
                                     );
                                   })}
@@ -917,16 +761,16 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                           e.stopPropagation();
                           handleDeleteItem(checklist.id, item.id);
                         }}
-                        className="p-0.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <Trash2 className="w-2.5 h-2.5" />
+                        <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   );
                 })}
 
                 {/* Add New Item - Inline Form */}
-                <div className="flex items-center gap-1.5 py-1 mt-0.5 px-1.5">
+                <div className="flex items-center gap-2 py-2 mt-1 border-t border-gray-200 dark:border-gray-700">
                   {/* Task Type Selector */}
                   <div className="relative">
                     {(() => {
@@ -945,10 +789,10 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                               e.stopPropagation();
                               setShowTypeDropdown(showTypeDropdown === checklist.id ? null : checklist.id);
                             }}
-                            className={`type-trigger p-0.5 rounded ${selectedType.color} hover:opacity-80 transition-opacity`}
+                            className={`type-trigger p-1.5 rounded ${selectedType.color} hover:opacity-80 transition-opacity`}
                             title={selectedType.label}
                           >
-                            <SelectedIcon className="w-2.5 h-2.5" />
+                            <SelectedIcon className="w-4 h-4" />
                           </button>
 
                           <PortalDropdown
@@ -967,14 +811,14 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                     updateNewItemForm(checklist.id, { taskType: type.value });
                                     setShowTypeDropdown(null);
                                   }}
-                                  className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
                                     form.taskType === type.value ? 'bg-gray-50 dark:bg-gray-700' : ''
                                   }`}
                                 >
-                                  <div className={`p-0.5 rounded ${type.color}`}>
-                                    <Icon className="w-2.5 h-2.5" />
+                                  <div className={`p-1 rounded ${type.color}`}>
+                                    <Icon className="w-3 h-3" />
                                   </div>
-                                  <span className="text-gray-700 dark:text-gray-300">{type.label}</span>
+                                  <span className="text-gray-700 dark:text-gray-200">{type.label}</span>
                                 </button>
                               );
                             })}
@@ -996,8 +840,8 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                         handleAddItem(checklist.id);
                       }
                     }}
-                    placeholder="Novo item..."
-                    className="flex-1 text-xs bg-transparent border-none focus:outline-none text-gray-700 dark:text-gray-300 placeholder:text-gray-400"
+                    placeholder="Descreva a tarefa..."
+                    className="flex-1 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-2 py-1.5 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
                     disabled={savingItem === checklist.id}
                   />
 
@@ -1017,14 +861,14 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                               e.stopPropagation();
                               setShowNewItemDateDropdown(showNewItemDateDropdown === checklist.id ? null : checklist.id);
                             }}
-                            className={`date-trigger px-1 py-0.5 rounded text-[10px] flex items-center gap-0.5 transition-all ${
+                            className={`date-trigger px-2 py-1 rounded transition-all flex items-center gap-1 text-xs ${
                               form.dueDate
                                 ? getDueDateColor(form.dueDate)
-                                : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                             title={form.dueDate ? formatDate(form.dueDate) : 'Definir prazo'}
                           >
-                            <Calendar className="w-3 h-3" />
+                            <Calendar className="w-3.5 h-3.5" />
                             {form.dueDate && <span>{formatDate(form.dueDate)}</span>}
                           </button>
 
@@ -1035,7 +879,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                             width={200}
                             onClose={() => setShowNewItemDateDropdown(null)}
                           >
-                            <div className="p-1.5">
+                            <div className="p-2">
                               {getQuickDates().map(opt => (
                                 <button
                                   key={opt.value}
@@ -1044,15 +888,15 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                     updateNewItemForm(checklist.id, { dueDate: opt.value });
                                     setShowNewItemDateDropdown(null);
                                   }}
-                                  className="w-full text-left px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300"
+                                  className="w-full text-left px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
                                 >
                                   {opt.label}
                                 </button>
                               ))}
-                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                              <div className="border-t my-1" />
                               <input
                                 type="date"
-                                className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 value={form.dueDate || ''}
                                 onChange={(e) => {
                                   updateNewItemForm(checklist.id, { dueDate: e.target.value });
@@ -1062,14 +906,14 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                               />
                               {form.dueDate && (
                                 <>
-                                  <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                  <div className="border-t my-1" />
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       updateNewItemForm(checklist.id, { dueDate: null });
                                       setShowNewItemDateDropdown(null);
                                     }}
-                                    className="w-full text-left px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                    className="w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded"
                                   >
                                     Remover prazo
                                   </button>
@@ -1102,14 +946,14 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                             className={`user-trigger flex items-center transition-all ${
                               assignees.length > 0
                                 ? ''
-                                : 'w-5 h-5 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-purple-400 hover:text-purple-500 justify-center'
+                                : 'w-7 h-7 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-purple-400 hover:text-purple-500 justify-center'
                             }`}
                             title={assignees.length > 0 ? assignees.map(a => a.name).join(', ') : 'Atribuir responsáveis'}
                           >
                             {assignees.length > 0 ? (
                               renderAssigneesAvatars(assignees, 2)
                             ) : (
-                              <Users className="w-3.5 h-3.5" />
+                              <Users className="w-4 h-4" />
                             )}
                           </button>
 
@@ -1121,7 +965,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                             onClose={() => setShowNewItemUserDropdown(null)}
                           >
                             <div className="max-h-[250px] overflow-y-auto">
-                              <div className="px-2 py-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
+                              <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
                                 Selecione os responsáveis
                               </div>
                               {assignableUsers.map(user => {
@@ -1133,17 +977,17 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                       e.stopPropagation();
                                       toggleNewItemAssignee(checklist.id, user);
                                     }}
-                                    className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                                      isSelected ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                      isSelected ? 'bg-purple-50 dark:bg-purple-900/30' : ''
                                     }`}
                                   >
-                                    <div className={`w-3 h-3 rounded border-2 flex items-center justify-center ${
-                                      isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                      isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-300'
                                     }`}>
-                                      {isSelected && <Check className="w-2 h-2" />}
+                                      {isSelected && <Check className="w-3 h-3" />}
                                     </div>
                                     {renderUserAvatar(user)}
-                                    <span className="text-gray-700 dark:text-gray-300 flex-1 text-left">{user.name}</span>
+                                    <span className="text-gray-700 dark:text-gray-200 flex-1 text-left">{user.name}</span>
                                   </button>
                                 );
                               })}
@@ -1159,12 +1003,12 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                     type="button"
                     onClick={() => handleAddItem(checklist.id)}
                     disabled={!getNewItemForm(checklist.id).title.trim() || savingItem === checklist.id}
-                    className="p-0.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="p-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {savingItem === checklist.id ? (
-                      <Loader className="w-2.5 h-2.5 animate-spin" />
+                      <Loader className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Plus className="w-2.5 h-2.5" />
+                      <Plus className="w-4 h-4" />
                     )}
                   </button>
                 </div>
@@ -1176,14 +1020,14 @@ const LeadChecklists = ({ leadId, sectorId }) => {
 
       {/* Add New Checklist */}
       {showNewChecklist ? (
-        <form onSubmit={handleCreateChecklist} className="flex items-center gap-1.5 px-1">
+        <form onSubmit={handleCreateChecklist} className="flex items-center gap-2">
           <input
             ref={newChecklistInputRef}
             type="text"
             value={newChecklistName}
             onChange={(e) => setNewChecklistName(e.target.value)}
             placeholder="Nome da checklist..."
-            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             onBlur={() => {
               if (!newChecklistName.trim()) {
                 setShowNewChecklist(false);
@@ -1199,7 +1043,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
           <button
             type="submit"
             disabled={!newChecklistName.trim()}
-            className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 disabled:opacity-50"
+            className="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50"
           >
             Criar
           </button>
@@ -1209,27 +1053,34 @@ const LeadChecklists = ({ leadId, sectorId }) => {
               setShowNewChecklist(false);
               setNewChecklistName('');
             }}
-            className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="px-3 py-2 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
-            <X className="w-3 h-3" />
+            Cancelar
           </button>
         </form>
       ) : (
         <button
           onClick={() => setShowNewChecklist(true)}
-          className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors py-1 px-1"
+          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors py-2"
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-4 h-4" />
           Adicionar checklist
         </button>
       )}
 
       {/* Empty State */}
       {checklists.length === 0 && !showNewChecklist && (
-        <div className="text-center py-4 text-gray-400">
-          <CheckSquare className="w-8 h-8 mx-auto mb-1.5 opacity-50" />
-          <p className="text-xs">Nenhuma checklist ainda</p>
-          <p className="text-[10px] mt-0.5 text-gray-500">Crie checklists para organizar as atividades</p>
+        <div className="text-center py-8 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50/50 dark:bg-gray-800/30">
+          <CheckSquare className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Nenhuma checklist ainda</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 mb-4">Crie checklists para organizar as atividades</p>
+          <button
+            onClick={() => setShowNewChecklist(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-md transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Criar checklist
+          </button>
         </div>
       )}
     </div>

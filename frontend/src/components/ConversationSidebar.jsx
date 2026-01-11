@@ -2,10 +2,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, Bot, User, Clock, MessageSquare, Trash2, CheckCircle, Filter, ChevronDown, UserCircle, Building2
+  Search, Clock, MessageSquare, Trash2, CheckCircle, Filter, UserCircle, Building2,
+  MessageCircle, Linkedin, Instagram, Send, Mail, Briefcase
 } from 'lucide-react';
 import QuickViewTabs from './QuickViewTabs';
-import AdvancedFiltersPanel from './AdvancedFiltersPanel';
+import FiltersPopover from './FiltersPopover';
 import ActiveFilterPills from './ActiveFilterPills';
 
 const ConversationSidebar = ({
@@ -19,12 +20,13 @@ const ConversationSidebar = ({
   stats,
   onDeleteConversation,
   onCloseConversation,
-  // Novos props para filtros avançados
+  onCreateOpportunity,
+  // Props para filtros
   showFilters = false,
   onToggleFilters,
   advancedFilters,
   onAdvancedFiltersChange,
-  campaigns = [],
+  users = [],
   tags = [],
   activeFilters = [],
   onRemoveFilter,
@@ -71,6 +73,20 @@ const ConversationSidebar = ({
     return date.toLocaleDateString(i18n.language, { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  // Mapeamento de canal para ícone e cor
+  const getChannelInfo = (providerType) => {
+    const channels = {
+      WHATSAPP: { icon: MessageCircle, color: 'bg-green-500', label: 'WhatsApp' },
+      LINKEDIN: { icon: Linkedin, color: 'bg-blue-600', label: 'LinkedIn' },
+      INSTAGRAM: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram' },
+      TELEGRAM: { icon: Send, color: 'bg-sky-500', label: 'Telegram' },
+      MAIL: { icon: Mail, color: 'bg-gray-500', label: 'Email' },
+      GOOGLE: { icon: Mail, color: 'bg-red-500', label: 'Gmail' },
+      OUTLOOK: { icon: Mail, color: 'bg-blue-500', label: 'Outlook' },
+    };
+    return channels[providerType] || null;
+  };
+
   // Calcular contagem de filtros ativos
   const activeFiltersCount = activeFilters.length;
 
@@ -100,44 +116,46 @@ const ConversationSidebar = ({
         </div>
 
         {/* Barra de Filtros e Contador */}
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={onToggleFilters}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <Filter className="w-4 h-4" />
-            {t('filters.channel')}
-            {activeFiltersCount > 0 && (
-              <span className="px-1.5 py-0.5 bg-[#7229f7] text-white text-xs font-medium rounded-full">
-                {activeFiltersCount}
-              </span>
+        <div className={`flex items-center justify-between ${activeFiltersCount > 0 ? 'mb-2' : ''}`}>
+          <div className="relative">
+            <button
+              onClick={onToggleFilters}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                showFilters || activeFiltersCount > 0
+                  ? 'bg-purple-50 dark:bg-purple-900/30 text-[#7229f7] dark:text-purple-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              {t('filters.title', 'Filtros')}
+              {activeFiltersCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-[#7229f7] text-white text-xs font-medium rounded-full min-w-[20px] text-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+
+            {/* Popover de Filtros */}
+            {showFilters && (
+              <FiltersPopover
+                filters={advancedFilters}
+                onChange={onAdvancedFiltersChange}
+                users={users}
+                tags={tags}
+                onClear={onClearAllFilters}
+                onClose={onToggleFilters}
+              />
             )}
-            <ChevronDown
-              className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`}
-            />
-          </button>
+          </div>
 
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {conversations.length} {conversations.length === 1 ? t('common:conversation') : t('common:conversations')}
           </span>
         </div>
 
-        {/* Painel de Filtros Expansível */}
-        {showFilters && (
-          <div className="mb-3">
-            <AdvancedFiltersPanel
-              filters={advancedFilters}
-              onChange={onAdvancedFiltersChange}
-              campaigns={campaigns}
-              tags={tags}
-              onClear={onClearAllFilters}
-            />
-          </div>
-        )}
-
         {/* Active Filter Pills */}
         {activeFiltersCount > 0 && (
-          <div className="mb-3">
+          <div className="mb-2">
             <ActiveFilterPills
               filters={activeFilters}
               onRemove={onRemoveFilter}
@@ -169,28 +187,45 @@ const ConversationSidebar = ({
               <div
                 key={conversation.id}
                 onClick={() => onSelect(conversation.id)}
-                className={`group px-4 py-3 cursor-pointer transition-all ${
+                className={`group relative px-4 py-3 cursor-pointer transition-all ${
                   selectedId === conversation.id
                     ? 'bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-600'
                     : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  {/* Avatar - só usar se for URL HTTP válida */}
-                  {conversation.lead_picture && conversation.lead_picture.startsWith('http') ? (
-                    <img
-                      src={conversation.lead_picture}
-                      alt={conversation.lead_name}
-                      className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-sm">
-                        {conversation.lead_name?.charAt(0) || '?'}
-                      </span>
-                    </div>
-                  )}
+                  {/* Avatar com indicador de canal */}
+                  <div className="relative flex-shrink-0">
+                    {conversation.lead_picture && conversation.lead_picture.startsWith('http') ? (
+                      <img
+                        src={conversation.lead_picture}
+                        alt={conversation.lead_name}
+                        className="w-11 h-11 rounded-full object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {conversation.lead_name?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Channel indicator overlay */}
+                    {conversation.provider_type && (() => {
+                      const channelInfo = getChannelInfo(conversation.provider_type);
+                      if (!channelInfo) return null;
+                      const ChannelIcon = channelInfo.icon;
+                      return (
+                        <div
+                          className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 ${channelInfo.color} rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-800`}
+                          title={channelInfo.label}
+                        >
+                          <ChannelIcon className="w-3 h-3 text-white" />
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
@@ -211,32 +246,6 @@ const ConversationSidebar = ({
                         {conversation.unread_count > 0 && (
                           <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex-shrink-0 min-w-[18px] h-[18px] flex items-center justify-center shadow-sm">
                             {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
-                          </span>
-                        )}
-                        {/* Tags herdadas do contato */}
-                        {conversation.tags && conversation.tags.slice(0, 2).map(tag => {
-                          const tagColors = {
-                            purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-                            blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-                            green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-                            yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-                            red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-                            pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
-                            orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-                            gray: 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
-                          };
-                          return (
-                            <span
-                              key={tag.id}
-                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${tagColors[tag.color] || tagColors.purple}`}
-                            >
-                              {tag.name}
-                            </span>
-                          );
-                        })}
-                        {conversation.tags && conversation.tags.length > 2 && (
-                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                            +{conversation.tags.length - 2}
                           </span>
                         )}
                       </div>
@@ -264,62 +273,94 @@ const ConversationSidebar = ({
                     </div>
 
                     {conversation.last_message_preview && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mb-2">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {conversation.last_message_preview}
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        {/* AI Status Badge - Only Icon */}
-                        <div
-                          className={`flex items-center justify-center p-1 rounded-full ${
-                            conversation.status === 'ai_active'
-                              ? 'bg-purple-50 dark:bg-purple-900/30 text-[#7229f7] dark:text-purple-400'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                          }`}
-                          title={conversation.status === 'ai_active' ? t('statusLabels.ai_active') : t('statusLabels.manual')}
-                        >
-                          {conversation.status === 'ai_active' ? (
-                            <Bot className="w-3 h-3" />
-                          ) : (
-                            <User className="w-3 h-3" />
-                          )}
-                        </div>
+                    {/* Badges - só renderiza se tiver conteúdo */}
+                    {(conversation.assigned_user_name || conversation.sector_name || conversation.opportunity_id || (conversation.tags && conversation.tags.length > 0)) && (
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {/* Opportunity Badge - só ícone */}
+                        {conversation.opportunity_id && (
+                          <div
+                            className="p-1 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                            title={conversation.opportunity_title || t('sidebar.hasOpportunity', 'Tem oportunidade')}
+                          >
+                            <Briefcase className="w-3 h-3" />
+                          </div>
+                        )}
 
                         {/* Assignment Badge */}
-                        <div
-                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                            conversation.assigned_user_name
-                              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                          }`}
-                          title={conversation.assigned_user_name || t('sidebar.notAssigned')}
-                        >
-                          <UserCircle className="w-2.5 h-2.5" />
-                          <span className="truncate max-w-[60px]">
-                            {conversation.assigned_user_name || t('sidebar.notAssigned')}
-                          </span>
-                        </div>
+                        {conversation.assigned_user_name && (
+                          <div
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            title={conversation.assigned_user_name}
+                          >
+                            <UserCircle className="w-2.5 h-2.5" />
+                            <span className="truncate max-w-[60px]">
+                              {conversation.assigned_user_name}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Sector Badge */}
-                        <div
-                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                            conversation.sector_name
-                              ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                          }`}
-                          title={conversation.sector_name || t('conversation.noSector')}
-                        >
-                          <Building2 className="w-2.5 h-2.5" />
-                          <span className="truncate max-w-[60px]">
-                            {conversation.sector_name || t('conversation.noSector')}
-                          </span>
-                        </div>
-                      </div>
+                        {conversation.sector_name && (
+                          <div
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400"
+                            title={conversation.sector_name}
+                          >
+                            <Building2 className="w-2.5 h-2.5" />
+                            <span className="truncate max-w-[60px]">
+                              {conversation.sector_name}
+                            </span>
+                          </div>
+                        )}
 
-                      {/* Actions (visible on hover) */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Tags do contato */}
+                        {conversation.tags && conversation.tags.slice(0, 2).map(tag => {
+                          const tagColors = {
+                            purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+                            blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+                            green: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+                            yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+                            red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+                            pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+                            orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+                            gray: 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
+                          };
+                          return (
+                            <span
+                              key={tag.id}
+                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${tagColors[tag.color] || tagColors.purple}`}
+                            >
+                              {tag.name}
+                            </span>
+                          );
+                        })}
+                        {conversation.tags && conversation.tags.length > 2 && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                            +{conversation.tags.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Actions (visible on hover) - posicionado absoluto */}
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Create Opportunity - só mostra se não tiver oportunidade */}
+                        {conversation.contact_id && !conversation.opportunity_id && onCreateOpportunity && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCreateOpportunity(conversation);
+                            }}
+                            className="p-1 text-[#7229f7] dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
+                            title={t('sidebar.createOpportunity', 'Criar oportunidade')}
+                          >
+                            <Briefcase className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {conversation.status !== 'closed' && (
                           <button
                             onClick={(e) => {
@@ -342,7 +383,6 @@ const ConversationSidebar = ({
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      </div>
                     </div>
                   </div>
                 </div>

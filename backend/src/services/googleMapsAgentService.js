@@ -8,8 +8,13 @@ const stripeService = require('./stripeService');
 const billingService = require('./billingService');
 const roundRobinService = require('./roundRobinService');
 const emailScraperService = require('./emailScraperService');
-const socketService = require('./socketService');
+const ablyService = require('./ablyService');
 const cnpjService = require('./intelligence/cnpjService');
+
+// Publish progress via Ably
+const publishGmapsProgress = (data) => {
+  ablyService.publishGmapsAgentProgress(data);
+};
 // DEPRECATED: googleMapsRotationService - now using centralized roundRobinService
 // const googleMapsRotationService = require('./googleMapsRotationService');
 
@@ -383,7 +388,7 @@ class GoogleMapsAgentService {
       console.log(`📄 Agent ${agentId}: Fetching page ${currentPage + 1} (offset ${start})`);
 
       // Emit gamified status: Searching
-      socketService.publishGmapsAgentProgress({
+      publishGmapsProgress({
         accountId: agent.account_id,
         agentId,
         status: 'collecting',
@@ -449,7 +454,7 @@ class GoogleMapsAgentService {
       }
 
       // Emit gamified status: Filtering
-      socketService.publishGmapsAgentProgress({
+      publishGmapsProgress({
         accountId: agent.account_id,
         agentId,
         status: 'collecting',
@@ -466,7 +471,7 @@ class GoogleMapsAgentService {
       // Emit gamified status: Enriching (if places have websites)
       const placesWithWebsite = filteredPlaces.filter(p => p.website);
       if (placesWithWebsite.length > 0) {
-        socketService.publishGmapsAgentProgress({
+        publishGmapsProgress({
           accountId: agent.account_id,
           agentId,
           status: 'collecting',
@@ -491,7 +496,7 @@ class GoogleMapsAgentService {
       totalCreditsConsumed += insertionResults.creditsConsumed || 0;
 
       // Emit gamified status: Saving
-      socketService.publishGmapsAgentProgress({
+      publishGmapsProgress({
         accountId: agent.account_id,
         agentId,
         status: 'collecting',
@@ -538,7 +543,7 @@ class GoogleMapsAgentService {
     console.log(`🏁 Agent ${agentId}: Execution complete - ${pagesFetched} pages, ${totalInserted} leads inserted`);
 
     // Emit final WebSocket event with final status (not 'collecting' anymore)
-    socketService.publishGmapsAgentProgress({
+    publishGmapsProgress({
       accountId: agent.account_id,
       agentId,
       status: finalStatus,
@@ -827,7 +832,7 @@ class GoogleMapsAgentService {
         const contactData = serpApiClient.normalizePlaceToContact(place);
 
         // Emit WebSocket: Analyzing this place
-        socketService.publishGmapsAgentProgress({
+        publishGmapsProgress({
           accountId: agent.account_id,
           agentId: agent.id,
           status: 'collecting',
@@ -847,7 +852,7 @@ class GoogleMapsAgentService {
         // Scrape website for email AND generate company description for prospecting
         if (contactData.website) {
           // Emit WebSocket: Enriching with AI
-          socketService.publishGmapsAgentProgress({
+          publishGmapsProgress({
             accountId: agent.account_id,
             agentId: agent.id,
             status: 'collecting',
@@ -1005,7 +1010,7 @@ class GoogleMapsAgentService {
         inserted++;
 
         // Emit WebSocket: Lead saved - update counter
-        socketService.publishGmapsAgentProgress({
+        publishGmapsProgress({
           accountId: agent.account_id,
           agentId: agent.id,
           status: 'collecting',

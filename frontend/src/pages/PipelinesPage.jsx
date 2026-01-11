@@ -38,7 +38,10 @@ import {
   Zap,
   Package,
   Clock,
-  Loader
+  Loader,
+  FolderPlus,
+  X,
+  Tag
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useSearchParams } from 'react-router-dom';
@@ -51,6 +54,28 @@ import ProjectModal from '../components/pipelines/ProjectModal';
 import WinOpportunityModal from '../components/pipelines/WinOpportunityModal';
 import LoseOpportunityModal from '../components/pipelines/LoseOpportunityModal';
 import LeadDetailModal from '../components/LeadDetailModal';
+import PipelineFiltersPanel from '../components/pipelines/PipelineFiltersPanel';
+import UnifiedContactModal from '../components/UnifiedContactModal';
+
+// Mapa de cores legadas (para compatibilidade com dados antigos)
+const LEGACY_COLOR_MAP = {
+  slate: '#64748b',
+  blue: '#3b82f6',
+  purple: '#8b5cf6',
+  amber: '#f59e0b',
+  orange: '#f97316',
+  emerald: '#10b981',
+  red: '#ef4444',
+  pink: '#ec4899',
+  cyan: '#0891b2'
+};
+
+// Resolver cor (suporta hex e nomes legados)
+const resolveColor = (color) => {
+  if (!color) return '#6366f1';
+  if (color.startsWith('#')) return color;
+  return LEGACY_COLOR_MAP[color] || '#6366f1';
+};
 
 const PipelinesPage = () => {
   const { hasPermission } = useAuth();
@@ -86,6 +111,7 @@ const PipelinesPage = () => {
   const [editingProject, setEditingProject] = useState(null);
   const [selectedLead, setSelectedLead] = useState(null);
   const [loadingLeadModal, setLoadingLeadModal] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState(null);
 
   // Win/Lose modals
   const [showWinModal, setShowWinModal] = useState(false);
@@ -106,6 +132,35 @@ const PipelinesPage = () => {
   const columnScrollRefs = useRef({});
   const columnScrollPositions = useRef({});
   const [loadedPagesByStage, setLoadedPagesByStage] = useState({});
+
+  // Filters state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    stages: [],
+    tags: [],
+    owner_id: null,
+    value_min: null,
+    value_max: null,
+    date_from: null,
+    date_to: null,
+    sources: [],
+    has_email: null,
+    has_phone: null
+  });
+  const [allTags, setAllTags] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+
+  // Calculate active filters count
+  const activeFiltersCount = [
+    filters.stages.length > 0,
+    filters.tags.length > 0,
+    filters.owner_id !== null,
+    filters.value_min !== null || filters.value_max !== null,
+    filters.date_from !== null || filters.date_to !== null,
+    filters.sources.length > 0,
+    filters.has_email !== null,
+    filters.has_phone !== null
+  ].filter(Boolean).length;
 
   // Collapse main sidebar on mount
   useEffect(() => {
@@ -148,6 +203,38 @@ const PipelinesPage = () => {
       loadOpportunitiesList();
     }
   }, [currentPage, itemsPerPage, sortField, sortDirection]);
+
+  // Load tags and users for filters
+  useEffect(() => {
+    const loadFilterData = async () => {
+      try {
+        const [tagsRes, usersRes] = await Promise.all([
+          api.getTags(),
+          api.getUsers()
+        ]);
+        if (tagsRes.success) {
+          setAllTags(tagsRes.data?.tags || []);
+        }
+        if (usersRes.success) {
+          setAllUsers(usersRes.data?.users || []);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados de filtros:', err);
+      }
+    };
+    loadFilterData();
+  }, []);
+
+  // Reload when filters change
+  useEffect(() => {
+    if (selectedPipelineId) {
+      if (viewMode === 'kanban') {
+        loadOpportunitiesKanban();
+      } else {
+        loadOpportunitiesList();
+      }
+    }
+  }, [filters]);
 
   const loadPipelinesAndProjects = async () => {
     try {
@@ -735,6 +822,10 @@ const PipelinesPage = () => {
           phones: opp.contact_phones,
           social_links: opp.contact_social_links,
           team_members: opp.contact_team_members,
+          // AI Analysis
+          ai_profile_analysis: opp.ai_profile_analysis,
+          ai_analyzed_at: opp.ai_analyzed_at,
+          public_identifier: opp.contact_public_identifier || opp.contact_linkedin_id,
           status: opp.won_at ? 'qualified' : opp.lost_at ? 'discarded' : 'leads',
           source: opp.source,
           created_at: opp.created_at,
@@ -1086,7 +1177,7 @@ const PipelinesPage = () => {
           <div className="flex items-center gap-2">
             <div
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: stage.color || '#6366f1' }}
+              style={{ backgroundColor: resolveColor(stage.color) }}
             />
             <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">
               {stage.name}
@@ -1586,7 +1677,7 @@ const PipelinesPage = () => {
                                                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                                           }`}
                                         >
-                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pipeline.color || '#6366f1' }} />
+                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: resolveColor(pipeline.color) }} />
                                           <span className="flex-1 truncate">{pipeline.name}</span>
                                           <span className="text-[10px] text-gray-400">{pipeline.opportunities_count || 0}</span>
                                         </div>
@@ -1612,45 +1703,139 @@ const PipelinesPage = () => {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-800">
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t('search')}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
+        {/* Header - so mostrar se tem projetos e pipelines */}
+        {projects.length > 0 && pipelines.length > 0 && (
+          <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t('search')}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Filters Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                    showFilters || activeFiltersCount > 0
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  <span className="text-sm font-medium">{t('filters')}</span>
+                  {activeFiltersCount > 0 && (
+                    <span className="flex items-center justify-center w-5 h-5 bg-purple-600 text-white text-xs font-semibold rounded-full">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Filters Panel Dropdown */}
+                {showFilters && (
+                  <PipelineFiltersPanel
+                    filters={filters}
+                    onChange={setFilters}
+                    stages={stages}
+                    tags={allTags}
+                    users={allUsers}
+                    onClose={() => setShowFilters(false)}
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-0.5">
+                <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded transition-colors ${viewMode === 'kanban' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`} title="Kanban"><LayoutGrid className="w-4 h-4" /></button>
+                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`} title="Lista"><ListIcon className="w-4 h-4" /></button>
+              </div>
+
+              {selectedPipeline && (
+                <button onClick={handleCreateOpportunity} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors">
+                  <Plus className="w-4 h-4" />
+                  <span className="font-medium">{t('newOpportunity')}</span>
+                </button>
+              )}
+
+              {selectedPipeline && hasPermission('pipelines:edit') && (
+                <button onClick={() => { setEditingPipeline(selectedPipeline); setShowPipelineSettings(true); }} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title={t('pipelineSettings')}>
+                  <Settings className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 text-gray-700 dark:text-gray-300 transition-colors">
-              <Filter className="w-4 h-4" />
-              <span className="text-sm font-medium">{t('filters')}</span>
-            </button>
-
-            <div className="flex items-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-0.5">
-              <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded transition-colors ${viewMode === 'kanban' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`} title="Kanban"><LayoutGrid className="w-4 h-4" /></button>
-              <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`} title="Lista"><ListIcon className="w-4 h-4" /></button>
-            </div>
-
-            {selectedPipeline && (
-              <button onClick={handleCreateOpportunity} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors">
-                <Plus className="w-4 h-4" />
-                <span className="font-medium">{t('newOpportunity')}</span>
-              </button>
-            )}
-
-            {selectedPipeline && hasPermission('pipelines:edit') && (
-              <button onClick={() => { setEditingPipeline(selectedPipeline); setShowPipelineSettings(true); }} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title={t('pipelineSettings')}>
-                <Settings className="w-5 h-5" />
-              </button>
+            {/* Active Filters Pills */}
+            {activeFiltersCount > 0 && (
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                {filters.stages.length > 0 && filters.stages.map(stageId => {
+                  const stage = stages.find(s => s.id === stageId);
+                  return stage && (
+                    <span key={stageId} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: resolveColor(stage.color) }}></span>
+                      {stage.name}
+                      <button onClick={() => setFilters({ ...filters, stages: filters.stages.filter(id => id !== stageId) })} className="ml-1 hover:text-red-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+                {filters.tags.length > 0 && filters.tags.map(tagId => {
+                  const tag = allTags.find(t => t.id === tagId);
+                  return tag && (
+                    <span key={tagId} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                      <Tag className="w-3 h-3" />
+                      {tag.name}
+                      <button onClick={() => setFilters({ ...filters, tags: filters.tags.filter(id => id !== tagId) })} className="ml-1 hover:text-red-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+                {filters.owner_id && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                    <User className="w-3 h-3" />
+                    {allUsers.find(u => u.id === filters.owner_id)?.name || 'Responsável'}
+                    <button onClick={() => setFilters({ ...filters, owner_id: null })} className="ml-1 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {(filters.value_min || filters.value_max) && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                    <DollarSign className="w-3 h-3" />
+                    {filters.value_min && `R$ ${filters.value_min}`}
+                    {filters.value_min && filters.value_max && ' - '}
+                    {filters.value_max && `R$ ${filters.value_max}`}
+                    <button onClick={() => setFilters({ ...filters, value_min: null, value_max: null })} className="ml-1 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {(filters.date_from || filters.date_to) && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                    <Calendar className="w-3 h-3" />
+                    Período
+                    <button onClick={() => setFilters({ ...filters, date_from: null, date_to: null })} className="ml-1 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                <button
+                  onClick={() => setFilters({ stages: [], tags: [], owner_id: null, value_min: null, value_max: null, date_from: null, date_to: null, sources: [], has_email: null, has_phone: null })}
+                  className="text-xs text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium"
+                >
+                  Limpar filtros
+                </button>
+              </div>
             )}
           </div>
-        </div>
+        )}
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden relative">
@@ -1686,14 +1871,32 @@ const PipelinesPage = () => {
             </>
           ) : !loadingContent && (
             <div className="flex-1 flex flex-col items-center justify-center h-full">
-              <Target className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('selectPipeline')}</h2>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">{t('selectPipelineSubtitle')}</p>
-              {hasPermission('pipelines:create') && (
-                <button onClick={() => { setEditingPipeline(null); setShowPipelineSettings(true); }} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors">
-                  <Plus className="w-4 h-4" />
-                  {t('createPipeline')}
-                </button>
+              {projects.length === 0 ? (
+                // Sem projetos - oferecer criar projeto
+                <>
+                  <FolderPlus className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
+                  <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('noProjectsTitle')}</h2>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">{t('noProjectsSubtitle')}</p>
+                  {hasPermission('pipelines:create') && (
+                    <button onClick={() => { setEditingProject(null); setShowProjectModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors">
+                      <Plus className="w-4 h-4" />
+                      {t('createProject')}
+                    </button>
+                  )}
+                </>
+              ) : (
+                // Com projetos mas sem pipeline selecionada
+                <>
+                  <Target className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
+                  <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('selectPipeline')}</h2>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">{t('selectPipelineSubtitle')}</p>
+                  {hasPermission('pipelines:create') && (
+                    <button onClick={() => { setEditingPipeline(null); setShowPipelineSettings(true); }} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors">
+                      <Plus className="w-4 h-4" />
+                      {t('createPipeline')}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1776,8 +1979,18 @@ const PipelinesPage = () => {
               loadOpportunitiesList();
             }
           }}
+          onViewContact={(contactId) => {
+            setSelectedContactId(contactId);
+          }}
         />
       )}
+
+      {/* Unified Contact Modal - Full contact details */}
+      <UnifiedContactModal
+        isOpen={!!selectedContactId}
+        onClose={() => setSelectedContactId(null)}
+        contactId={selectedContactId}
+      />
 
       {/* Loading Lead Modal Overlay */}
       {loadingLeadModal && (

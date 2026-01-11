@@ -692,6 +692,21 @@ class ApiService {
     });
   }
 
+  // ================================
+  // WHATSAPP
+  // ================================
+
+  async getWhatsAppAccounts() {
+    return this.request('/profiles/whatsapp-accounts');
+  }
+
+  async startWhatsAppConversation(data) {
+    return this.request('/conversations/whatsapp/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async connectLinkedInAccount(username, password) {
     return this.request('/profiles/linkedin-accounts/connect', {
       method: 'POST',
@@ -930,6 +945,27 @@ class ApiService {
 
   async getContactFull(id) {
     return this.request(`/contacts/${id}/full`);
+  }
+
+  async enrichContact(id, options = {}) {
+    return this.request(`/contacts/${id}/enrich`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+  }
+
+  async getContactCompany(id, cacheBust = null) {
+    const url = cacheBust
+      ? `/contacts/${id}/company?_t=${cacheBust}`
+      : `/contacts/${id}/company`;
+    return this.request(url);
+  }
+
+  async enrichContactCompany(id, options = {}) {
+    return this.request(`/contacts/${id}/enrich-company`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
   }
 
   async createContact(data) {
@@ -3250,6 +3286,75 @@ class ApiService {
     return this.request('/opportunities/reorder', {
       method: 'PUT',
       body: JSON.stringify({ orders }),
+    });
+  }
+
+  // ================================
+  // NOTIFICATIONS
+  // ================================
+
+  async getNotifications(options = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit);
+    if (options.offset) params.append('offset', options.offset);
+    if (options.unreadOnly) params.append('unread_only', 'true');
+    if (options.type) params.append('type', options.type);
+
+    const query = params.toString();
+    return this.request(`/notifications${query ? '?' + query : ''}`);
+  }
+
+  async getNotificationCount() {
+    return this.request('/notifications/count');
+  }
+
+  async markNotificationAsRead(notificationId) {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request('/notifications/read-all', {
+      method: 'POST',
+    });
+  }
+
+  async deleteNotification(notificationId) {
+    return this.request(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ===================================
+  // QUICK REPLIES
+  // ===================================
+
+  async getQuickReplies() {
+    return this.request('/quick-replies');
+  }
+
+  async getQuickReply(id) {
+    return this.request(`/quick-replies/${id}`);
+  }
+
+  async createQuickReply(data) {
+    return this.request('/quick-replies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateQuickReply(id, data) {
+    return this.request(`/quick-replies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteQuickReply(id) {
+    return this.request(`/quick-replies/${id}`, {
+      method: 'DELETE',
     });
   }
 

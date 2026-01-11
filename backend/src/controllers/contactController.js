@@ -326,6 +326,9 @@ exports.createContact = async (req, res) => {
       last_name,
       email,
       phone,
+      phone_country_code,   // ISO country code for phone format (e.g., 'BR', 'US')
+      emails = [],          // JSONB array: [{ email, type: 'personal'|'commercial'|'support' }]
+      phones = [],          // JSONB array: [{ phone, type: 'mobile'|'whatsapp'|'landline' }]
       company,
       title,
       location,
@@ -382,13 +385,14 @@ exports.createContact = async (req, res) => {
       const contactResult = await client.query(`
         INSERT INTO contacts (
           user_id, account_id, sector_id, name, first_name, last_name, email, phone,
-          company, title, location, linkedin_profile_id,
+          phone_country_code, emails, phones, company, title, location, linkedin_profile_id,
           profile_url, profile_picture, headline, about, industry,
           source, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         RETURNING *
       `, [
         userId, accountId, sector_id || null, name, first_name, last_name, email, phone,
+        phone_country_code || null, JSON.stringify(emails), JSON.stringify(phones),
         company, title, location, linkedin_profile_id,
         profile_url, profile_picture, headline, about, industry,
         source, notes
@@ -480,9 +484,10 @@ exports.updateContact = async (req, res) => {
     }
 
     const {
-      name, first_name, last_name, email, phone, company, title,
+      name, first_name, last_name, email, phone, phone_country_code,
+      emails, phones, company, title,
       location, profile_url, profile_picture, headline, about,
-      industry, notes
+      industry, notes, website, instagram_url, facebook_url
     } = req.body;
 
     // Build update query
@@ -517,6 +522,24 @@ exports.updateContact = async (req, res) => {
     if (phone !== undefined) {
       updates.push(`phone = $${paramIndex}`);
       values.push(phone);
+      paramIndex++;
+    }
+
+    if (phone_country_code !== undefined) {
+      updates.push(`phone_country_code = $${paramIndex}`);
+      values.push(phone_country_code);
+      paramIndex++;
+    }
+
+    if (emails !== undefined) {
+      updates.push(`emails = $${paramIndex}::jsonb`);
+      values.push(JSON.stringify(emails));
+      paramIndex++;
+    }
+
+    if (phones !== undefined) {
+      updates.push(`phones = $${paramIndex}::jsonb`);
+      values.push(JSON.stringify(phones));
       paramIndex++;
     }
 
@@ -571,6 +594,24 @@ exports.updateContact = async (req, res) => {
     if (notes !== undefined) {
       updates.push(`notes = $${paramIndex}`);
       values.push(notes);
+      paramIndex++;
+    }
+
+    if (website !== undefined) {
+      updates.push(`website = $${paramIndex}`);
+      values.push(website);
+      paramIndex++;
+    }
+
+    if (instagram_url !== undefined) {
+      updates.push(`instagram_url = $${paramIndex}`);
+      values.push(instagram_url);
+      paramIndex++;
+    }
+
+    if (facebook_url !== undefined) {
+      updates.push(`facebook_url = $${paramIndex}`);
+      values.push(facebook_url);
       paramIndex++;
     }
 
@@ -1449,6 +1490,477 @@ exports.refreshContactData = async (req, res) => {
 
 // Alias para compatibilidade (mantém endpoint antigo funcionando)
 exports.refreshContactPicture = exports.refreshContactData;
+
+/**
+ * POST /contacts/:id/enrich
+ * Enrich contact with full LinkedIn profile data and company info
+ */
+exports.enrichContact = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { force = false } = req.body;
+
+    const { enrichContactById } = require('../services/contactEnrichmentService');
+
+    // Verify contact belongs to this account
+    const contact = await db.findOne('contacts', { id, account_id: accountId });
+    if (!contact) {
+      throw new NotFoundError('Contact not found');
+    }
+
+    if (!contact.linkedin_profile_id) {
+      throw new BadRequestError('Contact does not have a LinkedIn profile ID');
+    }
+
+    // Enrich contact (will also enrich company)
+    const result = await enrichContactById(id, force);
+
+    if (result.error) {
+      throw new BadRequestError(result.error);
+    }
+
+    if (result.skipped) {
+      return sendSuccess(res, {
+        message: result.reason,
+        skipped: true
+      });
+    }
+
+    // Fetch updated contact with company
+    const enrichedContact = await db.query(`
+      SELECT c.*,
+             comp.name as company_name,
+             comp.logo_url as company_logo_url,
+             comp.industry as company_industry,
+             comp.company_size,
+             comp.website as company_website,
+             comp.description as company_description,
+             comp.specialties as company_specialties,
+             comp.headquarters as company_headquarters,
+             comp.founded as company_founded,
+             comp.follower_count as company_follower_count
+      FROM contacts c
+      LEFT JOIN companies comp ON c.current_company_id = comp.id
+      WHERE c.id = $1
+    `, [id]);
+
+    sendSuccess(res, {
+      message: 'Contact enriched successfully',
+      contact: enrichedContact.rows[0],
+      fields_updated: result.fields_updated,
+      company_enriched: !!result.company_id
+    });
+
+  } catch (error) {
+    console.error('Error enriching contact:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * GET /contacts/:id/company
+ * Get company data for a contact
+ */
+exports.getContactCompany = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.account_id;
+
+    // Get contact with company data and experience to find company_id
+    const result = await db.query(`
+      SELECT
+        c.id as contact_id,
+        c.company as company_name_text,
+        c.experience,
+        c.current_company_id,
+        comp.id as company_id,
+        comp.linkedin_company_id,
+        comp.linkedin_url,
+        comp.name,
+        comp.logo_url,
+        comp.website,
+        comp.industry,
+        comp.company_size,
+        comp.employee_count_min,
+        comp.employee_count_max,
+        comp.headquarters,
+        comp.locations,
+        comp.description,
+        comp.tagline,
+        comp.specialties,
+        comp.founded,
+        comp.company_type,
+        comp.follower_count,
+        comp.enriched_at
+      FROM contacts c
+      LEFT JOIN companies comp ON c.current_company_id = comp.id
+      WHERE c.id = $1 AND c.account_id = $2
+    `, [id, accountId]);
+
+    if (result.rows.length === 0) {
+      return sendError(res, new Error('Contact not found'), 404);
+    }
+
+    const row = result.rows[0];
+
+    // Check if we have a company_id in experience that we can use to enrich
+    let linkedinCompanyId = row.linkedin_company_id;
+    let companyNameFromExperience = null;
+
+    if (row.experience) {
+      try {
+        const exp = typeof row.experience === 'string' ? JSON.parse(row.experience) : row.experience;
+        if (Array.isArray(exp) && exp.length > 0) {
+          // Find current job (no end date or status = current)
+          const currentJob = exp.find(e => !e.end && !e.end_date || e.status === 'current' || e.status === 'CURRENT') || exp[0];
+
+          // Extract company name from experience
+          companyNameFromExperience = currentJob?.company || currentJob?.company_name || currentJob?.companyName || currentJob?.organization;
+
+          if (!linkedinCompanyId) {
+            // Check all possible field names for company ID
+            linkedinCompanyId = currentJob?.company_id || currentJob?.company_linkedin_id || currentJob?.company_urn
+              || currentJob?.companyId || currentJob?.companyUrn || currentJob?.company_profile_id;
+
+            // If no company ID, try to extract from company URL
+            const companyUrl = currentJob?.company_linkedin_url || currentJob?.company_url || currentJob?.companyUrl || currentJob?.url;
+            if (!linkedinCompanyId && companyUrl) {
+              const urlMatch = companyUrl.match(/\/company\/([^\/\?]+)/);
+              if (urlMatch && urlMatch[1]) {
+                linkedinCompanyId = urlMatch[1];
+              }
+            }
+          }
+
+          console.log('[GET_CONTACT_COMPANY] Experience found:', {
+            hasExperience: true,
+            currentJobKeys: currentJob ? Object.keys(currentJob) : [],
+            companyNameFromExperience,
+            resolvedId: linkedinCompanyId
+          });
+        }
+      } catch (e) {
+        console.error('[GET_CONTACT_COMPANY] Error parsing experience:', e);
+      }
+    }
+
+    // Use company name from contacts table or from experience data
+    const finalCompanyName = row.company_name_text || companyNameFromExperience;
+
+    // Format company data for frontend
+    const company = row.company_id ? {
+      id: row.company_id,
+      linkedin_company_id: row.linkedin_company_id,
+      name: row.name,
+      logo: row.logo_url,
+      logo_url: row.logo_url,
+      linkedin_url: row.linkedin_url,
+      website: row.website,
+      industry: row.industry,
+      company_size: row.company_size,
+      employee_count: row.employee_count_max || row.employee_count_min,
+      location: row.headquarters,
+      headquarters: row.headquarters,
+      summary: row.description,
+      description: row.description,
+      tagline: row.tagline,
+      specialties: row.specialties ? (typeof row.specialties === 'string' ? JSON.parse(row.specialties) : row.specialties) : null,
+      founded_year: row.founded,
+      company_type: row.company_type,
+      follower_count: row.follower_count,
+      enriched_at: row.enriched_at
+    } : null;
+
+    console.log('[GET_CONTACT_COMPANY] Returning:', {
+      hasCompany: !!company,
+      companyDbId: row.company_id,
+      currentCompanyIdFromContact: row.current_company_id,
+      companyName: company?.name,
+      finalCompanyName,
+      canEnrich: !!linkedinCompanyId || !!finalCompanyName,
+      linkedinCompanyId
+    });
+
+    sendSuccess(res, {
+      company,
+      company_name: finalCompanyName,
+      can_enrich: !!linkedinCompanyId || !!finalCompanyName, // Can try to search by name
+      linkedin_company_id: linkedinCompanyId
+    });
+
+  } catch (error) {
+    console.error('Error getting contact company:', error);
+    sendError(res, error);
+  }
+};
+
+/**
+ * POST /contacts/:id/enrich-company
+ * Enrich company data from LinkedIn for a contact
+ */
+exports.enrichContactCompany = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { force = false } = req.body;
+    const accountId = req.user.account_id;
+
+    // Get contact with experience data
+    const contactResult = await db.query(`
+      SELECT c.id, c.experience, c.current_company_id, c.company,
+             comp.linkedin_company_id, comp.enriched_at
+      FROM contacts c
+      LEFT JOIN companies comp ON c.current_company_id = comp.id
+      WHERE c.id = $1 AND c.account_id = $2
+    `, [id, accountId]);
+
+    if (contactResult.rows.length === 0) {
+      return sendError(res, new Error('Contact not found'), 404);
+    }
+
+    const contact = contactResult.rows[0];
+
+    // Check if recently enriched (within 24 hours) unless forced
+    if (!force && contact.enriched_at) {
+      const hoursSinceEnrich = (Date.now() - new Date(contact.enriched_at)) / (1000 * 60 * 60);
+      if (hoursSinceEnrich < 24) {
+        return sendSuccess(res, {
+          message: 'Company was recently enriched',
+          skipped: true,
+          enriched_at: contact.enriched_at
+        });
+      }
+    }
+
+    // Find LinkedIn company ID from experience or existing company
+    let linkedinCompanyId = contact.linkedin_company_id;
+    let companyName = contact.company;
+
+    // Always try to extract from experience if we're missing either companyId or companyName
+    if (contact.experience && (!linkedinCompanyId || !companyName)) {
+      try {
+        const exp = typeof contact.experience === 'string' ? JSON.parse(contact.experience) : contact.experience;
+        if (Array.isArray(exp) && exp.length > 0) {
+          // Find current job (no end date or status = current)
+          const currentJob = exp.find(e => !e.end && !e.end_date || e.status === 'current' || e.status === 'CURRENT') || exp[0];
+
+          // Extract company name if not set
+          if (!companyName) {
+            companyName = currentJob?.company || currentJob?.company_name || currentJob?.companyName || currentJob?.organization;
+          }
+
+          // Extract company ID if not set
+          if (!linkedinCompanyId) {
+            // Check all possible field names for company ID
+            linkedinCompanyId = currentJob?.company_id || currentJob?.company_linkedin_id || currentJob?.company_urn
+              || currentJob?.companyId || currentJob?.companyUrn || currentJob?.company_profile_id;
+
+            // If no company ID, try to extract from company URL
+            const companyUrl = currentJob?.company_linkedin_url || currentJob?.company_url || currentJob?.companyUrl || currentJob?.url;
+            if (!linkedinCompanyId && companyUrl) {
+              const urlMatch = companyUrl.match(/\/company\/([^\/\?]+)/);
+              if (urlMatch && urlMatch[1]) {
+                linkedinCompanyId = urlMatch[1];
+              }
+            }
+
+            console.log('[ENRICH_COMPANY] Extracted from experience:', {
+              companyName,
+              linkedinCompanyId,
+              companyUrl,
+              currentJobKeys: currentJob ? Object.keys(currentJob) : []
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing experience:', e);
+      }
+    }
+
+    // Get active LinkedIn account
+    const linkedinAccount = await db.query(`
+      SELECT unipile_account_id
+      FROM linkedin_accounts
+      WHERE account_id = $1 AND status = 'active'
+      LIMIT 1
+    `, [accountId]);
+
+    if (linkedinAccount.rows.length === 0) {
+      return sendError(res, new Error('No active LinkedIn account connected'), 400);
+    }
+
+    const unipileAccountId = linkedinAccount.rows[0].unipile_account_id;
+    const unipileClient = require('../config/unipile');
+
+    if (!unipileClient.isInitialized()) {
+      return sendError(res, new Error('Unipile client not initialized'), 500);
+    }
+
+    // If no company ID but we have a company name, try to search for it
+    if (!linkedinCompanyId && companyName) {
+      console.log('[COMPANY ENRICHMENT] No company ID, searching by name:', companyName);
+      try {
+        const searchResult = await unipileClient.company.search({
+          account_id: unipileAccountId,
+          keywords: companyName,
+          limit: 5
+        });
+
+        // Find the best match (exact or close match on name)
+        if (searchResult?.items?.length > 0) {
+          const companyNameLower = companyName.toLowerCase().trim();
+          const exactMatch = searchResult.items.find(c =>
+            c.name?.toLowerCase().trim() === companyNameLower
+          );
+          const bestMatch = exactMatch || searchResult.items[0];
+
+          if (bestMatch?.id) {
+            linkedinCompanyId = bestMatch.id;
+            console.log('[COMPANY ENRICHMENT] Found company by search:', {
+              searchName: companyName,
+              matchName: bestMatch.name,
+              matchId: bestMatch.id,
+              isExact: !!exactMatch
+            });
+          }
+        }
+      } catch (searchError) {
+        console.error('[COMPANY ENRICHMENT] Search failed:', searchError.message);
+      }
+    }
+
+    if (!linkedinCompanyId) {
+      return sendSuccess(res, {
+        message: 'Não foi possível encontrar a empresa no LinkedIn. Tente enriquecer o perfil do contato primeiro.',
+        skipped: true,
+        company_name: companyName
+      });
+    }
+
+    console.log('[COMPANY ENRICHMENT] Fetching company:', linkedinCompanyId);
+
+    // Fetch company details from Unipile
+    let companyData;
+    try {
+      companyData = await unipileClient.company.getOne({
+        account_id: unipileAccountId,
+        identifier: linkedinCompanyId
+      });
+    } catch (error) {
+      console.error('[COMPANY ENRICHMENT] Error fetching from Unipile:', error.message);
+      return sendError(res, new Error('Failed to fetch company from LinkedIn'), 500);
+    }
+
+    if (!companyData || !companyData.name) {
+      return sendSuccess(res, {
+        message: 'Empresa não encontrada no LinkedIn',
+        skipped: true
+      });
+    }
+
+    console.log('[COMPANY ENRICHMENT] Received company data:', Object.keys(companyData));
+
+    // Parse employee count range
+    let employeeCountMin = null;
+    let employeeCountMax = null;
+    if (companyData.company_size || companyData.employee_count) {
+      const sizeStr = companyData.company_size || String(companyData.employee_count);
+      const match = sizeStr.match(/(\d+)-(\d+)/);
+      if (match) {
+        employeeCountMin = parseInt(match[1]);
+        employeeCountMax = parseInt(match[2]);
+      } else if (sizeStr.includes('+')) {
+        employeeCountMin = parseInt(sizeStr.replace(/\D/g, ''));
+      } else {
+        const count = parseInt(sizeStr.replace(/\D/g, ''));
+        if (!isNaN(count)) {
+          employeeCountMin = count;
+          employeeCountMax = count;
+        }
+      }
+    }
+
+    // Prepare company record
+    const companyRecord = {
+      account_id: accountId,
+      linkedin_company_id: companyData.id || linkedinCompanyId,
+      linkedin_url: companyData.linkedin_url || companyData.url || companyData.profile_url,
+      name: companyData.name,
+      logo_url: companyData.logo || companyData.logo_url || companyData.profile_picture,
+      website: companyData.website,
+      industry: companyData.industry,
+      company_size: companyData.company_size || companyData.staff_count,
+      employee_count_min: employeeCountMin,
+      employee_count_max: employeeCountMax,
+      headquarters: companyData.headquarters || companyData.location,
+      locations: companyData.locations ? JSON.stringify(companyData.locations) : null,
+      description: companyData.description || companyData.summary || companyData.about,
+      tagline: companyData.tagline,
+      specialties: companyData.specialties ? JSON.stringify(
+        Array.isArray(companyData.specialties) ? companyData.specialties : [companyData.specialties]
+      ) : null,
+      founded: companyData.founded || companyData.founded_year || companyData.year_founded,
+      company_type: companyData.company_type || companyData.type,
+      follower_count: companyData.follower_count || companyData.followers,
+      enriched_at: new Date(),
+      updated_at: new Date()
+    };
+
+    // Upsert company
+    let companyId;
+    const existingCompany = await db.findOne('companies', {
+      account_id: accountId,
+      linkedin_company_id: companyRecord.linkedin_company_id
+    });
+
+    if (existingCompany) {
+      await db.update('companies', companyRecord, { id: existingCompany.id });
+      companyId = existingCompany.id;
+    } else {
+      const newCompany = await db.insert('companies', companyRecord);
+      companyId = newCompany.id;
+    }
+
+    // Update contact's current_company_id if not set
+    if (!contact.current_company_id) {
+      await db.update('contacts', { current_company_id: companyId }, { id: contact.id });
+    }
+
+    // Format response
+    const enrichedCompany = {
+      id: companyId,
+      linkedin_company_id: companyRecord.linkedin_company_id,
+      name: companyRecord.name,
+      logo: companyRecord.logo_url,
+      logo_url: companyRecord.logo_url,
+      linkedin_url: companyRecord.linkedin_url,
+      website: companyRecord.website,
+      industry: companyRecord.industry,
+      company_size: companyRecord.company_size,
+      employee_count: employeeCountMax || employeeCountMin,
+      location: companyRecord.headquarters,
+      headquarters: companyRecord.headquarters,
+      summary: companyRecord.description,
+      description: companyRecord.description,
+      tagline: companyRecord.tagline,
+      specialties: companyRecord.specialties ? JSON.parse(companyRecord.specialties) : null,
+      founded_year: companyRecord.founded,
+      company_type: companyRecord.company_type,
+      follower_count: companyRecord.follower_count,
+      enriched_at: companyRecord.enriched_at
+    };
+
+    sendSuccess(res, {
+      message: 'Company enriched successfully',
+      company: enrichedCompany
+    });
+
+  } catch (error) {
+    console.error('Error enriching contact company:', error);
+    sendError(res, error);
+  }
+};
 
 // Helper functions for CSV
 function escapeCsvField(field) {

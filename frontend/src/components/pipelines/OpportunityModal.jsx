@@ -5,22 +5,17 @@ import {
   Target,
   Search,
   User,
-  Building2,
-  DollarSign,
-  Calendar,
-  Percent,
-  ChevronDown
+  Plus,
+  ArrowLeft
 } from 'lucide-react';
 import api from '../../services/api';
+import PhoneInput, { validatePhone } from '../PhoneInput';
 
 const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     contact_id: '',
     stage_id: '',
     title: '',
-    value: '',
-    probability: 0,
-    expected_close_date: '',
     owner_user_id: ''
   });
   const [contacts, setContacts] = useState([]);
@@ -30,6 +25,38 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
+
+  // Estado para criar novo contato
+  const [showNewContactForm, setShowNewContactForm] = useState(false);
+  const [newContactData, setNewContactData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    phone_country_code: '',
+    company: '',
+    source: 'manual'
+  });
+  const [creatingContact, setCreatingContact] = useState(false);
+  const [searchPerformed, setSearchPerformed] = useState(false);
+  const [contactErrors, setContactErrors] = useState({});
+
+  // Opções de origem
+  const SOURCE_OPTIONS = [
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'google_maps', label: 'Google Maps' },
+    { value: 'list', label: 'Lista' },
+    { value: 'paid_traffic', label: 'Tráfego Pago' },
+    { value: 'manual', label: 'Manual' },
+    { value: 'other', label: 'Outro' }
+  ];
+
+  // Validação de email
+  const validateEmail = (email) => {
+    if (!email) return 'Email é obrigatório';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return 'Email inválido';
+    return null;
+  };
 
   const isNew = !opportunity?.id;
 
@@ -42,11 +69,6 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
         contact_id: opportunity.contact_id || '',
         stage_id: opportunity.stage_id || '',
         title: opportunity.title || '',
-        value: opportunity.value || '',
-        probability: opportunity.probability || 0,
-        expected_close_date: opportunity.expected_close_date
-          ? new Date(opportunity.expected_close_date).toISOString().split('T')[0]
-          : '',
         owner_user_id: opportunity.owner_user_id || ''
       });
       setSelectedContact({
@@ -80,6 +102,7 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
   const searchContacts = async (query) => {
     if (!query || query.length < 2) {
       setContacts([]);
+      setSearchPerformed(false);
       return;
     }
 
@@ -88,6 +111,7 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
       const response = await api.get(`/contacts?search=${encodeURIComponent(query)}&limit=10`);
       if (response.success) {
         setContacts(response.data.contacts || []);
+        setSearchPerformed(true);
       }
     } catch (err) {
       console.error('Erro ao buscar contatos:', err);
@@ -107,10 +131,68 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
     setFormData(prev => ({
       ...prev,
       contact_id: contact.id,
-      title: prev.title || `${contact.name}${contact.company ? ` - ${contact.company}` : ''}`
+      title: contact.name
     }));
     setContacts([]);
     setContactSearch('');
+    setSearchPerformed(false);
+  };
+
+  const handleCreateContact = async () => {
+    // Validar todos os campos
+    const errors = {};
+
+    if (!newContactData.name.trim()) {
+      errors.name = 'Nome é obrigatório';
+    }
+
+    const emailError = validateEmail(newContactData.email);
+    if (emailError) errors.email = emailError;
+
+    const phoneError = validatePhone(newContactData.phone, newContactData.phone_country_code);
+    if (phoneError) errors.phone = phoneError;
+
+    if (Object.keys(errors).length > 0) {
+      setContactErrors(errors);
+      return;
+    }
+
+    try {
+      setCreatingContact(true);
+      setError('');
+      setContactErrors({});
+
+      const response = await api.createContact(newContactData);
+
+      if (response.success) {
+        const newContact = response.data.contact;
+        selectContact(newContact);
+        setShowNewContactForm(false);
+        setNewContactData({ name: '', email: '', phone: '', phone_country_code: '', company: '', source: 'manual' });
+      } else {
+        setError(response.message || 'Erro ao criar contato');
+      }
+    } catch (err) {
+      setError(err.message || 'Erro ao criar contato');
+    } finally {
+      setCreatingContact(false);
+    }
+  };
+
+  const openNewContactForm = () => {
+    // Preencher nome com o texto da busca
+    setNewContactData({
+      name: contactSearch,
+      email: '',
+      phone: '',
+      phone_country_code: '',
+      company: '',
+      source: 'manual'
+    });
+    setContactErrors({});
+    setShowNewContactForm(true);
+    setContacts([]);
+    setSearchPerformed(false);
   };
 
   const handleSubmit = async () => {
@@ -135,10 +217,7 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
       setSaving(true);
 
       const payload = {
-        ...formData,
-        value: parseFloat(formData.value) || 0,
-        probability: parseInt(formData.probability) || 0,
-        expected_close_date: formData.expected_close_date || null
+        ...formData
       };
 
       let response;
@@ -226,6 +305,120 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
                   </button>
                 )}
               </div>
+            ) : showNewContactForm ? (
+              /* Formulário de novo contato */
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Novo Contato</h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewContactForm(false);
+                      setNewContactData({ name: '', email: '', phone: '', phone_country_code: '', company: '', source: 'manual' });
+                      setContactErrors({});
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center gap-1"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    Voltar
+                  </button>
+                </div>
+
+                {/* Nome */}
+                <div>
+                  <input
+                    type="text"
+                    value={newContactData.name}
+                    onChange={(e) => {
+                      setNewContactData({ ...newContactData, name: e.target.value });
+                      if (contactErrors.name) setContactErrors({ ...contactErrors, name: null });
+                    }}
+                    placeholder="Nome *"
+                    className={`w-full px-3 py-2 bg-white dark:bg-gray-800 border rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500 ${
+                      contactErrors.name ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'
+                    }`}
+                    autoFocus
+                  />
+                  {contactErrors.name && (
+                    <p className="mt-1 text-xs text-red-500">{contactErrors.name}</p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <input
+                    type="email"
+                    value={newContactData.email}
+                    onChange={(e) => {
+                      setNewContactData({ ...newContactData, email: e.target.value });
+                      if (contactErrors.email) setContactErrors({ ...contactErrors, email: null });
+                    }}
+                    placeholder="Email *"
+                    className={`w-full px-3 py-2 bg-white dark:bg-gray-800 border rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500 ${
+                      contactErrors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'
+                    }`}
+                  />
+                  {contactErrors.email && (
+                    <p className="mt-1 text-xs text-red-500">{contactErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Telefone */}
+                <PhoneInput
+                  value={newContactData.phone}
+                  onChange={(value) => {
+                    setNewContactData({ ...newContactData, phone: value });
+                    if (contactErrors.phone) setContactErrors({ ...contactErrors, phone: null });
+                  }}
+                  countryCode={newContactData.phone_country_code}
+                  onCountryChange={(code) => setNewContactData({ ...newContactData, phone_country_code: code })}
+                  error={contactErrors.phone}
+                />
+
+                {/* Empresa */}
+                <input
+                  type="text"
+                  value={newContactData.company}
+                  onChange={(e) => setNewContactData({ ...newContactData, company: e.target.value })}
+                  placeholder="Empresa"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
+                />
+
+                {/* Origem */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Origem
+                  </label>
+                  <select
+                    value={newContactData.source}
+                    onChange={(e) => setNewContactData({ ...newContactData, source: e.target.value })}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
+                  >
+                    {SOURCE_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCreateContact}
+                  disabled={creatingContact}
+                  className="w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {creatingContact ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Criando...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Criar Contato
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -237,9 +430,9 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
                   className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
                 />
 
-                {/* Search Results */}
-                {contacts.length > 0 && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-h-48 overflow-y-auto">
+                {/* Search Results or No Results */}
+                {(contacts.length > 0 || (searchPerformed && contacts.length === 0 && !loadingContacts)) && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-h-60 overflow-y-auto">
                     {contacts.map(contact => (
                       <button
                         key={contact.id}
@@ -266,6 +459,27 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
                         </div>
                       </button>
                     ))}
+
+                    {/* Opção de cadastrar novo contato */}
+                    <button
+                      type="button"
+                      onClick={openNewContactForm}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-left border-t border-gray-100 dark:border-gray-700"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                        <Plus className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                          Cadastrar novo contato
+                        </p>
+                        {contactSearch && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            "{contactSearch}"
+                          </p>
+                        )}
+                      </div>
+                    </button>
                   </div>
                 )}
 
@@ -281,7 +495,7 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Título *
+              Título da Oportunidade *
             </label>
             <input
               type="text"
@@ -300,68 +514,13 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
             <select
               value={formData.stage_id}
               onChange={(e) => setFormData({ ...formData, stage_id: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
             >
               <option value="">Selecione uma etapa</option>
               {pipeline?.stages?.map(stage => (
                 <option key={stage.id} value={stage.id}>{stage.name}</option>
               ))}
             </select>
-          </div>
-
-          {/* Value and Probability */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                <div className="flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  Valor
-                </div>
-              </label>
-              <input
-                type="number"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="0,00"
-                min="0"
-                step="0.01"
-                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                <div className="flex items-center gap-1">
-                  <Percent className="w-4 h-4" />
-                  Probabilidade
-                </div>
-              </label>
-              <input
-                type="number"
-                value={formData.probability}
-                onChange={(e) => setFormData({ ...formData, probability: e.target.value })}
-                placeholder="0"
-                min="0"
-                max="100"
-                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          </div>
-
-          {/* Expected Close Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                Previsão de Fechamento
-              </div>
-            </label>
-            <input
-              type="date"
-              value={formData.expected_close_date}
-              onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
-            />
           </div>
 
           {/* Owner */}
@@ -372,7 +531,7 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
             <select
               value={formData.owner_user_id}
               onChange={(e) => setFormData({ ...formData, owner_user_id: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
             >
               <option value="">Selecione um responsável</option>
               {users.map(user => (

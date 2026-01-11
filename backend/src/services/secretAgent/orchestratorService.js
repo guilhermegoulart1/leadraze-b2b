@@ -15,7 +15,16 @@ const {
   publishDirectorCompiling,
   publishInvestigationComplete,
   publishAgentError
-} = require('../socketService');
+} = require('../ablyService');
+
+// Emit functions (using Ably)
+const emitInvestigationStarted = (data) => { publishInvestigationStarted(data); };
+const emitAgentStarted = (data) => { publishAgentStarted(data); };
+const emitAgentProgress = (data) => { publishAgentProgress(data); };
+const emitAgentCompleted = (data) => { publishAgentCompleted(data); };
+const emitDirectorCompiling = (data) => { publishDirectorCompiling(data); };
+const emitInvestigationComplete = (data) => { publishInvestigationComplete(data); };
+const emitAgentError = (data) => { publishAgentError(data); };
 
 // Intelligence services
 const { cnpjService, exaService, tavilyService, openCorporatesService } = require('../intelligence');
@@ -375,7 +384,7 @@ ${agent.expertise}
       console.log(`[Maestro] Key questions: ${missionBriefing.keyQuestions.length}`);
 
       // Notify investigation started
-      publishInvestigationStarted({
+      emitInvestigationStarted({
         accountId,
         investigationId,
         caseNumber,
@@ -436,7 +445,7 @@ ${agent.expertise}
       }
 
       // 🎼 MAESTRO STEP 3: Director Morgan compiles final report with mission context
-      publishDirectorCompiling({
+      emitDirectorCompiling({
         accountId,
         investigationId,
         message: 'Director Morgan está compilando o dossiê estratégico...'
@@ -461,7 +470,7 @@ ${agent.expertise}
       );
 
       // Notify completion
-      publishInvestigationComplete({
+      emitInvestigationComplete({
         accountId,
         investigationId,
         briefingId: briefing.id,
@@ -536,7 +545,7 @@ ${agent.expertise}
     const agentId = 'marcus_chen';
     const agent = AGENTS[agentId];
 
-    publishAgentStarted({
+    emitAgentStarted({
       accountId,
       investigationId,
       agentId,
@@ -559,7 +568,7 @@ ${agent.expertise}
     try {
       // Check for CNPJ (Brazilian companies)
       if (targetDetails?.cnpj) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -582,7 +591,7 @@ ${agent.expertise}
       }
 
       // Search OpenCorporates
-      publishAgentProgress({
+      emitAgentProgress({
         accountId,
         investigationId,
         agentId,
@@ -612,7 +621,7 @@ ${agent.expertise}
 
       // 🔍 TAVILY SEARCH for company data (always run for comprehensive research)
       if (tavilyService.isConfigured()) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -652,7 +661,7 @@ ${agent.expertise}
       // 🧠 LLM RESEARCH - Use OpenAI to gather general knowledge about the company
       // This ensures we always have something to report, even for well-known companies
       if (findings.length < 2) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -748,7 +757,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
         completed_at: new Date()
       });
 
-      publishAgentCompleted({
+      emitAgentCompleted({
         accountId,
         investigationId,
         agentId,
@@ -763,7 +772,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
       return { findings, reportText, sourcesUsed };
 
     } catch (error) {
-      publishAgentError({
+      emitAgentError({
         accountId,
         investigationId,
         agentId,
@@ -788,7 +797,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     const agentId = 'sarah_mitchell';
     const agent = AGENTS[agentId];
 
-    publishAgentStarted({
+    emitAgentStarted({
       accountId,
       investigationId,
       agentId,
@@ -811,7 +820,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     try {
       // 🔗 LINKEDIN SEARCH (when enabled)
       if (targetDetails?.useLinkedIn && targetDetails?.linkedInAccountId) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -865,7 +874,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
 
       // 🔍 EXA SEARCH
       if (exaService.isConfigured()) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -905,7 +914,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
       }
 
       if (tavilyService.isConfigured()) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -945,7 +954,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
         completed_at: new Date()
       });
 
-      publishAgentCompleted({
+      emitAgentCompleted({
         accountId,
         investigationId,
         agentId,
@@ -960,7 +969,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
       return { findings, reportText, sourcesUsed };
 
     } catch (error) {
-      publishAgentError({
+      emitAgentError({
         accountId,
         investigationId,
         agentId,
@@ -985,7 +994,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     const agentId = 'james_rodriguez';
     const agent = AGENTS[agentId];
 
-    publishAgentStarted({
+    emitAgentStarted({
       accountId,
       investigationId,
       agentId,
@@ -1008,7 +1017,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     try {
       // 🔗 LINKEDIN CONNECTIONS SEARCH (when enabled)
       if (targetDetails?.useLinkedIn && targetDetails?.linkedInAccountId) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1043,7 +1052,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
 
       // 🔍 EXA SEARCH
       if (exaService.isConfigured()) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1080,7 +1089,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
         completed_at: new Date()
       });
 
-      publishAgentCompleted({
+      emitAgentCompleted({
         accountId,
         investigationId,
         agentId,
@@ -1095,7 +1104,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
       return { findings, reportText, sourcesUsed };
 
     } catch (error) {
-      publishAgentError({
+      emitAgentError({
         accountId,
         investigationId,
         agentId,
@@ -1120,7 +1129,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     const agentId = 'elena_volkov';
     const agent = AGENTS[agentId];
 
-    publishAgentStarted({
+    emitAgentStarted({
       accountId,
       investigationId,
       agentId,
@@ -1143,7 +1152,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     try {
       // 🔗 LINKEDIN SEARCH FOR NICHE (when enabled and type is niche)
       if (targetDetails?.useLinkedIn && targetDetails?.linkedInAccountId && type === 'niche') {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1183,7 +1192,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
 
       // 📊 TAVILY MARKET ANALYSIS
       if (tavilyService.isConfigured()) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1212,7 +1221,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
 
       // 🔍 EXA COMPETITORS SEARCH
       if (exaService.isConfigured() && type === 'company') {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1248,7 +1257,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
         completed_at: new Date()
       });
 
-      publishAgentCompleted({
+      emitAgentCompleted({
         accountId,
         investigationId,
         agentId,
@@ -1263,7 +1272,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
       return { findings, reportText, sourcesUsed };
 
     } catch (error) {
-      publishAgentError({
+      emitAgentError({
         accountId,
         investigationId,
         agentId,
@@ -1288,7 +1297,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
     const agentId = 'david_park';
     const agent = AGENTS[agentId];
 
-    publishAgentStarted({
+    emitAgentStarted({
       accountId,
       investigationId,
       agentId,
@@ -1310,7 +1319,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
 
     try {
       if (tavilyService.isConfigured()) {
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1334,7 +1343,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
           console.error('[David Park] Tavily news error:', error.message);
         }
 
-        publishAgentProgress({
+        emitAgentProgress({
           accountId,
           investigationId,
           agentId,
@@ -1372,7 +1381,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
         completed_at: new Date()
       });
 
-      publishAgentCompleted({
+      emitAgentCompleted({
         accountId,
         investigationId,
         agentId,
@@ -1387,7 +1396,7 @@ ${targetDetails?.domain ? `Website: ${targetDetails.domain}` : ''}`
       return { findings, reportText, sourcesUsed };
 
     } catch (error) {
-      publishAgentError({
+      emitAgentError({
         accountId,
         investigationId,
         agentId,

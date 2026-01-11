@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
-import { initializeSocket, disconnectSocket } from '../services/socket';
+import { initializeAbly, disconnectAbly } from '../services/ably';
 
 const AuthContext = createContext();
 
@@ -23,10 +23,14 @@ export const AuthProvider = ({ children }) => {
     const savedToken = localStorage.getItem('authToken');
 
     if (savedUser && savedToken) {
-      setUserState(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      setUserState(parsedUser);
       setTokenState(savedToken);
-      // Inicializar WebSocket quando usuário está autenticado
-      initializeSocket();
+      // Inicializar Ably para realtime
+      const accountId = parsedUser.accountId || parsedUser.account_id;
+      if (accountId) {
+        initializeAbly(accountId);
+      }
     }
 
     setLoading(false);
@@ -76,7 +80,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     api.logout();
-    disconnectSocket(); // Desconectar WebSocket ao sair
+    disconnectAbly(); // Desconectar Ably ao sair
     setUser(null);
     setToken(null);
   };

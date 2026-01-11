@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Mail, Phone, Building2, MapPin, Linkedin, Globe, Briefcase,
   MessageCircle, Instagram, Send, Clock, MessageSquare,
-  ChevronRight, Trash2, Plus, Save, User, Users, RefreshCw, Sparkles, Image, FileText, ExternalLink
+  ChevronRight, Trash2, Plus, Save, User, Users, Sparkles, Image, FileText, ExternalLink, Target,
+  Lightbulb, TrendingUp, Zap, Facebook
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,6 +14,69 @@ import LocationMiniMap from './LocationMiniMap';
 import OfficialDataTab from './OfficialDataTab';
 import ProfileEnrichmentSection, { ProfileBadges } from './ProfileEnrichmentSection';
 import CompanyDataTab from './CompanyDataTab';
+import PhoneEmailList from './PhoneEmailList';
+
+// Parse JSON arrays safely (for AI analysis data and contact arrays)
+const parseJsonArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      // If not valid JSON, try splitting by comma
+      if (value.includes(',')) {
+        return value.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      return value ? [value] : [];
+    }
+  }
+  return [];
+};
+
+// Parse AI profile analysis safely
+const parseAIAnalysis = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+// Get dynamic tag styles from hex color
+const getTagStyles = (hexColor) => {
+  const colorMap = {
+    purple: '#9333ea', blue: '#2563eb', green: '#16a34a',
+    yellow: '#ca8a04', red: '#dc2626', pink: '#db2777',
+    orange: '#ea580c', gray: '#6b7280', cyan: '#0891b2'
+  };
+  const hex = colorMap[hexColor] || hexColor || '#9333ea';
+
+  // Validate hex format
+  if (!hex.startsWith('#') || hex.length !== 7) {
+    return {
+      backgroundColor: 'rgba(147, 51, 234, 0.15)',
+      color: '#9333ea',
+      borderColor: 'rgba(147, 51, 234, 0.3)',
+    };
+  }
+
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+
+  return {
+    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`,
+    color: hex,
+    borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`,
+  };
+};
 
 const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation }) => {
   const { t } = useTranslation();
@@ -23,7 +87,6 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
   const [availableTags, setAvailableTags] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const noteInputRef = useRef(null);
   const [linkedinAccounts, setLinkedinAccounts] = useState([]);
   const [selectedLinkedinAccountId, setSelectedLinkedinAccountId] = useState(null);
@@ -33,11 +96,15 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     name: '',
     email: '',
     phone: '',
+    emails: [],
+    phones: [],
     company: '',
     title: '',
     location: '',
     profile_url: '',
     website: '',
+    instagram_url: '',
+    facebook_url: '',
     tags: []
   });
   const [hasChanges, setHasChanges] = useState(false);
@@ -74,11 +141,15 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
         name: contact.name || '',
         email: contact.email || '',
         phone: contact.phone || '',
+        emails: parseJsonArray(contact.emails),
+        phones: parseJsonArray(contact.phones),
         company: contact.company || '',
         title: contact.title || '',
         location: contact.location || '',
         profile_url: contact.profile_url || '',
         website: contact.website || '',
+        instagram_url: contact.instagram_url || '',
+        facebook_url: contact.facebook_url || '',
         tags: contact.tags?.map(t => t.id) || []
       });
       setHasChanges(false);
@@ -181,28 +252,6 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     }
   };
 
-  const handleRefreshData = async () => {
-    try {
-      setRefreshing(true);
-      const response = await api.post(`/contacts/${contactId}/refresh-data`, {
-        updateName: true,
-        updatePicture: true
-      });
-      if (response.data?.success) {
-        // Reload contact data to show updated info
-        await loadContactFull();
-        // Show success feedback (optional - could add toast here)
-        console.log('✅ Dados atualizados:', response.data.message);
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar dados:', error);
-      // Show error feedback (optional - could add toast here)
-      alert(error.response?.data?.message || 'Erro ao atualizar dados do contato');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   if (!isOpen) return null;
 
   const channelConfig = {
@@ -242,25 +291,6 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
     return format(new Date(date), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR });
   };
 
-  // Parse JSON arrays safely (for AI analysis data)
-  const parseJsonArray = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        // If not valid JSON, try splitting by comma
-        if (value.includes(',')) {
-          return value.split(',').map(s => s.trim()).filter(Boolean);
-        }
-        return value ? [value] : [];
-      }
-    }
-    return [];
-  };
-
   // Check if contact has AI analysis data
   const hasAIAnalysis = contact && (
     contact.company_description ||
@@ -285,15 +315,15 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
         />
 
         {/* Modal */}
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl mx-4 max-h-[90vh] flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 dark:border-purple-400"></div>
             </div>
           ) : contact ? (
             <>
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-lg">
+              {/* Header - Fundo roxo */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-purple-700 bg-purple-600 rounded-t-lg">
                 <div className="flex items-center gap-4">
                   <ContactAvatar
                     photoUrl={contact.profile_picture}
@@ -306,7 +336,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         type="text"
                         value={formData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
-                        className="text-xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:outline-none px-1 -ml-1"
+                        className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-purple-300 focus:border-white focus:outline-none px-1 -ml-1 placeholder-purple-200"
                         placeholder="Nome do contato"
                       />
                       {/* Open to Work / Hiring Badges */}
@@ -321,7 +351,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         return (
                           <div
                             key={type}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white"
                             title={config.label}
                           >
                             <IconComponent className="w-3 h-3" />
@@ -333,21 +363,11 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Botão Atualizar Dados */}
-                  <button
-                    onClick={handleRefreshData}
-                    disabled={refreshing}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-                    title="Atualizar dados e foto do contato via WhatsApp/Instagram"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    {refreshing ? 'Atualizando...' : 'Atualizar'}
-                  </button>
                   {hasChanges && (
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 bg-white rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-50"
                     >
                       <Save className="w-4 h-4" />
                       {saving ? 'Salvando...' : 'Salvar'}
@@ -355,7 +375,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                   )}
                   <button
                     onClick={onClose}
-                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -367,55 +387,92 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                 {/* Left column - Contact details */}
                 <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200 dark:border-gray-700">
                   {/* Tabs */}
-                  <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 dark:border-gray-700 pb-2">
+                    {/* 1. Dados do Contato */}
                     <button
                       onClick={() => setActiveTab('overview')}
-                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                      className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
                         activeTab === 'overview'
                           ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
                           : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                       }`}
                     >
-                      Dados
+                      <User className="w-3.5 h-3.5" />
+                      Dados do Contato
                     </button>
+
+                    {/* 2. Dados da Empresa - always show */}
                     <button
-                      onClick={() => setActiveTab('conversations')}
-                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
-                        activeTab === 'conversations'
+                      onClick={() => setActiveTab('company')}
+                      className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                        activeTab === 'company'
                           ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
                           : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                       }`}
                     >
-                      Conversas ({conversations.length})
+                      <Building2 className="w-3.5 h-3.5" />
+                      Dados da Empresa
                     </button>
+
+                    {/* 3. Perfil LinkedIn - show if contact has linkedin data */}
+                    {contact && (contact.linkedin_profile_id || contact.experience || contact.education || contact.skills) && (
+                      <button
+                        onClick={() => setActiveTab('linkedin')}
+                        className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                          activeTab === 'linkedin'
+                            ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        <Linkedin className="w-3.5 h-3.5" />
+                        Perfil LinkedIn
+                      </button>
+                    )}
+
+                    {/* 4. Oportunidades */}
                     <button
                       onClick={() => setActiveTab('opportunities')}
-                      className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                      className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
                         activeTab === 'opportunities'
                           ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
                           : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                       }`}
                     >
+                      <Target className="w-3.5 h-3.5" />
                       Oportunidades ({leads.length})
                     </button>
+
+                    {/* 5. Conversas */}
+                    <button
+                      onClick={() => setActiveTab('conversations')}
+                      className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                        activeTab === 'conversations'
+                          ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
+                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Conversas ({conversations.length})
+                    </button>
+
+                    {/* Optional tabs */}
                     {hasAIAnalysis && (
                       <button
                         onClick={() => setActiveTab('intelligence')}
-                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                        className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
                           activeTab === 'intelligence'
                             ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
                             : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                         }`}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        Inteligencia IA
+                        Inteligência IA
                       </button>
                     )}
-                    {/* Photos Tab - only show if photos exist */}
                     {contact && parseJsonArray(contact.photos).length > 0 && (
                       <button
                         onClick={() => setActiveTab('photos')}
-                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                        className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
                           activeTab === 'photos'
                             ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
                             : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -425,11 +482,10 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         Fotos ({parseJsonArray(contact.photos).length})
                       </button>
                     )}
-                    {/* Official Data Tab - only show if cnpj_data exists */}
                     {contact && contact.cnpj_data && (
                       <button
                         onClick={() => setActiveTab('officialData')}
-                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                        className={`pb-2 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
                           activeTab === 'officialData'
                             ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
                             : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -439,128 +495,116 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         {t('contacts.officialData.title')}
                       </button>
                     )}
-                    {/* Company Tab - show if contact has company */}
-                    {contact && contact.company && (
-                      <button
-                        onClick={() => setActiveTab('company')}
-                        className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-                          activeTab === 'company'
-                            ? 'border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400'
-                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                        }`}
-                      >
-                        <Building2 className="w-3.5 h-3.5" />
-                        Empresa
-                      </button>
-                    )}
                   </div>
 
                   {/* Overview Tab - Editable fields */}
                   {activeTab === 'overview' && (
-                    <div className="space-y-4">
-                      {/* Email & Phone */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                            <Mail className="w-3.5 h-3.5" /> Email
-                          </label>
-                          <input
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => handleInputChange('email', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="email@exemplo.com"
-                          />
-                        </div>
-                        <div>
-                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                            <Phone className="w-3.5 h-3.5" /> Telefone
-                          </label>
-                          <input
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="+55 11 99999-9999"
-                          />
-                        </div>
-                      </div>
+                    <div className="space-y-6 min-h-[350px]">
+                      {/* Section: AI LinkedIn Analysis */}
+                      {(() => {
+                        const aiAnalysis = parseAIAnalysis(contact?.ai_profile_analysis);
+                        if (!aiAnalysis) return null;
 
-                      {/* Multiple Contacts Data - Additional emails, phones, social links */}
-                      {(parseJsonArray(contact?.emails).length > 0 || parseJsonArray(contact?.phones).length > 0 || (contact?.social_links && Object.keys(contact.social_links).length > 0)) && (
-                        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
-                          <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300 mb-3">
-                            <Users className="w-4 h-4" />
-                            Canais de Contato Adicionais
-                          </h4>
+                        return (
+                          <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200/50 dark:border-purple-700/50">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="p-1.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
+                                <Zap className="w-4 h-4 text-white" />
+                              </div>
+                              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                Analise IA - LinkedIn
+                              </h4>
+                              {contact?.ai_analyzed_at && (
+                                <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">
+                                  {formatDistanceToNow(new Date(contact.ai_analyzed_at), { addSuffix: true, locale: ptBR })}
+                                </span>
+                              )}
+                            </div>
 
-                          {/* Multiple Emails */}
-                          {parseJsonArray(contact?.emails).length > 0 && (
-                            <div className="mb-3">
-                              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                Emails ({parseJsonArray(contact?.emails).length})
+                            {/* Summary */}
+                            {aiAnalysis.summary && (
+                              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 leading-relaxed">
+                                {aiAnalysis.summary}
                               </p>
-                              <div className="flex flex-wrap gap-2">
-                                {parseJsonArray(contact?.emails).map((item, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={`mailto:${item.email}`}
-                                    className="text-xs bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-1"
-                                  >
-                                    {item.email}
-                                    {item.type && (
-                                      <span className={`text-[9px] px-1 py-0.5 rounded ${
-                                        item.type === 'personal' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
-                                        item.type === 'commercial' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' :
-                                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                                      }`}>
-                                        {item.type}
-                                      </span>
-                                    )}
-                                  </a>
+                            )}
+
+                            {/* Key Points */}
+                            {aiAnalysis.keyPoints && aiAnalysis.keyPoints.length > 0 && (
+                              <div className="space-y-1.5 mb-3">
+                                {aiAnalysis.keyPoints.map((point, idx) => (
+                                  <div key={idx} className="flex items-start gap-2">
+                                    <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">{point}</span>
+                                  </div>
                                 ))}
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Multiple Phones */}
-                          {parseJsonArray(contact?.phones).length > 0 && (
-                            <div className="mb-3">
-                              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                Telefones ({parseJsonArray(contact?.phones).length})
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {parseJsonArray(contact?.phones).map((item, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={`tel:${item.phone}`}
-                                    className="text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-700 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1"
-                                  >
-                                    {item.phone}
-                                    {item.type && (
-                                      <span className={`text-[9px] px-1 py-0.5 rounded ${
-                                        item.type === 'whatsapp' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
-                                        item.type === 'mobile' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' :
-                                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                                      }`}>
-                                        {item.type === 'whatsapp' ? 'WhatsApp' : item.type === 'mobile' ? 'Celular' : 'Fixo'}
-                                      </span>
-                                    )}
-                                  </a>
-                                ))}
+                            {/* Approach Hook */}
+                            {aiAnalysis.approachHook && (
+                              <div className="flex items-start gap-2 bg-white/60 dark:bg-gray-800/60 rounded-lg p-2.5 border border-purple-100 dark:border-purple-800">
+                                <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                                    Sugestao de abordagem
+                                  </span>
+                                  <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">
+                                    {aiAnalysis.approachHook}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
+                        );
+                      })()}
 
-                          {/* Social Links */}
+                      {/* Section: Informações de Contato */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-purple-500" />
+                          Informações de Contato
+                        </h4>
+                        <div className="space-y-4">
+                          {/* Emails */}
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                              <Mail className="w-3.5 h-3.5" /> Emails
+                            </label>
+                            <PhoneEmailList
+                              type="email"
+                              items={formData.emails}
+                              onChange={(newEmails) => {
+                                setFormData(prev => ({ ...prev, emails: newEmails }));
+                                setHasChanges(true);
+                              }}
+                              editable={true}
+                              showIcons={false}
+                            />
+                          </div>
+
+                          {/* Phones */}
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                              <Phone className="w-3.5 h-3.5" /> Telefones
+                            </label>
+                            <PhoneEmailList
+                              type="phone"
+                              items={formData.phones}
+                              onChange={(newPhones) => {
+                                setFormData(prev => ({ ...prev, phones: newPhones }));
+                                setHasChanges(true);
+                              }}
+                              editable={true}
+                              showIcons={false}
+                            />
+                          </div>
+
+                          {/* Social Links (read-only display) */}
                           {contact?.social_links && Object.keys(contact.social_links).length > 0 && (
                             <div>
-                              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
-                                <Globe className="w-3 h-3" />
-                                Redes Sociais
-                              </p>
+                              <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                <Globe className="w-3.5 h-3.5" /> Redes Sociais
+                              </label>
                               <div className="flex flex-wrap gap-2">
                                 {Object.entries(contact.social_links).map(([network, url]) => (
                                   <a
@@ -585,111 +629,184 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                             </div>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* Company & Title */}
-                      <div className="grid grid-cols-2 gap-4">
+                      {/* Section: Informações Profissionais */}
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Briefcase className="w-3.5 h-3.5 text-purple-500" />
+                          Informações Profissionais
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              <Building2 className="w-3.5 h-3.5" /> Empresa
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.company}
+                              onChange={(e) => handleInputChange('company', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Nome da empresa"
+                            />
+                          </div>
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              <Briefcase className="w-3.5 h-3.5" /> Cargo
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.title}
+                              onChange={(e) => handleInputChange('title', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Ex: Diretor Comercial"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section: Localização */}
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-purple-500" />
+                          Localização
+                        </h4>
                         <div>
                           <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                            <Building2 className="w-3.5 h-3.5" /> Empresa
+                            <MapPin className="w-3.5 h-3.5" /> Endereço
                           </label>
                           <input
                             type="text"
-                            value={formData.company}
-                            onChange={(e) => handleInputChange('company', e.target.value)}
+                            value={formData.location}
+                            onChange={(e) => handleInputChange('location', e.target.value)}
                             className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="Nome da empresa"
+                            placeholder="Cidade, Estado"
                           />
-                        </div>
-                        <div>
-                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Cargo</label>
-                          <input
-                            type="text"
-                            value={formData.title}
-                            onChange={(e) => handleInputChange('title', e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            placeholder="Ex: Diretor Comercial"
+                          {/* Mini Map */}
+                          <LocationMiniMap
+                            latitude={contact?.latitude}
+                            longitude={contact?.longitude}
+                            height={120}
+                            className="mt-2"
                           />
                         </div>
                       </div>
 
-                      {/* Location */}
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                          <MapPin className="w-3.5 h-3.5" /> Localizacao
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.location}
-                          onChange={(e) => handleInputChange('location', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Cidade, Estado"
-                        />
-                        {/* Mini Map */}
-                        <LocationMiniMap
-                          latitude={contact?.latitude}
-                          longitude={contact?.longitude}
-                          height={120}
-                          className="mt-2"
-                        />
+                      {/* Section: Links e Redes */}
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <Globe className="w-3.5 h-3.5 text-purple-500" />
+                          Links e Redes
+                        </h4>
+                        <div className="space-y-3">
+                          {/* LinkedIn com botao Ver Perfil */}
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              <Linkedin className="w-3.5 h-3.5" /> Perfil LinkedIn
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="url"
+                                value={formData.profile_url}
+                                onChange={(e) => handleInputChange('profile_url', e.target.value)}
+                                className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="https://linkedin.com/in/..."
+                              />
+                              {formData.profile_url && (
+                                <a
+                                  href={formData.profile_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 flex items-center gap-1.5 whitespace-nowrap"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                  Ver Perfil
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          {/* Instagram */}
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              <Instagram className="w-3.5 h-3.5" /> Instagram
+                            </label>
+                            <input
+                              type="url"
+                              value={formData.instagram_url}
+                              onChange={(e) => handleInputChange('instagram_url', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="https://instagram.com/usuario"
+                            />
+                          </div>
+                          {/* Facebook */}
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              <Facebook className="w-3.5 h-3.5" /> Facebook
+                            </label>
+                            <input
+                              type="url"
+                              value={formData.facebook_url}
+                              onChange={(e) => handleInputChange('facebook_url', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="https://facebook.com/usuario"
+                            />
+                          </div>
+                          {/* Website */}
+                          <div>
+                            <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              <Globe className="w-3.5 h-3.5" /> Website
+                            </label>
+                            <input
+                              type="url"
+                              value={formData.website}
+                              onChange={(e) => handleInputChange('website', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="https://exemplo.com"
+                            />
+                          </div>
+                        </div>
                       </div>
 
-                      {/* LinkedIn */}
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                          <Linkedin className="w-3.5 h-3.5" /> Perfil LinkedIn
-                        </label>
-                        <input
-                          type="url"
-                          value={formData.profile_url}
-                          onChange={(e) => handleInputChange('profile_url', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="https://linkedin.com/in/..."
-                        />
-                      </div>
-
-                      {/* Website */}
-                      <div>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                          <Globe className="w-3.5 h-3.5" /> Website
-                        </label>
-                        <input
-                          type="url"
-                          value={formData.website}
-                          onChange={(e) => handleInputChange('website', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="https://exemplo.com"
-                        />
-                      </div>
-
-                      {/* Tags */}
-                      <div>
-                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Etiquetas</label>
+                      {/* Section: Etiquetas */}
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <span className="w-3.5 h-3.5 text-purple-500">#</span>
+                          Etiquetas
+                        </h4>
                         <div className="flex flex-wrap gap-2">
-                          {availableTags.map(tag => (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              onClick={() => toggleTag(tag.id)}
-                              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                                formData.tags.includes(tag.id)
-                                  ? tagColors[tag.color] || tagColors.blue
-                                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                              }`}
-                            >
-                              {tag.name}
-                            </button>
-                          ))}
+                          {availableTags.map(tag => {
+                            const isSelected = formData.tags.includes(tag.id);
+                            const tagStyles = isSelected ? getTagStyles(tag.color) : {};
+
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => toggleTag(tag.id)}
+                                style={isSelected ? tagStyles : {}}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                  isSelected
+                                    ? ''
+                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {tag.name}
+                              </button>
+                            );
+                          })}
                           {availableTags.length === 0 && (
                             <span className="text-sm text-gray-400 dark:text-gray-500">Nenhuma etiqueta disponivel</span>
                           )}
                         </div>
                       </div>
 
-                      {/* Channels */}
+                      {/* Section: Canais Conectados */}
                       {channels.length > 0 && (
                         <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Canais Conectados</label>
+                          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <MessageCircle className="w-3.5 h-3.5 text-purple-500" />
+                            Canais Conectados
+                          </h4>
                           <div className="space-y-2">
                             {channels.map((channel, idx) => {
                               const config = channelConfig[channel.type];
@@ -716,16 +833,12 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                         </div>
                       )}
 
-                      {/* Enrichment Data (Skills, Certifications, Languages, etc.) */}
-                      <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                        <ProfileEnrichmentSection profile={contact} />
-                      </div>
                     </div>
                   )}
 
                   {/* Conversations Tab */}
                   {activeTab === 'conversations' && (
-                    <div>
+                    <div className="min-h-[350px]">
                       {conversations.length > 0 ? (
                         <div className="space-y-2">
                           {conversations.map(conv => {
@@ -766,8 +879,8 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                           })}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                          <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                        <div className="flex flex-col items-center justify-center min-h-[350px] text-gray-500 dark:text-gray-400">
+                          <MessageSquare className="w-10 h-10 mb-2 opacity-50" />
                           <p className="text-sm">Nenhuma conversa</p>
                         </div>
                       )}
@@ -776,33 +889,42 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
 
                   {/* Opportunities Tab */}
                   {activeTab === 'opportunities' && (
-                    <div>
+                    <div className="min-h-[350px]">
                       {leads.length > 0 ? (
                         <div className="space-y-2">
                           {leads.map(lead => (
-                            <div key={lead.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{lead.name}</h4>
-                                {lead.is_primary_contact && (
-                                  <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded-full">
-                                    Principal
-                                  </span>
-                                )}
+                            <div
+                              key={lead.id}
+                              className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors"
+                            >
+                              <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30">
+                                <Target className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                               </div>
-                              {lead.campaign_name && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  Campanha: {lead.campaign_name}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm">{lead.name}</h4>
+                                  {lead.is_primary_contact && (
+                                    <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs rounded-full">
+                                      Principal
+                                    </span>
+                                  )}
+                                </div>
+                                {lead.campaign_name && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                    Campanha: {lead.campaign_name}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                  Atualizado {formatTimeAgo(lead.updated_at)}
                                 </p>
-                              )}
-                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                                Atualizado {formatTimeAgo(lead.updated_at)}
-                              </p>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                          <Building2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                        <div className="flex flex-col items-center justify-center min-h-[350px] text-gray-500 dark:text-gray-400">
+                          <Target className="w-10 h-10 mb-2 opacity-50" />
                           <p className="text-sm">Nenhuma oportunidade</p>
                         </div>
                       )}
@@ -811,7 +933,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
 
                   {/* Intelligence Tab */}
                   {activeTab === 'intelligence' && (
-                    <div className="space-y-6">
+                    <div className="space-y-6 min-h-[350px]">
                       {/* Header with gradient */}
                       <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg p-4 text-white">
                         <div className="flex items-center gap-2 mb-2">
@@ -900,7 +1022,7 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
 
                   {/* Photos Tab */}
                   {activeTab === 'photos' && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-h-[350px]">
                       <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg p-4 text-white">
                         <div className="flex items-center gap-2 mb-2">
                           <Image className="w-5 h-5" />
@@ -945,38 +1067,31 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
 
                   {/* Official Data Tab */}
                   {activeTab === 'officialData' && contact?.cnpj_data && (
-                    <OfficialDataTab
-                      cnpj={contact.cnpj}
-                      cnpjData={contact.cnpj_data}
-                    />
+                    <div className="min-h-[350px]">
+                      <OfficialDataTab
+                        cnpj={contact.cnpj}
+                        cnpjData={contact.cnpj_data}
+                      />
+                    </div>
                   )}
 
                   {/* Company Tab */}
-                  {activeTab === 'company' && contact?.company && (
-                    <div className="space-y-4">
-                      {/* LinkedIn Account Selector (if multiple accounts) */}
-                      {linkedinAccounts.length > 1 && (
-                        <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                          <Linkedin className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Conta:</span>
-                          <select
-                            value={selectedLinkedinAccountId || ''}
-                            onChange={(e) => setSelectedLinkedinAccountId(e.target.value)}
-                            className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                          >
-                            {linkedinAccounts.map(account => (
-                              <option key={account.id} value={account.id}>
-                                {account.profile_name || account.linkedin_username}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
+                  {activeTab === 'company' && contact && (
+                    <div className="min-h-[350px]">
                       <CompanyDataTab
-                        companyIdentifier={contact.company}
-                        linkedinAccountId={selectedLinkedinAccountId}
+                        contactId={contact.id}
                         cnpjData={contact.cnpj_data || null}
+                      />
+                    </div>
+                  )}
+
+                  {/* LinkedIn Profile Tab */}
+                  {activeTab === 'linkedin' && contact && (
+                    <div className="min-h-[350px]">
+                      <ProfileEnrichmentSection
+                        profile={contact}
+                        contactId={contact?.id}
+                        onRefresh={loadContactFull}
                       />
                     </div>
                   )}

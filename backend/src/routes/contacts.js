@@ -88,6 +88,24 @@ router.post('/:id/refresh-picture',
   contactController.refreshContactPicture
 );
 
+// Enrich contact with full LinkedIn profile and company data
+router.post('/:id/enrich',
+  checkPermission('contacts:edit:own'),
+  contactController.enrichContact
+);
+
+// Get contact's company data
+router.get('/:id/company',
+  checkPermission('contacts:view:own'),
+  contactController.getContactCompany
+);
+
+// Enrich contact's company data from LinkedIn
+router.post('/:id/enrich-company',
+  checkPermission('contacts:edit:own'),
+  contactController.enrichContactCompany
+);
+
 // Export/Import
 router.post('/export',
   checkPermission('contacts:export'),

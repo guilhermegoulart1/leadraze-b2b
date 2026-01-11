@@ -547,6 +547,7 @@ const ContactsPage = () => {
                           photoUrl={contactPhoto}
                           name={contact.name}
                           size="sm"
+                          updatedAt={contact.updated_at}
                         />
                         <div className="min-w-0">
                           <div className="font-semibold text-[11px] text-gray-900 dark:text-gray-100 truncate">

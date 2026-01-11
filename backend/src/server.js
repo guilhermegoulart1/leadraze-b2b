@@ -7,7 +7,7 @@ const { testRedisConnection } = require('./config/redis');
 const { closeAllQueues } = require('./queues');
 const bulkCollectionProcessor = require('./services/bulkCollectionProcessor');
 const conversationSyncWorker = require('./workers/conversationSyncWorker');
-const { initializeSocket, cleanup: cleanupSocket } = require('./services/socketService');
+const { initializeAbly, cleanup: cleanupAbly } = require('./services/ablyService');
 
 // ✅ Import webhook worker to register job processors
 require('./workers/webhookWorker');
@@ -26,7 +26,7 @@ const inviteSendWorker = require('./workers/inviteSendWorker');
 
 const PORT = process.env.PORT || 3001;
 
-// Create HTTP server for Socket.io
+// Create HTTP server
 const server = http.createServer(app);
 
 // Test database connection before starting server
@@ -67,8 +67,8 @@ async function startServer() {
     inviteSendWorker.startProcessor();
     console.log('✅ Invite send worker started (processes scheduled invites every 2 min)');
 
-    // ✅ Initialize Socket.io with HTTP server
-    initializeSocket(server);
+    // ✅ Initialize Ably for realtime
+    initializeAbly();
 
     // Start server
     server.listen(PORT, () => {
@@ -78,7 +78,7 @@ async function startServer() {
       console.log(`   Port: ${PORT}`);
       console.log(`   API: http://localhost:${PORT}/api`);
       console.log(`   Health: http://localhost:${PORT}/health`);
-      console.log(`   WebSocket: ws://localhost:${PORT}`);
+      console.log(`   Realtime: Ably`);
       console.log(`   Bull Board: http://localhost:${PORT}/admin/queues`);
       console.log('========================================');
       console.log('\n📊 Queue Status:');
@@ -105,14 +105,14 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('👋 SIGTERM received. Shutting down gracefully...');
-  await cleanupSocket();
+  await cleanupAbly();
   await closeAllQueues();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('👋 SIGINT received. Shutting down gracefully...');
-  await cleanupSocket();
+  await cleanupAbly();
   await closeAllQueues();
   process.exit(0);
 });

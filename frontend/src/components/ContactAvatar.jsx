@@ -35,16 +35,19 @@ const ContactAvatar = ({ photoUrl, name, size = 'md', updatedAt }) => {
   // Show initials fallback
   const showFallback = !photoUrl || imageError;
 
+  // Build URL with cache-busting that handles existing query params
+  const getImageUrl = (url) => {
+    if (!url || !url.startsWith('http')) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_cb=${updatedAt || Date.now()}`;
+  };
+
   return (
     <div className={`relative ${sizeClass} rounded-full flex-shrink-0`}>
       {/* Image */}
       {photoUrl && !imageError && (
         <img
-          src={
-            photoUrl.startsWith('http')
-              ? `${photoUrl}?v=${updatedAt || Date.now()}`
-              : photoUrl
-          }
+          src={getImageUrl(photoUrl)}
           alt={name || 'Contact'}
           className={`${sizeClass} rounded-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
           onError={() => {

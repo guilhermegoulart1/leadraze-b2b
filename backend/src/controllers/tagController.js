@@ -1,8 +1,11 @@
 const pool = require('../config/database');
 
 // Get all tags (conta uso via contact_tags - fonte única de verdade)
+// IMPORTANTE: Filtrar por account_id para multi-tenancy
 exports.getTags = async (req, res) => {
   try {
+    const accountId = req.user.account_id;
+
     const query = `
       SELECT
         t.id,
@@ -12,11 +15,12 @@ exports.getTags = async (req, res) => {
         COUNT(DISTINCT ct.contact_id) as usage_count
       FROM tags t
       LEFT JOIN contact_tags ct ON ct.tag_id = t.id
+      WHERE t.account_id = $1
       GROUP BY t.id, t.name, t.color, t.created_at
       ORDER BY t.name ASC
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, [accountId]);
 
     res.json({
       success: true,
@@ -35,9 +39,11 @@ exports.getTags = async (req, res) => {
 };
 
 // Create a new tag
+// IMPORTANTE: Incluir account_id para multi-tenancy
 exports.createTag = async (req, res) => {
   const { name, color = 'purple' } = req.body;
   const userId = req.user.id;
+  const accountId = req.user.account_id;
 
   if (!name || !name.trim()) {
     return res.status(400).json({
@@ -47,9 +53,9 @@ exports.createTag = async (req, res) => {
   }
 
   try {
-    // Check if tag already exists
-    const checkQuery = 'SELECT id FROM tags WHERE LOWER(name) = LOWER($1)';
-    const checkResult = await pool.query(checkQuery, [name.trim()]);
+    // Check if tag already exists FOR THIS ACCOUNT
+    const checkQuery = 'SELECT id FROM tags WHERE LOWER(name) = LOWER($1) AND account_id = $2';
+    const checkResult = await pool.query(checkQuery, [name.trim(), accountId]);
 
     if (checkResult.rows.length > 0) {
       return res.status(400).json({
@@ -59,12 +65,12 @@ exports.createTag = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO tags (name, color, created_by)
-      VALUES ($1, $2, $3)
+      INSERT INTO tags (name, color, created_by, account_id)
+      VALUES ($1, $2, $3, $4)
       RETURNING id, name, color, created_at
     `;
 
-    const result = await pool.query(query, [name.trim(), color, userId]);
+    const result = await pool.query(query, [name.trim(), color, userId, accountId]);
 
     res.status(201).json({
       success: true,
@@ -83,9 +89,11 @@ exports.createTag = async (req, res) => {
 };
 
 // Update a tag
+// IMPORTANTE: Filtrar por account_id para multi-tenancy
 exports.updateTag = async (req, res) => {
   const { id } = req.params;
   const { name, color } = req.body;
+  const accountId = req.user.account_id;
 
   if (!name || !name.trim()) {
     return res.status(400).json({
@@ -95,9 +103,9 @@ exports.updateTag = async (req, res) => {
   }
 
   try {
-    // Check if another tag with the same name exists
-    const checkQuery = 'SELECT id FROM tags WHERE LOWER(name) = LOWER($1) AND id != $2';
-    const checkResult = await pool.query(checkQuery, [name.trim(), id]);
+    // Check if another tag with the same name exists FOR THIS ACCOUNT
+    const checkQuery = 'SELECT id FROM tags WHERE LOWER(name) = LOWER($1) AND id != $2 AND account_id = $3';
+    const checkResult = await pool.query(checkQuery, [name.trim(), id, accountId]);
 
     if (checkResult.rows.length > 0) {
       return res.status(400).json({
@@ -109,11 +117,11 @@ exports.updateTag = async (req, res) => {
     const query = `
       UPDATE tags
       SET name = $1, color = $2
-      WHERE id = $3
+      WHERE id = $3 AND account_id = $4
       RETURNING id, name, color, created_at
     `;
 
-    const result = await pool.query(query, [name.trim(), color, id]);
+    const result = await pool.query(query, [name.trim(), color, id, accountId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -139,10 +147,23 @@ exports.updateTag = async (req, res) => {
 };
 
 // Delete a tag
+// IMPORTANTE: Filtrar por account_id para multi-tenancy
 exports.deleteTag = async (req, res) => {
   const { id } = req.params;
+  const accountId = req.user.account_id;
 
   try {
+    // Verificar se a tag pertence a esta conta antes de deletar
+    const checkQuery = 'SELECT id FROM tags WHERE id = $1 AND account_id = $2';
+    const checkResult = await pool.query(checkQuery, [id, accountId]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Etiqueta não encontrada'
+      });
+    }
+
     // Deletar associações em contact_tags (fonte única de verdade)
     await pool.query('DELETE FROM contact_tags WHERE tag_id = $1', [id]);
 
@@ -150,8 +171,8 @@ exports.deleteTag = async (req, res) => {
     await pool.query('DELETE FROM lead_tags WHERE tag_id = $1', [id]);
 
     // Then delete the tag
-    const query = 'DELETE FROM tags WHERE id = $1 RETURNING id';
-    const result = await pool.query(query, [id]);
+    const query = 'DELETE FROM tags WHERE id = $1 AND account_id = $2 RETURNING id';
+    const result = await pool.query(query, [id, accountId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({

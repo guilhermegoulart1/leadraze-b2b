@@ -4,11 +4,12 @@ import { useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { onConversationUpdated, onNewConversation, onNewMessage } from '../services/socket';
+import { onConversationUpdated, onNewConversation, onNewMessage } from '../services/ably';
 import ConversationSidebar from '../components/ConversationSidebar';
 import ChatArea from '../components/ChatArea';
 import DetailsPanel from '../components/DetailsPanel';
 import UnifiedContactModal from '../components/UnifiedContactModal';
+import QuickCreateOpportunityModal from '../components/QuickCreateOpportunityModal';
 
 const ConversationsPage = () => {
   const { t } = useTranslation(['conversations', 'common']);
@@ -28,36 +29,40 @@ const ConversationsPage = () => {
     closed: 0
   });
 
-  // Novos estados para filtros avançados
+  // Estados para filtros avançados
   const [showFilters, setShowFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
-    status: [],
-    campaigns: [],
-    tags: [],
+    mode: 'all', // all | ai | manual
+    assignedUserId: null,
     period: 'all',
-    mode: 'all' // all | ai | manual
+    tags: []
   });
-  const [campaigns, setCampaigns] = useState([]);
+  const [users, setUsers] = useState([]);
   const [tags, setTags] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]);
 
   // Estado para o modal unificado de contato
   const [contactModal, setContactModal] = useState({ isOpen: false, contactId: null });
 
+  // Estado para o modal de criar oportunidade
+  const [opportunityModal, setOpportunityModal] = useState({ isOpen: false, conversation: null });
+
   useEffect(() => {
     loadConversations();
     loadStats();
+    loadUsers();
+    loadTags();
   }, []);
 
   useEffect(() => {
     filterConversations();
   }, [searchQuery, statusFilter, conversations, advancedFilters, user]);
 
-  // ✅ WebSocket: Escutar atualizações de conversas em tempo real
+  // ✅ Realtime: Escutar atualizações de conversas em tempo real via Ably
   useEffect(() => {
     // Handler para conversa atualizada
-    const unsubscribeUpdated = onConversationUpdated((data) => {
-      console.log('ConversationsPage: conversation_updated', data);
+    const handleConversationUpdated = (data, source) => {
+      console.log(`ConversationsPage: conversation_updated via ${source}`, data);
 
       setConversations(prev => prev.map(conv => {
         if (conv.id === data.conversationId || conv.id === parseInt(data.conversationId)) {
@@ -75,11 +80,11 @@ const ConversationsPage = () => {
       if (refreshUnreadCount) {
         refreshUnreadCount();
       }
-    });
+    };
 
     // Handler para nova conversa
-    const unsubscribeNew = onNewConversation((data) => {
-      console.log('ConversationsPage: new_conversation', data);
+    const handleNewConversation = (data, source) => {
+      console.log(`ConversationsPage: new_conversation via ${source}`, data);
 
       // Verificar se já existe (evitar duplicatas)
       setConversations(prev => {
@@ -92,11 +97,11 @@ const ConversationsPage = () => {
 
       // Atualizar stats
       loadStats();
-    });
+    };
 
     // Handler para novas mensagens (atualiza lista quando chega mensagem)
-    const unsubscribeMessage = onNewMessage((data) => {
-      console.log('ConversationsPage: new_message', data);
+    const handleNewMessage = (data, source) => {
+      console.log(`ConversationsPage: new_message via ${source}`, data);
 
       setConversations(prev => {
         // Encontrar e atualizar a conversa
@@ -129,7 +134,12 @@ const ConversationsPage = () => {
       if (refreshUnreadCount) {
         refreshUnreadCount();
       }
-    });
+    };
+
+    // Ably listeners (realtime)
+    const unsubscribeUpdated = onConversationUpdated((data) => handleConversationUpdated(data, 'Ably'));
+    const unsubscribeNew = onNewConversation((data) => handleNewConversation(data, 'Ably'));
+    const unsubscribeMessage = onNewMessage((data) => handleNewMessage(data, 'Ably'));
 
     // Cleanup
     return () => {
@@ -170,12 +180,38 @@ const ConversationsPage = () => {
     }
   };
 
+  const loadUsers = async () => {
+    try {
+      const response = await api.getUsers();
+      const usersList = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.users || []);
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+    }
+  };
+
+  const loadTags = async () => {
+    try {
+      const response = await api.getTags();
+      setTags(response.data?.tags || []);
+    } catch (error) {
+      console.error('Erro ao carregar etiquetas:', error);
+    }
+  };
+
   // Função chamada quando uma conversa é atualizada (atribuição, tags, etc)
-  const handleConversationUpdated = async () => {
+  const handleConversationUpdated = async (options = {}) => {
     await Promise.all([
       loadConversations(),
       loadStats()
     ]);
+
+    // Se usuário atribuiu a si mesmo, mudar para "Minhas"
+    if (options.switchToMine) {
+      setStatusFilter('mine');
+    }
   };
 
   const filterConversations = () => {
@@ -192,23 +228,52 @@ const ConversationsPage = () => {
     }
     // 'all' = não filtra por status
 
-    // 2. Advanced filters - Status
-    if (advancedFilters.status.length > 0) {
-      filtered = filtered.filter(c => advancedFilters.status.includes(c.status));
-    }
-
-    // 3. Advanced filters - Mode (AI/Manual)
+    // 2. Advanced filters - Mode (AI/Manual)
     if (advancedFilters.mode === 'ai') {
       filtered = filtered.filter(c => c.status === 'ai_active');
     } else if (advancedFilters.mode === 'manual') {
       filtered = filtered.filter(c => c.status === 'manual');
     }
 
-    // 4. Advanced filters - Campaigns
-    if (advancedFilters.campaigns.length > 0) {
-      filtered = filtered.filter(c =>
-        advancedFilters.campaigns.includes(c.campaign_id)
-      );
+    // 3. Advanced filters - Assigned User
+    if (advancedFilters.assignedUserId) {
+      filtered = filtered.filter(c => c.assigned_user_id === advancedFilters.assignedUserId);
+    }
+
+    // 4. Advanced filters - Period
+    if (advancedFilters.period !== 'all') {
+      const now = new Date();
+      let startDate;
+
+      switch (advancedFilters.period) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'last_7_days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'last_30_days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'this_month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'last_month':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          filtered = filtered.filter(c => {
+            const msgDate = new Date(c.last_message_at);
+            return msgDate >= startDate && msgDate <= endOfLastMonth;
+          });
+          startDate = null; // Já filtrou acima
+          break;
+        default:
+          startDate = null;
+      }
+
+      if (startDate) {
+        filtered = filtered.filter(c => new Date(c.last_message_at) >= startDate);
+      }
     }
 
     // 5. Advanced filters - Tags
@@ -226,6 +291,13 @@ const ConversationsPage = () => {
       );
     }
 
+    // 7. Ordenar por última mensagem (mais recente primeiro)
+    filtered = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.last_message_at || 0);
+      const dateB = new Date(b.last_message_at || 0);
+      return dateB - dateA;
+    });
+
     setFilteredConversations(filtered);
     updateActiveFilters();
   };
@@ -234,50 +306,48 @@ const ConversationsPage = () => {
   const updateActiveFilters = () => {
     const filters = [];
 
-    // Status filters
-    if (advancedFilters.status.length > 0) {
-      const statusNames = advancedFilters.status.map(s => t(`statusLabels.${s}`, s)).join(', ');
-      filters.push({
-        key: 'status',
-        label: `${t('activeFilters.status')}: ${statusNames}`
-      });
-    }
-
     // Mode filter
     if (advancedFilters.mode !== 'all') {
-      const modeLabel = t(`modeLabels.${advancedFilters.mode}`);
+      const modeLabel = advancedFilters.mode === 'ai' ? 'IA' : 'Manual';
       filters.push({
         key: 'mode',
-        label: `${t('activeFilters.mode')}: ${modeLabel}`
+        label: `${t('activeFilters.mode', 'Modo')}: ${modeLabel}`
       });
     }
 
-    // Campaign filter
-    if (advancedFilters.campaigns.length > 0) {
-      const campaign = campaigns.find(c => c.id === advancedFilters.campaigns[0]);
-      if (campaign) {
+    // Assigned User filter
+    if (advancedFilters.assignedUserId) {
+      const assignedUser = users.find(u => u.id === advancedFilters.assignedUserId);
+      if (assignedUser) {
         filters.push({
-          key: 'campaigns',
-          label: `${t('activeFilters.campaign')}: ${campaign.name}`
+          key: 'assignedUserId',
+          label: `${t('activeFilters.assignedUser', 'Responsável')}: ${assignedUser.name}`
         });
       }
     }
 
-    // Tags filter
-    if (advancedFilters.tags.length > 0) {
-      const selectedTags = tags.filter(t => advancedFilters.tags.includes(t.id));
-      const tagNames = selectedTags.map(t => t.name).join(', ');
+    // Period filter
+    if (advancedFilters.period !== 'all') {
+      const periodLabels = {
+        today: t('filters.periods.today', 'Hoje'),
+        last_7_days: t('filters.periods.last_7_days', 'Últimos 7 dias'),
+        last_30_days: t('filters.periods.last_30_days', 'Últimos 30 dias'),
+        this_month: t('filters.periods.this_month', 'Este mês'),
+        last_month: t('filters.periods.last_month', 'Mês passado')
+      };
       filters.push({
-        key: 'tags',
-        label: `${t('activeFilters.tags')}: ${tagNames}`
+        key: 'period',
+        label: `${t('activeFilters.period', 'Período')}: ${periodLabels[advancedFilters.period] || advancedFilters.period}`
       });
     }
 
-    // Period filter
-    if (advancedFilters.period !== 'all') {
+    // Tags filter
+    if (advancedFilters.tags.length > 0) {
+      const selectedTags = tags.filter(tag => advancedFilters.tags.includes(tag.id));
+      const tagNames = selectedTags.map(tag => tag.name).join(', ');
       filters.push({
-        key: 'period',
-        label: `${t('activeFilters.period')}: ${t(`periodLabels.${advancedFilters.period}`)}`
+        key: 'tags',
+        label: `${t('activeFilters.tags', 'Etiquetas')}: ${tagNames}`
       });
     }
 
@@ -288,16 +358,14 @@ const ConversationsPage = () => {
   const handleRemoveFilter = (filterKey) => {
     const newFilters = { ...advancedFilters };
 
-    if (filterKey === 'status') {
-      newFilters.status = [];
-    } else if (filterKey === 'mode') {
+    if (filterKey === 'mode') {
       newFilters.mode = 'all';
-    } else if (filterKey === 'campaigns') {
-      newFilters.campaigns = [];
-    } else if (filterKey === 'tags') {
-      newFilters.tags = [];
+    } else if (filterKey === 'assignedUserId') {
+      newFilters.assignedUserId = null;
     } else if (filterKey === 'period') {
       newFilters.period = 'all';
+    } else if (filterKey === 'tags') {
+      newFilters.tags = [];
     }
 
     setAdvancedFilters(newFilters);
@@ -306,11 +374,10 @@ const ConversationsPage = () => {
   // Função para limpar todos os filtros avançados
   const handleClearAllFilters = () => {
     setAdvancedFilters({
-      status: [],
-      campaigns: [],
-      tags: [],
+      mode: 'all',
+      assignedUserId: null,
       period: 'all',
-      mode: 'all'
+      tags: []
     });
     setActiveFilters([]);
   };
@@ -414,6 +481,17 @@ const ConversationsPage = () => {
     setSelectedConversationId(conversationId);
   };
 
+  // Handler para criar oportunidade a partir de uma conversa
+  const handleCreateOpportunity = (conversation) => {
+    setOpportunityModal({ isOpen: true, conversation });
+  };
+
+  // Handler quando oportunidade é criada com sucesso
+  const handleOpportunityCreated = (opportunity) => {
+    console.log('Oportunidade criada:', opportunity);
+    // Poderia mostrar notificação de sucesso ou redirecionar
+  };
+
   return (
     <div className="flex h-full bg-gray-100 dark:bg-gray-800">
       {/* Sidebar - Lista de Conversas */}
@@ -428,12 +506,13 @@ const ConversationsPage = () => {
         stats={stats}
         onDeleteConversation={handleDeleteConversation}
         onCloseConversation={handleCloseConversation}
-        // Novos props para filtros avançados
+        onCreateOpportunity={handleCreateOpportunity}
+        // Props para filtros
         showFilters={showFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
         advancedFilters={advancedFilters}
         onAdvancedFiltersChange={setAdvancedFilters}
-        campaigns={campaigns}
+        users={users}
         tags={tags}
         activeFilters={activeFilters}
         onRemoveFilter={handleRemoveFilter}
@@ -468,6 +547,14 @@ const ConversationsPage = () => {
         onClose={() => setContactModal({ isOpen: false, contactId: null })}
         contactId={contactModal.contactId}
         onOpenConversation={handleOpenConversationFromModal}
+      />
+
+      {/* Modal de Criar Oportunidade */}
+      <QuickCreateOpportunityModal
+        isOpen={opportunityModal.isOpen}
+        onClose={() => setOpportunityModal({ isOpen: false, conversation: null })}
+        conversation={opportunityModal.conversation}
+        onSuccess={handleOpportunityCreated}
       />
     </div>
   );

@@ -6,9 +6,11 @@ const conversationAutomationService = require('../services/conversationAutomatio
 const conversationSummaryService = require('../services/conversationSummaryService');
 const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
 const { scheduleDelayedConversation, cancelDelayedConversation } = require('../workers/delayedConversationWorker');
-const { publishNewMessage, publishNewConversation } = require('../services/socketService');
+const { publishNewMessage, publishNewConversation, publishAccountDisconnected } = require('../services/ablyService');
+const notificationService = require('../services/notificationService');
 const unipileClient = require('../config/unipile');
 const storageService = require('../services/storageService');
+const { enrichContactInBackground, shouldEnrichContact } = require('../services/contactEnrichmentService');
 // @guilhermegoulart1/relay-core - webhook parsing
 const { parseWebhook } = require('@guilhermegoulart1/relay-core');
 
@@ -200,25 +202,8 @@ const receiveWebhook = async (req, res) => {
     const rawPayload = req.body;
     const signature = req.headers['x-unipile-signature'];
 
-    // Log de entrada do webhook
-    const eventKeys = Object.keys(rawPayload);
-    if (eventKeys.includes('NewRelation') || eventKeys.includes('RelationCreated')) {
-      console.log('');
-      console.log('📥 ═══════════════════════════════════════════════════════════════');
-      console.log('📥 [WEBHOOK ENTRY] NEW_RELATION/RELATION_CREATED RECEBIDO!');
-      console.log('📥 [WEBHOOK ENTRY] Timestamp:', new Date().toISOString());
-      console.log('📥 [WEBHOOK ENTRY] Raw payload keys:', eventKeys);
-      console.log('📥 ═══════════════════════════════════════════════════════════════');
-    }
-
     // Detectar tipo de evento e normalizar payload (usando @relay/core)
     const { eventType, payload } = parseUnipileWebhookLocal(rawPayload);
-
-    // Log adicional para new_relation
-    if (eventType === 'new_relation') {
-      console.log('📥 [WEBHOOK ENTRY] Evento detectado como new_relation');
-      console.log('📥 [WEBHOOK ENTRY] Payload normalizado:', JSON.stringify(payload, null, 2));
-    }
 
     // Validar signature (se configurado)
     if (process.env.WEBHOOK_SECRET && signature) {
@@ -322,9 +307,17 @@ function extractBestName(attendee, fallbackPhone) {
     attendee.attendee_name,
     attendee.display_name,
     attendee.name,
-    attendee.pushname,
-    attendee.full_name
+    attendee.full_name,
+    attendee.pushname
   ];
+
+  // LinkedIn: Combinar first_name + last_name se disponíveis
+  if (attendee.first_name || attendee.last_name) {
+    const combinedName = [attendee.first_name, attendee.last_name].filter(Boolean).join(' ').trim();
+    if (combinedName) {
+      possibleNames.unshift(combinedName); // Adiciona no início como prioridade
+    }
+  }
 
   for (const name of possibleNames) {
     if (name && typeof name === 'string') {
@@ -618,9 +611,43 @@ async function handleMessageReceived(payload) {
 
     // Detectar se é mensagem própria ou do lead
     const ownIdentifier = connectedChannel.channel_identifier;
-    const senderIdentifier = sender?.attendee_provider_id?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
-    const isOwnMessage = sender && ownIdentifier &&
-                        (senderIdentifier === ownIdentifier || sender.attendee_provider_id === ownIdentifier);
+    const senderProviderId = sender?.attendee_provider_id || sender?.provider_id || '';
+
+    let isOwnMessage = false;
+
+    if (providerType === 'LINKEDIN') {
+      // LinkedIn: Detectar se é mensagem própria
+      // PRIORIDADE 1: Verificar network_distance do sender (mais confiável!)
+      // Unipile envia network_distance: "SELF" quando o remetente é o próprio usuário
+      const senderNetworkDistance = sender?.attendee_specifics?.network_distance;
+      if (senderNetworkDistance === 'SELF') {
+        isOwnMessage = true;
+      }
+      // PRIORIDADE 2: Usar direction do evento normalizado do Relay
+      else {
+        const normalizedEvent = payload._normalized_event || {};
+        const direction = normalizedEvent.metadata?.direction;
+        const originalEventKey = normalizedEvent.metadata?.originalEventKey
+          || payload._original_event_key;
+
+        if (direction === 'outbound' || originalEventKey === 'MessageSent') {
+          isOwnMessage = true;
+        } else if (direction === 'inbound' || originalEventKey === 'MessageReceived') {
+          isOwnMessage = false;
+        }
+        // PRIORIDADE 3: verificar flag is_self
+        else if (sender?.is_self === true) {
+          isOwnMessage = true;
+        }
+      }
+
+    } else {
+      // WhatsApp/outros: limpar sufixos para comparação
+      if (sender && ownIdentifier) {
+        const senderIdentifier = senderProviderId.replace(/@s\.whatsapp\.net|@c\.us/gi, '');
+        isOwnMessage = senderIdentifier === ownIdentifier || senderProviderId === ownIdentifier;
+      }
+    }
 
     var skipAI = isOwnMessage;
 
@@ -701,17 +728,39 @@ async function handleMessageReceived(payload) {
           });
           attendeesData = chatData?.attendees || attendeesData;
         } catch (apiError) {
-          // Silent fail
+          // Silently continue with payload attendees
         }
       }
 
       if (attendeesData.length > 0) {
         if (isOwnMessage) {
-          const otherAttendee = attendeesData.find(att => {
-            const attId = att.attendee_provider_id?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
-            return attId !== ownIdentifier && att.attendee_provider_id !== sender?.attendee_provider_id;
-          });
-          leadProviderId = otherAttendee?.attendee_provider_id;
+          // Encontrar o lead (attendee que NAO é o usuario)
+          if (providerType === 'LINKEDIN') {
+            // LinkedIn: identificar usuario por is_self flag ou sender.attendee_provider_id
+            const userProviderId = sender?.attendee_provider_id;
+
+            const otherAttendee = attendeesData.find(att => {
+              // Se temos o ID do remetente (usuario), excluir esse attendee
+              if (userProviderId && att.attendee_provider_id === userProviderId) {
+                return false;
+              }
+              // Se attendee tem is_self = true, é o usuario - excluir
+              if (att.is_self === true) {
+                return false;
+              }
+              // Este é o lead
+              return true;
+            });
+
+            leadProviderId = otherAttendee?.attendee_provider_id;
+          } else {
+            // WhatsApp/outros: logica original
+            const otherAttendee = attendeesData.find(att => {
+              const attId = att.attendee_provider_id?.replace(/@s\.whatsapp\.net|@c\.us/gi, '') || '';
+              return attId !== ownIdentifier && att.attendee_provider_id !== sender?.attendee_provider_id;
+            });
+            leadProviderId = otherAttendee?.attendee_provider_id;
+          }
         } else {
           leadProviderId = sender?.attendee_provider_id;
         }
@@ -750,17 +799,62 @@ async function handleMessageReceived(payload) {
           })
         : sender;
 
-      // Extrair melhor nome
-      const contactName = profileData?.display_name
+      // Extrair melhor nome - priorizar dados do perfil, depois attendeeData
+      // IMPORTANTE: Quando isOwnMessage = true, sender é o usuario, NAO o lead!
+      // attendeeData já foi determinado corretamente acima como o lead
+      let contactName = profileData?.display_name
         || profileData?.name
-        || profileData?.full_name
-        || extractBestName(attendeeData, leadProviderId)
-        || formatPhoneNumber(leadProviderId)
-        || 'Contato';
+        || profileData?.full_name;
 
-      const profileUrl = profileData?.profile_url
-        || attendeeData?.attendee_profile_url
-        || '';
+      // Se não tem do perfil, tentar do attendeeData (dados do lead)
+      if (!contactName && attendeeData) {
+        contactName = attendeeData.attendee_name
+          || attendeeData.display_name
+          || attendeeData.name
+          || attendeeData.full_name;
+
+        // LinkedIn: combinar first_name + last_name
+        if (!contactName && (attendeeData.first_name || attendeeData.last_name)) {
+          contactName = [attendeeData.first_name, attendeeData.last_name].filter(Boolean).join(' ').trim();
+        }
+      }
+
+      // Fallback para extractBestName do attendee
+      if (!contactName) {
+        contactName = extractBestName(attendeeData, leadProviderId);
+      }
+
+      // Ultimo fallback: formatar telefone ou 'Contato'
+      if (!contactName) {
+        contactName = (providerType === 'LINKEDIN')
+          ? 'Contato LinkedIn'
+          : (formatPhoneNumber(leadProviderId) || 'Contato');
+      }
+
+      // Construir URL do perfil
+      let profileUrl = '';
+
+      if (providerType === 'LINKEDIN') {
+        // LinkedIn: PRIORIZAR public_identifier para construir URL limpa
+        const publicIdentifier = profileData?.public_identifier
+          || attendeeData?.public_identifier
+          || attendeeData?.attendee_public_identifier;
+
+        if (publicIdentifier) {
+          // URL limpa com o username real (ex: luciana-paula-64a30431)
+          profileUrl = `https://www.linkedin.com/in/${publicIdentifier}`;
+        } else {
+          // Fallback para URL que pode conter provider_id (funciona, mas é feia)
+          profileUrl = profileData?.profile_url
+            || attendeeData?.attendee_profile_url
+            || '';
+        }
+      } else {
+        // Outros providers
+        profileUrl = profileData?.profile_url
+          || attendeeData?.attendee_profile_url
+          || '';
+      }
 
       const profilePicture = profileData?.picture_url
         || profileData?.profile_picture_url
@@ -771,11 +865,12 @@ async function handleMessageReceived(payload) {
       const location = profileData?.location || '';
 
       // Criar ou buscar contato
+      // IMPORTANTE: Para LinkedIn, não salvar provider_id como telefone (não é número de telefone!)
       contactData = await findOrCreateContact(
         linkedinAccount.user_id,
         linkedinAccount.account_id,
         {
-          phone: leadProviderId,
+          phone: providerType === 'LINKEDIN' ? null : leadProviderId, // LinkedIn não tem telefone
           providerId: leadProviderId,
           name: contactName,
           profileUrl,
@@ -839,12 +934,14 @@ async function handleMessageReceived(payload) {
         group_name: isGroup ? (payload.chat_name || payload.group_name || null) : null
       });
 
-      // Emit WebSocket: Nova conversa criada
+      // Emit Ably: Nova conversa criada
       publishNewConversation({
         accountId: linkedinAccount.account_id,
         conversation: {
           id: conversation.id,
           contact_name: contactData.name,
+          lead_name: contactData.name,
+          lead_picture: contactData.profile_picture || null,
           last_message_preview: messageContent?.substring(0, 100) || '',
           last_message_at: conversation.last_message_at,
           unread_count: conversation.unread_count,
@@ -852,6 +949,41 @@ async function handleMessageReceived(payload) {
           is_group: isGroup
         }
       });
+
+      // =====================================================
+      // ENRIQUECIMENTO: Se é conexão de 1º grau do LinkedIn,
+      // buscar perfil completo e dados da empresa
+      // =====================================================
+      if (providerType === 'LINKEDIN' && contactData.id) {
+        // Detectar network_distance do lead (não do sender quando isOwnMessage)
+        let leadNetworkDistance = attendeeData?.attendee_specifics?.network_distance
+          || attendeeData?.network_distance
+          || (isOwnMessage ? null : sender?.attendee_specifics?.network_distance);
+
+        // Se não tem network_distance, buscar do perfil antes de enriquecer
+        // (não assumir 1º grau pois pode ser InMail de recrutador)
+        if (!leadNetworkDistance && leadProviderId) {
+          try {
+            const profileCheck = await unipileClient.users.getOne(
+              connectedChannel.unipile_account_id,
+              leadProviderId
+            );
+            leadNetworkDistance = profileCheck?.network_distance;
+          } catch (err) {
+            // Se falhar, não enriquece (seguro)
+          }
+        }
+
+        // Enriquecer se for conexão de 1º grau e não foi enriquecido recentemente
+        if (shouldEnrichContact(leadNetworkDistance, contactData.full_profile_fetched_at)) {
+          enrichContactInBackground(
+            contactData.id,
+            connectedChannel.unipile_account_id,
+            leadProviderId,
+            { enrichCompanyData: true }
+          );
+        }
+      }
 
       // Atualizar opportunity para "accepted" se ainda não estiver (só se tiver opportunity)
       if (opportunityData && !opportunityData.accepted_at) {
@@ -919,7 +1051,7 @@ async function handleMessageReceived(payload) {
     console.log(`   - Content: ${messageData.content}`);
     console.log(`   - Sent at: ${messageData.sent_at}`);
 
-    // ✅ EMIT WEBSOCKET: Nova mensagem em tempo real
+    // ✅ EMIT ABLY: Nova mensagem em tempo real
     // Sempre emitir - mensagens enviadas pelo celular precisam aparecer na plataforma
     // A deduplicação é feita no frontend usando unipile_message_id
     const newUnreadCount = isOwnMessage ? conversation.unread_count : (conversation.unread_count || 0) + 1;
@@ -933,7 +1065,7 @@ async function handleMessageReceived(payload) {
       unreadCount: newUnreadCount,
       isOwnMessage // Flag para frontend identificar mensagens próprias
     });
-    console.log(`📡 WebSocket: Evento new_message emitido (isOwnMessage: ${isOwnMessage})`)
+    console.log(`📡 Ably: Evento new_message emitido (isOwnMessage: ${isOwnMessage})`)
 
     // CANCELAR JOB DE DELAY SE CONTATO ENVIOU MENSAGEM
     // (cancela o início automático de conversa se contato responder antes dos 5 minutos)
@@ -1023,15 +1155,6 @@ async function handleNewRelation(payload) {
   const inviteQueueService = require('../services/inviteQueueService');
   const notificationService = require('../services/notificationService');
 
-  // ========== LOG DETALHADO DO WEBHOOK DE CONVITE ACEITO ==========
-  console.log('');
-  console.log('🔔 ═══════════════════════════════════════════════════════════════');
-  console.log('🔔 [NEW_RELATION] WEBHOOK RECEBIDO - CONVITE ACEITO');
-  console.log('🔔 ═══════════════════════════════════════════════════════════════');
-  console.log('🔔 [NEW_RELATION] Timestamp:', new Date().toISOString());
-  console.log('🔔 [NEW_RELATION] Raw payload:', JSON.stringify(payload, null, 2));
-  console.log('🔔 ───────────────────────────────────────────────────────────────');
-
   const {
     account_id,
     user_provider_id,
@@ -1041,17 +1164,7 @@ async function handleNewRelation(payload) {
     user_picture_url
   } = payload;
 
-  console.log('🔔 [NEW_RELATION] Campos extraídos:');
-  console.log('🔔   - account_id:', account_id);
-  console.log('🔔   - user_provider_id:', user_provider_id);
-  console.log('🔔   - user_public_identifier:', user_public_identifier);
-  console.log('🔔   - user_profile_url:', user_profile_url);
-  console.log('🔔   - user_full_name:', user_full_name);
-  console.log('🔔   - user_picture_url:', user_picture_url);
-
   if (!account_id || !user_provider_id) {
-    console.log('❌ [NEW_RELATION] ERRO: Campos obrigatórios ausentes!');
-    console.log('❌ [NEW_RELATION] account_id:', account_id, '| user_provider_id:', user_provider_id);
     return { handled: false, reason: 'Missing required fields (account_id or user_provider_id)' };
   }
 
@@ -1060,22 +1173,11 @@ async function handleNewRelation(payload) {
       unipile_account_id: account_id
     });
 
-    console.log('🔔 [NEW_RELATION] Busca conta LinkedIn por unipile_account_id:', account_id);
-    console.log('🔔 [NEW_RELATION] Conta encontrada:', linkedinAccount ? `ID ${linkedinAccount.id}` : 'NÃO');
-
     if (!linkedinAccount) {
-      console.log('❌ [NEW_RELATION] ERRO: Conta LinkedIn não encontrada para account_id:', account_id);
       return { handled: false, reason: 'LinkedIn account not found' };
     }
 
-    console.log('🔔 [NEW_RELATION] Conta LinkedIn:', {
-      id: linkedinAccount.id,
-      status: linkedinAccount.status,
-      name: linkedinAccount.name
-    });
-
     if (linkedinAccount.status === 'disconnected') {
-      console.log('⚠️ [NEW_RELATION] Conta desconectada, ignorando webhook');
       return {
         handled: true,
         skipped: true,
@@ -1118,14 +1220,6 @@ async function handleNewRelation(payload) {
       LIMIT 1
     `;
 
-    console.log('🔔 [NEW_RELATION] Buscando opportunity com parâmetros:');
-    console.log('🔔   - linkedin_account_id:', linkedinAccount.id);
-    console.log('🔔   - provider_id:', user_provider_id);
-    console.log('🔔   - linkedin_profile_id:', user_public_identifier);
-    console.log('🔔   - profile_url LIKE:', `%${user_public_identifier}%`);
-    console.log('🔔   - unipile_account_id:', account_id);
-    console.log('🔔   - status: sent_at NOT NULL AND accepted_at IS NULL');
-
     const opportunityResult = await db.query(opportunityQuery, [
       linkedinAccount.id,
       user_provider_id,
@@ -1134,58 +1228,11 @@ async function handleNewRelation(payload) {
       account_id
     ]);
 
-    console.log('🔔 [NEW_RELATION] Resultado da busca:', opportunityResult.rows.length, 'opportunity(s) encontrada(s)');
-
     if (opportunityResult.rows.length === 0) {
-      // Log adicional: buscar opportunity sem filtro de status para debug
-      const debugQuery = `
-        SELECT o.id, o.title, o.sent_at, o.accepted_at, o.linkedin_profile_id, ct.profile_url, c.name as campaign_name
-        FROM opportunities o
-        LEFT JOIN contacts ct ON o.contact_id = ct.id
-        LEFT JOIN campaigns c ON o.campaign_id = c.id
-        WHERE c.linkedin_account_id = $1
-        AND (
-          o.linkedin_profile_id = $2
-          OR o.linkedin_profile_id = $3
-          OR ct.linkedin_profile_id = $2
-          OR ct.linkedin_profile_id = $3
-          OR ct.profile_url LIKE $4
-        )
-        LIMIT 5
-      `;
-      const debugResult = await db.query(debugQuery, [
-        linkedinAccount.id,
-        user_provider_id,
-        user_public_identifier,
-        `%${user_public_identifier}%`
-      ]);
-
-      console.log('❌ [NEW_RELATION] Opportunity NÃO encontrada com status pendente!');
-      console.log('🔍 [NEW_RELATION] Debug - Opportunities encontradas SEM filtro de status:');
-      if (debugResult.rows.length > 0) {
-        debugResult.rows.forEach((o, i) => {
-          console.log(`🔍   [${i+1}] ID: ${o.id}, Título: ${o.title}, Campanha: ${o.campaign_name}`);
-          console.log(`🔍       sent_at: ${o.sent_at}, accepted_at: ${o.accepted_at}`);
-          console.log(`🔍       linkedin_profile_id: ${o.linkedin_profile_id}`);
-          console.log(`🔍       profile_url: ${o.profile_url}`);
-        });
-      } else {
-        console.log('🔍   Nenhuma opportunity encontrada mesmo sem filtro de status');
-        console.log('🔍   Isso indica que os identificadores não batem com nenhuma opportunity');
-      }
-      console.log('🔔 ═══════════════════════════════════════════════════════════════');
-      console.log('');
       return { handled: false, reason: 'Opportunity not found' };
     }
 
     const opportunity = opportunityResult.rows[0];
-    console.log('✅ [NEW_RELATION] Opportunity encontrada:');
-    console.log('✅   - ID:', opportunity.id);
-    console.log('✅   - Título:', opportunity.title);
-    console.log('✅   - Contact:', opportunity.contact_name, '(ID:', opportunity.contact_id, ')');
-    console.log('✅   - Campanha:', opportunity.campaign_name, '(ID:', opportunity.campaign_id, ')');
-    console.log('✅   - linkedin_profile_id:', opportunity.linkedin_profile_id);
-    console.log('🔔 ───────────────────────────────────────────────────────────────');
 
     // Buscar perfil completo via Unipile API
     const fullProfile = await fetchUserProfileFromUnipile(account_id, user_provider_id);
@@ -1202,8 +1249,6 @@ async function handleNewRelation(payload) {
     };
 
     if (fullProfile) {
-      console.log('🔄 [NEW_RELATION] Enriquecendo contact com perfil COMPLETO de conexão de 1º grau...');
-
       // Dados básicos → contact
       if (fullProfile.first_name) contactUpdateData.first_name = fullProfile.first_name;
       if (fullProfile.last_name) contactUpdateData.last_name = fullProfile.last_name;
@@ -1276,15 +1321,17 @@ async function handleNewRelation(payload) {
       if (fullProfile.is_hiring !== undefined) contactUpdateData.is_hiring = fullProfile.is_hiring;
 
       // Identificadores
-      if (fullProfile.public_identifier) contactUpdateData.public_identifier = fullProfile.public_identifier;
+      if (fullProfile.public_identifier) {
+        contactUpdateData.public_identifier = fullProfile.public_identifier;
+        // Construir URL do perfil correta usando public_identifier
+        contactUpdateData.profile_url = `https://www.linkedin.com/in/${fullProfile.public_identifier}`;
+      }
       if (fullProfile.member_urn) contactUpdateData.member_urn = fullProfile.member_urn;
       if (fullProfile.primary_locale) contactUpdateData.primary_locale = JSON.stringify(fullProfile.primary_locale);
 
       // Marcar que foi enriquecido
       contactUpdateData.full_profile_fetched_at = new Date();
       contactUpdateData.network_distance = 'FIRST_DEGREE';
-
-      console.log('✅ [NEW_RELATION] Dados enriquecidos para contact:', Object.keys(contactUpdateData).length, 'campos');
     }
 
     // Distribuição via Round Robin
@@ -1318,13 +1365,10 @@ async function handleNewRelation(payload) {
 
     // Atualizar opportunity
     await db.update('opportunities', opportunityUpdateData, { id: opportunity.id });
-    console.log('✅ [NEW_RELATION] Opportunity atualizada para ACCEPTED!');
-    console.log('✅ [NEW_RELATION] Opportunity ID:', opportunity.id, '| accepted_at:', opportunityUpdateData.accepted_at);
 
     // Atualizar contact com dados enriquecidos
     if (opportunity.contact_id && Object.keys(contactUpdateData).length > 1) {
       await db.update('contacts', contactUpdateData, { id: opportunity.contact_id });
-      console.log('✅ [NEW_RELATION] Contact atualizado com dados enriquecidos:', opportunity.contact_id);
     }
 
     // Marcar convite como aceito na fila
@@ -1436,16 +1480,6 @@ async function handleNewRelation(payload) {
       // Silent fail - não falhar o webhook se automação der erro
     }
 
-    console.log('');
-    console.log('🎉 ═══════════════════════════════════════════════════════════════');
-    console.log('🎉 [NEW_RELATION] PROCESSAMENTO CONCLUÍDO COM SUCESSO!');
-    console.log('🎉   Opportunity ID:', opportunity.id);
-    console.log('🎉   Contact:', opportunity.contact_name);
-    console.log('🎉   Conversation ID:', conversation.id);
-    console.log('🎉   Automação agendada:', delayedJobScheduled ? 'Sim' : 'Não');
-    console.log('🎉 ═══════════════════════════════════════════════════════════════');
-    console.log('');
-
     return {
       handled: true,
       opportunity_id: opportunity.id,
@@ -1459,10 +1493,7 @@ async function handleNewRelation(payload) {
     };
 
   } catch (error) {
-    console.error('\n🔗 ═══════════════════════════════════════════════════════════');
-    console.error('🔗 ❌ [NEW-RELATION] ERRO NO PROCESSAMENTO');
-    console.error('🔗     Erro:', error.message);
-    console.error('🔗 ═══════════════════════════════════════════════════════════\n');
+    console.error('[NEW_RELATION] Error:', error.message);
     return { handled: false, reason: error.message };
   }
 }
@@ -1612,8 +1643,6 @@ const getWebhookLogs = async (req, res) => {
     const userId = req.user.id;
     const { page = 1, limit = 50, processed } = req.query;
 
-    console.log(`📋 Listando logs de webhooks`);
-
     // Construir query
     let whereConditions = ['1=1']; // Sempre verdadeiro para facilitar
     let queryParams = [];
@@ -1728,9 +1757,6 @@ const getWebhookStats = async (req, res) => {
 // 9. CONTA CONECTADA (MULTI-CHANNEL)
 // ================================
 async function handleAccountConnected(payload) {
-  console.log('🔗 Processando nova conta conectada');
-  console.log('📋 Payload:', JSON.stringify(payload, null, 2));
-
   const {
     account_id,
     account_type, // LINKEDIN, WHATSAPP, INSTAGRAM, etc.
@@ -1793,9 +1819,6 @@ async function handleAccountConnected(payload) {
 // 10. STATUS DA CONTA (webhook Account da Unipile)
 // ================================
 async function handleAccountStatus(payload) {
-  console.log('📊 Processando status de conta');
-  console.log('📋 Payload:', JSON.stringify(payload, null, 2));
-
   const { account_id, account_type, message } = payload;
 
   if (!account_id) {
@@ -1866,9 +1889,6 @@ async function handleAccountStatus(payload) {
 // 11. CONTA DESCONECTADA
 // ================================
 async function handleAccountDisconnected(payload) {
-  console.log('🔌 Processando conta desconectada');
-  console.log('📋 Payload:', JSON.stringify(payload, null, 2));
-
   const { account_id } = payload;
 
   if (!account_id) {
@@ -1876,12 +1896,12 @@ async function handleAccountDisconnected(payload) {
   }
 
   try {
-    // Atualizar status da conta
+    // Atualizar status da conta e buscar dados necessários para notificação
     const result = await db.query(
       `UPDATE linkedin_accounts
        SET status = 'disconnected', disconnected_at = NOW()
        WHERE unipile_account_id = $1
-       RETURNING id, provider_type`,
+       RETURNING id, account_id, user_id, provider_type, channel_name, profile_name`,
       [account_id]
     );
 
@@ -1890,13 +1910,45 @@ async function handleAccountDisconnected(payload) {
       return { handled: false, reason: 'Account not found' };
     }
 
-    console.log(`✅ Conta ${result.rows[0].id} marcada como desconectada`);
+    const channel = result.rows[0];
+    const channelDisplayName = channel.channel_name || channel.profile_name || channel.provider_type;
+    console.log(`✅ Conta ${channel.id} marcada como desconectada`);
+
+    // Criar notificação no banco de dados
+    try {
+      await notificationService.notifyChannelDisconnected({
+        accountId: channel.account_id,
+        userId: channel.user_id,
+        channelName: channelDisplayName,
+        channelId: channel.id,
+        providerType: channel.provider_type
+      });
+      console.log(`📬 Notificação de desconexão criada para user ${channel.user_id}`);
+    } catch (notifError) {
+      console.error('⚠️ Erro ao criar notificação:', notifError.message);
+      // Continue - não falhar webhook por erro de notificação
+    }
+
+    // Emitir evento Ably para atualização em tempo real no frontend
+    try {
+      publishAccountDisconnected({
+        accountId: channel.account_id,
+        channelId: channel.id,
+        channelName: channelDisplayName,
+        providerType: channel.provider_type
+      });
+      console.log(`📡 Ably: Evento account_disconnected emitido`);
+    } catch (ablyError) {
+      console.error('⚠️ Erro ao emitir evento Ably:', ablyError.message);
+      // Continue - não falhar webhook por erro de Ably
+    }
 
     return {
       handled: true,
       action: 'disconnected',
-      account_id: result.rows[0].id,
-      provider_type: result.rows[0].provider_type
+      account_id: channel.id,
+      provider_type: channel.provider_type,
+      notification_created: true
     };
 
   } catch (error) {

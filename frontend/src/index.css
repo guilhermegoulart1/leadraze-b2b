@@ -138,10 +138,11 @@ body {
   scrollbar-color: #333333 #0a0a0a;
 }
 
-/* Dark Mode - Date Time Picker Styles */
+/* Dark Mode - Form Element Styles */
 .dark input[type="date"],
 .dark input[type="datetime-local"],
-.dark input[type="time"] {
+.dark input[type="time"],
+.dark select {
   color-scheme: dark;
 }
 

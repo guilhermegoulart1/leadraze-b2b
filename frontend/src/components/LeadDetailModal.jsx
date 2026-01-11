@@ -43,8 +43,12 @@ import {
   Package,
   RotateCcw,
   Sparkles,
-  Building2
+  Building2,
+  Lightbulb,
+  TrendingUp
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import MentionTextarea from './MentionTextarea';
@@ -53,8 +57,10 @@ import LeadChecklists from './LeadChecklists';
 import LocationMiniMap from './LocationMiniMap';
 import WinDealModal from './WinDealModal';
 import DiscardLeadModal from './DiscardLeadModal';
-import ProfileEnrichmentSection, { ProfileBadges } from './ProfileEnrichmentSection';
+import { ProfileBadges } from './ProfileEnrichmentSection';
 import CompanyDataTab from './CompanyDataTab';
+import PhoneEmailList from './PhoneEmailList';
+import StartWhatsAppModal from './StartWhatsAppDropdown';
 
 // Helper functions for dynamic Tailwind classes
 const getStageClasses = (color) => {
@@ -91,6 +97,20 @@ const parseJsonArray = (value) => {
   } catch {
     return [];
   }
+};
+
+// Parse AI profile analysis safely
+const parseAIAnalysis = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 };
 
 const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated, onViewContact }) => {
@@ -147,6 +167,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [editingPhone, setEditingPhone] = useState(false);
   const [phoneValue, setPhoneValue] = useState(lead?.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
+
+  // WhatsApp start chat state
+  const [startChatPhone, setStartChatPhone] = useState(null);
 
   // Tags states
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
@@ -242,16 +265,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       activeBg: 'bg-[#25D366]/20',
       border: 'border-[#25D366]/30',
       messageBg: 'bg-[#25D366]'
-    },
-    email: {
-      icon: Mail,
-      label: 'Email',
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
-      activeBg: 'bg-purple-100',
-      border: 'border-purple-200',
-      messageBg: 'bg-purple-600'
     }
+    // Email channel removed - feature not released yet
   };
 
   useEffect(() => {
@@ -271,7 +286,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       const opportunityId = lead.opportunity_id || lead.id;
       const response = await api.getLead(opportunityId);
       if (response.success) {
-        setFullLeadData(response.data.lead || response.data);
+        // api.getLead calls /opportunities/:id which returns { opportunity: {...} }
+        setFullLeadData(response.data.opportunity || response.data.lead || response.data);
       }
     } catch (error) {
       console.error('Error loading full lead data:', error);
@@ -740,6 +756,39 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
     }
   };
 
+  // Handle updating contact with multiple phones/emails
+  const handleUpdateContact = async (updates) => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
+    try {
+      await api.updateLead(opportunityId, updates);
+
+      // Update local state
+      const updatedLead = { ...lead, ...updates };
+      if (onLeadUpdated) {
+        onLeadUpdated(updatedLead);
+      }
+    } catch (error) {
+      console.error('Error updating contact:', error);
+    }
+  };
+
+  // Handle WhatsApp conversation started
+  const handleWhatsAppConversationStarted = (conversationId, isExisting) => {
+    console.log(`WhatsApp conversa ${isExisting ? 'existente' : 'nova'}: ${conversationId}`);
+    setStartChatPhone(null);
+
+    // Switch to WhatsApp tab and reload conversations
+    setActiveChannel('whatsapp');
+    loadConversations();
+
+    // Optionally navigate to the conversation
+    if (onNavigateToConversation) {
+      onNavigateToConversation(lead.opportunity_id || lead.id, 'whatsapp');
+    }
+  };
+
   const loadAvailableTags = async () => {
     try {
       setLoadingTags(true);
@@ -1031,13 +1080,26 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                 </div>
               </div>
 
-              {/* Close Button */}
-              <button
-                onClick={onClose}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {/* Action Buttons - align to bottom */}
+              <div className="flex items-center gap-2 self-end">
+                {/* Ver detalhes - Opens full contact modal */}
+                {lead.contact_id && onViewContact && (
+                  <button
+                    onClick={() => onViewContact(lead.contact_id)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ver detalhes
+                  </button>
+                )}
+                {/* Close Button */}
+                <button
+                  onClick={onClose}
+                  className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1085,6 +1147,17 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     </span>
                   )}
                 </button>
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    activeTab === 'tasks'
+                      ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  Tarefas
+                </button>
                 {/* Company Tab - show if lead has company */}
                 {lead?.company && (
                   <button
@@ -1105,13 +1178,75 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
             {/* Tab Content */}
             <div className="flex-1 overflow-y-auto">
               {activeTab === 'details' && (
-                <div className="p-6">
-                  {/* Status Section - ClickUp Style */}
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 pb-5 border-b border-gray-200 dark:border-gray-700">
+                <div className="p-6 space-y-6">
+                  {/* SEÇÃO: ANÁLISE IA */}
+                  {(() => {
+                    const aiAnalysis = parseAIAnalysis((fullLeadData || lead)?.ai_profile_analysis);
+                    if (!aiAnalysis) return null;
+
+                    return (
+                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200/50 dark:border-purple-700/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
+                            <Zap className="w-4 h-4 text-white" />
+                          </div>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            Análise IA - LinkedIn
+                          </h4>
+                          {(fullLeadData || lead)?.ai_analyzed_at && (
+                            <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">
+                              {formatDistanceToNow(new Date((fullLeadData || lead).ai_analyzed_at), { addSuffix: true, locale: ptBR })}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Summary */}
+                        {aiAnalysis.summary && (
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 leading-relaxed">
+                            {aiAnalysis.summary}
+                          </p>
+                        )}
+
+                        {/* Key Points */}
+                        {aiAnalysis.keyPoints && aiAnalysis.keyPoints.length > 0 && (
+                          <div className="space-y-1.5 mb-3">
+                            {aiAnalysis.keyPoints.map((point, idx) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-xs text-gray-600 dark:text-gray-400">{point}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Approach Hook */}
+                        {aiAnalysis.approachHook && (
+                          <div className="flex items-start gap-2 bg-white/60 dark:bg-gray-800/60 rounded-lg p-2.5 border border-purple-100 dark:border-purple-800">
+                            <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                                Sugestão de abordagem
+                              </span>
+                              <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">
+                                {aiAnalysis.approachHook}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* SEÇÃO: INFORMAÇÕES */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Target className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                      <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Informações</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                     {/* Status */}
-                    <div className="flex items-center gap-2.5">
-                      <Target className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Status</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Status</span>
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setShowStatusDropdown(!showStatusDropdown)}
@@ -1158,9 +1293,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     </div>
 
                     {/* Responsável */}
-                    <div className="flex items-center gap-2.5">
-                      <User className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Responsável</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Responsável</span>
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setShowResponsibleDropdown(!showResponsibleDropdown)}
@@ -1171,13 +1305,11 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                             <>
                               {currentResponsible.avatar ? (
                                 <img
-                                  src={
-                                    currentResponsible.avatar.startsWith('http')
-                                      ? `${currentResponsible.avatar}?v=${Date.now()}`
-                                      : currentResponsible.avatar
-                                  }
+                                  src={currentResponsible.avatar}
                                   alt={currentResponsible.name}
                                   className="w-4 h-4 rounded-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
                                 />
                               ) : (
                                 <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -1291,9 +1423,8 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                     {/* Campanha */}
                     {lead.campaign_name && (
-                      <div className="flex items-center gap-2.5">
-                        <Zap className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Campanha</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Campanha</span>
                         <span className="flex-1 px-2.5 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-xs font-medium rounded-md">
                           {lead.campaign_name}
                         </span>
@@ -1301,62 +1432,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     )}
 
                     {/* Data de criação */}
-                    <div className="flex items-center gap-2.5">
-                      <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Data</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Data</span>
                       <span className="flex-1 text-xs text-gray-700 dark:text-gray-300">
                         {new Date(lead.created_at).toLocaleDateString('pt-BR')} às {new Date(lead.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
 
-                    {/* Conexões */}
-                    {lead.connections_count > 0 && (
-                      <div className="flex items-center gap-2.5">
-                        <Users className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Conexões</span>
-                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {lead.connections_count.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Seguidores */}
-                    {lead.follower_count > 0 && (
-                      <div className="flex items-center gap-2.5">
-                        <UserCheck className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Seguidores</span>
-                        <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {lead.follower_count.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Email */}
-                    {lead.email && (
-                      <div className="flex items-center gap-2.5">
-                        <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Email</span>
-                        <a href={`mailto:${lead.email}`} className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium truncate">
-                          {lead.email}
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Telefone */}
-                    {lead.phone && (
-                      <div className="flex items-center gap-2.5">
-                        <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Telefone</span>
-                        <a href={`tel:${lead.phone}`} className="flex-1 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium">
-                          {lead.phone}
-                        </a>
-                      </div>
-                    )}
-
                     {/* Source / Fonte */}
-                    <div className="flex items-start gap-2.5">
-                      <Flag className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide mt-0.5">Fonte</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Fonte</span>
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setShowSourceDropdown(!showSourceDropdown)}
@@ -1368,9 +1453,10 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                               google_maps: { icon: MapPin, label: 'Google Maps' },
                               list: { icon: List, label: 'Lista' },
                               paid_traffic: { icon: Zap, label: 'Tráfego Pago' },
+                              manual: { icon: UserPlus, label: 'Manual' },
                               other: { icon: Package, label: 'Outro' }
                             };
-                            const config = sourceConfig[currentSource] || sourceConfig.linkedin;
+                            const config = sourceConfig[currentSource] || sourceConfig.other;
                             const SourceIcon = config.icon;
                             return (
                               <>
@@ -1389,6 +1475,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                               { value: 'google_maps', icon: MapPin, label: 'Google Maps' },
                               { value: 'list', icon: List, label: 'Lista' },
                               { value: 'paid_traffic', icon: Zap, label: 'Tráfego Pago' },
+                              { value: 'manual', icon: UserPlus, label: 'Manual' },
                               { value: 'other', icon: Package, label: 'Outro' }
                             ].map((source) => {
                               const SourceIcon = source.icon;
@@ -1414,73 +1501,130 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     </div>
 
                     {/* LinkedIn */}
-                    {lead.public_identifier && (
-                      <div className="flex items-center gap-2.5">
-                        <Linkedin className="w-4 h-4 text-[#0A66C2] flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">LinkedIn</span>
+                    {(lead.public_identifier || lead.profile_url) && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">LinkedIn</span>
                         <a
-                          href={`https://linkedin.com/in/${lead.public_identifier}`}
+                          href={lead.profile_url || `https://linkedin.com/in/${lead.public_identifier}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 text-xs text-[#0A66C2] hover:underline font-medium flex items-center gap-1 truncate"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#0A66C2] bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-md transition-colors"
                         >
-                          {lead.public_identifier}
-                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          <Linkedin className="w-3.5 h-3.5" />
+                          Ver Perfil
+                          <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
                     )}
 
                     {/* Website */}
                     {(fullLeadData?.website || lead.website) && (
-                      <div className="flex items-center gap-2.5">
-                        <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide">Website</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Website</span>
                         <a
                           href={(fullLeadData?.website || lead.website).startsWith('http') ? (fullLeadData?.website || lead.website) : `https://${fullLeadData?.website || lead.website}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium flex items-center gap-1 truncate"
                         >
+                          <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                           {(fullLeadData?.website || lead.website).replace(/^https?:\/\//, '')}
                           <ExternalLink className="w-3 h-3 flex-shrink-0" />
                         </a>
                       </div>
                     )}
+                    </div>
+                  </div>
 
-                    {/* Etiquetas */}
-                    <div className="flex items-start gap-2.5">
-                      <Tag className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-20 uppercase tracking-wide mt-0.5">Etiquetas</span>
-                      <div className="flex-1 relative" ref={tagsDropdownRef}>
-                        <div className="flex flex-wrap gap-1">
-                          {leadTags.map((tag, idx) => {
-                            const colorClasses = getTagColorClasses(tag.color || 'purple');
-                            return (
-                              <span
-                                key={idx}
-                                className={`px-1.5 py-0.5 ${colorClasses.bg} ${colorClasses.text} text-xs font-medium rounded flex items-center gap-1`}
-                              >
-                                {tag.name || tag}
-                                <button
-                                  onClick={() => handleRemoveTag(tag)}
-                                  className="hover:opacity-70"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </span>
-                            );
-                          })}
-                          <button
-                            onClick={() => setShowTagsDropdown(!showTagsDropdown)}
-                            className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 font-medium"
-                          >
-                            + Adicionar
-                          </button>
+                  {/* SEÇÃO: CONTATO */}
+                  <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Phone className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                      <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Contato</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      {/* Emails */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Emails</span>
                         </div>
+                        <PhoneEmailList
+                          type="email"
+                          items={lead.emails?.length > 0 ? lead.emails : (lead.email ? [{ email: lead.email, type: 'personal' }] : [])}
+                          onChange={(emails) => handleUpdateContact({ emails })}
+                          editable={true}
+                          compact={false}
+                          showIcons={false}
+                        />
+                      </div>
 
-                        {/* Tags Dropdown */}
-                        {showTagsDropdown && (
-                          <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 z-50 max-h-64 overflow-y-auto">
+                      {/* Telefones */}
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Telefones</span>
+                        </div>
+                        <PhoneEmailList
+                          type="phone"
+                          items={lead.phones?.length > 0 ? lead.phones : (lead.phone ? [{ phone: lead.phone, type: 'mobile' }] : [])}
+                          onChange={(phones) => handleUpdateContact({ phones })}
+                          onStartChat={(phone) => setStartChatPhone(phone)}
+                          editable={true}
+                          compact={false}
+                          showIcons={false}
+                        />
+
+                        {/* WhatsApp Start Modal */}
+                        {startChatPhone && (
+                          <StartWhatsAppModal
+                            phone={startChatPhone}
+                            contactId={lead.contact_id}
+                            opportunityId={lead.opportunity_id || lead.id}
+                            onClose={() => setStartChatPhone(null)}
+                            onConversationStarted={handleWhatsAppConversationStarted}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SEÇÃO: ETIQUETAS */}
+                  <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Tag className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                      <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Etiquetas</h3>
+                    </div>
+                    <div className="relative" ref={tagsDropdownRef}>
+                      <div className="flex flex-wrap gap-1.5">
+                        {leadTags.map((tag, idx) => {
+                          const colorClasses = getTagColorClasses(tag.color || 'purple');
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 ${colorClasses.bg} ${colorClasses.text} text-xs font-medium rounded-md flex items-center gap-1`}
+                            >
+                              {tag.name || tag}
+                              <button
+                                onClick={() => handleRemoveTag(tag)}
+                                className="hover:opacity-70"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                        <button
+                          onClick={() => setShowTagsDropdown(!showTagsDropdown)}
+                          className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium px-2 py-1 border border-dashed border-purple-300 dark:border-purple-600 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                        >
+                          + Adicionar
+                        </button>
+                      </div>
+
+                      {/* Tags Dropdown */}
+                      {showTagsDropdown && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 z-50 max-h-64 overflow-y-auto">
                             {/* Input para criar nova tag */}
                             <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                               <input
@@ -1566,29 +1710,20 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                         )}
                       </div>
                     </div>
-                  </div>
 
+                  {/* SEÇÃO: SOBRE */}
                   {lead.about && (
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-3">
-                        <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Sobre</h3>
+                    <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <FileText className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                        <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Sobre - LinkedIn</h3>
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed pl-6">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                         {lead.about}
                       </p>
                     </div>
                   )}
 
-                  {/* Checklists */}
-                  <div className="mt-5 pt-5">
-                    <LeadChecklists leadId={lead?.opportunity_id || lead?.id} sectorId={lead?.sector_id} />
-                  </div>
-
-                  {/* Enrichment Data (Skills, Certifications, Languages, etc.) */}
-                  <div className="mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
-                    <ProfileEnrichmentSection profile={fullLeadData || lead} />
-                  </div>
                 </div>
               )}
 
@@ -1746,6 +1881,13 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Tasks Tab */}
+              {activeTab === 'tasks' && (
+                <div className="p-6">
+                  <LeadChecklists leadId={lead?.opportunity_id || lead?.id} sectorId={lead?.sector_id} />
                 </div>
               )}
 

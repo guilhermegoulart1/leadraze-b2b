@@ -5,10 +5,10 @@ import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
   ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw,
   Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check,
-  Play, Pause, Sparkles
+  Play, Pause, Sparkles, Copy, Forward, Mic, Square, Trash2
 } from 'lucide-react';
 import api from '../services/api';
-import { joinConversation, leaveConversation, onNewMessage } from '../services/socket';
+import { joinConversation, leaveConversation, onNewMessage } from '../services/ably';
 import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 import SecretAgentModal from './SecretAgentModal';
@@ -36,6 +36,23 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const audioRefs = useRef({}); // Refs para os elementos audio
   // Secret Agent Modal
   const [showSecretAgentModal, setShowSecretAgentModal] = useState(false);
+  // Message context menu
+  const [messageMenu, setMessageMenu] = useState({ isOpen: false, messageId: null, x: 0, y: 0 });
+  const [copySuccess, setCopySuccess] = useState(null);
+  // Audio recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingIntervalRef = useRef(null);
+  // Quick replies state
+  const [quickReplies, setQuickReplies] = useState([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [quickReplyFilter, setQuickReplyFilter] = useState('');
+  const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
+  const quickRepliesRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const optionsMenuRef = useRef(null);
@@ -72,18 +89,15 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     scrollToBottom();
   }, [messages]);
 
-  // ✅ WebSocket: Entrar/sair da sala de conversa e escutar novas mensagens
+  // ✅ Realtime: Entrar/sair da sala de conversa e escutar novas mensagens via Ably
   useEffect(() => {
     if (!conversationId) return;
 
-    // Entrar na sala da conversa
-    joinConversation(conversationId);
-
-    // Escutar novas mensagens via WebSocket
-    const unsubscribe = onNewMessage((data) => {
+    // Handler para processar novas mensagens
+    const handleNewMessage = (data, source) => {
       // Só processar se for da conversa atual
       if (data.conversationId === conversationId || data.conversationId === parseInt(conversationId)) {
-        console.log('ChatArea: Nova mensagem recebida via WebSocket', data);
+        console.log(`ChatArea: Nova mensagem recebida via ${source}`, data);
 
         // Verificar se a mensagem já existe (evitar duplicatas)
         setMessages(prevMessages => {
@@ -125,7 +139,13 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           return [...prevMessages, newMsg];
         });
       }
-    });
+    };
+
+    // Entrar na sala da conversa (Ably)
+    joinConversation(conversationId);
+
+    // Escutar novas mensagens via Ably
+    const unsubscribe = onNewMessage((data) => handleNewMessage(data, 'Ably'));
 
     // Cleanup: sair da sala e remover listener
     return () => {
@@ -140,15 +160,206 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
         setShowOptionsMenu(false);
       }
+      // Close quick replies dropdown when clicking outside
+      if (quickRepliesRef.current && !quickRepliesRef.current.contains(event.target) &&
+          textareaRef.current && !textareaRef.current.contains(event.target)) {
+        setShowQuickReplies(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Load quick replies on mount
+  useEffect(() => {
+    const loadQuickReplies = async () => {
+      try {
+        const response = await api.getQuickReplies();
+        if (response.success) {
+          setQuickReplies(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading quick replies:', error);
+      }
+    };
+    loadQuickReplies();
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // Handle message context menu
+  const handleMessageContextMenu = (e, messageId) => {
+    e.preventDefault();
+    setMessageMenu({
+      isOpen: true,
+      messageId,
+      x: e.clientX,
+      y: e.clientY
+    });
+  };
+
+  const closeMessageMenu = () => {
+    setMessageMenu({ isOpen: false, messageId: null, x: 0, y: 0 });
+  };
+
+  // Close message menu on click outside
+  useEffect(() => {
+    const handleClick = () => closeMessageMenu();
+    if (messageMenu.isOpen) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [messageMenu.isOpen]);
+
+  // Copy message content
+  const handleCopyMessage = async (message) => {
+    const text = message.content || message.text || '';
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(message.id);
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+    closeMessageMenu();
+  };
+
+  // Check if channel supports forwarding (only WhatsApp)
+  const canForwardMessage = () => {
+    const channel = conversation?.channel || conversation?.source || '';
+    return channel.toLowerCase().includes('whatsapp');
+  };
+
+  // Audio Recording Functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm'
+      });
+
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        setAudioUrl(URL.createObjectURL(audioBlob));
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Start timer
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      setError(t('chatArea.microphoneError', 'Erro ao acessar microfone'));
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      const stream = mediaRecorderRef.current.stream;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+    setAudioBlob(null);
+    setAudioUrl(null);
+    audioChunksRef.current = [];
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+  };
+
+  const sendAudioMessage = async () => {
+    if (!audioBlob) return;
+
+    try {
+      setIsSending(true);
+      setError(null);
+
+      // Create a File object from the blob
+      const audioFile = new File([audioBlob], `audio_${Date.now()}.webm`, {
+        type: 'audio/webm'
+      });
+
+      const response = await api.sendMessage(conversationId, '', [audioFile]);
+
+      if (response.success) {
+        const sentMessage = {
+          id: response.data.id || Date.now(),
+          content: '',
+          sender_type: 'user',
+          sent_at: new Date().toISOString(),
+          attachments: [{
+            id: 'audio-' + Date.now(),
+            name: audioFile.name,
+            type: 'audio/webm',
+            url: audioUrl
+          }]
+        };
+        setMessages(prev => [...prev, sentMessage]);
+        cancelRecording();
+      }
+    } catch (err) {
+      console.error('Error sending audio:', err);
+      setError(t('chatArea.failedSendMessage'));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const formatRecordingTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Cleanup recording on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   const loadConversation = async (id) => {
     try {
@@ -496,7 +707,19 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   };
 
   const handleTextareaChange = (e) => {
-    setNewMessage(e.target.value);
+    const value = e.target.value;
+    setNewMessage(value);
+
+    // Quick replies trigger: detect "/" at beginning
+    if (value.startsWith('/')) {
+      const filter = value.slice(1).toLowerCase(); // Remove "/" and get filter text
+      setQuickReplyFilter(filter);
+      setShowQuickReplies(true);
+      setSelectedQuickReplyIndex(0);
+    } else {
+      setShowQuickReplies(false);
+      setQuickReplyFilter('');
+    }
 
     // Auto-resize textarea
     if (textareaRef.current) {
@@ -505,7 +728,60 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     }
   };
 
+  // Filter quick replies based on search
+  const filteredQuickReplies = quickReplies.filter(reply => {
+    if (!quickReplyFilter) return true;
+    const searchTerm = quickReplyFilter.toLowerCase();
+    return (
+      reply.title.toLowerCase().includes(searchTerm) ||
+      reply.content.toLowerCase().includes(searchTerm) ||
+      (reply.shortcut && reply.shortcut.toLowerCase().includes(searchTerm))
+    );
+  });
+
+  // Insert quick reply content into textarea
+  const insertQuickReply = (reply) => {
+    setNewMessage(reply.content);
+    setShowQuickReplies(false);
+    setQuickReplyFilter('');
+    // Focus back on textarea
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
   const handleKeyDown = (e) => {
+    // Handle quick replies navigation
+    if (showQuickReplies && filteredQuickReplies.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedQuickReplyIndex(prev =>
+          prev < filteredQuickReplies.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedQuickReplyIndex(prev =>
+          prev > 0 ? prev - 1 : filteredQuickReplies.length - 1
+        );
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        insertQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
+        return;
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowQuickReplies(false);
+        setNewMessage('');
+        return;
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        insertQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
+        return;
+      }
+    }
+
+    // Normal send on Shift+Enter
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
@@ -993,12 +1269,13 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               return (
                 <div
                   key={message.id || index}
-                  className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${isUser ? 'justify-end' : 'justify-start'} group`}
                 >
                   <div
                     className={`flex items-start gap-2 max-w-lg ${
                       isUser ? 'flex-row-reverse' : 'flex-row'
                     }`}
+                    onContextMenu={(e) => handleMessageContextMenu(e, message.id)}
                   >
                     {/* Avatar */}
                     <div
@@ -1273,13 +1550,23 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                           </div>
                         )}
                       </div>
-                      <p
-                        className={`text-xs mt-1 ${
-                          isUser ? 'text-right text-gray-500' : 'text-left text-gray-500'
-                        }`}
-                      >
-                        {formatMessageTime(message.sent_at || message.date)}
-                      </p>
+                      <div className={`flex items-center gap-1 mt-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                        <p className="text-xs text-gray-500">
+                          {formatMessageTime(message.sent_at || message.date)}
+                        </p>
+                        {/* Copy button on hover */}
+                        <button
+                          onClick={() => handleCopyMessage(message)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                          title={t('chatArea.copyMessage')}
+                        >
+                          {copySuccess === message.id ? (
+                            <Check className="w-3 h-3 text-green-500" />
+                          ) : (
+                            <Copy className="w-3 h-3 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1374,60 +1661,189 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               </div>
             )}
 
-            <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-              {/* Input de arquivo oculto */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
-              />
-
-              {/* Botão de anexar arquivo */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSending || selectedFiles.length >= 5}
-                className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={t('chatArea.attachFile')}
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-
-              <div className="flex-1">
-                <textarea
-                  ref={textareaRef}
-                  value={newMessage}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder={selectedFiles.length > 0 ? t('chatArea.addMessageOptional') : t('chatArea.typeMessage')}
-                  className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 leading-normal"
-                  rows="1"
-                  style={{ maxHeight: '120px' }}
-                  disabled={isSending}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={(!newMessage.trim() && selectedFiles.length === 0) || isSending}
-                className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 text-sm"
-              >
-                {isSending ? (
+            {/* Audio Recording UI */}
+            {(isRecording || audioBlob) ? (
+              <div className="flex items-center gap-3">
+                {isRecording ? (
+                  // Recording in progress
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    <span>{t('chatArea.sending')}</span>
+                    <div className="flex items-center gap-3 flex-1 px-4 py-2.5 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-sm text-red-700 dark:text-red-400 font-medium">
+                        {t('chatArea.recording')} {formatRecordingTime(recordingTime)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={cancelRecording}
+                      className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                      title={t('chatArea.cancelRecording')}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 text-sm"
+                    >
+                      <Square className="w-4 h-4" />
+                      <span>{t('chatArea.stopRecording')}</span>
+                    </button>
                   </>
                 ) : (
+                  // Audio preview (after recording stopped)
                   <>
-                    <Send className="w-5 h-5" />
-                    <span>{t('chatArea.send')}</span>
+                    <div className="flex-1 flex items-center gap-3 px-4 py-2.5 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg">
+                      <Music className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <audio src={audioUrl} controls className="h-8 flex-1" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={cancelRecording}
+                      className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                      title={t('chatArea.cancelRecording')}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={sendAudioMessage}
+                      disabled={isSending}
+                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium flex items-center gap-2 text-sm"
+                    >
+                      {isSending ? (
+                        <Loader className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                      <span>{t('chatArea.sendAudio')}</span>
+                    </button>
                   </>
                 )}
-              </button>
-            </form>
+              </div>
+            ) : (
+              // Normal message input
+              <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+                {/* Input de arquivo oculto */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                />
+
+                {/* Botão de anexar arquivo */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSending || selectedFiles.length >= 5}
+                  className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={t('chatArea.attachFile')}
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+
+                {/* Botão de gravar áudio */}
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  disabled={isSending}
+                  className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={t('chatArea.recordAudio')}
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
+
+                <div className="flex-1 relative">
+                  {/* Quick Replies Dropdown */}
+                  {showQuickReplies && filteredQuickReplies.length > 0 && (
+                    <div
+                      ref={quickRepliesRef}
+                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
+                    >
+                      <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {t('chatArea.quickReplies', 'Respostas Rápidas')} • {t('chatArea.useArrowKeys', 'Use ↑↓ para navegar, Enter para selecionar')}
+                        </p>
+                      </div>
+                      {filteredQuickReplies.map((reply, index) => (
+                        <button
+                          key={reply.id}
+                          type="button"
+                          onClick={() => insertQuickReply(reply)}
+                          className={`w-full text-left px-3 py-2 transition-colors ${
+                            index === selectedQuickReplyIndex
+                              ? 'bg-purple-50 dark:bg-purple-900/30'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                              {reply.title}
+                            </span>
+                            {reply.shortcut && (
+                              <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded font-mono">
+                                /{reply.shortcut}
+                              </span>
+                            )}
+                            {reply.is_global && (
+                              <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs rounded">
+                                Global
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                            {reply.content}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Empty state when no quick replies match */}
+                  {showQuickReplies && filteredQuickReplies.length === 0 && quickReplies.length > 0 && (
+                    <div
+                      ref={quickRepliesRef}
+                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-50"
+                    >
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                        {t('chatArea.noQuickRepliesFound', 'Nenhuma resposta encontrada')}
+                      </p>
+                    </div>
+                  )}
+                  <textarea
+                    ref={textareaRef}
+                    value={newMessage}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder={selectedFiles.length > 0 ? t('chatArea.addMessageOptional') : t('chatArea.typeMessage')}
+                    className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 leading-normal"
+                    rows="1"
+                    style={{ maxHeight: '120px' }}
+                    disabled={isSending}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={(!newMessage.trim() && selectedFiles.length === 0) || isSending}
+                  className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2 text-sm"
+                >
+                  {isSending ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      <span>{t('chatArea.sending')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>{t('chatArea.send')}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
         );
       })()}
@@ -1473,6 +1889,51 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           setShowSecretAgentModal(false);
         }}
       />
+
+      {/* Message Context Menu */}
+      {messageMenu.isOpen && (
+        <div
+          className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[140px]"
+          style={{
+            left: `${messageMenu.x}px`,
+            top: `${messageMenu.y}px`,
+            transform: 'translate(-50%, -100%)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              const message = messages.find(m => m.id === messageMenu.messageId);
+              if (message) handleCopyMessage(message);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Copy className="w-4 h-4" />
+            {t('chatArea.copyMessage')}
+          </button>
+          {canForwardMessage() && (
+            <button
+              onClick={() => {
+                // TODO: Implement forward functionality via Unipile API
+                closeMessageMenu();
+                alert('Forward functionality coming soon');
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Forward className="w-4 h-4" />
+              {t('chatArea.forwardMessage')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Copy Success Toast */}
+      {copySuccess && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <Check className="w-4 h-4" />
+          {t('chatArea.messageCopied')}
+        </div>
+      )}
     </div>
   );
 };

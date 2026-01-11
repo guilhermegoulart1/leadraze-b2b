@@ -1,49 +1,39 @@
 // frontend/src/components/pipelines/ProjectModal.jsx
-import { useState, useEffect } from 'react';
-import { X, FolderOpen } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Folder } from 'lucide-react';
 import api from '../../services/api';
 
-const COLORS = [
-  { name: 'Roxo', value: '#8b5cf6' },
-  { name: 'Azul', value: '#3b82f6' },
-  { name: 'Verde', value: '#22c55e' },
-  { name: 'Amarelo', value: '#eab308' },
-  { name: 'Laranja', value: '#f97316' },
-  { name: 'Vermelho', value: '#ef4444' },
-  { name: 'Rosa', value: '#ec4899' },
-  { name: 'Cinza', value: '#6b7280' }
-];
-
 const ProjectModal = ({ project, onClose, onSave }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    color: '#8b5cf6'
-  });
+  const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (project) {
-      setFormData({
-        name: project.name || '',
-        description: project.description || '',
-        color: project.color || '#8b5cf6'
-      });
+      setName(project.name || '');
     }
   }, [project]);
 
+  // Focus input on mount
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     setError('');
 
-    if (!formData.name.trim()) {
-      setError('Nome do projeto é obrigatório');
+    if (!name.trim()) {
+      setError('Digite o nome do projeto');
+      inputRef.current?.focus();
       return;
     }
 
     try {
       setSaving(true);
+
+      const formData = { name: name.trim() };
 
       let response;
       if (project?.id) {
@@ -64,106 +54,96 @@ const ProjectModal = ({ project, onClose, onSave }) => {
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && name.trim()) {
+      handleSubmit();
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  const isNew = !project?.id;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-gray-200 dark:border-gray-800">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${formData.color}20` }}
-            >
-              <FolderOpen className="w-5 h-5" style={{ color: formData.color }} />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {project?.id ? 'Editar Projeto' : 'Novo Projeto'}
-            </h2>
-          </div>
+        <div className="relative px-8 pt-8 pb-2">
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
+
+          {/* Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-500/25">
+              <Folder className="w-8 h-8 text-white" />
+            </div>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
+            {isNew ? 'Criar novo projeto' : 'Renomear projeto'}
+          </h2>
+          <p className="text-center text-gray-500 dark:text-gray-400 mt-2 text-sm">
+            {isNew
+              ? 'Projetos ajudam a organizar suas pipelines'
+              : 'Altere o nome do seu projeto'
+            }
+          </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Content */}
+        <div className="px-8 py-6">
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl text-sm text-red-600 dark:text-red-400 text-center">
               {error}
             </div>
           )}
 
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nome do Projeto *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ex: Vendas Q1 2024"
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white"
-              autoFocus
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Descrição
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Descrição opcional do projeto..."
-              rows={3}
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white resize-none"
-            />
-          </div>
-
-          {/* Color */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Cor
+              Nome do projeto
             </label>
-            <div className="flex flex-wrap gap-2">
-              {COLORS.map(color => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, color: color.value })}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    formData.color === color.value
-                      ? 'border-gray-900 dark:border-white scale-110'
-                      : 'border-transparent hover:scale-105'
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
-            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ex: Vendas Q1 2025, Marketing, Suporte..."
+              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:focus:border-purple-500 dark:text-white text-base transition-all placeholder:text-gray-400"
+            />
           </div>
-        </form>
+        </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-8 pb-8 pt-2 flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="flex-1 px-6 py-3.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={saving || !name.trim()}
+            className="flex-1 px-6 py-3.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-purple-600 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
           >
-            {saving ? 'Salvando...' : project?.id ? 'Salvar' : 'Criar Projeto'}
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Criando...
+              </span>
+            ) : (
+              isNew ? 'Criar projeto' : 'Salvar alterações'
+            )}
           </button>
         </div>
       </div>

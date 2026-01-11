@@ -8,7 +8,7 @@
 const { secretAgentQueue } = require('../queues');
 const { orchestratorService } = require('../services/secretAgent/orchestratorService');
 const { Pool } = require('pg');
-const { publishInvestigationQueued } = require('../services/socketService');
+const { publishInvestigationQueued } = require('../services/ablyService');
 
 // Database connection
 const pool = new Pool({
@@ -133,7 +133,7 @@ async function queueInvestigation(investigationId, sessionId, accountId, options
   if (result.rows.length > 0) {
     const { case_number, target_name, objective } = result.rows[0];
 
-    // Notify user that investigation is queued
+    // Notify user that investigation is queued (via Ably)
     publishInvestigationQueued({
       accountId,
       investigationId,

@@ -2164,6 +2164,44 @@ const sendInviteFromSearch = async (req, res) => {
   }
 };
 
+// ================================
+// GET WHATSAPP ACCOUNTS
+// Lista apenas contas WhatsApp ativas para seleção
+// ================================
+const getWhatsAppAccounts = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`📱 Listando contas WhatsApp da conta ${accountId}`);
+
+    // Buscar contas WhatsApp ativas da conta (não apenas do usuário)
+    const result = await db.query(`
+      SELECT
+        id,
+        profile_name as display_name,
+        linkedin_username as email,
+        profile_picture,
+        status,
+        provider_type,
+        unipile_account_id
+      FROM linkedin_accounts
+      WHERE account_id = $1
+        AND provider_type = 'WHATSAPP'
+        AND status = 'active'
+      ORDER BY profile_name ASC
+    `, [accountId]);
+
+    console.log(`✅ Encontradas ${result.rows.length} contas WhatsApp`);
+
+    sendSuccess(res, result.rows, 'WhatsApp accounts retrieved successfully');
+
+  } catch (error) {
+    console.error('❌ Erro ao listar contas WhatsApp:', error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   connectLinkedInAccount,
   getHostedAuthLink,
@@ -2191,5 +2229,7 @@ module.exports = {
   updateChannelSettings,
   getChannelTypes,
   // ✅ v1.3.0
-  sendInviteFromSearch
+  sendInviteFromSearch,
+  // ✅ WhatsApp chat start
+  getWhatsAppAccounts
 };

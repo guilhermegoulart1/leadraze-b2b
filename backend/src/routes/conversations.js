@@ -48,6 +48,13 @@ router.use(authenticateToken);
 router.use(apiLimiter);
 
 // ================================
+// INICIAR CONVERSAS
+// ================================
+
+// Iniciar conversa WhatsApp (nova ou retornar existente)
+router.post('/whatsapp/start', conversationController.startWhatsAppConversation);
+
+// ================================
 // CONVERSAS
 // ================================
 

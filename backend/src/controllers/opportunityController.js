@@ -357,6 +357,10 @@ const getOpportunity = async (req, res) => {
         c.rating as contact_rating,
         c.review_count as contact_review_count,
         c.business_category as contact_business_category,
+        -- AI Profile Analysis
+        c.ai_profile_analysis,
+        c.ai_analyzed_at,
+        c.public_identifier as contact_public_identifier,
         -- Pipeline info
         p.id as pipeline_id,
         p.name as pipeline_name,

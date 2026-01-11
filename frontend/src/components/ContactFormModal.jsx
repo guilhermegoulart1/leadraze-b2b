@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Phone, Building2, MapPin, Linkedin, User } from 'lucide-react';
+import { X, Mail, Building2, MapPin, Linkedin, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import PhoneInput from './PhoneInput';
 
 const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }) => {
   const { t } = useTranslation();
@@ -10,6 +11,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
     name: '',
     email: '',
     phone: '',
+    phone_country_code: '',
     company: '',
     title: '',
     location: '',
@@ -32,6 +34,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
         name: contact.name || '',
         email: contact.email || '',
         phone: contact.phone || '',
+        phone_country_code: contact.phone_country_code || '',
         company: contact.company || '',
         title: contact.title || '',
         location: contact.location || '',
@@ -45,6 +48,7 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
         name: '',
         email: '',
         phone: '',
+        phone_country_code: '',
         company: '',
         title: '',
         location: '',
@@ -200,16 +204,13 @@ const ContactFormModal = ({ isOpen, onClose, onSave, contact = null, tags = [] }
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Phone className="w-4 h-4 inline mr-1" />
                   Telefone
                 </label>
-                <input
-                  type="tel"
-                  name="phone"
+                <PhoneInput
                   value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                  placeholder="+55 11 99999-9999"
+                  onChange={(phone) => setFormData(prev => ({ ...prev, phone }))}
+                  countryCode={formData.phone_country_code}
+                  onCountryChange={(code) => setFormData(prev => ({ ...prev, phone_country_code: code }))}
                 />
               </div>
             </div>

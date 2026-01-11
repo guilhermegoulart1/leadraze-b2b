@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Bell, CreditCard, Database, Shield, Mail, Users, X, Trash2, RefreshCw, UserPlus, Package, Plus, Edit2, ToggleLeft, ToggleRight, XCircle, Loader } from 'lucide-react';
+import { User, Lock, Bell, CreditCard, Database, Shield, Mail, Users, X, Trash2, RefreshCw, UserPlus, Package, Plus, Edit2, ToggleLeft, ToggleRight, XCircle, Loader, MessageSquare } from 'lucide-react';
+import QuickRepliesTab from '../components/settings/QuickRepliesTab';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { EmailSettingsTab } from '../components/email-settings';
@@ -820,6 +821,7 @@ const SettingsPage = () => {
     { id: 'email', label: t('tabs.email', 'Email'), icon: Mail },
     { id: 'products', label: t('tabs.products', 'Produtos'), icon: Package },
     { id: 'discardReasons', label: t('tabs.discardReasons', 'Motivos de Descarte'), icon: XCircle },
+    { id: 'quickReplies', label: t('configTabs.quickReplies', 'Respostas Rápidas'), icon: MessageSquare },
     { id: 'security', label: t('tabs.security'), icon: Lock },
     { id: 'notifications', label: t('tabs.notifications'), icon: Bell },
     { id: 'billing', label: t('tabs.billing'), icon: CreditCard },
@@ -1064,6 +1066,13 @@ const SettingsPage = () => {
           {/* Discard Reasons Tab */}
           {activeTab === 'discardReasons' && (
             <DiscardReasonsTab />
+          )}
+
+          {/* Quick Replies Tab */}
+          {activeTab === 'quickReplies' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <QuickRepliesTab />
+            </div>
           )}
 
           {/* Partners Tab */}

@@ -8,7 +8,31 @@
     "apiKeys": "API Key",
     "channels": "Canais Conectados",
     "checklists": "CRM Checklists",
-    "emails": "Emails"
+    "emails": "Emails",
+    "quickReplies": "Respostas Rápidas"
+  },
+  "quickReplies": {
+    "title": "Respostas Rápidas",
+    "description": "Crie respostas pré-definidas para usar rapidamente nas conversas. Digite / no chat para acessá-las.",
+    "newReply": "Nova Resposta",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Ex: Saudação inicial",
+    "contentLabel": "Conteúdo",
+    "contentPlaceholder": "Digite o texto da resposta rápida...",
+    "shortcutLabel": "Atalho (opcional)",
+    "shortcutPlaceholder": "Ex: oi",
+    "globalLabel": "Global",
+    "globalDescription": "Visível para todos os usuários",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "confirmDelete": "Tem certeza que deseja excluir esta resposta rápida?",
+    "noReplies": "Nenhuma resposta rápida cadastrada",
+    "createFirst": "Crie sua primeira resposta rápida para agilizar suas conversas",
+    "myReplies": "Minhas Respostas",
+    "globalReplies": "Respostas Globais",
+    "createdBy": "Criado por"
   },
   "tabs": {
     "profile": "Perfil",
@@ -43,7 +67,9 @@
     "theme": "Tema",
     "themeLight": "Claro",
     "themeDark": "Escuro",
-    "themeAuto": "Auto"
+    "themeAuto": "Auto",
+    "defaultCountry": "País padrão para telefone",
+    "defaultCountryDescription": "Define o código de país padrão ao inserir números de telefone"
   },
   "security": {
     "title": "Segurança",

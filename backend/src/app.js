@@ -565,6 +565,22 @@ try {
   console.error('❌ Error loading Opportunities routes:', error.message);
 }
 
+// Realtime (Ably token authentication)
+try {
+  app.use('/api/realtime', require('./routes/realtime'));
+  console.log('✅ Realtime routes loaded (Ably)');
+} catch (error) {
+  console.error('❌ Error loading Realtime routes:', error.message);
+}
+
+// Quick Replies
+try {
+  app.use('/api/quick-replies', require('./routes/quickReplies'));
+  console.log('✅ Quick Replies routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Quick Replies routes:', error.message);
+}
+
 // ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================

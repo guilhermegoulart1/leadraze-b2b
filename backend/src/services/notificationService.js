@@ -310,6 +310,27 @@ async function notifyInviteExpired({ accountId, userId, opportunityName, opportu
   });
 }
 
+/**
+ * Create notification for channel disconnected
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyChannelDisconnected({ accountId, userId, channelName, channelId, providerType }) {
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'channel_disconnected',
+    title: 'Canal desconectado',
+    message: `Seu canal ${channelName || providerType} foi desconectado. Reconecte para continuar recebendo mensagens.`,
+    metadata: {
+      channel_id: channelId,
+      provider_type: providerType,
+      channel_name: channelName,
+      link: '/config?tab=channels'
+    }
+  });
+}
+
 module.exports = {
   create,
   getByUser,
@@ -320,5 +341,6 @@ module.exports = {
   deleteOldNotifications,
   createBulk,
   notifyInviteAccepted,
-  notifyInviteExpired
+  notifyInviteExpired,
+  notifyChannelDisconnected
 };

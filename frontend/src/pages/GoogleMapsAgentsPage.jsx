@@ -6,7 +6,7 @@ import apiService from '../services/api';
 import GoogleMapsAgentRow from '../components/GoogleMapsAgentRow';
 import GoogleMapsAgentForm from '../components/GoogleMapsAgentForm';
 import { useBilling } from '../contexts/BillingContext';
-import { onGmapsAgentProgress } from '../services/socket';
+import { onGmapsAgentProgress } from '../services/ably';
 
 const GoogleMapsAgentsPage = () => {
   const { t } = useTranslation(['googlemaps', 'common']);
@@ -49,10 +49,10 @@ const GoogleMapsAgentsPage = () => {
     return () => clearInterval(interval);
   }, [executingAgents]);
 
-  // WebSocket listener for real-time updates
+  // Realtime listener for real-time updates via Ably
   useEffect(() => {
-    const unsubscribe = onGmapsAgentProgress((data) => {
-      console.log('📡 WebSocket: gmaps_agent_progress', data);
+    const handleGmapsProgress = (data, source) => {
+      console.log(`📡 ${source}: gmaps_agent_progress`, data);
 
       // Check if this is a "collecting" status (still working) or final status
       const isCollecting = data.status === 'collecting';
@@ -103,9 +103,14 @@ const GoogleMapsAgentsPage = () => {
           return newProgress;
         });
       }
-    });
+    };
 
-    return () => unsubscribe();
+    // Ably listener (realtime)
+    const unsubscribe = onGmapsAgentProgress((data) => handleGmapsProgress(data, 'Ably'));
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadAgents = async (silentRefresh = false) => {

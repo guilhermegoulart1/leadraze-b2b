@@ -1,6 +1,7 @@
 // frontend/src/components/pipelines/PipelineSettingsModal.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { HexColorPicker } from 'react-colorful';
 import {
   X,
   Target,
@@ -14,22 +15,25 @@ import {
   Crown,
   Shield,
   Loader,
-  AlertCircle
+  AlertCircle,
+  Pipette
 } from 'lucide-react';
 import api from '../../services/api';
 
-const COLORS = [
-  { name: 'Cinza', value: 'slate' },
-  { name: 'Azul', value: 'blue' },
-  { name: 'Roxo', value: 'purple' },
-  { name: 'Amarelo', value: 'amber' },
-  { name: 'Laranja', value: 'orange' },
-  { name: 'Verde', value: 'emerald' },
-  { name: 'Vermelho', value: 'red' },
-  { name: 'Rosa', value: 'pink' }
+// Cores preset com valores HEX diretos
+const PRESET_COLORS = [
+  { name: 'Azul', hex: '#3b82f6' },
+  { name: 'Roxo', hex: '#8b5cf6' },
+  { name: 'Verde', hex: '#10b981' },
+  { name: 'Amarelo', hex: '#f59e0b' },
+  { name: 'Vermelho', hex: '#ef4444' },
+  { name: 'Rosa', hex: '#ec4899' },
+  { name: 'Laranja', hex: '#f97316' },
+  { name: 'Ciano', hex: '#0891b2' },
 ];
 
-const COLOR_MAP = {
+// Mapa de cores legadas (para compatibilidade)
+const LEGACY_COLOR_MAP = {
   slate: '#64748b',
   blue: '#3b82f6',
   purple: '#8b5cf6',
@@ -37,7 +41,213 @@ const COLOR_MAP = {
   orange: '#f97316',
   emerald: '#10b981',
   red: '#ef4444',
-  pink: '#ec4899'
+  pink: '#ec4899',
+  cyan: '#0891b2'
+};
+
+// Resolver cor (suporta hex e nomes legados)
+const resolveColor = (color) => {
+  if (!color) return '#3b82f6';
+  if (color.startsWith('#')) return color;
+  return LEGACY_COLOR_MAP[color] || '#3b82f6';
+};
+
+// Componente ColorPicker compacto - mostra só a cor, clica para abrir seletor (para Etapas)
+const ColorPicker = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showCustom, setShowCustom] = useState(false);
+  const [customHex, setCustomHex] = useState(resolveColor(value));
+  const resolvedValue = resolveColor(value);
+  const pickerRef = useRef(null);
+
+  useEffect(() => {
+    setCustomHex(resolveColor(value));
+  }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const handlePresetClick = (hex) => {
+    onChange(hex);
+    setCustomHex(hex);
+    setIsOpen(false);
+  };
+
+  const handleCustomChange = (e) => {
+    let hex = e.target.value;
+    setCustomHex(hex);
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+      onChange(hex);
+    }
+  };
+
+  return (
+    <div className="relative" ref={pickerRef}>
+      {/* Botão da cor atual */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-7 h-7 rounded-full border-2 border-gray-300 dark:border-gray-500 hover:scale-110 transition-transform"
+        style={{ backgroundColor: resolvedValue }}
+        title="Clique para mudar a cor"
+      />
+
+      {/* Dropdown de cores */}
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 min-w-[200px]">
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {PRESET_COLORS.map((color) => (
+              <button
+                key={color.hex}
+                type="button"
+                onClick={() => handlePresetClick(color.hex)}
+                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  resolvedValue === color.hex
+                    ? 'ring-2 ring-offset-1 ring-purple-500 border-white'
+                    : 'border-gray-200 dark:border-gray-600 hover:scale-110'
+                }`}
+                style={{ backgroundColor: color.hex }}
+                title={color.name}
+              />
+            ))}
+          </div>
+
+          {/* Cor customizada */}
+          {!showCustom ? (
+            <button
+              type="button"
+              onClick={() => setShowCustom(true)}
+              className="w-full text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 flex items-center justify-center gap-1 py-1"
+            >
+              <Pipette className="w-3 h-3" />
+              Cor customizada
+            </button>
+          ) : (
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
+              <HexColorPicker
+                color={resolvedValue}
+                onChange={(newColor) => {
+                  onChange(newColor);
+                  setCustomHex(newColor);
+                }}
+                style={{ width: '100%', height: '120px' }}
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="text"
+                  value={customHex}
+                  onChange={handleCustomChange}
+                  placeholder="#ff0099"
+                  className="flex-1 px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCustom(false)}
+                  className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Componente FullColorPicker - mostra todas as cores inline (para aba Geral)
+const FullColorPicker = ({ value, onChange }) => {
+  const [showCustom, setShowCustom] = useState(false);
+  const [customHex, setCustomHex] = useState(resolveColor(value));
+  const resolvedValue = resolveColor(value);
+
+  useEffect(() => {
+    setCustomHex(resolveColor(value));
+  }, [value]);
+
+  const handleCustomChange = (e) => {
+    let hex = e.target.value;
+    setCustomHex(hex);
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+      onChange(hex);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Cores preset em linha */}
+      <div className="flex flex-wrap gap-2">
+        {PRESET_COLORS.map((color) => (
+          <button
+            key={color.hex}
+            type="button"
+            onClick={() => {
+              onChange(color.hex);
+              setCustomHex(color.hex);
+            }}
+            className={`w-9 h-9 rounded-full border-2 transition-all ${
+              resolvedValue === color.hex
+                ? 'ring-2 ring-offset-2 ring-purple-500 border-white dark:ring-offset-gray-800'
+                : 'border-gray-200 dark:border-gray-600 hover:scale-110'
+            }`}
+            style={{ backgroundColor: color.hex }}
+            title={color.name}
+          />
+        ))}
+
+        {/* Botão para cor customizada */}
+        <button
+          type="button"
+          onClick={() => setShowCustom(!showCustom)}
+          className={`w-9 h-9 rounded-full border-2 transition-all flex items-center justify-center ${
+            showCustom
+              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+              : 'border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500'
+          }`}
+          title="Cor customizada"
+        >
+          <Pipette className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        </button>
+      </div>
+
+      {/* Picker de cor customizada */}
+      {showCustom && (
+        <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+          <HexColorPicker
+            color={resolvedValue}
+            onChange={(newColor) => {
+              onChange(newColor);
+              setCustomHex(newColor);
+            }}
+            style={{ width: '100%', height: '140px' }}
+          />
+          <div className="flex items-center gap-2 mt-3">
+            <div
+              className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-500"
+              style={{ backgroundColor: resolvedValue }}
+            />
+            <input
+              type="text"
+              value={customHex}
+              onChange={handleCustomChange}
+              placeholder="#ff0099"
+              className="flex-1 px-3 py-2 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const ROLE_LABELS = {
@@ -83,15 +293,15 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
       setFormData({
         name: '',
         description: '',
-        color: 'blue',
+        color: '#3b82f6',
         project_id: defaultProjectId || pipeline?.project_id || null,
         is_restricted: false
       });
       setStages([
-        { id: 'temp-1', name: 'Novos', color: 'slate', is_win_stage: false, is_loss_stage: false },
-        { id: 'temp-2', name: 'Em Progresso', color: 'blue', is_win_stage: false, is_loss_stage: false },
-        { id: 'temp-3', name: 'Qualificado', color: 'emerald', is_win_stage: true, is_loss_stage: false },
-        { id: 'temp-4', name: 'Perdido', color: 'red', is_win_stage: false, is_loss_stage: true }
+        { id: 'temp-1', name: 'Novos', color: '#3b82f6', is_win_stage: false, is_loss_stage: false },
+        { id: 'temp-2', name: 'Em Progresso', color: '#8b5cf6', is_win_stage: false, is_loss_stage: false },
+        { id: 'temp-3', name: 'Qualificado', color: '#10b981', is_win_stage: true, is_loss_stage: false },
+        { id: 'temp-4', name: 'Perdido', color: '#ef4444', is_win_stage: false, is_loss_stage: true }
       ]);
     }
   }, [pipeline, defaultProjectId]);
@@ -111,7 +321,7 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
         setFormData({
           name: p.name || '',
           description: p.description || '',
-          color: p.color || 'blue',
+          color: resolveColor(p.color),
           project_id: p.project_id || null,
           is_restricted: p.is_restricted || false
         });
@@ -223,6 +433,11 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
       return;
     }
 
+    if (!formData.project_id) {
+      setError('Selecione um projeto para a pipeline');
+      return;
+    }
+
     if (stages.length < 2) {
       setError('A pipeline precisa ter pelo menos 2 etapas');
       return;
@@ -276,7 +491,7 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
       {
         id: `temp-${Date.now()}`,
         name: `Nova Etapa ${stages.length + 1}`,
-        color: 'slate',
+        color: '#64748b',
         is_win_stage: false,
         is_loss_stage: false
       }
@@ -324,9 +539,9 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${COLOR_MAP[formData.color] || formData.color}20` }}
+              style={{ backgroundColor: `${resolveColor(formData.color)}20` }}
             >
-              <Target className="w-5 h-5" style={{ color: COLOR_MAP[formData.color] || formData.color }} />
+              <Target className="w-5 h-5" style={{ color: resolveColor(formData.color) }} />
             </div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {isNew ? 'Nova Pipeline' : 'Configurações da Pipeline'}
@@ -362,19 +577,17 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
           >
             Etapas ({stages.length})
           </button>
-          {!isNew && formData.is_restricted && (
-            <button
-              onClick={() => setActiveTab('permissions')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === 'permissions'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Permissões ({pipelineUsers.length})
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('permissions')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'permissions'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Permissões
+          </button>
         </div>
 
         {/* Content */}
@@ -418,14 +631,14 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
               {/* Project */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Projeto
+                  Projeto *
                 </label>
                 <select
                   value={formData.project_id || ''}
                   onChange={(e) => setFormData({ ...formData, project_id: e.target.value || null })}
-                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white"
+                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">Sem projeto</option>
+                  <option value="" disabled>Selecione um projeto</option>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -437,48 +650,11 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Cor
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {COLORS.map(color => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, color: color.value })}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        formData.color === color.value
-                          ? 'border-gray-900 dark:border-white scale-110'
-                          : 'border-transparent hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: COLOR_MAP[color.value] }}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
+                <FullColorPicker
+                  value={formData.color}
+                  onChange={(color) => setFormData({ ...formData, color })}
+                />
               </div>
-
-              {/* Restricted */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Pipeline Restrita</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Apenas usuários selecionados terão acesso
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_restricted}
-                    onChange={(e) => setFormData({ ...formData, is_restricted: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-                </label>
-              </div>
-
-              {formData.is_restricted && isNew && (
-                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
-                  Após criar a pipeline, vá na aba "Permissões" para adicionar os usuários que terão acesso.
-                </p>
-              )}
 
               {/* Delete Pipeline Section - only when editing */}
               {!isNew && (
@@ -534,21 +710,10 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
                               </div>
 
                               {/* Color picker */}
-                              <div className="relative">
-                                <div
-                                  className="w-6 h-6 rounded cursor-pointer"
-                                  style={{ backgroundColor: COLOR_MAP[stage.color] || '#64748b' }}
-                                />
-                                <select
-                                  value={stage.color}
-                                  onChange={(e) => updateStage(index, 'color', e.target.value)}
-                                  className="absolute inset-0 opacity-0 cursor-pointer"
-                                >
-                                  {COLORS.map(c => (
-                                    <option key={c.value} value={c.value}>{c.name}</option>
-                                  ))}
-                                </select>
-                              </div>
+                              <ColorPicker
+                                value={stage.color}
+                                onChange={(color) => updateStage(index, 'color', color)}
+                              />
 
                               {/* Name */}
                               <input
@@ -618,108 +783,146 @@ const PipelineSettingsModal = ({ pipeline, projects, defaultProjectId, onClose, 
 
           {activeTab === 'permissions' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Gerencie quem tem acesso a esta pipeline restrita.
-              </p>
-
-              {/* Add user form */}
-              <div className="flex items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg text-sm dark:text-white"
-                  disabled={loadingUsers}
-                >
-                  <option value="">Selecione um usuário...</option>
-                  {availableUsers.map(user => (
-                    <option key={user.id} value={user.id}>{user.name} ({user.email})</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="px-3 py-2 bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg text-sm dark:text-white"
-                >
-                  <option value="member">Membro</option>
-                  <option value="admin">Admin</option>
-                </select>
-
-                <button
-                  onClick={handleAddUser}
-                  disabled={!selectedUserId || addingUser}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {addingUser ? (
-                    <Loader className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="w-4 h-4" />
-                  )}
-                  Adicionar
-                </button>
+              {/* Toggle de restricao */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Restringir acesso</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Apenas usuários selecionados terão acesso a esta pipeline
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_restricted}
+                    onChange={(e) => setFormData({ ...formData, is_restricted: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                </label>
               </div>
 
-              {/* Users list */}
-              {loadingUsers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader className="w-6 h-6 animate-spin text-gray-400" />
-                </div>
-              ) : pipelineUsers.length === 0 ? (
+              {/* Conteudo baseado na restricao */}
+              {formData.is_restricted ? (
+                <>
+                  {/* Para pipelines novas: aviso */}
+                  {isNew && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
+                      Após criar a pipeline, você poderá adicionar os usuários que terão acesso aqui.
+                    </p>
+                  )}
+
+                  {/* Para pipelines existentes: gerenciamento de usuarios */}
+                  {!isNew && (
+                    <>
+                      {/* Add user form */}
+                      <div className="flex items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <select
+                          value={selectedUserId}
+                          onChange={(e) => setSelectedUserId(e.target.value)}
+                          className="flex-1 px-3 py-2 bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg text-sm dark:text-white"
+                          disabled={loadingUsers}
+                        >
+                          <option value="">Selecione um usuário...</option>
+                          {availableUsers.map(user => (
+                            <option key={user.id} value={user.id}>{user.name} ({user.email})</option>
+                          ))}
+                        </select>
+
+                        <select
+                          value={selectedRole}
+                          onChange={(e) => setSelectedRole(e.target.value)}
+                          className="px-3 py-2 bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg text-sm dark:text-white"
+                        >
+                          <option value="member">Membro</option>
+                          <option value="admin">Admin</option>
+                        </select>
+
+                        <button
+                          onClick={handleAddUser}
+                          disabled={!selectedUserId || addingUser}
+                          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {addingUser ? (
+                            <Loader className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <UserPlus className="w-4 h-4" />
+                          )}
+                          Adicionar
+                        </button>
+                      </div>
+
+                      {/* Users list */}
+                      {loadingUsers ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader className="w-6 h-6 animate-spin text-gray-400" />
+                        </div>
+                      ) : pipelineUsers.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                          <p>Nenhum usuário com acesso ainda.</p>
+                          <p className="text-sm">Adicione usuários usando o formulário acima.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {pipelineUsers.map(pu => {
+                            const roleConfig = ROLE_LABELS[pu.role] || ROLE_LABELS.member;
+                            const RoleIcon = roleConfig.icon;
+
+                            return (
+                              <div
+                                key={pu.user_id}
+                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {pu.avatar_url ? (
+                                    <img
+                                      src={pu.avatar_url}
+                                      alt={pu.name}
+                                      className="w-8 h-8 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                      <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                                        {pu.name?.charAt(0)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-gray-900 dark:text-white text-sm">{pu.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{pu.email}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className={`flex items-center gap-1 text-xs font-medium ${roleConfig.color}`}>
+                                    <RoleIcon className="w-3.5 h-3.5" />
+                                    {roleConfig.label}
+                                  </span>
+
+                                  {pu.role !== 'owner' && (
+                                    <button
+                                      onClick={() => handleRemoveUser(pu.user_id)}
+                                      className="p-1.5 text-gray-400 hover:text-red-500 rounded transition-colors"
+                                      title="Remover acesso"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Nenhum usuário com acesso ainda.</p>
-                  <p className="text-sm">Adicione usuários usando o formulário acima.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {pipelineUsers.map(pu => {
-                    const roleConfig = ROLE_LABELS[pu.role] || ROLE_LABELS.member;
-                    const RoleIcon = roleConfig.icon;
-
-                    return (
-                      <div
-                        key={pu.user_id}
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-                      >
-                        <div className="flex items-center gap-3">
-                          {pu.avatar_url ? (
-                            <img
-                              src={pu.avatar_url}
-                              alt={pu.name}
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                              <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                                {pu.name?.charAt(0)}
-                              </span>
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white text-sm">{pu.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{pu.email}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className={`flex items-center gap-1 text-xs font-medium ${roleConfig.color}`}>
-                            <RoleIcon className="w-3.5 h-3.5" />
-                            {roleConfig.label}
-                          </span>
-
-                          {pu.role !== 'owner' && (
-                            <button
-                              onClick={() => handleRemoveUser(pu.user_id)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 rounded transition-colors"
-                              title="Remover acesso"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <p>Pipeline aberta</p>
+                  <p className="text-sm">Todos os usuários da conta têm acesso a esta pipeline.</p>
                 </div>
               )}
             </div>

@@ -81,6 +81,13 @@ router.post('/linkedin-accounts/:id/override-limit', profileController.overrideL
 router.get('/linkedin-accounts/:id/limit-history', profileController.getLimitHistory);
 
 // ================================
+// WHATSAPP ACCOUNTS
+// ================================
+
+// Listar contas WhatsApp ativas (para seleção ao iniciar conversa)
+router.get('/whatsapp-accounts', profileController.getWhatsAppAccounts);
+
+// ================================
 // LINKEDIN SEARCH & ACTIONS
 // ================================
 

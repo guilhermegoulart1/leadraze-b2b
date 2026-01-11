@@ -5,8 +5,10 @@ import {
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
-  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo
+  Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo,
+  AlertCircle
 } from 'lucide-react';
+import { onAccountDisconnected } from '../services/ably';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -29,6 +31,7 @@ const Layout = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0); // Real data from API
   const [unreadNotifications, setUnreadNotifications] = useState(0); // System notifications
+  const [notifications, setNotifications] = useState([]); // Notification list
 
   const isActive = (path) => location.pathname === path;
 
@@ -65,6 +68,80 @@ const Layout = () => {
     } catch (error) {
       console.error('Erro ao carregar estatísticas de conversas:', error);
     }
+  };
+
+  // ✅ Carregar notificações do sistema
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60000); // Refresh a cada minuto
+    return () => clearInterval(interval);
+  }, []);
+
+  // ✅ Escutar eventos de desconexão de canal via Ably
+  useEffect(() => {
+    const unsubscribe = onAccountDisconnected((data) => {
+      console.log('Channel disconnected:', data);
+      loadNotifications(); // Recarrega notificações
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const response = await api.getNotifications({ limit: 10 });
+      if (response.success) {
+        setNotifications(response.data || []);
+        const unreadCount = (response.data || []).filter(n => !n.is_read).length;
+        setUnreadNotifications(unreadCount);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    // Marcar como lida
+    try {
+      await api.markNotificationAsRead(notification.id);
+      setNotifications(prev => prev.map(n =>
+        n.id === notification.id ? { ...n, is_read: true } : n
+      ));
+      setUnreadNotifications(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
+    }
+
+    // Navegar para o link se existir
+    if (notification.metadata?.link) {
+      navigate(notification.metadata.link);
+    }
+
+    setShowNotifications(false);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await api.markAllNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadNotifications(0);
+    } catch (error) {
+      console.error('Erro ao marcar todas como lidas:', error);
+    }
+  };
+
+  const formatRelativeTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `Há ${diffMins} minuto${diffMins > 1 ? 's' : ''}`;
+    if (diffHours < 24) return `Há ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+    return `Há ${diffDays} dia${diffDays > 1 ? 's' : ''}`;
   };
 
   const navItems = [
@@ -450,25 +527,72 @@ const Layout = () => {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowNotifications(false)}
                   />
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
-                    <div className="p-3 border-b border-gray-200">
-                      <h3 className="text-sm font-semibold text-gray-900">Notificações</h3>
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Notificações</h3>
+                      {unreadNotifications > 0 && (
+                        <button
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700"
+                        >
+                          Marcar todas como lidas
+                        </button>
+                      )}
                     </div>
-                    <div className="divide-y divide-gray-100">
-                      <div className="p-3 hover:bg-gray-50 cursor-pointer">
-                        <p className="text-xs font-medium text-gray-900">Nova campanha criada</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Há 5 minutos</p>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                          Nenhuma notificação
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
+                              !notification.is_read ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {notification.type === 'channel_disconnected' && (
+                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs font-medium ${
+                                  !notification.is_read
+                                    ? 'text-gray-900 dark:text-gray-100'
+                                    : 'text-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                                  {formatRelativeTime(notification.created_at)}
+                                </p>
+                              </div>
+                              {!notification.is_read && (
+                                <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0" />
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {notifications.length > 0 && (
+                      <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                          onClick={() => {
+                            navigate('/notifications');
+                            setShowNotifications(false);
+                          }}
+                          className="w-full text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 font-medium py-1"
+                        >
+                          Ver todas notificações
+                        </button>
                       </div>
-                      <div className="p-3 hover:bg-gray-50 cursor-pointer">
-                        <p className="text-xs font-medium text-gray-900">10 novos leads adicionados</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Há 1 hora</p>
-                      </div>
-                    </div>
-                    <div className="p-2 border-t border-gray-200">
-                      <button className="w-full text-xs text-purple-600 hover:text-purple-700 font-medium py-1">
-                        Ver todas notificações
-                      </button>
-                    </div>
+                    )}
                   </div>
                 </>
               )}

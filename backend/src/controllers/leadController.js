@@ -220,6 +220,7 @@ const getLead = async (req, res) => {
         ru.email as responsible_email,
         ru.avatar_url as responsible_avatar,
         -- Contact details from contacts table
+        ct.id as contact_id,
         ct.phone as contact_phone,
         ct.email as contact_email,
         COALESCE(l.title, ct.title) as title,
@@ -231,7 +232,35 @@ const getLead = async (req, res) => {
         ct.company_services,
         ct.pain_points,
         ct.photos,
-        ct.website
+        ct.website,
+        -- LinkedIn enrichment data
+        ct.experience,
+        ct.education,
+        ct.skills,
+        ct.certifications,
+        ct.languages,
+        ct.publications,
+        ct.volunteer_experience,
+        ct.honors_awards,
+        ct.projects,
+        ct.courses,
+        ct.patents,
+        ct.recommendations,
+        ct.websites,
+        ct.follower_count,
+        ct.connections_count,
+        ct.is_creator,
+        ct.is_influencer,
+        ct.is_open_to_work,
+        ct.is_hiring,
+        ct.is_premium,
+        ct.full_profile_fetched_at,
+        ct.network_distance,
+        ct.public_identifier,
+        ct.linkedin_profile_id,
+        -- AI Analysis
+        ct.ai_profile_analysis,
+        ct.ai_analyzed_at
       FROM leads l
       LEFT JOIN campaigns c ON l.campaign_id = c.id
       LEFT JOIN users ru ON l.responsible_user_id = ru.id
@@ -525,6 +554,8 @@ const updateLead = async (req, res) => {
       discard_reason,
       email,
       phone,
+      emails,  // JSONB array: [{ email, type }]
+      phones,  // JSONB array: [{ phone, type }]
       source
     } = req.body;
 
@@ -592,12 +623,19 @@ const updateLead = async (req, res) => {
       }
     }
 
-    if (Object.keys(updateData).length === 0) {
+    // Check if there's anything to update (lead fields or contact fields)
+    const hasLeadUpdates = Object.keys(updateData).length > 0;
+    const hasContactUpdates = emails !== undefined || phones !== undefined;
+
+    if (!hasLeadUpdates && !hasContactUpdates) {
       throw new ValidationError('No fields to update');
     }
 
-    // Atualizar
-    const updatedLead = await db.update('leads', updateData, { id });
+    // Atualizar lead se houver campos
+    let updatedLead = lead;
+    if (hasLeadUpdates) {
+      updatedLead = await db.update('leads', updateData, { id });
+    }
 
     // Atualizar contadores da campanha se mudou o status
     if (status && status !== lead.status) {
@@ -623,6 +661,43 @@ const updateLead = async (req, res) => {
     }
 
     console.log(`✅ Lead atualizado`);
+
+    // 📧📞 Atualizar emails e phones no contato (JSONB arrays)
+    if (emails !== undefined || phones !== undefined) {
+      // Encontrar o contact_id vinculado ao lead
+      const contactLink = await db.query(
+        `SELECT contact_id FROM contact_leads WHERE lead_id = $1 LIMIT 1`,
+        [id]
+      );
+
+      if (contactLink.rows.length > 0) {
+        const contactId = contactLink.rows[0].contact_id;
+        const contactUpdates = [];
+        const contactValues = [];
+        let paramIndex = 1;
+
+        if (emails !== undefined) {
+          contactUpdates.push(`emails = $${paramIndex}::jsonb`);
+          contactValues.push(JSON.stringify(emails));
+          paramIndex++;
+        }
+
+        if (phones !== undefined) {
+          contactUpdates.push(`phones = $${paramIndex}::jsonb`);
+          contactValues.push(JSON.stringify(phones));
+          paramIndex++;
+        }
+
+        if (contactUpdates.length > 0) {
+          contactValues.push(contactId);
+          await db.query(
+            `UPDATE contacts SET ${contactUpdates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex}`,
+            contactValues
+          );
+          console.log(`📧📞 Contato ${contactId} atualizado com emails/phones`);
+        }
+      }
+    }
 
     sendSuccess(res, updatedLead, 'Lead updated successfully');
 

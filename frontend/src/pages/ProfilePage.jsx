@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Mail, Building2, Camera, Check, Loader2, Sun, Moon, Monitor } from 'lucide-react';
+import { User, Mail, Building2, Camera, Check, Loader2, Sun, Moon, Monitor, Phone, ChevronDown, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
+import { COUNTRIES } from '../components/PhoneInput';
 
 const languages = [
   { code: 'pt', name: 'Português', flagUrl: 'https://flagcdn.com/w40/br.png' },
@@ -23,6 +24,10 @@ const ProfilePage = () => {
   const [error, setError] = useState(null);
   const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
   const [currentLang, setCurrentLang] = useState(i18n.language);
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const countryDropdownRef = useRef(null);
+  const countrySearchRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,6 +35,7 @@ const ProfilePage = () => {
     profile_picture: null,
     avatar_url: null,
     preferred_language: 'pt',
+    default_country: 'BR',
   });
 
   useEffect(() => {
@@ -48,6 +54,7 @@ const ProfilePage = () => {
           profile_picture: userData.profile_picture || null,
           avatar_url: userData.avatar_url || null,
           preferred_language: userData.preferred_language || 'pt',
+          default_country: userData.default_country || 'BR',
         });
       }
     } catch (err) {
@@ -103,6 +110,53 @@ const ProfilePage = () => {
     setCurrentLang(langCode);
   };
 
+  // Country dropdown handlers
+  // Ordenar paises: atual primeiro, depois alfabeticamente
+  const getSortedCountries = (countries) => {
+    const currentCountry = countries.find(c => c.code === formData.default_country);
+    const otherCountries = countries
+      .filter(c => c.code !== formData.default_country)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+    return currentCountry ? [currentCountry, ...otherCountries] : otherCountries;
+  };
+
+  const filteredCountries = countrySearch
+    ? COUNTRIES.filter(c =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+        c.dialCode.includes(countrySearch) ||
+        c.code.toLowerCase().includes(countrySearch.toLowerCase())
+      ).sort((a, b) => a.name.localeCompare(b.name, 'pt'))
+    : getSortedCountries(COUNTRIES);
+
+  const selectedCountry = COUNTRIES.find(c => c.code === formData.default_country) || COUNTRIES[0];
+
+  // Close country dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target)) {
+        setCountryDropdownOpen(false);
+        setCountrySearch('');
+      }
+    };
+    if (countryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [countryDropdownOpen]);
+
+  // Focus search when dropdown opens
+  useEffect(() => {
+    if (countryDropdownOpen && countrySearchRef.current) {
+      countrySearchRef.current.focus();
+    }
+  }, [countryDropdownOpen]);
+
+  const handleCountrySelect = (country) => {
+    setFormData(prev => ({ ...prev, default_country: country.code }));
+    setCountryDropdownOpen(false);
+    setCountrySearch('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -115,6 +169,7 @@ const ProfilePage = () => {
         name: formData.name,
         company: formData.company,
         preferred_language: formData.preferred_language,
+        default_country: formData.default_country,
       };
 
       // Only include profile_picture if it's a new base64 image or explicitly set to null for removal
@@ -140,6 +195,7 @@ const ProfilePage = () => {
             profile_picture: response.data.user.profile_picture,
             avatar_url: response.data.user.avatar_url,
             preferred_language: response.data.user.preferred_language,
+            default_country: response.data.user.default_country,
             updated_at: response.data.user.updated_at,
           });
 
@@ -366,6 +422,88 @@ const ProfilePage = () => {
                   <span className="hidden sm:inline">{t('profile.themeAuto')}</span>
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Default Country for Phone */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Phone className="w-4 h-4 text-gray-500" />
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('profile.defaultCountry')}</h3>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              {t('profile.defaultCountryDescription')}
+            </p>
+
+            {/* Country Dropdown */}
+            <div className="relative" ref={countryDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <img
+                    src={selectedCountry.flag}
+                    alt={selectedCountry.name}
+                    className="w-6 h-4 object-cover rounded-sm"
+                  />
+                  <span className="text-gray-900 dark:text-gray-100">{selectedCountry.name}</span>
+                  <span className="text-gray-500 dark:text-gray-400">{selectedCountry.dialCode}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {countryDropdownOpen && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-h-72 overflow-hidden">
+                  {/* Search */}
+                  <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        ref={countrySearchRef}
+                        type="text"
+                        value={countrySearch}
+                        onChange={(e) => setCountrySearch(e.target.value)}
+                        placeholder="Buscar pais..."
+                        className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Countries List */}
+                  <div className="overflow-y-auto max-h-56">
+                    {filteredCountries.length > 0 ? (
+                      filteredCountries.map((country) => (
+                        <button
+                          key={country.code}
+                          type="button"
+                          onClick={() => handleCountrySelect(country)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-left ${
+                            formData.default_country === country.code ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                          }`}
+                        >
+                          <img
+                            src={country.flag}
+                            alt={country.name}
+                            className="w-6 h-4 object-cover rounded-sm"
+                          />
+                          <span className="flex-1 text-sm text-gray-900 dark:text-gray-100">
+                            {country.name}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {country.dialCode}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                        Nenhum pais encontrado
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
