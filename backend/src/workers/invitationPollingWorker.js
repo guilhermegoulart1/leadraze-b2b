@@ -54,6 +54,7 @@ async function getActiveLinkedInAccounts() {
     FROM linkedin_accounts la
     WHERE la.status = 'active'
     AND la.unipile_account_id IS NOT NULL
+    AND la.provider_type = 'LINKEDIN'
     ORDER BY la.id
   `);
 

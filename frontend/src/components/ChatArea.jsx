@@ -13,7 +13,7 @@ import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 import SecretAgentModal from './SecretAgentModal';
 import ConversationInviteModal from './ConversationInviteModal';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Hourglass } from 'lucide-react';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const { t, i18n } = useTranslation('conversations');
@@ -1144,18 +1144,27 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             <Sparkles className="w-5 h-5" />
           </button>
 
-          {/* Send Invite Button - só aparece para não-conexões do LinkedIn */}
+          {/* Send Invite Button - só aparece para não-conexões do LinkedIn (após dados carregados) */}
           {conversation?.channel !== 'email' &&
            conversation?.source !== 'email' &&
-           conversation?.contact?.network_distance !== 'FIRST_DEGREE' &&
-           !conversation?.contact?.is_connection && (
-            <button
-              onClick={() => setShowInviteModal(true)}
-              className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-              title="Enviar convite de conexão"
-            >
-              <UserPlus className="w-5 h-5" />
-            </button>
+           conversation?.contact_linkedin_profile_id &&
+           conversation?.contact_network_distance !== 'FIRST_DEGREE' && (
+            conversation?.has_pending_invitation ? (
+              <div
+                className="p-2 text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg cursor-default"
+                title="Convite enviado - aguardando aceitação"
+              >
+                <Hourglass className="w-5 h-5" />
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                title="Enviar convite de conexão"
+              >
+                <UserPlus className="w-5 h-5" />
+              </button>
+            )
           )}
 
           {/* Channel Indicator */}
@@ -1915,13 +1924,15 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         linkedinAccountId={conversation?.linkedin_account_id}
         contact={{
           name: conversation?.lead_name || conversation?.contact?.name,
-          provider_id: conversation?.contact?.provider_id || conversation?.lead_provider_id,
+          provider_id: conversation?.contact_linkedin_profile_id || conversation?.contact?.linkedin_profile_id,
           profile_picture: conversation?.lead_profile_picture || conversation?.contact?.profile_picture,
-          headline: conversation?.contact?.headline,
-          company: conversation?.contact?.company,
-          title: conversation?.contact?.title
+          headline: conversation?.contact?.headline || conversation?.contact_title,
+          company: conversation?.contact?.company || conversation?.contact_company,
+          title: conversation?.contact?.title || conversation?.contact_title
         }}
         onSuccess={() => {
+          // Atualizar estado da conversa para mostrar convite pendente
+          setConversation(prev => ({ ...prev, has_pending_invitation: true }));
           setShowInviteModal(false);
         }}
       />

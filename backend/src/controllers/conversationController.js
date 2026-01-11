@@ -367,6 +367,15 @@ const getConversation = async (req, res) => {
         COALESCE(ct.profile_picture, opp_contact.profile_picture) as contact_picture,
         COALESCE(ct.profile_url, opp_contact.profile_url) as contact_profile_url,
         COALESCE(ct.location, opp_contact.location) as contact_location,
+        COALESCE(ct.linkedin_profile_id, opp_contact.linkedin_profile_id) as contact_linkedin_profile_id,
+        COALESCE(ct.network_distance, opp_contact.network_distance) as contact_network_distance,
+        -- Verificar se já existe convite pendente para este contato
+        EXISTS(
+          SELECT 1 FROM invitation_snapshots inv_snap
+          WHERE inv_snap.linkedin_account_id = la.id
+          AND inv_snap.invitation_type = 'sent'
+          AND inv_snap.provider_id = COALESCE(ct.linkedin_profile_id, opp_contact.linkedin_profile_id)
+        ) as has_pending_invitation,
         -- Aliases para compatibilidade com frontend (usa lead_*)
         COALESCE(ct.name, opp_contact.name) as lead_name,
         COALESCE(ct.phone, opp_contact.phone) as lead_phone,
