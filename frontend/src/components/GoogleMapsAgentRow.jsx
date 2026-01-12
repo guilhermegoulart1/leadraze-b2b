@@ -70,36 +70,12 @@ const GoogleMapsAgentRow = ({ agent, onPause, onResume, onDelete, onExport, onEd
     };
   };
 
-  // Check if agent might be running (recently created or recently executed)
-  const mightBeRunning = () => {
-    if (agent.status !== 'active') return false;
-
-    // If never executed, check if recently created (might be running initial job)
-    if (!agent.last_execution_at) {
-      const created = new Date(agent.created_at);
-      const now = new Date();
-      const diffMinutes = (now - created) / 1000 / 60;
-      return diffMinutes < 5; // Created less than 5 minutes ago
-    }
-
-    // If executed within the last 5 minutes, might still be running
-    const lastExec = new Date(agent.last_execution_at);
-    const now = new Date();
-    const diffMinutes = (now - lastExec) / 1000 / 60;
-    return diffMinutes < 5;
-  };
-
   const getStatusConfig = (status) => {
-    // If status is 'active' but might be running, show loading state
-    if (status === 'active' && mightBeRunning()) {
-      return {
-        label: 'Verificando...',
-        color: 'text-gray-500 dark:text-gray-400',
-        bgColor: 'bg-gray-100 dark:bg-gray-800',
-        icon: Loader2,
-        animate: true
-      };
-    }
+    // Note: We removed the "mightBeRunning" check because it was confusing.
+    // The backend manages status correctly:
+    // - 'collecting' = actively running
+    // - 'active' = waiting for next scheduled execution
+    // - 'completed' = all pages exhausted
 
     switch (status) {
       case 'active':

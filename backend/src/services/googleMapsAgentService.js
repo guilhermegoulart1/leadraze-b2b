@@ -562,9 +562,10 @@ class GoogleMapsAgentService {
 
       pagesFetched++;
 
-      if (!searchResults.success || searchResults.total_results === 0) {
+      // Check if this page returned no results (campaign exhausted)
+      if (!searchResults.success || !searchResults.places || searchResults.places.length === 0) {
         hasMoreResults = false;
-        console.log(`📭 Agent ${agentId}: No more results at page ${currentPage + 1}`);
+        console.log(`📭 Agent ${agentId}: No more results at page ${currentPage + 1} - campaign exhausted`);
         break;
       }
 
