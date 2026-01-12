@@ -180,6 +180,16 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport, onE
     ? (progress?.leadsInserted ?? agent.leads_inserted ?? 0)
     : (agent.found_places ? (Array.isArray(agent.found_places) ? agent.found_places.length : 0) : 0);
 
+  // Debug logging for list-only mode
+  if (agent.insert_in_crm === false) {
+    console.log(`[LIST MODE DEBUG] Agent ${agent.id}:`, {
+      insert_in_crm: agent.insert_in_crm,
+      insertInCrm,
+      found_places_length: agent.found_places ? agent.found_places.length : 0,
+      displayLeadsInserted
+    });
+  }
+
   return (
     <>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-shadow">

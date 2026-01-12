@@ -62,6 +62,18 @@ const GoogleMapsAgentDetailPage = () => {
       const contactsRes = await api.getGoogleMapsAgentContacts(id);
       if (contactsRes.success) {
         setContacts(contactsRes.contacts || []);
+
+        // Debug logging for list-only mode
+        if (agentRes.agent?.insert_in_crm === false && contactsRes.contacts?.length > 0) {
+          console.log('[LIST MODE DEBUG] First contact structure:', contactsRes.contacts[0]);
+          console.log('[LIST MODE DEBUG] Has AI fields:', {
+            company_description: !!contactsRes.contacts[0]?.company_description,
+            company_services: contactsRes.contacts[0]?.company_services,
+            pain_points: contactsRes.contacts[0]?.pain_points,
+            emails: contactsRes.contacts[0]?.emails,
+            phones: contactsRes.contacts[0]?.phones
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading agent data:', error);
@@ -407,9 +419,14 @@ const GoogleMapsAgentDetailPage = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
             <CheckCircle className="w-4 h-4" />
-            <span className="text-xs">No CRM</span>
+            <span className="text-xs">{agent.insert_in_crm !== false ? 'No CRM' : 'Gerados'}</span>
           </div>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{agent.leads_inserted || 0}</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {agent.insert_in_crm !== false
+              ? (agent.leads_inserted || 0)
+              : (agent.found_places ? (Array.isArray(agent.found_places) ? agent.found_places.length : 0) : 0)
+            }
+          </p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
