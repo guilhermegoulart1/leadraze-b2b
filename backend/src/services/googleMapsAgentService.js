@@ -1062,6 +1062,12 @@ class GoogleMapsAgentService {
     const foundPlaces = []; // For storing enriched data when not inserting in CRM
     const duplicatePlaces = []; // For tracking duplicates
 
+    // DEBUG: Log mode detection
+    console.log(`\n🔍 [MODE DEBUG] Agent ${agent.id}:`);
+    console.log(`   agent.insert_in_crm from DB: ${agent.insert_in_crm} (type: ${typeof agent.insert_in_crm})`);
+    console.log(`   insertInCrm calculated: ${insertInCrm}`);
+    console.log(`   Mode: ${insertInCrm ? 'CRM MODE' : 'LIST ONLY MODE'}\n`);
+
     for (let i = 0; i < places.length; i++) {
       const place = places[i];
 
@@ -1334,8 +1340,10 @@ class GoogleMapsAgentService {
     }
 
     // If in list-only mode, save found places to the agent's found_places JSONB column
+    console.log(`\n💾 [SAVE CHECK] insertInCrm: ${insertInCrm}, foundPlaces.length: ${foundPlaces.length}`);
     if (!insertInCrm && foundPlaces.length > 0) {
       try {
+        console.log(`📋 [LIST MODE] Attempting to save ${foundPlaces.length} places to found_places...`);
         // Append new places to existing found_places array
         // Note: We don't increment leads_inserted here because leads are NOT being inserted into CRM
         await db.query(`
@@ -1344,10 +1352,13 @@ class GoogleMapsAgentService {
               updated_at = NOW()
           WHERE id = $2
         `, [JSON.stringify(foundPlaces), agent.id]);
-        console.log(`📋 [LIST MODE] Saved ${foundPlaces.length} places to found_places for agent ${agent.id}`);
+        console.log(`✅ [LIST MODE] Successfully saved ${foundPlaces.length} places to found_places for agent ${agent.id}`);
       } catch (saveError) {
         console.error(`❌ Failed to save found_places:`, saveError.message);
+        console.error(saveError);
       }
+    } else {
+      console.log(`⏭️  [SKIP SAVE] Reason: ${insertInCrm ? 'CRM mode (not list mode)' : `foundPlaces is empty (${foundPlaces.length} items)`}`);
     }
 
     return { inserted, skipped, duplicates, creditsConsumed, duplicatePlaces };
