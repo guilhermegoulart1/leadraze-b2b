@@ -33,7 +33,7 @@ BEGIN
     5000,
     5000,
     NOW() + INTERVAL '90 days',  -- Válido por 90 dias
-    'manual',
+    'bonus',  -- Valores permitidos: 'purchase', 'purchase_onetime', 'subscription', 'bonus', 'refund'
     'USD',
     'active',
     NOW()
