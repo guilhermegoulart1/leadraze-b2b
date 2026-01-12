@@ -57,17 +57,26 @@ class SerpApiClient {
     }
 
     try {
+      // Build search params based on location format
+      // If location starts with '@', it's coordinates (@lat,lng,zoom)
+      // Otherwise, it's a text location (city, state, country)
+      const isCoordinates = location.startsWith('@');
+
       const searchParams = {
         engine: 'google_maps',
         type: 'search',
-        q: query,
-        ll: location,  // Can be coordinates or location string
-        start: start,
+        q: isCoordinates ? query : `${query} in ${location}`,  // Include location in query for text-based
         hl: hl,
+        start: start,
         api_key: SERPAPI_KEY
       };
 
-      console.log(`🔍 SerpApi request: query="${query}", location="${location}", start=${start}`);
+      // Only use 'll' parameter for coordinate-based searches
+      if (isCoordinates) {
+        searchParams.ll = location;
+      }
+
+      console.log(`🔍 SerpApi request: query="${searchParams.q}", ${isCoordinates ? `ll="${location}"` : `location="${location}"`}, start=${start}`);
 
       const response = await axios.get(SERPAPI_BASE_URL, {
         params: searchParams,
