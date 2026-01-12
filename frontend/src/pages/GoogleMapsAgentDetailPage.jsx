@@ -144,9 +144,10 @@ const GoogleMapsAgentDetailPage = () => {
 
   const parseJsonSafe = (value) => {
     if (!value) return [];
-    if (Array.isArray(value)) return value;
+    if (Array.isArray(value)) return value; // Already array (JSONB from any source)
+    if (typeof value === 'object') return value; // Already object (JSONB from any source)
     try {
-      return JSON.parse(value);
+      return JSON.parse(value); // String JSON (fallback for special cases)
     } catch {
       return [];
     }
