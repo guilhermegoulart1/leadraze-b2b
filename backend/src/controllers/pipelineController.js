@@ -68,9 +68,10 @@ const getPipeline = async (req, res) => {
     `;
     const stagesResult = await db.query(stagesQuery, [id]);
 
-    // Buscar usuários com acesso (se restrita)
+    // Buscar usuários com acesso
     let users = [];
     if (pipeline.is_restricted) {
+      // Pipeline restrito: apenas usuários com permissão
       const usersQuery = `
         SELECT pu.*, u.name, u.email, u.avatar_url
         FROM pipeline_users pu
@@ -79,6 +80,16 @@ const getPipeline = async (req, res) => {
         ORDER BY u.name ASC
       `;
       const usersResult = await db.query(usersQuery, [id]);
+      users = usersResult.rows;
+    } else {
+      // Pipeline não restrito: todos os usuários da conta
+      const usersQuery = `
+        SELECT id as user_id, name as user_name, email as user_email, avatar_url, 'member' as role
+        FROM users
+        WHERE account_id = $1 AND is_active = true
+        ORDER BY name ASC
+      `;
+      const usersResult = await db.query(usersQuery, [accountId]);
       users = usersResult.rows;
     }
 

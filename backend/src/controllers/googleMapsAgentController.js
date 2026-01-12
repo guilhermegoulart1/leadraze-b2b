@@ -44,7 +44,10 @@ exports.createAgent = async (req, res) => {
       dailyLimit,
       executionTime,
       // Rotation assignees
-      assignees
+      assignees,
+      // Pipeline and stage selection
+      pipelineId,
+      stageId
     } = req.body;
 
     // Get account and user from authenticated request
@@ -88,7 +91,10 @@ exports.createAgent = async (req, res) => {
       dailyLimit,
       executionTime,
       // Rotation
-      assignees
+      assignees,
+      // Pipeline and stage
+      pipelineId,
+      stageId
     });
 
     res.status(201).json({

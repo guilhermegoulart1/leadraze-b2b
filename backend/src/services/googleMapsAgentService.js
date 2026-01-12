@@ -16,8 +16,8 @@ const notificationService = require('./notificationService');
 const publishGmapsProgress = (data) => {
   ablyService.publishGmapsAgentProgress(data);
 };
-// DEPRECATED: googleMapsRotationService - now using centralized roundRobinService
-// const googleMapsRotationService = require('./googleMapsRotationService');
+// googleMapsRotationService - used for agent-specific assignees when pipeline is configured
+const googleMapsRotationService = require('./googleMapsRotationService');
 
 class GoogleMapsAgentService {
   /**
@@ -53,9 +53,14 @@ class GoogleMapsAgentService {
       locationDistribution = 'proportional', // 'proportional' or 'sequential'
       // CRM insertion mode
       insertInCrm = true, // true = insert in CRM, false = just generate list
+      // Pipeline and stage selection
+      pipelineId = null, // specific pipeline for leads (null = use default)
+      stageId = null, // specific stage for leads (null = use first stage)
       // Scheduling
       dailyLimit = 20, // null = unlimited (capped at 2000)
-      executionTime = '09:00'
+      executionTime = '09:00',
+      // Rotation assignees
+      assignees = []
     } = agentData;
 
     // Validation
@@ -82,9 +87,9 @@ class GoogleMapsAgentService {
         business_category, business_specification,
         min_rating, min_reviews,
         search_locations, location_distribution,
-        insert_in_crm,
+        insert_in_crm, pipeline_id, stage_id,
         daily_limit, execution_time, next_execution_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *
     `;
 
@@ -112,6 +117,8 @@ class GoogleMapsAgentService {
       JSON.stringify(searchLocations),
       locationDistribution,
       insertInCrm,
+      pipelineId || null,
+      stageId || null,
       dailyLimit, // Can be null for unlimited
       executionTime,
       nextExecution
@@ -121,6 +128,12 @@ class GoogleMapsAgentService {
     const agent = result.rows[0];
 
     console.log(`✅ Google Maps agent created: ${agent.id} - "${agent.name}"`);
+
+    // Save assignees for round-robin rotation if provided
+    if (assignees && assignees.length > 0) {
+      await googleMapsRotationService.setAssignees(agent.id, assignees);
+      console.log(`👥 Saved ${assignees.length} assignees for agent ${agent.id}`);
+    }
 
     // Schedule job execution
     // 1. Execute IMMEDIATELY to get first 20 leads
@@ -1351,17 +1364,46 @@ class GoogleMapsAgentService {
         );
         creditsConsumed++;
 
-        // Auto-assign to user using centralized round-robin service
+        // Auto-assign to user using round-robin
         try {
-          await roundRobinService.autoAssignOpportunityOnCreation({
-            opportunityId: contact.opportunity_id,
-            sectorId: agent.sector_id,
-            accountId: agent.account_id,
-            campaignId: null,
-            source: 'google_maps'
-          });
+          // Check if agent has configured assignees (pipeline-based round robin)
+          const nextAssignee = await googleMapsRotationService.getNextAssignee(agent.id);
+
+          if (nextAssignee) {
+            // Use agent's configured assignees for round-robin
+            await db.query(
+              `UPDATE opportunities SET owner_user_id = $1 WHERE id = $2`,
+              [nextAssignee.userId, contact.opportunity_id]
+            );
+
+            // Log the assignment
+            await db.query(`
+              INSERT INTO google_maps_agent_assignments
+              (account_id, agent_id, contact_id, assigned_to_user_id, rotation_position, total_assignees, lead_name, lead_company)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `, [
+              agent.account_id,
+              agent.id,
+              contact.id,
+              nextAssignee.userId,
+              nextAssignee.rotationPosition,
+              nextAssignee.totalAssignees,
+              contactData.name,
+              contactData.company || null
+            ]);
+          } else if (agent.sector_id) {
+            // Fall back to sector-based round-robin for legacy agents
+            await roundRobinService.autoAssignOpportunityOnCreation({
+              opportunityId: contact.opportunity_id,
+              sectorId: agent.sector_id,
+              accountId: agent.account_id,
+              campaignId: null,
+              source: 'google_maps'
+            });
+          }
         } catch (rotationError) {
           // Don't fail the insertion if rotation fails
+          console.error('Round-robin assignment error:', rotationError.message);
         }
 
         inserted++;
@@ -1565,37 +1607,45 @@ class GoogleMapsAgentService {
     const contact = contactResult.rows[0];
 
     // 2. Create OPPORTUNITY (instead of LEAD)
-    // First, get the default pipeline and its first stage for this account
-    const pipelineQuery = `
-      SELECT p.id as pipeline_id, ps.id as stage_id
-      FROM pipelines p
-      JOIN pipeline_stages ps ON ps.pipeline_id = p.id
-      WHERE p.account_id = $1 AND p.is_default = true AND p.is_active = true
-      ORDER BY ps.position ASC
-      LIMIT 1
-    `;
-    const pipelineResult = await db.query(pipelineQuery, [agent.account_id]);
+    // Use agent's configured pipeline/stage, or fall back to default pipeline
+    let pipeline_id, stage_id;
 
-    if (pipelineResult.rows.length === 0) {
-      // No default pipeline found - create one using pipelineService
-      const pipelineService = require('./pipelineService');
-      const defaultPipeline = await pipelineService.createDefaultPipeline(agent.account_id, agent.user_id);
-
-      // Get first stage of newly created pipeline
-      const stageQuery = `
-        SELECT id FROM pipeline_stages
-        WHERE pipeline_id = $1
-        ORDER BY position ASC
+    if (agent.pipeline_id && agent.stage_id) {
+      // Use agent's configured pipeline and stage
+      pipeline_id = agent.pipeline_id;
+      stage_id = agent.stage_id;
+    } else {
+      // Fall back to default pipeline for this account
+      const pipelineQuery = `
+        SELECT p.id as pipeline_id, ps.id as stage_id
+        FROM pipelines p
+        JOIN pipeline_stages ps ON ps.pipeline_id = p.id
+        WHERE p.account_id = $1 AND p.is_default = true AND p.is_active = true
+        ORDER BY ps.position ASC
         LIMIT 1
       `;
-      const stageResult = await db.query(stageQuery, [defaultPipeline.id]);
-      pipelineResult.rows = [{
-        pipeline_id: defaultPipeline.id,
-        stage_id: stageResult.rows[0].id
-      }];
-    }
+      const pipelineResult = await db.query(pipelineQuery, [agent.account_id]);
 
-    const { pipeline_id, stage_id } = pipelineResult.rows[0];
+      if (pipelineResult.rows.length === 0) {
+        // No default pipeline found - create one using pipelineService
+        const pipelineService = require('./pipelineService');
+        const defaultPipeline = await pipelineService.createDefaultPipeline(agent.account_id, agent.user_id);
+
+        // Get first stage of newly created pipeline
+        const stageQuery = `
+          SELECT id FROM pipeline_stages
+          WHERE pipeline_id = $1
+          ORDER BY position ASC
+          LIMIT 1
+        `;
+        const stageResult = await db.query(stageQuery, [defaultPipeline.id]);
+        pipeline_id = defaultPipeline.id;
+        stage_id = stageResult.rows[0].id;
+      } else {
+        pipeline_id = pipelineResult.rows[0].pipeline_id;
+        stage_id = pipelineResult.rows[0].stage_id;
+      }
+    }
 
     // Build opportunity title
     const opportunityTitle = contactData.company

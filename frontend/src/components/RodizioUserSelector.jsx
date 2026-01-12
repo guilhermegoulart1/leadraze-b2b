@@ -16,8 +16,15 @@ import api from '../services/api';
 /**
  * RodizioUserSelector
  * Componente para selecionar e ordenar usuários no rodízio de atendimento
+ *
+ * Props:
+ * - users: Array de usuários passados diretamente (ex: do pipeline)
+ * - sectorId: ID do setor para buscar usuários (modo legado)
+ * - selectedUsers: Array de usuários selecionados
+ * - onChange: Callback quando seleção muda
  */
 const RodizioUserSelector = ({
+  users: propUsers,
   sectorId,
   selectedUsers = [],
   onChange,
@@ -28,8 +35,18 @@ const RodizioUserSelector = ({
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
 
-  // Load users when sector changes
+  // Determine which users to use: prop users or fetched from sector
+  const availableUsers = propUsers || sectorUsers;
+  const hasPropUsers = !!propUsers;
+
+  // Load users from sector when sectorId changes (legacy mode)
   useEffect(() => {
+    // Skip fetching if users are provided directly via props
+    if (propUsers) {
+      setSectorUsers([]);
+      return;
+    }
+
     const loadSectorUsers = async () => {
       if (!sectorId) {
         setSectorUsers([]);
@@ -54,7 +71,7 @@ const RodizioUserSelector = ({
     };
 
     loadSectorUsers();
-  }, [sectorId]);
+  }, [sectorId, propUsers]);
 
   // Toggle user selection
   const toggleUser = useCallback((userId) => {
@@ -67,12 +84,15 @@ const RodizioUserSelector = ({
       onChange(selectedUsers.filter(u => u.id !== userId));
     } else {
       // Add user at the end
-      const user = sectorUsers.find(u => u.id === userId);
+      const user = availableUsers.find(u => u.id === userId || u.user_id === userId);
       if (user) {
-        onChange([...selectedUsers, { id: user.id, name: user.name, email: user.email }]);
+        const userId = user.id || user.user_id;
+        const userName = user.name || user.user_name;
+        const userEmail = user.email || user.user_email;
+        onChange([...selectedUsers, { id: userId, name: userName, email: userEmail }]);
       }
     }
-  }, [selectedUsers, sectorUsers, onChange, disabled]);
+  }, [selectedUsers, availableUsers, onChange, disabled]);
 
   // Move user up in the order
   const moveUp = useCallback((index) => {
@@ -95,8 +115,12 @@ const RodizioUserSelector = ({
   // Select all users
   const selectAll = useCallback(() => {
     if (disabled) return;
-    onChange(sectorUsers.map(u => ({ id: u.id, name: u.name, email: u.email })));
-  }, [sectorUsers, onChange, disabled]);
+    onChange(availableUsers.map(u => ({
+      id: u.id || u.user_id,
+      name: u.name || u.user_name,
+      email: u.email || u.user_email
+    })));
+  }, [availableUsers, onChange, disabled]);
 
   // Clear selection
   const clearAll = useCallback(() => {
@@ -104,13 +128,13 @@ const RodizioUserSelector = ({
     onChange([]);
   }, [onChange, disabled]);
 
-  // No sector selected
-  if (!sectorId) {
+  // No users source (no props users and no sectorId)
+  if (!hasPropUsers && !sectorId) {
     return (
       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
         <Users className="w-6 h-6 text-gray-400 mx-auto mb-1.5" />
         <p className="text-xs text-gray-600 dark:text-gray-400">
-          Selecione um setor primeiro para configurar o rodízio
+          Selecione um pipeline primeiro para configurar o rodízio
         </p>
       </div>
     );
@@ -136,16 +160,16 @@ const RodizioUserSelector = ({
     );
   }
 
-  // No users in sector
-  if (sectorUsers.length === 0) {
+  // No users available
+  if (availableUsers.length === 0) {
     return (
       <div className="p-4 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700 text-center">
         <Users className="w-6 h-6 text-amber-500 dark:text-amber-400 mx-auto mb-1.5" />
         <p className="text-xs text-amber-700 dark:text-amber-300">
-          Nenhum usuário encontrado neste setor
+          Nenhum usuário encontrado
         </p>
         <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
-          Adicione usuários ao setor para configurar o rodízio
+          Adicione usuários ao pipeline para configurar o rodízio
         </p>
       </div>
     );
@@ -157,13 +181,13 @@ const RodizioUserSelector = ({
       <div className="flex items-center justify-between">
         <div className="text-xs text-gray-600 dark:text-gray-400">
           <span className="font-medium">{selectedUsers.length}</span> de{' '}
-          <span className="font-medium">{sectorUsers.length}</span> selecionados
+          <span className="font-medium">{availableUsers.length}</span> selecionados
         </div>
         <div className="flex gap-1.5">
           <button
             type="button"
             onClick={selectAll}
-            disabled={disabled || selectedUsers.length === sectorUsers.length}
+            disabled={disabled || selectedUsers.length === availableUsers.length}
             className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 rounded hover:bg-purple-100 dark:hover:bg-purple-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UserPlus className="w-3 h-3" />
@@ -186,16 +210,20 @@ const RodizioUserSelector = ({
         {/* Available users */}
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300">Usuários do Setor</h4>
+            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300">Usuários Disponíveis</h4>
           </div>
           <div className="max-h-48 overflow-y-auto">
-            {sectorUsers.map(user => {
-              const isSelected = selectedUsers.some(u => u.id === user.id);
+            {availableUsers.map(user => {
+              // Support both formats: {id, name, email} and {user_id, user_name, user_email}
+              const userId = user.id || user.user_id;
+              const userName = user.name || user.user_name;
+              const userEmail = user.email || user.user_email;
+              const isSelected = selectedUsers.some(u => u.id === userId);
               return (
                 <button
-                  key={user.id}
+                  key={userId}
                   type="button"
-                  onClick={() => toggleUser(user.id)}
+                  onClick={() => toggleUser(userId)}
                   disabled={disabled}
                   className={`
                     w-full flex items-center gap-2 px-3 py-2 text-left border-b border-gray-100 dark:border-gray-700 last:border-0
@@ -217,8 +245,8 @@ const RodizioUserSelector = ({
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate">{user.name}</div>
-                    <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{user.email}</div>
+                    <div className="text-xs font-medium truncate">{userName}</div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{userEmail}</div>
                   </div>
                 </button>
               );

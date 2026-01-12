@@ -21,9 +21,13 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
   const [whatsappAgents, setWhatsappAgents] = useState([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
 
-  // Sectors state
-  const [sectors, setSectors] = useState([]);
-  const [loadingSectors, setLoadingSectors] = useState(false);
+  // Pipeline/CRM state
+  const [crmProjects, setCrmProjects] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
+  const [pipelineStages, setPipelineStages] = useState([]);
+  const [pipelineUsers, setPipelineUsers] = useState([]);
+  const [loadingPipelines, setLoadingPipelines] = useState(false);
+  const [loadingStages, setLoadingStages] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -52,8 +56,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     activateWhatsapp: false,
     whatsappAgentId: null,
 
-    // Step 6: Sector and rotation (only when insertInCrm is true)
-    sectorId: null,
+    // Step 6: Pipeline and rotation (only when insertInCrm is true)
+    projectId: null, // Optional - for filtering pipelines
+    pipelineId: null, // Required - which pipeline to insert leads
+    stageId: null, // Required - which stage to insert leads
     assignees: [] // Array of {id, name, email} in rotation order
   });
 
@@ -66,10 +72,11 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     a.label.localeCompare(b.label)
   );
 
-  // Load agents and sectors when component mounts
+  // Load agents and pipelines when component mounts
   useEffect(() => {
     loadAgents();
-    loadSectors();
+    loadCrmProjects();
+    loadPipelines();
   }, []);
 
   // Update totalSteps when insertInCrm changes
@@ -94,20 +101,73 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     }
   };
 
-  const loadSectors = async () => {
+  // Load CRM projects (optional, for filtering pipelines)
+  const loadCrmProjects = async () => {
     try {
-      setLoadingSectors(true);
-      const response = await apiService.getSectors();
-
+      const response = await apiService.getCrmProjects();
       if (response.success) {
-        setSectors(response.data || []);
+        setCrmProjects(response.projects || []);
       }
     } catch (error) {
-      console.error('Erro ao carregar setores:', error);
-    } finally {
-      setLoadingSectors(false);
+      console.error('Erro ao carregar projetos:', error);
     }
   };
+
+  // Load pipelines (optionally filter by project)
+  const loadPipelines = async (projectId = null) => {
+    try {
+      setLoadingPipelines(true);
+      const params = projectId ? { project_id: projectId } : {};
+      const response = await apiService.getPipelines(params);
+      if (response.success) {
+        setPipelines(response.pipelines || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar pipelines:', error);
+    } finally {
+      setLoadingPipelines(false);
+    }
+  };
+
+  // Load stages and users for a specific pipeline
+  const loadPipelineData = async (pipelineId) => {
+    if (!pipelineId) {
+      setPipelineStages([]);
+      setPipelineUsers([]);
+      return;
+    }
+    try {
+      setLoadingStages(true);
+      const response = await apiService.getPipeline(pipelineId);
+      if (response.success) {
+        setPipelineStages(response.pipeline?.stages || []);
+        setPipelineUsers(response.pipeline?.users || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do pipeline:', error);
+    } finally {
+      setLoadingStages(false);
+    }
+  };
+
+  // Reload pipelines when project changes
+  useEffect(() => {
+    loadPipelines(formData.projectId);
+    // Clear selections when project changes
+    if (formData.pipelineId) {
+      updateField('pipelineId', null);
+      updateField('stageId', null);
+      updateField('assignees', []);
+    }
+  }, [formData.projectId]);
+
+  // Load pipeline data when pipeline changes
+  useEffect(() => {
+    loadPipelineData(formData.pipelineId);
+    // Clear stage and assignees when pipeline changes
+    updateField('stageId', null);
+    updateField('assignees', []);
+  }, [formData.pipelineId]);
 
   // Update field
   const updateField = (field, value) => {
@@ -169,13 +229,17 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         return true;
 
       case 6:
-        // Sector and rotation validation (only when insertInCrm is true)
+        // Pipeline and rotation validation (only when insertInCrm is true)
         // This step is skipped when insertInCrm is false (totalSteps = 5)
         if (!formData.insertInCrm) {
           return true; // Skip validation if not inserting in CRM
         }
-        if (!formData.sectorId) {
-          setError('Selecione um setor para os leads');
+        if (!formData.pipelineId) {
+          setError('Selecione um pipeline para os leads');
+          return false;
+        }
+        if (!formData.stageId) {
+          setError('Selecione uma etapa inicial para os leads');
           return false;
         }
         if (formData.assignees.length === 0) {
@@ -268,8 +332,9 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
         activateWhatsapp: formData.insertInCrm ? formData.activateWhatsapp : false,
         whatsappAgentId: formData.insertInCrm && formData.activateWhatsapp ? formData.whatsappAgentId : null,
 
-        // Sector and assignees (only when insertInCrm is true)
-        sectorId: formData.insertInCrm ? formData.sectorId : null,
+        // Pipeline, stage and assignees (only when insertInCrm is true)
+        pipelineId: formData.insertInCrm ? formData.pipelineId : null,
+        stageId: formData.insertInCrm ? formData.stageId : null,
         assignees: formData.insertInCrm ? formData.assignees.map(u => u.id) : [],
 
         // Daily limit (null = unlimited)
@@ -770,49 +835,102 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
             </div>
           )}
 
-          {/* Step 6: Sector and Rotation */}
+          {/* Step 6: Pipeline and Rotation */}
           {currentStep === 6 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Setor e Rodízio de Atendentes
+                  Pipeline e Rodízio de Atendentes
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Defina para qual setor os leads serão direcionados e quem irá atendê-los
+                  Defina em qual pipeline e etapa os leads serão inseridos, e quem irá atendê-los
                 </p>
               </div>
 
-              {/* Sector Selection */}
+              {/* Project Selection (optional) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Building2 className="w-4 h-4 inline mr-1" />
-                  Setor <span className="text-red-500">*</span>
+                  Projeto <span className="text-gray-400">(opcional)</span>
                 </label>
-                {loadingSectors ? (
+                <select
+                  value={formData.projectId || ''}
+                  onChange={(e) => updateField('projectId', e.target.value || null)}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">Todos os projetos</option>
+                  {crmProjects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pipeline Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Database className="w-4 h-4 inline mr-1" />
+                  Pipeline <span className="text-red-500">*</span>
+                </label>
+                {loadingPipelines ? (
                   <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Carregando setores...
+                    Carregando pipelines...
                   </div>
-                ) : sectors.length === 0 ? (
+                ) : pipelines.length === 0 ? (
                   <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
                     <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Nenhum setor encontrado. Crie setores na página de Configurações.
+                      Nenhum pipeline encontrado. Crie pipelines na página de CRM.
                     </p>
                   </div>
                 ) : (
                   <select
-                    value={formData.sectorId || ''}
-                    onChange={(e) => {
-                      updateField('sectorId', e.target.value || null);
-                      // Clear assignees when sector changes
-                      updateField('assignees', []);
-                    }}
+                    value={formData.pipelineId || ''}
+                    onChange={(e) => updateField('pipelineId', e.target.value || null)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
-                    <option value="">Selecione um setor</option>
-                    {sectors.map(sector => (
-                      <option key={sector.id} value={sector.id}>
-                        {sector.name}
+                    <option value="">Selecione um pipeline</option>
+                    {pipelines.map(pipeline => (
+                      <option key={pipeline.id} value={pipeline.id}>
+                        {pipeline.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Stage Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <ChevronRight className="w-4 h-4 inline mr-1" />
+                  Etapa Inicial <span className="text-red-500">*</span>
+                </label>
+                {loadingStages ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Carregando etapas...
+                  </div>
+                ) : !formData.pipelineId ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    Selecione um pipeline primeiro
+                  </p>
+                ) : pipelineStages.length === 0 ? (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Nenhuma etapa encontrada neste pipeline.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.stageId || ''}
+                    onChange={(e) => updateField('stageId', e.target.value || null)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="">Selecione uma etapa</option>
+                    {pipelineStages.map(stage => (
+                      <option key={stage.id} value={stage.id}>
+                        {stage.name}
                       </option>
                     ))}
                   </select>
@@ -825,18 +943,30 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
                   <Users className="w-4 h-4 inline mr-1" />
                   Rodízio de Atendentes <span className="text-red-500">*</span>
                 </label>
-                <RodizioUserSelector
-                  sectorId={formData.sectorId}
-                  selectedUsers={formData.assignees}
-                  onChange={(assignees) => updateField('assignees', assignees)}
-                />
+                {!formData.pipelineId ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    Selecione um pipeline primeiro
+                  </p>
+                ) : pipelineUsers.length === 0 ? (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Nenhum usuário com acesso a este pipeline. Adicione usuários ao pipeline nas configurações.
+                    </p>
+                  </div>
+                ) : (
+                  <RodizioUserSelector
+                    users={pipelineUsers}
+                    selectedUsers={formData.assignees}
+                    onChange={(assignees) => updateField('assignees', assignees)}
+                  />
+                )}
               </div>
 
               {/* Info box */}
               <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>Como funciona o rodízio:</strong> Os leads encontrados serão distribuídos automaticamente
-                  entre os atendentes selecionados, seguindo a ordem definida. Após o último atendente, volta ao primeiro.
+                  <strong>Como funciona:</strong> Os leads encontrados serão inseridos no pipeline e etapa selecionados,
+                  e distribuídos automaticamente entre os atendentes na ordem definida.
                 </p>
               </div>
             </div>
