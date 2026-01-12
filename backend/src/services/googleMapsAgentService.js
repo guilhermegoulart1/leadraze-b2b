@@ -10,6 +10,7 @@ const roundRobinService = require('./roundRobinService');
 const emailScraperService = require('./emailScraperService');
 const ablyService = require('./ablyService');
 const cnpjService = require('./intelligence/cnpjService');
+const notificationService = require('./notificationService');
 
 // Publish progress via Ably
 const publishGmapsProgress = (data) => {
@@ -39,17 +40,21 @@ class GoogleMapsAgentService {
       searchLocation,
       searchQuery,
       searchRadius,
-      radius, // New: radius in km
-      latitude, // New: precise latitude
-      longitude, // New: precise longitude
-      businessCategory, // New: Google category
-      businessSpecification, // New: user specification
+      radius, // radius in km
+      latitude, // precise latitude
+      longitude, // precise longitude
+      searchType = 'radius', // 'radius', 'city', 'region', 'state', 'country'
+      businessCategory, // Google category
+      businessSpecification, // user specification
       minRating,
       minReviews,
-      requirePhone = false,
-      requireEmail = false,
+      // Multiple locations support
+      searchLocations = [], // Array of locations [{lat, lng, radius, location, city, country, searchType}]
+      locationDistribution = 'proportional', // 'proportional' or 'sequential'
+      // CRM insertion mode
+      insertInCrm = true, // true = insert in CRM, false = just generate list
       // Scheduling
-      dailyLimit = 20,
+      dailyLimit = 20, // null = unlimited (capped at 2000)
       executionTime = '09:00'
     } = agentData;
 
@@ -73,11 +78,13 @@ class GoogleMapsAgentService {
         account_id, sector_id, user_id,
         name, avatar_url, description, status, action_type,
         search_country, search_location, search_query, search_radius,
-        radius, latitude, longitude,
+        radius, latitude, longitude, search_type,
         business_category, business_specification,
-        min_rating, min_reviews, require_phone, require_email,
+        min_rating, min_reviews,
+        search_locations, location_distribution,
+        insert_in_crm,
         daily_limit, execution_time, next_execution_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
       RETURNING *
     `;
 
@@ -97,13 +104,15 @@ class GoogleMapsAgentService {
       radius || 10,
       latitude || null,
       longitude || null,
+      searchType,
       businessCategory || null,
       businessSpecification || null,
       minRating || null,
       minReviews || null,
-      requirePhone,
-      requireEmail,
-      dailyLimit,
+      JSON.stringify(searchLocations),
+      locationDistribution,
+      insertInCrm,
+      dailyLimit, // Can be null for unlimited
       executionTime,
       nextExecution
     ];
@@ -293,6 +302,18 @@ class GoogleMapsAgentService {
     // Get agent data
     let agent = await this._getAgentById(agentId);
 
+    // Send notification that campaign started (only to creator)
+    try {
+      await notificationService.notifyGmapsCampaignStarted({
+        accountId: agent.account_id,
+        userId: agent.user_id,
+        agentId: agent.id,
+        agentName: agent.name
+      });
+    } catch (notifError) {
+      console.error(`⚠️ Failed to send start notification:`, notifError.message);
+    }
+
     // Check if agent is in a valid state to execute
     if (agent.status === 'paused') {
       console.log(`⏸️  Agent ${agentId} is paused - skipping execution`);
@@ -321,10 +342,12 @@ class GoogleMapsAgentService {
     }
 
     // Calculate how many pages to fetch based on daily_limit
-    const dailyLimit = agent.daily_limit || 20;
+    // null = unlimited (will fetch until no more results, with a very high safety cap)
+    const dailyLimit = agent.daily_limit === null ? 50000 : (agent.daily_limit || 20);
     const pagesToFetch = Math.ceil(dailyLimit / 20);
+    const isUnlimited = agent.daily_limit === null;
 
-    console.log(`📊 Agent ${agentId}: daily_limit=${dailyLimit}, pages to fetch=${pagesToFetch}`);
+    console.log(`📊 Agent ${agentId}: daily_limit=${agent.daily_limit === null ? 'unlimited' : dailyLimit}, pages to fetch=${pagesToFetch}${isUnlimited ? ' (or until no more results)' : ''}`);
 
     // Check initial GMaps credits before starting (only GMaps credits needed for this agent)
     const hasGmapsCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
@@ -350,34 +373,136 @@ class GoogleMapsAgentService {
       throw new Error(`Cannot execute agent with status: ${agent.status}`);
     }
 
-    // Build search query and location once (reused for all pages)
+    // Build search query (reused for all pages)
     const searchQuery = this._buildSearchQuery(agent);
-    let location;
-    if (agent.latitude && agent.longitude) {
-      const radiusKm = agent.radius || (agent.search_radius ? agent.search_radius / 1000 : 14);
-      const zoom = this._calculateZoomFromRadius(radiusKm);
-      location = `@${agent.latitude},${agent.longitude},${zoom}z`;
+
+    // ========================================
+    // MULTIPLE LOCATIONS SUPPORT
+    // ========================================
+    const searchLocations = agent.search_locations || [];
+    const hasMultipleLocations = searchLocations.length > 0;
+    const locationDistribution = agent.location_distribution || 'proportional';
+
+    let locationsToProcess = [];
+
+    if (hasMultipleLocations) {
+      // Multiple locations mode
+      if (locationDistribution === 'sequential') {
+        // SEQUENTIAL: Process one location at a time until exhausted
+        const currentLocationIndex = agent.current_location_index || 0;
+
+        // Get current location
+        if (currentLocationIndex < searchLocations.length) {
+          const currentLoc = searchLocations[currentLocationIndex];
+          locationsToProcess = [{
+            ...currentLoc,
+            index: currentLocationIndex,
+            pagesToFetch: pagesToFetch // Fetch all pages for this location
+          }];
+          console.log(`📍 Sequential mode: Processing location ${currentLocationIndex + 1}/${searchLocations.length} (${currentLoc.location || currentLoc.city})`);
+        } else {
+          // All locations exhausted
+          console.log(`✅ All locations in sequential mode have been exhausted`);
+          return {
+            success: true,
+            leads_inserted: 0,
+            leads_skipped: 0,
+            duplicates_found: 0,
+            compensation_pages: 0,
+            credits_consumed: 0,
+            pages_fetched: 0,
+            current_page: 0,
+            has_more_results: false,
+            status: 'completed'
+          };
+        }
+      } else {
+        // PROPORTIONAL: Distribute leads across all locations
+        const leadsPerLocation = Math.ceil(dailyLimit / searchLocations.length);
+        const pagesPerLocation = Math.ceil(leadsPerLocation / 20);
+
+        console.log(`📍 Proportional mode: ${pagesPerLocation} pages per location across ${searchLocations.length} locations`);
+
+        locationsToProcess = searchLocations.map((loc, index) => ({
+          ...loc,
+          index,
+          pagesToFetch: pagesPerLocation
+        }));
+      }
     } else {
-      location = agent.search_country
-        ? `${agent.search_location}, ${agent.search_country}`
-        : agent.search_location;
+      // Single location mode (backward compatibility)
+      let location;
+      if (agent.latitude && agent.longitude) {
+        const radiusKm = agent.radius || (agent.search_radius ? agent.search_radius / 1000 : 14);
+        const zoom = this._calculateZoomFromRadius(radiusKm);
+        location = `@${agent.latitude},${agent.longitude},${zoom}z`;
+      } else {
+        location = agent.search_country
+          ? `${agent.search_location}, ${agent.search_country}`
+          : agent.search_location;
+      }
+
+      locationsToProcess = [{
+        location,
+        latitude: agent.latitude,
+        longitude: agent.longitude,
+        radius: agent.radius,
+        searchType: agent.search_type || 'radius',
+        index: 0,
+        pagesToFetch: pagesToFetch
+      }];
     }
 
-    // Track totals across all pages
+    // Track totals across all pages AND all locations
     let totalInserted = 0;
     let totalSkipped = 0;
+    let totalDuplicates = 0;
     let totalCreditsConsumed = 0;
     let pagesFetched = 0;
-    let hasMoreResults = true;
-    let lastPage = agent.current_page || 0;
+    let stoppedDueToCredits = false; // Track if we stopped due to insufficient credits
+    let allLocationsExhausted = true; // Track if all locations have been fully exhausted
     const executionLogs = [];
 
-    // Fetch multiple pages based on daily_limit
-    for (let i = 0; i < pagesToFetch && hasMoreResults; i++) {
+    // ========================================
+    // PROCESS EACH LOCATION
+    // ========================================
+    for (const locationConfig of locationsToProcess) {
+      const { location: locName, latitude, longitude, radius, searchType, index: locationIndex, pagesToFetch: pagesForThisLocation } = locationConfig;
+
+      // Build location string for this specific location
+      let location;
+      const locSearchType = searchType || agent.search_type || 'radius';
+
+      // For area-based searches (city, state, country), use name-based location
+      if (locSearchType !== 'radius' && locName) {
+        location = locName;
+      } else if (latitude && longitude) {
+        // For radius-based searches, use coordinate+zoom format
+        const radiusKm = radius || 14;
+        const zoom = this._calculateZoomFromRadius(radiusKm);
+        location = `@${latitude},${longitude},${zoom}z`;
+      } else {
+        // Fallback to name if available
+        location = locName || `${locationConfig.city}, ${locationConfig.country}`;
+      }
+
+      console.log(`\n📍 Processing location ${locationIndex + 1}/${locationsToProcess.length}: ${location}`);
+
+      // Track state for THIS location
+      let hasMoreResults = true;
+      let lastPage = locationConfig.current_page || agent.current_page || 0;
+
+      // DUPLICATE COMPENSATION: Track how many duplicates we found to fetch extra pages
+      let duplicatesThisRun = 0;
+      let compensationPagesNeeded = 0;
+
+      // Fetch multiple pages for THIS location
+      for (let i = 0; i < pagesForThisLocation + compensationPagesNeeded && hasMoreResults; i++) {
       // Check credits before each page
       const hasGmapsCreditsForPage = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
       if (!hasGmapsCreditsForPage) {
         console.log(`⚠️ Agent ${agentId}: Stopped at page ${i + 1} - insufficient GMaps credits`);
+        stoppedDueToCredits = true;
         break;
       }
 
@@ -432,18 +557,8 @@ class GoogleMapsAgentService {
       };
       executionLogs.push(pageLog);
 
-      // Consume 1 GMaps credit for the search
-      await billingService.consumeCredits(
-        agent.account_id,
-        'gmaps',
-        1,
-        {
-          resourceType: 'google_maps_agent',
-          resourceId: agent.id,
-          userId: agent.user_id,
-          description: `Google Maps search: "${searchQuery}" in ${location} (page ${currentPage + 1})`
-        }
-      );
+      // Note: Credits are consumed per lead inserted, not per page fetched
+      // This is handled in _insertContact() method
 
       pagesFetched++;
 
@@ -493,7 +608,23 @@ class GoogleMapsAgentService {
 
       totalInserted += insertionResults.inserted;
       totalSkipped += insertionResults.skipped;
+      totalDuplicates += insertionResults.duplicates || 0;
       totalCreditsConsumed += insertionResults.creditsConsumed || 0;
+
+      // DUPLICATE COMPENSATION: Calculate if we need extra pages
+      // If we found duplicates in this page, we need to fetch more pages to compensate
+      if (insertionResults.duplicates > 0) {
+        duplicatesThisRun += insertionResults.duplicates;
+
+        // Calculate how many extra pages we need (20 leads per page)
+        const extraPagesNeeded = Math.ceil(duplicatesThisRun / 20);
+
+        // Only add compensation pages if we haven't already compensated
+        if (extraPagesNeeded > compensationPagesNeeded) {
+          compensationPagesNeeded = extraPagesNeeded;
+          console.log(`🔄 Duplicate compensation: ${duplicatesThisRun} duplicates found, adding ${extraPagesNeeded} extra page(s)`);
+        }
+      }
 
       // Emit gamified status: Saving
       publishGmapsProgress({
@@ -514,32 +645,102 @@ class GoogleMapsAgentService {
         leadsFound: searchResults.places?.length || 0,
         leadsInserted: insertionResults.inserted,
         leadsSkipped: insertionResults.skipped,
+        duplicatesFound: insertionResults.duplicates || 0,
         apiCalls: 1,
         hasMoreResults: searchResults.pagination.has_next_page
       }, agent.account_id);
 
       hasMoreResults = searchResults.pagination.has_next_page;
 
+      // Track if any location still has results to fetch
+      if (hasMoreResults) {
+        allLocationsExhausted = false;
+      }
+
       console.log(`✅ Agent ${agentId}: Page ${currentPage + 1} - +${insertionResults.inserted} leads`);
 
       // If there are more pages to fetch, add a small delay to avoid rate limiting
-      if (i < pagesToFetch - 1 && hasMoreResults) {
+      if (i < pagesForThisLocation - 1 && hasMoreResults) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
-    }
+    } // End of pages loop for this location
+
+      // Update location state after processing
+      if (hasMultipleLocations && locationDistribution === 'sequential') {
+        // SEQUENTIAL MODE: Update current_location_index
+        if (!hasMoreResults) {
+          // This location is exhausted, move to next location
+          const nextLocationIndex = locationIndex + 1;
+          console.log(`✅ Location ${locationIndex + 1} exhausted. Moving to location ${nextLocationIndex + 1}`);
+
+          await db.query(`
+            UPDATE google_maps_agents
+            SET current_location_index = $1,
+                current_page = 0
+            WHERE id = $2
+          `, [nextLocationIndex, agentId]);
+        } else {
+          // Still has results for this location, update current_page
+          await db.query(`
+            UPDATE google_maps_agents
+            SET current_page = $1
+            WHERE id = $2
+          `, [lastPage + pagesFetched, agentId]);
+        }
+      }
+
+      console.log(`✅ Location ${locationIndex + 1}/${locationsToProcess.length} complete: ${totalInserted} leads total so far`);
+
+      // If we stopped due to credits, break out of locations loop too
+      if (stoppedDueToCredits) {
+        break;
+      }
+    } // End of locations loop
 
     // Save execution logs to database
     await this._saveExecutionLogs(agentId, executionLogs);
 
-    // Determine final status: 'in_progress' if more results, 'completed' if done
-    const finalStatus = hasMoreResults ? 'in_progress' : 'completed';
+    // If stopped due to insufficient credits, pause the agent
+    if (stoppedDueToCredits) {
+      await this._updateAgentStatus(agentId, 'paused');
+      console.log(`⏸️  Agent ${agentId}: Paused due to insufficient GMaps credits`);
 
-    // If no more results available, mark as completed
-    if (!hasMoreResults) {
-      await this._updateAgentStatus(agentId, 'completed');
+      return {
+        success: false,
+        leads_inserted: totalInserted,
+        leads_skipped: totalSkipped,
+        duplicates_found: totalDuplicates,
+        credits_consumed: totalCreditsConsumed,
+        pages_fetched: pagesFetched,
+        status: 'paused',
+        message: 'Agent paused - insufficient GMaps credits',
+        reason: 'insufficient_gmaps_credits'
+      };
     }
 
-    const finalPage = lastPage + pagesFetched;
+    // Determine final status based on whether all locations have been exhausted
+    let finalStatus = 'active'; // Default to active (will run again on next schedule)
+    let finalHasMoreResults = !allLocationsExhausted;
+
+    if (allLocationsExhausted) {
+      // All locations have been completely exhausted - campaign is complete
+      finalStatus = 'completed';
+      finalHasMoreResults = false;
+      console.log(`🏁 Agent ${agentId}: All locations exhausted - marking as completed`);
+    } else {
+      // Still has results to fetch - keep as active for next scheduled execution
+      finalStatus = 'active';
+      finalHasMoreResults = true;
+      console.log(`🔄 Agent ${agentId}: More results available - keeping as active for next execution`);
+    }
+
+    // Update agent status based on results
+    if (finalStatus === 'completed') {
+      await this._updateAgentStatus(agentId, 'completed');
+    } else if (finalStatus === 'active') {
+      await this._updateAgentStatus(agentId, 'active');
+    }
+
     console.log(`🏁 Agent ${agentId}: Execution complete - ${pagesFetched} pages, ${totalInserted} leads inserted`);
 
     // Emit final WebSocket event with final status (not 'collecting' anymore)
@@ -551,21 +752,50 @@ class GoogleMapsAgentService {
       stepLabel: null,
       leadsFound: totalInserted + totalSkipped,
       leadsInserted: totalInserted,
-      page: finalPage,
-      message: hasMoreResults
+      page: pagesFetched,
+      message: finalHasMoreResults
         ? `Coleta concluída: ${totalInserted} leads adicionados. Mais resultados disponíveis.`
         : `Coleta finalizada: ${totalInserted} leads adicionados ao CRM.`
     });
+
+    // Send notification for daily completion or campaign completion
+    try {
+      if (finalHasMoreResults) {
+        // Daily collection complete, more results available
+        await notificationService.notifyGmapsDailyComplete({
+          accountId: agent.account_id,
+          userId: agent.user_id,
+          agentId: agent.id,
+          agentName: agent.name,
+          leadsInserted: totalInserted,
+          duplicatesFound: totalSkipped // For now, skipped = duplicates
+        });
+      } else {
+        // Campaign complete - no more results
+        // Get total leads inserted for this agent
+        const agentStats = await this._getAgentById(agentId);
+        await notificationService.notifyGmapsCampaignComplete({
+          accountId: agent.account_id,
+          userId: agent.user_id,
+          agentId: agent.id,
+          agentName: agent.name,
+          totalLeads: agentStats.leads_inserted || totalInserted
+        });
+      }
+    } catch (notifError) {
+      console.error(`⚠️ Failed to send completion notification:`, notifError.message);
+    }
 
     return {
       success: true,
       leads_inserted: totalInserted,
       leads_skipped: totalSkipped,
+      duplicates_found: totalDuplicates,
       credits_consumed: totalCreditsConsumed,
       pages_fetched: pagesFetched,
-      current_page: finalPage,
-      has_more_results: hasMoreResults,
-      status: finalStatus
+      has_more_results: finalHasMoreResults,
+      status: finalStatus,
+      locations_processed: locationsToProcess.length
     };
   }
 
@@ -823,7 +1053,13 @@ class GoogleMapsAgentService {
   async _insertPlacesIntoCRM(places, agent, pageNumber, runningTotals = { inserted: 0, skipped: 0 }) {
     let inserted = 0;
     let skipped = 0;
+    let duplicates = 0;
     let creditsConsumed = 0;
+
+    // Check if we're in "list only" mode (insert_in_crm = false)
+    const insertInCrm = agent.insert_in_crm !== false; // Default to true for backward compatibility
+    const foundPlaces = []; // For storing enriched data when not inserting in CRM
+    const duplicatePlaces = []; // For tracking duplicates
 
     for (let i = 0; i < places.length; i++) {
       const place = places[i];
@@ -944,9 +1180,58 @@ class GoogleMapsAgentService {
         );
 
         if (existingContact) {
+          // DUPLICATE FOUND - Track it for compensation
           skipped++;
+          duplicates++;
+
+          // Save duplicate to tracking table
+          try {
+            await this._trackDuplicate(agent.id, contactData, existingContact.id);
+            duplicatePlaces.push({
+              place_id: contactData.place_id,
+              name: contactData.name,
+              existing_contact_id: existingContact.id,
+              found_at: new Date().toISOString()
+            });
+          } catch (dupError) {
+            console.warn(`⚠️ Failed to track duplicate:`, dupError.message);
+          }
+
           continue;
         }
+
+        // =========================================
+        // LIST ONLY MODE: Store in found_places without creating contact
+        // =========================================
+        if (!insertInCrm) {
+          // Store enriched data for later export
+          foundPlaces.push({
+            ...contactData,
+            found_at: new Date().toISOString(),
+            page_number: pageNumber + 1,
+            position: i + 1
+          });
+          inserted++;
+
+          // Emit WebSocket: Lead added to list
+          publishGmapsProgress({
+            accountId: agent.account_id,
+            agentId: agent.id,
+            status: 'collecting',
+            step: 'saved',
+            stepLabel: `${contactData.name} adicionado à lista!`,
+            currentPlace: contactData.name,
+            leadsFound: runningTotals.inserted + runningTotals.skipped + inserted + skipped,
+            leadsInserted: runningTotals.inserted + inserted,
+            page: pageNumber + 1
+          });
+
+          continue; // Skip CRM insertion
+        }
+
+        // =========================================
+        // CRM MODE: Insert contact and opportunity
+        // =========================================
 
         // Check if account has enough GMaps credits before inserting
         const hasCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
@@ -1027,7 +1312,24 @@ class GoogleMapsAgentService {
       }
     }
 
-    return { inserted, skipped, creditsConsumed };
+    // If in list-only mode, save found places to the agent's found_places JSONB column
+    if (!insertInCrm && foundPlaces.length > 0) {
+      try {
+        // Append new places to existing found_places array
+        // Note: We don't increment leads_inserted here because leads are NOT being inserted into CRM
+        await db.query(`
+          UPDATE google_maps_agents
+          SET found_places = COALESCE(found_places, '[]'::jsonb) || $1::jsonb,
+              updated_at = NOW()
+          WHERE id = $2
+        `, [JSON.stringify(foundPlaces), agent.id]);
+        console.log(`📋 [LIST MODE] Saved ${foundPlaces.length} places to found_places for agent ${agent.id}`);
+      } catch (saveError) {
+        console.error(`❌ Failed to save found_places:`, saveError.message);
+      }
+    }
+
+    return { inserted, skipped, duplicates, creditsConsumed, duplicatePlaces };
   }
 
   /**
@@ -1037,6 +1339,43 @@ class GoogleMapsAgentService {
     const query = 'SELECT id FROM contacts WHERE place_id = $1 AND account_id = $2';
     const result = await db.query(query, [placeId, accountId]);
     return result.rows.length > 0 ? result.rows[0] : null;
+  }
+
+  /**
+   * Track a duplicate place found during agent execution
+   * @param {string} agentId - Agent ID
+   * @param {Object} placeData - Place data that was found to be duplicate
+   * @param {string} existingContactId - ID of existing contact
+   */
+  async _trackDuplicate(agentId, placeData, existingContactId) {
+    try {
+      const query = `
+        INSERT INTO google_maps_agent_duplicates (
+          agent_id, place_id, existing_contact_id, place_data
+        ) VALUES ($1, $2, $3, $4)
+        ON CONFLICT (agent_id, place_id) DO UPDATE
+        SET found_at = NOW(),
+            place_data = EXCLUDED.place_data
+      `;
+
+      await db.query(query, [
+        agentId,
+        placeData.place_id,
+        existingContactId,
+        JSON.stringify({
+          name: placeData.name,
+          business_category: placeData.business_category,
+          rating: placeData.rating,
+          review_count: placeData.review_count,
+          address: placeData.address,
+          phone: placeData.phone,
+          website: placeData.website
+        })
+      ]);
+    } catch (error) {
+      console.error(`❌ Error tracking duplicate:`, error.message);
+      // Don't throw - tracking duplicates is not critical
+    }
   }
 
   /**
@@ -1241,6 +1580,7 @@ class GoogleMapsAgentService {
       leadsFound,
       leadsInserted,
       leadsSkipped,
+      duplicatesFound = 0,
       apiCalls,
       hasMoreResults
     } = stats;
@@ -1260,15 +1600,16 @@ class GoogleMapsAgentService {
         total_leads_found = total_leads_found + $4,
         leads_inserted = leads_inserted + $5,
         leads_skipped = leads_skipped + $6,
-        total_api_calls = total_api_calls + $7,
+        duplicates_found = duplicates_found + $7,
+        total_api_calls = total_api_calls + $8,
         estimated_cost = total_api_calls * 0.00275,
         last_fetch_at = NOW(),
         last_execution_at = NOW(),
-        next_execution_at = $8,
-        status = $9,
+        next_execution_at = $9,
+        status = $10,
         updated_at = NOW()
       WHERE id = $1
-      RETURNING total_leads_found, leads_inserted
+      RETURNING total_leads_found, leads_inserted, duplicates_found
     `;
 
     const values = [
@@ -1278,6 +1619,7 @@ class GoogleMapsAgentService {
       leadsFound,
       leadsInserted,
       leadsSkipped,
+      duplicatesFound,
       apiCalls,
       hasMoreResults ? nextExecution : null,
       newStatus
@@ -1328,7 +1670,25 @@ class GoogleMapsAgentService {
    * @returns {Array} List of contacts with all Google Maps data
    */
   async getAgentContacts(agentId, accountId) {
-    // Query with COALESCE to fallback to custom_fields for old records
+    // First, check if the agent is in list-only mode (insert_in_crm = false)
+    const agentCheck = await db.query(
+      'SELECT insert_in_crm, found_places FROM google_maps_agents WHERE id = $1 AND account_id = $2',
+      [agentId, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      return [];
+    }
+
+    const agent = agentCheck.rows[0];
+
+    // If in list-only mode, return found_places directly
+    if (agent.insert_in_crm === false) {
+      const foundPlaces = agent.found_places || [];
+      return Array.isArray(foundPlaces) ? foundPlaces : [];
+    }
+
+    // Otherwise, query from contacts table (standard CRM mode)
     const query = `
       SELECT
         c.id,
@@ -1423,6 +1783,63 @@ class GoogleMapsAgentService {
     }
 
     return result.rows[0].execution_logs || [];
+  }
+
+  /**
+   * Get duplicates found by an agent
+   * @param {string} agentId - Agent UUID
+   * @param {string} accountId - Account UUID for security
+   * @param {Object} options - Query options (limit, offset)
+   * @returns {Array} List of duplicates
+   */
+  async getAgentDuplicates(agentId, accountId, options = {}) {
+    const { limit = 50, offset = 0 } = options;
+
+    // Verify agent belongs to account
+    await this.getAgent(agentId, accountId);
+
+    const query = `
+      SELECT
+        d.id,
+        d.place_id,
+        d.place_data,
+        d.existing_contact_id,
+        d.found_at,
+        c.name as existing_contact_name,
+        c.company as existing_contact_company
+      FROM google_maps_agent_duplicates d
+      LEFT JOIN contacts c ON d.existing_contact_id = c.id
+      WHERE d.agent_id = $1
+      ORDER BY d.found_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await db.query(query, [agentId, limit, offset]);
+    return result.rows;
+  }
+
+  /**
+   * Get duplicate statistics for an agent
+   * @param {string} agentId - Agent UUID
+   * @param {string} accountId - Account UUID for security
+   * @returns {Object} Duplicate statistics
+   */
+  async getAgentDuplicateStats(agentId, accountId) {
+    // Verify agent belongs to account
+    const agent = await this.getAgent(agentId, accountId);
+
+    const countQuery = `
+      SELECT COUNT(*) as total_duplicates
+      FROM google_maps_agent_duplicates
+      WHERE agent_id = $1
+    `;
+
+    const countResult = await db.query(countQuery, [agentId]);
+
+    return {
+      duplicates_found: agent.duplicates_found || 0,
+      duplicates_tracked: parseInt(countResult.rows[0].total_duplicates) || 0
+    };
   }
 }
 

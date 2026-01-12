@@ -23,15 +23,28 @@ exports.createAgent = async (req, res) => {
       radius,
       latitude,
       longitude,
+      searchType,
       businessCategory,
       businessSpecification,
       minRating,
       minReviews,
       requirePhone,
       requireEmail,
+      // Multiple locations support
+      searchLocations,
+      locationDistribution,
+      // CRM insertion mode
+      insertInCrm,
+      // Activation channels
+      activateEmail,
+      emailAgentId,
+      activateWhatsapp,
+      whatsappAgentId,
       // Scheduling
       dailyLimit,
-      executionTime
+      executionTime,
+      // Rotation assignees
+      assignees
     } = req.body;
 
     // Get account and user from authenticated request
@@ -54,14 +67,28 @@ exports.createAgent = async (req, res) => {
       radius,
       latitude,
       longitude,
+      searchType,
       businessCategory,
       businessSpecification,
       minRating,
       minReviews,
       requirePhone,
       requireEmail,
+      // Multiple locations
+      searchLocations,
+      locationDistribution,
+      // CRM mode
+      insertInCrm,
+      // Activation channels
+      activateEmail,
+      emailAgentId,
+      activateWhatsapp,
+      whatsappAgentId,
+      // Scheduling
       dailyLimit,
-      executionTime
+      executionTime,
+      // Rotation
+      assignees
     });
 
     res.status(201).json({
@@ -479,7 +506,7 @@ exports.exportAgentContacts = async (req, res) => {
     if (!contacts || contacts.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Nenhum contato encontrado para este agente'
+        message: 'Nenhum lead encontrado para este agente'
       });
     }
 
@@ -678,6 +705,267 @@ exports.getAgentLogs = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error fetching execution logs'
+    });
+  }
+};
+
+/**
+ * Get found places for an agent (when insert_in_crm is false)
+ * GET /api/google-maps-agents/:id/found-places
+ */
+exports.getFoundPlaces = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    // Get agent to verify ownership and get found_places
+    const agent = await googleMapsAgentService.getAgent(id, accountId);
+
+    if (!agent.found_places) {
+      return res.json({
+        success: true,
+        places: [],
+        count: 0
+      });
+    }
+
+    // Parse found_places (it's stored as JSONB)
+    const places = typeof agent.found_places === 'string'
+      ? JSON.parse(agent.found_places)
+      : agent.found_places;
+
+    res.json({
+      success: true,
+      places: places || [],
+      count: places?.length || 0
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching found places:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching found places'
+    });
+  }
+};
+
+/**
+ * Get duplicates found by an agent
+ * GET /api/google-maps-agents/:id/duplicates
+ */
+exports.getAgentDuplicates = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+    const accountId = req.user.accountId;
+
+    const duplicates = await googleMapsAgentService.getAgentDuplicates(id, accountId, {
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      duplicates: duplicates || [],
+      count: duplicates?.length || 0
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching agent duplicates:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching duplicates'
+    });
+  }
+};
+
+/**
+ * Get duplicate statistics for an agent
+ * GET /api/google-maps-agents/:id/duplicate-stats
+ */
+exports.getAgentDuplicateStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    const stats = await googleMapsAgentService.getAgentDuplicateStats(id, accountId);
+
+    res.json({
+      success: true,
+      stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching duplicate stats:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching duplicate statistics'
+    });
+  }
+};
+
+/**
+ * Export found places to CSV (when insert_in_crm is false)
+ * GET /api/google-maps-agents/:id/export-found-places
+ */
+exports.exportFoundPlaces = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const accountId = req.user.accountId;
+
+    console.log(`📥 CSV export request for found places of agent ${id}`);
+
+    // Get agent info
+    const agent = await googleMapsAgentService.getAgent(id, accountId);
+
+    if (!agent.found_places) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhum lead encontrado para este agente'
+      });
+    }
+
+    // Parse found_places
+    const places = typeof agent.found_places === 'string'
+      ? JSON.parse(agent.found_places)
+      : agent.found_places;
+
+    if (!places || places.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhum lead encontrado para este agente'
+      });
+    }
+
+    // Generate CSV (same structure as regular export)
+    const headers = [
+      'Nome',
+      'Categoria',
+      'Endereço',
+      'Cidade',
+      'Estado',
+      'País',
+      'Telefone Principal',
+      'Telefones Adicionais',
+      'Email Principal',
+      'Emails Adicionais',
+      'Website',
+      'Rating',
+      'Reviews',
+      'LinkedIn',
+      'Instagram',
+      'Facebook',
+      'YouTube',
+      'Twitter',
+      'Descrição da Empresa',
+      'Serviços',
+      'Possíveis Dores',
+      'Membros da Equipe',
+      'CNPJ',
+      'Razão Social',
+      'Google Maps URL'
+    ];
+
+    const escapeCsvValue = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const formatJsonArray = (jsonValue) => {
+      if (!jsonValue) return '';
+      try {
+        const arr = Array.isArray(jsonValue) ? jsonValue : JSON.parse(jsonValue);
+        if (Array.isArray(arr)) {
+          return arr.join('; ');
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    };
+
+    const formatAdditionalEmails = (emails, primaryEmail) => {
+      if (!emails || !Array.isArray(emails)) return '';
+      return emails
+        .filter(e => e.email && e.email !== primaryEmail)
+        .map(e => e.email)
+        .join('; ');
+    };
+
+    const formatAdditionalPhones = (phones, primaryPhone) => {
+      if (!phones || !Array.isArray(phones)) return '';
+      return phones
+        .filter(p => p.phone && p.phone !== primaryPhone)
+        .map(p => p.phone)
+        .join('; ');
+    };
+
+    const getSocialLink = (socialLinks, network) => {
+      if (!socialLinks) return '';
+      return socialLinks[network] || '';
+    };
+
+    const formatTeamMembers = (team) => {
+      if (!team || !Array.isArray(team)) return '';
+      return team
+        .map(m => m.role ? `${m.name} (${m.role})` : m.name)
+        .join('; ');
+    };
+
+    const getRazaoSocial = (cnpjData) => {
+      if (!cnpjData) return '';
+      return cnpjData.razaoSocial || cnpjData.razao_social || '';
+    };
+
+    const rows = places.map(p => [
+      escapeCsvValue(p.name),
+      escapeCsvValue(p.business_category),
+      escapeCsvValue(p.address || p.street_address),
+      escapeCsvValue(p.city),
+      escapeCsvValue(p.state),
+      escapeCsvValue(p.country),
+      escapeCsvValue(p.phone),
+      escapeCsvValue(formatAdditionalPhones(p.phones, p.phone)),
+      escapeCsvValue(p.email),
+      escapeCsvValue(formatAdditionalEmails(p.emails, p.email)),
+      escapeCsvValue(p.website),
+      p.rating || '',
+      p.review_count || 0,
+      escapeCsvValue(getSocialLink(p.social_links, 'linkedin')),
+      escapeCsvValue(getSocialLink(p.social_links, 'instagram')),
+      escapeCsvValue(getSocialLink(p.social_links, 'facebook')),
+      escapeCsvValue(getSocialLink(p.social_links, 'youtube')),
+      escapeCsvValue(getSocialLink(p.social_links, 'twitter')),
+      escapeCsvValue(p.company_description),
+      escapeCsvValue(formatJsonArray(p.company_services)),
+      escapeCsvValue(formatJsonArray(p.pain_points)),
+      escapeCsvValue(formatTeamMembers(p.team_members)),
+      escapeCsvValue(p.cnpj),
+      escapeCsvValue(getRazaoSocial(p.cnpj_data)),
+      escapeCsvValue(p.google_maps_url)
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    // Set headers for CSV download
+    const filename = `google-maps-list-${agent.name.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Send CSV with BOM for Excel UTF-8 support
+    res.send('\uFEFF' + csv);
+
+    console.log(`✅ CSV exported successfully: ${places.length} leads`);
+
+  } catch (error) {
+    console.error('❌ Error exporting found places:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error exporting found places'
     });
   }
 };

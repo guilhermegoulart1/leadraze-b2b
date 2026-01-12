@@ -133,14 +133,33 @@ const getConversations = async (req, res) => {
 
     console.log(`📋 Listando conversas do usuário ${userId}`);
 
+    // Get contact_id from opportunity to also search conversations by contact
+    // (conversations may be linked via contact_id instead of opportunity_id)
+    let opportunityContactId = null;
+    if (opportunity_id) {
+      const oppQuery = await db.query(`SELECT contact_id FROM opportunities WHERE id = $1`, [opportunity_id]);
+      if (oppQuery.rows.length > 0 && oppQuery.rows[0].contact_id) {
+        opportunityContactId = oppQuery.rows[0].contact_id;
+      }
+    }
+
     // Get accessible sectors for this user
     const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
 
     // Construir query - MULTI-TENANCY: Filter by account_id AND sector access
     // Usar conv.account_id para suportar conversas orgânicas (sem campaign)
-    let whereConditions = ['conv.account_id = $1', 'conv.user_id = $2'];
-    let queryParams = [accountId, userId];
-    let paramIndex = 3;
+    let whereConditions = ['conv.account_id = $1'];
+    let queryParams = [accountId];
+    let paramIndex = 2;
+
+    // Only filter by user_id when NOT fetching for a specific opportunity
+    // When opportunity_id is provided, show all conversations for that opportunity within the account
+    // Security is still enforced via account_id, sector access, and channel permissions
+    if (!opportunity_id) {
+      whereConditions.push(`conv.user_id = $${paramIndex}`);
+      queryParams.push(userId);
+      paramIndex++;
+    }
 
     // SECTOR FILTER: User can only see conversations from their accessible sectors
     // Include conversations without sector (NULL) for backward compatibility
@@ -183,11 +202,18 @@ const getConversations = async (req, res) => {
       paramIndex++;
     }
 
-    // Filtro por opportunity_id
+    // Filtro por opportunity_id - also search by contact_id from opportunity
     if (opportunity_id) {
-      whereConditions.push(`conv.opportunity_id = $${paramIndex}`);
-      queryParams.push(opportunity_id);
-      paramIndex++;
+      if (opportunityContactId) {
+        // Search by opportunity_id OR by contact_id (conversation may be linked via contact)
+        whereConditions.push(`(conv.opportunity_id = $${paramIndex} OR conv.contact_id = $${paramIndex + 1})`);
+        queryParams.push(opportunity_id, opportunityContactId);
+        paramIndex += 2;
+      } else {
+        whereConditions.push(`conv.opportunity_id = $${paramIndex}`);
+        queryParams.push(opportunity_id);
+        paramIndex++;
+      }
     }
 
     // Busca por nome do contato
@@ -235,6 +261,7 @@ const getConversations = async (req, res) => {
         camp.name as campaign_name,
         la.linkedin_username,
         la.profile_name as account_name,
+        la.profile_picture as account_picture,
         ai.name as ai_agent_name,
         assigned_user.name as assigned_user_name,
         assigned_user.email as assigned_user_email,

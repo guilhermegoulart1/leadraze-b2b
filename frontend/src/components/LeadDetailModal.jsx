@@ -118,6 +118,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [activeTab, setActiveTab] = useState('details'); // details | intelligence | comments | company
   const [activeChannel, setActiveChannel] = useState(null);
   const [conversations, setConversations] = useState({});
+  const [conversationData, setConversationData] = useState({}); // Store conversation metadata by channel
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [newComment, setNewComment] = useState('');
@@ -432,11 +433,20 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
           email: []
         };
 
+        // Store conversation metadata by channel
+        const convData = {};
+
         // For each conversation, load its messages
         const conversationsList = response.data.conversations || [];
 
         for (const conv of conversationsList) {
           try {
+            // Determine channel type based on conversation data
+            let channel = 'linkedin'; // default
+            if (conv.lead_phone || conv.unipile_chat_id?.includes('whatsapp')) {
+              channel = 'whatsapp';
+            }
+
             // Get messages for this conversation
             const messagesResponse = await api.getMessages(conv.id, { limit: 100 });
 
@@ -452,8 +462,18 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                 status: 'sent'
               }));
 
-              // Group by channel (for now, assuming LinkedIn)
-              grouped.linkedin.push(...formattedMessages);
+              // Group by channel
+              grouped[channel].push(...formattedMessages);
+
+              // Store conversation metadata (use first conversation per channel)
+              if (!convData[channel]) {
+                convData[channel] = {
+                  id: conv.id,
+                  accountName: conv.account_name || conv.linkedin_username,
+                  accountPicture: conv.account_picture,
+                  linkedinAccountId: conv.linkedin_account_id
+                };
+              }
             }
           } catch (msgError) {
             console.error(`Error loading messages for conversation ${conv.id}:`, msgError);
@@ -461,6 +481,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
         }
 
         setConversations(grouped);
+        setConversationData(convData);
 
         // Set first available channel as active
         const channelsWithMessages = Object.entries(grouped)
@@ -479,6 +500,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
         whatsapp: [],
         email: []
       });
+      setConversationData({});
     } finally {
       setLoadingConversations(false);
     }
@@ -2056,6 +2078,49 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   })}
                 </div>
               </div>
+
+              {/* Channel Account Info - shows when there are messages */}
+              {activeChannel && conversationData[activeChannel] && (
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2">
+                    {conversationData[activeChannel].accountPicture ? (
+                      <img
+                        src={conversationData[activeChannel].accountPicture}
+                        alt=""
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        activeChannel === 'linkedin' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-green-100 dark:bg-green-900/30'
+                      }`}>
+                        {(() => {
+                          const ChannelIcon = channelConfig[activeChannel]?.icon;
+                          return ChannelIcon ? (
+                            <ChannelIcon className={`w-3.5 h-3.5 ${
+                              activeChannel === 'linkedin' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'
+                            }`} />
+                          ) : null;
+                        })()}
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      {conversationData[activeChannel].accountName || 'Canal conectado'}
+                    </span>
+                  </div>
+                  {/* Open in /conversations button */}
+                  {conversationData[activeChannel].id && (
+                    <button
+                      onClick={() => {
+                        window.location.href = `/conversations?conversation_id=${conversationData[activeChannel].id}`;
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                      title="Abrir conversa completa"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Messages Area */}
@@ -2075,17 +2140,16 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
               ) : (
                 <div className="space-y-3">
                   {conversations[activeChannel].map((message) => {
-                    const config = channelConfig[activeChannel];
                     return (
                       <div
                         key={message.id}
                         className={`flex ${message.type === 'outbound' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                          className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                             message.type === 'outbound'
-                              ? `${config.messageBg} text-white rounded-br-md`
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-bl-md'
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
                           }`}
                         >
                           {message.subject && (
@@ -2143,15 +2207,6 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
-
-                {/* Go to full conversation */}
-                <button
-                  onClick={() => onNavigateToConversation?.(lead.opportunity_id || lead.id, activeChannel)}
-                  className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                >
-                  <span>Ver conversa completa</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
               </div>
             )}
           </div>

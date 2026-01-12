@@ -12,11 +12,9 @@ import api from '../services/api';
 import CampaignWizard from '../components/CampaignWizard';
 import CampaignReviewModal from '../components/CampaignReviewModal';
 import InviteLimitBadge from '../components/InviteLimitBadge';
-import { useOnboarding } from '../contexts/OnboardingContext';
 
 const CampaignsPage = () => {
   const { t } = useTranslation(['campaigns', 'common']);
-  const { completeStep } = useOnboarding();
   const navigate = useNavigate();
 
   const [campaigns, setCampaigns] = useState([]);
@@ -51,13 +49,6 @@ const CampaignsPage = () => {
   useEffect(() => {
     campaignsRef.current = campaigns;
   }, [campaigns]);
-
-  // Completar step do onboarding quando houver campanha criada
-  useEffect(() => {
-    if (campaigns.length > 0) {
-      completeStep('create_campaign');
-    }
-  }, [campaigns, completeStep]);
 
   useEffect(() => {
     const loadInitialData = async () => {

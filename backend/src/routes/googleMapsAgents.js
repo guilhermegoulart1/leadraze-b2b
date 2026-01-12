@@ -118,4 +118,32 @@ router.get('/:id/export', googleMapsAgentController.exportAgentContacts);
  */
 router.get('/:id/logs', googleMapsAgentController.getAgentLogs);
 
+/**
+ * @route   GET /api/google-maps-agents/:id/found-places
+ * @desc    Get found places for an agent (when insert_in_crm is false)
+ * @access  Private
+ */
+router.get('/:id/found-places', googleMapsAgentController.getFoundPlaces);
+
+/**
+ * @route   GET /api/google-maps-agents/:id/export-found-places
+ * @desc    Export found places to CSV (when insert_in_crm is false)
+ * @access  Private
+ */
+router.get('/:id/export-found-places', googleMapsAgentController.exportFoundPlaces);
+
+/**
+ * @route   GET /api/google-maps-agents/:id/duplicates
+ * @desc    Get duplicates found by an agent
+ * @access  Private
+ */
+router.get('/:id/duplicates', googleMapsAgentController.getAgentDuplicates);
+
+/**
+ * @route   GET /api/google-maps-agents/:id/duplicate-stats
+ * @desc    Get duplicate statistics for an agent
+ * @access  Private
+ */
+router.get('/:id/duplicate-stats', googleMapsAgentController.getAgentDuplicateStats);
+
 module.exports = router;

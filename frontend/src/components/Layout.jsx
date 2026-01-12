@@ -13,7 +13,6 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
-import OnboardingChecklist from './OnboardingChecklist';
 import CreditsIndicator from './CreditsIndicator';
 import TrialIndicator from './TrialIndicator';
 import CanceledOverlay from './CanceledOverlay';
@@ -704,9 +703,6 @@ const Layout = () => {
           <Outlet context={{ refreshUnreadCount: loadConversationStats }} />
         </main>
       </div>
-
-      {/* Onboarding Checklist */}
-      <OnboardingChecklist />
 
       {/* Canceled Subscription Overlay - blocks access for canceled users */}
       <CanceledOverlay />

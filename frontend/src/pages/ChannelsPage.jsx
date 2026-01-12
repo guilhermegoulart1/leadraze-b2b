@@ -5,7 +5,6 @@ import api from '../services/api';
 import LimitConfigModal from '../components/LimitConfigModal';
 import ChannelSettingsModal from '../components/ChannelSettingsModal';
 import PremiumFeatureModal from '../components/PremiumFeatureModal';
-import { useOnboarding } from '../contexts/OnboardingContext';
 import { useBilling } from '../contexts/BillingContext';
 
 // ================================
@@ -92,7 +91,6 @@ const getChannelConfig = (providerType) => {
 
 const ChannelsPage = () => {
   const { t } = useTranslation(['linkedinaccounts', 'common']);
-  const { completeStep } = useOnboarding();
   const { isTrialFeatureBlocked } = useBilling();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,13 +119,6 @@ const ChannelsPage = () => {
   useEffect(() => {
     loadAccounts();
   }, []);
-
-  useEffect(() => {
-    const hasActiveAccount = accounts.some(acc => acc.status === 'connected');
-    if (hasActiveAccount) {
-      completeStep('connect_linkedin');
-    }
-  }, [accounts, completeStep]);
 
   // Fechar dropdown quando clicar fora
   useEffect(() => {

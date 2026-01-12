@@ -24,7 +24,6 @@ import enSettings from './locales/en/settings.json';
 import enLinkedin from './locales/en/linkedin.json';
 import enModals from './locales/en/modals.json';
 import enBilling from './locales/en/billing.json';
-import enOnboarding from './locales/en/onboarding.json';
 import enEmailSettings from './locales/en/emailSettings.json';
 import enWebsiteAgents from './locales/en/websiteAgents.json';
 import enTasks from './locales/en/tasks.json';
@@ -60,7 +59,6 @@ import ptSettings from './locales/pt/settings.json';
 import ptLinkedin from './locales/pt/linkedin.json';
 import ptModals from './locales/pt/modals.json';
 import ptBilling from './locales/pt/billing.json';
-import ptOnboarding from './locales/pt/onboarding.json';
 import ptEmailSettings from './locales/pt/emailSettings.json';
 import ptWebsiteAgents from './locales/pt/websiteAgents.json';
 import ptTasks from './locales/pt/tasks.json';
@@ -96,7 +94,6 @@ import esSettings from './locales/es/settings.json';
 import esLinkedin from './locales/es/linkedin.json';
 import esModals from './locales/es/modals.json';
 import esBilling from './locales/es/billing.json';
-import esOnboarding from './locales/es/onboarding.json';
 import esEmailSettings from './locales/es/emailSettings.json';
 import esWebsiteAgents from './locales/es/websiteAgents.json';
 import esTasks from './locales/es/tasks.json';
@@ -134,7 +131,6 @@ const resources = {
     linkedin: enLinkedin,
     modals: enModals,
     billing: enBilling,
-    onboarding: enOnboarding,
     emailSettings: enEmailSettings,
     websiteAgents: enWebsiteAgents,
     tasks: enTasks,
@@ -170,7 +166,6 @@ const resources = {
     linkedin: ptLinkedin,
     modals: ptModals,
     billing: ptBilling,
-    onboarding: ptOnboarding,
     emailSettings: ptEmailSettings,
     websiteAgents: ptWebsiteAgents,
     tasks: ptTasks,
@@ -206,7 +201,6 @@ const resources = {
     linkedin: esLinkedin,
     modals: esModals,
     billing: esBilling,
-    onboarding: esOnboarding,
     emailSettings: esEmailSettings,
     websiteAgents: esWebsiteAgents,
     tasks: esTasks,
@@ -235,7 +229,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'onboarding', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines', 'insights', 'next', 'partner'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines', 'insights', 'next', 'partner'
     ],
 
     // Language detection configuration

@@ -51,6 +51,7 @@ const LocationMapPicker = ({ value, onChange }) => {
   const [zoom, setZoom] = useState(2);
   const [markerPosition, setMarkerPosition] = useState(null);
   const [radius, setRadius] = useState(10); // km
+  const [searchType, setSearchType] = useState('radius'); // 'radius', 'city', 'state', 'country'
   const [locationInput, setLocationInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -72,6 +73,7 @@ const LocationMapPicker = ({ value, onChange }) => {
       setMapCenter(center);
       setMarkerPosition(center);
       setRadius(value.radius || 10);
+      setSearchType(value.searchType || 'radius');
       setLocationName(value.location || '');
       setZoom(10);
     }
@@ -94,6 +96,7 @@ const LocationMapPicker = ({ value, onChange }) => {
         lat,
         lng,
         radius,
+        searchType,
         location: displayName,
         city: location?.city,
         country: location?.country
@@ -111,6 +114,23 @@ const LocationMapPicker = ({ value, onChange }) => {
         lat: markerPosition[0],
         lng: markerPosition[1],
         radius: newRadius,
+        searchType,
+        location: locationName
+      });
+    }
+  };
+
+  // Handle search type change
+  const handleSearchTypeChange = (newSearchType) => {
+    setSearchType(newSearchType);
+
+    // Notify parent with updated search type
+    if (onChange && markerPosition) {
+      onChange({
+        lat: markerPosition[0],
+        lng: markerPosition[1],
+        radius,
+        searchType: newSearchType,
         location: locationName
       });
     }
@@ -167,21 +187,114 @@ const LocationMapPicker = ({ value, onChange }) => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full">
-      {/* Left Panel - Controls */}
-      <div className="lg:w-[300px] flex-shrink-0 space-y-4">
-        {/* Title */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Onde você quer buscar leads?
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Pesquise uma cidade, cole um link do Google Maps, ou clique no mapa
-          </p>
-        </div>
+    <div className="flex flex-col h-full">
+      {/* Top Bar - Search Type Selector */}
+      <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-700/50">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Tipo de área:
+          </span>
 
-        {/* Search Input */}
-        <div className="relative">
+          <div className="flex flex-wrap gap-2">
+            <label className={`flex items-center px-4 py-2 border-2 rounded-lg cursor-pointer transition-all ${
+              searchType === 'radius'
+                ? 'border-purple-500 bg-purple-500 text-white shadow-md'
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-purple-400'
+            }`}>
+              <input
+                type="radio"
+                name="searchType"
+                value="radius"
+                checked={searchType === 'radius'}
+                onChange={(e) => handleSearchTypeChange(e.target.value)}
+                className="sr-only"
+              />
+              <span className="text-sm font-medium">
+                Raio personalizado
+              </span>
+            </label>
+
+            <label className={`flex items-center px-4 py-2 border-2 rounded-lg cursor-pointer transition-all ${
+              searchType === 'city'
+                ? 'border-purple-500 bg-purple-500 text-white shadow-md'
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-purple-400'
+            }`}>
+              <input
+                type="radio"
+                name="searchType"
+                value="city"
+                checked={searchType === 'city'}
+                onChange={(e) => handleSearchTypeChange(e.target.value)}
+                className="sr-only"
+              />
+              <span className="text-sm font-medium">
+                Cidade inteira
+              </span>
+            </label>
+
+            <label className={`flex items-center px-4 py-2 border-2 rounded-lg cursor-pointer transition-all ${
+              searchType === 'state'
+                ? 'border-purple-500 bg-purple-500 text-white shadow-md'
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-purple-400'
+            }`}>
+              <input
+                type="radio"
+                name="searchType"
+                value="state"
+                checked={searchType === 'state'}
+                onChange={(e) => handleSearchTypeChange(e.target.value)}
+                className="sr-only"
+              />
+              <span className="text-sm font-medium">
+                Estado
+              </span>
+            </label>
+
+            <label className={`flex items-center px-4 py-2 border-2 rounded-lg cursor-pointer transition-all ${
+              searchType === 'country'
+                ? 'border-purple-500 bg-purple-500 text-white shadow-md'
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-purple-400'
+            }`}>
+              <input
+                type="radio"
+                name="searchType"
+                value="country"
+                checked={searchType === 'country'}
+                onChange={(e) => handleSearchTypeChange(e.target.value)}
+                className="sr-only"
+              />
+              <span className="text-sm font-medium">
+                País
+              </span>
+            </label>
+          </div>
+
+          <div className="ml-auto hidden lg:block">
+            <p className="text-xs text-gray-600 dark:text-gray-400 italic">
+              {searchType === 'radius' && 'Defina um raio personalizado para a busca'}
+              {searchType === 'city' && 'Buscar em toda a cidade selecionada'}
+              {searchType === 'state' && 'Buscar em todo o estado selecionado'}
+              {searchType === 'country' && 'Buscar em todo o país selecionado'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1">
+        {/* Left Panel - Controls */}
+        <div className="lg:w-[300px] flex-shrink-0 space-y-4">
+          {/* Title */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Onde você quer buscar leads?
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Pesquise uma cidade, cole um link do Google Maps, ou clique no mapa
+            </p>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -241,33 +354,35 @@ const LocationMapPicker = ({ value, onChange }) => {
           )}
         </div>
 
-        {/* Radius Slider */}
-        <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Raio de busca
-            </label>
-            <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
-              {radius} km
-            </span>
+        {/* Radius Slider - Only show for radius type */}
+        {searchType === 'radius' && (
+          <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Raio de busca
+              </label>
+              <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                {radius} km
+              </span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-xs text-gray-500 dark:text-gray-400 w-6">1km</span>
+              <input
+                type="range"
+                min="1"
+                max="50"
+                step="1"
+                value={radius}
+                onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
+                className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-purple"
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400 w-8">50km</span>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Área: ~{(Math.PI * radius * radius).toFixed(1)} km²
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-gray-500 dark:text-gray-400 w-6">1km</span>
-            <input
-              type="range"
-              min="1"
-              max="50"
-              step="1"
-              value={radius}
-              onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-purple"
-            />
-            <span className="text-xs text-gray-500 dark:text-gray-400 w-8">50km</span>
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            Área: ~{(Math.PI * radius * radius).toFixed(1)} km²
-          </div>
-        </div>
+        )}
 
         {/* Selected Location Display */}
         {locationName && (
@@ -332,21 +447,24 @@ const LocationMapPicker = ({ value, onChange }) => {
                   }}
                 />
 
-                {/* Radius Circle */}
-                <Circle
-                  center={markerPosition}
-                  radius={radius * 1000} // Convert km to meters
-                  pathOptions={{
-                    color: '#7c3aed',
-                    fillColor: '#7c3aed',
-                    fillOpacity: 0.1,
-                    weight: 2
-                  }}
-                />
+                {/* Radius Circle - Only show for radius-based searches */}
+                {searchType === 'radius' && (
+                  <Circle
+                    center={markerPosition}
+                    radius={radius * 1000} // Convert km to meters
+                    pathOptions={{
+                      color: '#7c3aed',
+                      fillColor: '#7c3aed',
+                      fillOpacity: 0.1,
+                      weight: 2
+                    }}
+                  />
+                )}
               </>
             )}
           </MapContainer>
         </div>
+      </div>
       </div>
 
       {/* CSS for slider */}

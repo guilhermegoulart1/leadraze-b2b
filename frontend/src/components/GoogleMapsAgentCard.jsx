@@ -173,7 +173,12 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport, onE
 
   // Use progress data if available
   const displayLeadsFound = progress?.leadsFound ?? agent.total_leads_found ?? 0;
-  const displayLeadsInserted = progress?.leadsInserted ?? agent.leads_inserted ?? 0;
+
+  // Calculate leads count based on insert_in_crm mode
+  const insertInCrm = agent.insert_in_crm !== false; // Default to true for backward compatibility
+  const displayLeadsInserted = insertInCrm
+    ? (progress?.leadsInserted ?? agent.leads_inserted ?? 0)
+    : (agent.found_places ? (Array.isArray(agent.found_places) ? agent.found_places.length : 0) : 0);
 
   return (
     <>
@@ -295,7 +300,7 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport, onE
           <div>
             <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400 mb-0.5">
               <CheckCircle className="w-3 h-3" />
-              <span>No CRM</span>
+              <span>{insertInCrm ? 'No CRM' : 'Gerados'}</span>
             </div>
             <div className="text-xl font-bold text-green-600 dark:text-green-400">
               {displayLeadsInserted}
@@ -359,7 +364,7 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport, onE
 
             <button
               onClick={() => navigate(`/google-maps-agents/${agent.id}`)}
-              disabled={!agent.leads_inserted || agent.leads_inserted === 0}
+              disabled={displayLeadsInserted === 0}
               className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Ver leads"
             >
@@ -368,7 +373,7 @@ const GoogleMapsAgentCard = ({ agent, onPause, onResume, onDelete, onExport, onE
 
             <button
               onClick={() => onExport(agent.id, agent.name)}
-              disabled={!agent.leads_inserted || agent.leads_inserted === 0}
+              disabled={displayLeadsInserted === 0}
               className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Exportar CSV"
             >

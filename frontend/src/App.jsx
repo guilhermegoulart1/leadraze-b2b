@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { BillingProvider } from './contexts/BillingContext';
-import { OnboardingProvider } from './contexts/OnboardingContext';
 
 // Páginas
 import LoginPage from './pages/LoginPage';
@@ -206,9 +205,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <BillingProvider>
-            <OnboardingProvider>
-              <AppRoutes />
-            </OnboardingProvider>
+            <AppRoutes />
           </BillingProvider>
         </ThemeProvider>
       </AuthProvider>

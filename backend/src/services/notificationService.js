@@ -361,6 +361,74 @@ async function notifyChannelDisconnected({ accountId, userId, channelName, chann
   });
 }
 
+// ============================================
+// Google Maps Campaign Notifications
+// ============================================
+
+/**
+ * Create notification when Google Maps campaign starts collecting leads
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyGmapsCampaignStarted({ accountId, userId, agentId, agentName }) {
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'gmaps_campaign_started',
+    title: 'Campanha iniciada',
+    message: `A campanha "${agentName}" começou a coletar leads`,
+    metadata: {
+      agent_id: agentId,
+      agent_name: agentName,
+      link: `/google-maps-agents/${agentId}`
+    }
+  });
+}
+
+/**
+ * Create notification when Google Maps campaign finishes daily collection
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyGmapsDailyComplete({ accountId, userId, agentId, agentName, leadsInserted, duplicatesFound = 0 }) {
+  const duplicateText = duplicatesFound > 0 ? ` (${duplicatesFound} duplicados ignorados)` : '';
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'gmaps_daily_complete',
+    title: 'Coleta diária concluída',
+    message: `${leadsInserted} leads adicionados pela campanha "${agentName}"${duplicateText}`,
+    metadata: {
+      agent_id: agentId,
+      agent_name: agentName,
+      leads_inserted: leadsInserted,
+      duplicates_found: duplicatesFound,
+      link: `/google-maps-agents/${agentId}`
+    }
+  });
+}
+
+/**
+ * Create notification when Google Maps campaign finishes (no more results)
+ * @param {object} data - Notification data
+ * @returns {Promise<object>}
+ */
+async function notifyGmapsCampaignComplete({ accountId, userId, agentId, agentName, totalLeads }) {
+  return create({
+    account_id: accountId,
+    user_id: userId,
+    type: 'gmaps_campaign_complete',
+    title: 'Campanha finalizada',
+    message: `A campanha "${agentName}" coletou todos os resultados disponíveis (${totalLeads} leads total)`,
+    metadata: {
+      agent_id: agentId,
+      agent_name: agentName,
+      total_leads: totalLeads,
+      link: `/google-maps-agents/${agentId}`
+    }
+  });
+}
+
 module.exports = {
   create,
   getByUser,
@@ -373,5 +441,9 @@ module.exports = {
   notifyInviteAccepted,
   notifyInvitationReceived,
   notifyInviteExpired,
-  notifyChannelDisconnected
+  notifyChannelDisconnected,
+  // Google Maps Campaign notifications
+  notifyGmapsCampaignStarted,
+  notifyGmapsDailyComplete,
+  notifyGmapsCampaignComplete
 };
