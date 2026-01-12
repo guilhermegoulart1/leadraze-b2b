@@ -13,7 +13,8 @@ import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 import SecretAgentModal from './SecretAgentModal';
 import ConversationInviteModal from './ConversationInviteModal';
-import { UserPlus, Hourglass } from 'lucide-react';
+import { UserPlus, Hourglass, Eye } from 'lucide-react';
+import UnifiedContactModal from './UnifiedContactModal';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const { t, i18n } = useTranslation('conversations');
@@ -40,6 +41,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [showSecretAgentModal, setShowSecretAgentModal] = useState(false);
   // Invite Modal (para não-conexões)
   const [showInviteModal, setShowInviteModal] = useState(false);
+  // Contact Details Modal
+  const [showContactModal, setShowContactModal] = useState(false);
   // Message context menu
   const [messageMenu, setMessageMenu] = useState({ isOpen: false, messageId: null, x: 0, y: 0 });
   const [copySuccess, setCopySuccess] = useState(null);
@@ -1138,7 +1141,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           {/* Secret Agent Button */}
           <button
             onClick={() => setShowSecretAgentModal(true)}
-            className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             title={t('chatArea.secretAgent', 'Agente Secreto')}
           >
             <Sparkles className="w-5 h-5" />
@@ -1159,7 +1162,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             ) : (
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Enviar convite de conexão"
               >
                 <UserPlus className="w-5 h-5" />
@@ -1170,7 +1173,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           {/* Channel Indicator */}
           {conversation?.channel === 'email' || conversation?.source === 'email' ? (
             <div
-              className="p-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg"
+              className="p-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg"
               title={t('chatArea.emailConversation')}
             >
               <Mail className="w-5 h-5" />
@@ -1180,12 +1183,21 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               href={conversation.lead_profile_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title={t('chatArea.viewLinkedInProfile')}
             >
               <Linkedin className="w-5 h-5" />
             </a>
           ) : null}
+
+          {/* View Contact Details Button */}
+          <button
+            onClick={() => setShowContactModal(true)}
+            className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            title="Ver detalhes do contato"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
 
           {/* Options Menu */}
           <div className="relative" ref={optionsMenuRef}>
@@ -1935,6 +1947,13 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
           setConversation(prev => ({ ...prev, has_pending_invitation: true }));
           setShowInviteModal(false);
         }}
+      />
+
+      {/* Contact Details Modal */}
+      <UnifiedContactModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        contactId={conversation?.contact_id}
       />
 
       {/* Message Context Menu */}
