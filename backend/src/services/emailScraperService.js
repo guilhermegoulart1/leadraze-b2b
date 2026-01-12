@@ -297,12 +297,27 @@ CONTEUDO DO SITE:
 ${websiteText}`;
 
       // Use generateJson which forces valid JSON output via responseMimeType
-      const parsed = await geminiService.generateJson(systemPrompt, userPrompt, {
+      const result = await geminiService.generateJson(systemPrompt, userPrompt, {
         temperature: 0.3,
         maxTokens: 8000  // Increased from 2000 to avoid truncated JSON
       });
 
-      console.log(`🧠 Gemini analysis completed for ${companyName || 'company'}`);
+      // Extract data and token usage
+      const parsed = result.data;
+      const tokenUsage = result.tokenUsage;
+
+      // Log token usage for cost monitoring
+      console.log(`🧠 [GEMINI] Analysis completed for ${companyName || 'company'}`);
+      console.log(`💰 [GEMINI TOKENS] Input: ${tokenUsage.inputTokens.toLocaleString()} | Output: ${tokenUsage.outputTokens.toLocaleString()} | Total: ${tokenUsage.totalTokens.toLocaleString()}`);
+      console.log(`📊 [GEMINI COST] Input chars: ${websiteText?.length?.toLocaleString() || 0} → ${tokenUsage.inputTokens.toLocaleString()} tokens`);
+
+      // Calculate approximate cost (Gemini 2.5 Flash pricing - adjust as needed)
+      // Gemini Flash: $0.075 per 1M input tokens, $0.30 per 1M output tokens
+      const inputCost = (tokenUsage.inputTokens / 1000000) * 0.075;
+      const outputCost = (tokenUsage.outputTokens / 1000000) * 0.30;
+      const totalCost = inputCost + outputCost;
+      console.log(`💵 [GEMINI COST] Estimated: $${totalCost.toFixed(6)} (Input: $${inputCost.toFixed(6)} + Output: $${outputCost.toFixed(6)})`);
+
       return parsed;
     } catch (error) {
       console.log(`⚠️ Gemini analysis failed for ${companyName}: ${error.message}`);

@@ -868,10 +868,31 @@ class GoogleMapsAgentService {
    * @param {string} accountId - Account ID for security
    * @param {Object} options - Delete options
    * @param {boolean} options.deleteLeads - If true, also delete all leads collected by this agent
+   *                                        NOTE: Only applies to CRM mode. List mode data is always deleted.
    */
   async deleteAgent(agentId, accountId, options = {}) {
     const { deleteLeads = false } = options;
     let leadsDeleted = 0;
+    let foundPlacesCount = 0;
+
+    // Check agent mode first
+    const agentCheck = await db.query(
+      'SELECT id, name, insert_in_crm, found_places FROM google_maps_agents WHERE id = $1 AND account_id = $2',
+      [agentId, accountId]
+    );
+
+    if (agentCheck.rows.length === 0) {
+      throw new Error('Agent not found or unauthorized');
+    }
+
+    const agent = agentCheck.rows[0];
+    const isListMode = agent.insert_in_crm === false;
+
+    // Count found_places if in list mode
+    if (isListMode && agent.found_places) {
+      foundPlacesCount = Array.isArray(agent.found_places) ? agent.found_places.length : 0;
+      console.log(`📋 [LIST MODE] Agent "${agent.name}" has ${foundPlacesCount} leads in found_places (will be deleted with agent)`);
+    }
 
     // 1. Remove ALL jobs from queue first (important: do this before DB changes)
     try {
@@ -903,30 +924,38 @@ class GoogleMapsAgentService {
       console.error(`⚠️  Error removing jobs for agent ${agentId}:`, error.message);
     }
 
-    // 2. If deleteLeads option is true, delete all contacts collected by this agent
+    // 2. If deleteLeads option is true, delete all contacts collected by this agent (CRM mode only)
     if (deleteLeads) {
-      try {
-        // Get contact IDs linked to this agent
-        const contactsQuery = `
-          SELECT contact_id FROM google_maps_agent_contacts
-          WHERE agent_id = $1
-        `;
-        const contactsResult = await db.query(contactsQuery, [agentId]);
-        const contactIds = contactsResult.rows.map(r => r.contact_id);
-
-        if (contactIds.length > 0) {
-          // Delete contacts (cascade will handle google_maps_agent_contacts)
-          const deleteContactsQuery = `
-            DELETE FROM contacts
-            WHERE id = ANY($1) AND account_id = $2
+      if (isListMode) {
+        console.log(`ℹ️  [LIST MODE] deleteLeads option ignored - list mode data is always deleted with agent`);
+      } else {
+        try {
+          // Get contact IDs linked to this agent
+          const contactsQuery = `
+            SELECT contact_id FROM google_maps_agent_contacts
+            WHERE agent_id = $1
           `;
-          const deleteResult = await db.query(deleteContactsQuery, [contactIds, accountId]);
-          leadsDeleted = deleteResult.rowCount || 0;
-          console.log(`🗑️  Deleted ${leadsDeleted} leads from agent ${agentId}`);
+          const contactsResult = await db.query(contactsQuery, [agentId]);
+          const contactIds = contactsResult.rows.map(r => r.contact_id);
+
+          if (contactIds.length > 0) {
+            // Delete contacts (cascade will handle google_maps_agent_contacts)
+            const deleteContactsQuery = `
+              DELETE FROM contacts
+              WHERE id = ANY($1) AND account_id = $2
+            `;
+            const deleteResult = await db.query(deleteContactsQuery, [contactIds, accountId]);
+            leadsDeleted = deleteResult.rowCount || 0;
+            console.log(`🗑️  [CRM MODE] Deleted ${leadsDeleted} leads from contacts table`);
+          } else {
+            console.log(`ℹ️  [CRM MODE] No leads to delete (agent has 0 contacts)`);
+          }
+        } catch (error) {
+          console.error(`⚠️  Error deleting leads for agent ${agentId}:`, error.message);
         }
-      } catch (error) {
-        console.error(`⚠️  Error deleting leads for agent ${agentId}:`, error.message);
       }
+    } else if (!isListMode) {
+      console.log(`ℹ️  [CRM MODE] Leads NOT deleted - they remain in CRM (use deleteLeads=true to delete them)`);
     }
 
     // 3. Delete the junction table entries (if not already deleted by cascade)
@@ -936,14 +965,25 @@ class GoogleMapsAgentService {
       // Ignore - might already be deleted
     }
 
-    // 4. Delete agent from database
+    // 4. Delete agent from database (CASCADE will delete found_places, duplicates, etc.)
     const query = 'DELETE FROM google_maps_agents WHERE id = $1 AND account_id = $2';
     await db.query(query, [agentId, accountId]);
-    console.log(`🗑️  Agent deleted: ${agentId}`);
+
+    if (isListMode) {
+      console.log(`🗑️  [LIST MODE] Agent "${agent.name}" deleted (${foundPlacesCount} leads in found_places removed)`);
+    } else {
+      console.log(`🗑️  [CRM MODE] Agent "${agent.name}" deleted`);
+    }
 
     return {
       success: true,
-      leadsDeleted
+      leadsDeleted: isListMode ? foundPlacesCount : leadsDeleted,
+      mode: isListMode ? 'list' : 'crm',
+      message: isListMode
+        ? `Campanha e ${foundPlacesCount} leads (modo lista) deletados`
+        : deleteLeads
+          ? `Campanha e ${leadsDeleted} leads (modo CRM) deletados`
+          : 'Campanha deletada (leads permanecem no CRM)'
     };
   }
 
@@ -1063,6 +1103,9 @@ class GoogleMapsAgentService {
     const duplicatePlaces = []; // For tracking duplicates
 
     // DEBUG: Log mode detection
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🚀 [BACKEND LOCAL] Processando campanha - ${new Date().toLocaleString('pt-BR')}`);
+    console.log(`${'='.repeat(80)}`);
     console.log(`\n🔍 [MODE DEBUG] Agent ${agent.id}:`);
     console.log(`   agent.insert_in_crm from DB: ${agent.insert_in_crm} (type: ${typeof agent.insert_in_crm})`);
     console.log(`   insertInCrm calculated: ${insertInCrm}`);
@@ -1190,6 +1233,8 @@ class GoogleMapsAgentService {
           // DUPLICATE FOUND - Track it for compensation
           skipped++;
           duplicates++;
+
+          console.log(`🔄 [DUPLICATE] "${contactData.name}" (place_id: ${contactData.place_id}) - already exists (contact_id: ${existingContact.id})`);
 
           // Save duplicate to tracking table
           try {
@@ -1361,6 +1406,11 @@ class GoogleMapsAgentService {
       console.log(`⏭️  [SKIP SAVE] Reason: ${insertInCrm ? 'CRM mode (not list mode)' : `foundPlaces is empty (${foundPlaces.length} items)`}`);
     }
 
+    // Summary log
+    if (duplicates > 0) {
+      console.log(`📊 [SUMMARY] Page ${pageNumber + 1}: ${inserted} inserted, ${skipped} skipped, ${duplicates} duplicates found`);
+    }
+
     return { inserted, skipped, duplicates, creditsConsumed, duplicatePlaces };
   }
 
@@ -1368,9 +1418,15 @@ class GoogleMapsAgentService {
    * Find contact by place_id
    */
   async _findContactByPlaceId(placeId, accountId) {
-    const query = 'SELECT id FROM contacts WHERE place_id = $1 AND account_id = $2';
-    const result = await db.query(query, [placeId, accountId]);
-    return result.rows.length > 0 ? result.rows[0] : null;
+    try {
+      const query = 'SELECT id FROM contacts WHERE place_id = $1 AND account_id = $2';
+      const result = await db.query(query, [placeId, accountId]);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      console.error(`❌ Error in _findContactByPlaceId with place_id="${placeId}", account_id="${accountId}":`, error.message);
+      // Return null on error to allow processing to continue
+      return null;
+    }
   }
 
   /**
@@ -1714,10 +1770,16 @@ class GoogleMapsAgentService {
 
     const agent = agentCheck.rows[0];
 
-    // If in list-only mode, return found_places directly
+    // If in list-only mode, return found_places with ID field for frontend compatibility
     if (agent.insert_in_crm === false) {
       const foundPlaces = agent.found_places || [];
-      return Array.isArray(foundPlaces) ? foundPlaces : [];
+      const placesArray = Array.isArray(foundPlaces) ? foundPlaces : [];
+
+      // Add unique ID using place_id for frontend compatibility (React keys, expandable rows, etc.)
+      return placesArray.map(place => ({
+        ...place,
+        id: place.place_id || `list-${Date.now()}-${Math.random().toString(36).substring(7)}`
+      }));
     }
 
     // Otherwise, query from contacts table (standard CRM mode)

@@ -96,9 +96,19 @@ class GeminiService {
     const response = result.response;
     const text = response.text();
 
+    // Get usage metadata (tokens)
+    const usageMetadata = response.usageMetadata || {};
+    const tokenUsage = {
+      inputTokens: usageMetadata.promptTokenCount || 0,
+      outputTokens: usageMetadata.candidatesTokenCount || 0,
+      totalTokens: usageMetadata.totalTokenCount || 0
+    };
+
     // Parse JSON response with debug logging
     try {
-      return JSON.parse(text);
+      const parsedData = JSON.parse(text);
+      // Return both data and token usage
+      return { data: parsedData, tokenUsage };
     } catch (parseError) {
       console.log(`🔴 [GEMINI DEBUG] JSON parse failed: ${parseError.message}`);
       console.log(`🔴 [GEMINI DEBUG] Raw response (first 1000 chars):\n${text?.substring(0, 1000)}`);

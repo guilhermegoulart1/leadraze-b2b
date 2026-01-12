@@ -173,7 +173,12 @@ const GoogleMapsAgentRow = ({ agent, onPause, onResume, onDelete, onExport, onEd
 
   // Use progress data if available
   const displayLeadsFound = progress?.leadsFound ?? agent.total_leads_found ?? 0;
-  const displayLeadsInserted = progress?.leadsInserted ?? agent.leads_inserted ?? 0;
+
+  // Calculate leads count based on insert_in_crm mode
+  const insertInCrm = agent.insert_in_crm !== false; // Default to true for backward compatibility
+  const displayLeadsInserted = insertInCrm
+    ? (progress?.leadsInserted ?? agent.leads_inserted ?? 0)
+    : (agent.found_places ? (Array.isArray(agent.found_places) ? agent.found_places.length : 0) : 0);
 
   return (
     <>
@@ -230,10 +235,12 @@ const GoogleMapsAgentRow = ({ agent, onPause, onResume, onDelete, onExport, onEd
               <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{displayLeadsFound}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Encontrados</p>
             </div>
-            <div className="text-center">
-              <p className="text-lg font-bold text-green-600 dark:text-green-400">{displayLeadsInserted}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">No CRM</p>
-            </div>
+            {insertInCrm && (
+              <div className="text-center">
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">{displayLeadsInserted}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">No CRM</p>
+              </div>
+            )}
           </div>
         </td>
 

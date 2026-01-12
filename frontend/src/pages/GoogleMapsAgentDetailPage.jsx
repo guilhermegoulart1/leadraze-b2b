@@ -6,7 +6,8 @@ import {
   Star, MessageSquare, Building2, Download, RefreshCw, Loader,
   AlertCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, Copy, Check,
   Pause, Play, Target, Clock, TrendingUp, CheckCircle, Users,
-  ChevronDown, ChevronRight, Brain, Sparkles, CalendarClock
+  ChevronDown, ChevronRight, Brain, Sparkles, CalendarClock,
+  Share2, FileText, UserPlus
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
@@ -154,9 +155,20 @@ const GoogleMapsAgentDetailPage = () => {
   };
 
   const hasAIAnalysis = (contact) => {
+    const emails = parseJsonSafe(contact.emails);
+    const phones = parseJsonSafe(contact.phones);
+    const socialLinks = parseJsonSafe(contact.social_links);
+    const teamMembers = parseJsonSafe(contact.team_members);
+
     return contact.company_description ||
            parseJsonSafe(contact.company_services).length > 0 ||
-           parseJsonSafe(contact.pain_points).length > 0;
+           parseJsonSafe(contact.pain_points).length > 0 ||
+           emails.length > 1 || // More than just the primary email
+           phones.length > 1 || // More than just the primary phone
+           teamMembers.length > 0 ||
+           (socialLinks && Object.keys(socialLinks).length > 0) ||
+           contact.cnpj ||
+           contact.cnpj_data;
   };
 
   const formatDate = (dateString) => {
@@ -750,6 +762,113 @@ const GoogleMapsAgentDetailPage = () => {
                                     </li>
                                   ))}
                                 </ul>
+                              </div>
+                            )}
+                            {/* Additional Emails */}
+                            {parseJsonSafe(contact.emails).length > 1 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                                  <Mail className="w-4 h-4" />
+                                  Emails Adicionais
+                                </div>
+                                <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                  {parseJsonSafe(contact.emails).slice(1).map((emailObj, i) => (
+                                    <li key={i} className="flex items-center gap-2">
+                                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                                      <a href={`mailto:${emailObj.email || emailObj}`} className="hover:underline text-blue-600 dark:text-blue-400">
+                                        {emailObj.email || emailObj}
+                                      </a>
+                                      {emailObj.source && <span className="text-xs text-gray-500">({emailObj.source})</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {/* Additional Phones */}
+                            {parseJsonSafe(contact.phones).length > 1 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                                  <Phone className="w-4 h-4" />
+                                  Telefones Adicionais
+                                </div>
+                                <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                  {parseJsonSafe(contact.phones).slice(1).map((phoneObj, i) => (
+                                    <li key={i} className="flex items-center gap-2">
+                                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                                      <span>{phoneObj.phone || phoneObj}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {/* Social Links */}
+                            {(() => {
+                              const socialLinks = parseJsonSafe(contact.social_links);
+                              const hasLinks = socialLinks && Object.keys(socialLinks).length > 0;
+                              return hasLinks && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                                    <Share2 className="w-4 h-4" />
+                                    Redes Sociais
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {Object.entries(socialLinks).map(([platform, url]) => url && (
+                                      <a
+                                        key={platform}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                                      >
+                                        {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {/* Team Members */}
+                            {parseJsonSafe(contact.team_members).length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                                  <UserPlus className="w-4 h-4" />
+                                  Equipe
+                                </div>
+                                <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                  {parseJsonSafe(contact.team_members).map((member, i) => (
+                                    <li key={i} className="flex items-center gap-2">
+                                      <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+                                      <span className="font-medium">{member.name}</span>
+                                      {member.role && <span className="text-gray-500">- {member.role}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {/* CNPJ Data */}
+                            {contact.cnpj && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                                  <FileText className="w-4 h-4" />
+                                  Dados CNPJ
+                                </div>
+                                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                  <p><span className="font-medium">CNPJ:</span> {contact.cnpj}</p>
+                                  {contact.cnpj_data && typeof contact.cnpj_data === 'object' && (
+                                    <>
+                                      {contact.cnpj_data.razaoSocial && (
+                                        <p><span className="font-medium">Razão Social:</span> {contact.cnpj_data.razaoSocial}</p>
+                                      )}
+                                      {contact.cnpj_data.nomeFantasia && (
+                                        <p><span className="font-medium">Nome Fantasia:</span> {contact.cnpj_data.nomeFantasia}</p>
+                                      )}
+                                      {contact.cnpj_data.situacao && (
+                                        <p><span className="font-medium">Situação:</span> {contact.cnpj_data.situacao}</p>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>

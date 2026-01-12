@@ -302,10 +302,9 @@ exports.deleteAgent = async (req, res) => {
 
     res.json({
       success: true,
-      message: deleteLeads
-        ? `Campanha e ${result.leadsDeleted} leads deletados com sucesso`
-        : 'Campanha deletada com sucesso',
-      leadsDeleted: result.leadsDeleted || 0
+      message: result.message,
+      leadsDeleted: result.leadsDeleted || 0,
+      mode: result.mode
     });
 
   } catch (error) {
