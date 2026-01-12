@@ -1205,6 +1205,13 @@ class GoogleMapsAgentService {
         // LIST ONLY MODE: Store in found_places without creating contact
         // =========================================
         if (!insertInCrm) {
+          // Check if account has enough GMaps credits before adding to list
+          const hasCredits = await billingService.hasEnoughCredits(agent.account_id, 'gmaps', 1);
+          if (!hasCredits) {
+            console.log(`\n❌ [GMAPS CREDITS] Conta ${agent.account_id} sem créditos GMaps suficientes! Parando.`);
+            break;
+          }
+
           // Store enriched data for later export
           foundPlaces.push({
             ...contactData,
@@ -1213,6 +1220,19 @@ class GoogleMapsAgentService {
             position: i + 1
           });
           inserted++;
+
+          // Consume 1 GMaps credit for the lead added to list
+          await billingService.consumeCredits(
+            agent.account_id,
+            'gmaps',
+            1,
+            {
+              resourceType: 'google_maps_lead_list',
+              resourceId: contactData.place_id,
+              description: `Google Maps lead (list mode): ${contactData.name}`
+            }
+          );
+          creditsConsumed++;
 
           // Emit WebSocket: Lead added to list
           publishGmapsProgress({
