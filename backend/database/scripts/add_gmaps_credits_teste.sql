@@ -19,7 +19,8 @@ BEGIN
   RAISE NOTICE 'Found user: % (account: %)', v_user_id, v_account_id;
 
   -- Add 5000 GMaps credits package
-  -- Valid for 90 days, marked as 'manual' source for testing
+  -- Valid for 90 days, marked as 'bonus' source for testing
+  -- Allowed sources: 'purchase', 'purchase_onetime', 'subscription', 'bonus', 'refund'
   INSERT INTO credit_packages (
     account_id,
     credit_type,
@@ -35,7 +36,7 @@ BEGIN
     5000,
     5000,
     NOW() + INTERVAL '90 days',
-    'manual',
+    'bonus',
     'USD',
     'active'
   );

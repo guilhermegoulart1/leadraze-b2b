@@ -32,7 +32,7 @@ async function addCredits(email, creditType, amount) {
       `INSERT INTO credit_packages (
         account_id, credit_type, initial_credits, remaining_credits,
         expires_at, source, currency, status
-      ) VALUES ($1, $2, $3, $3, $4, 'manual', 'USD', 'active')
+      ) VALUES ($1, $2, $3, $3, $4, 'bonus', 'USD', 'active')
       RETURNING *`,
       [user.account_id, creditType, amount, expiresAt]
     );
