@@ -576,7 +576,7 @@ class GoogleMapsAgentService {
         status: 'collecting',
         step: 'filtering',
         stepLabel: 'Filtrando resultados...',
-        leadsFound: totalInserted + totalSkipped + searchResults.total_results,
+        leadsFound: totalInserted + totalSkipped,
         leadsInserted: totalInserted,
         page: currentPage + 1
       });
@@ -593,7 +593,7 @@ class GoogleMapsAgentService {
           status: 'collecting',
           step: 'enriching',
           stepLabel: `Analisando ${placesWithWebsite.length} sites com IA...`,
-          leadsFound: totalInserted + totalSkipped + searchResults.total_results,
+          leadsFound: totalInserted + totalSkipped,
           leadsInserted: totalInserted,
           page: currentPage + 1
         });
@@ -1419,12 +1419,27 @@ class GoogleMapsAgentService {
    */
   async _findContactByPlaceId(placeId, accountId) {
     try {
-      const query = 'SELECT id FROM contacts WHERE place_id = $1 AND account_id = $2';
+      console.log(`🔍 [DUPLICATE CHECK] Searching for place_id="${placeId}" (type: ${typeof placeId}), account_id="${accountId}" (type: ${typeof accountId})`);
+
+      const query = 'SELECT id, name, place_id FROM contacts WHERE place_id = $1 AND account_id = $2';
       const result = await db.query(query, [placeId, accountId]);
+
+      if (result.rows.length > 0) {
+        console.log(`✅ [DUPLICATE FOUND] "${result.rows[0].name}" (contact_id: ${result.rows[0].id})`);
+      }
+
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      console.error(`❌ Error in _findContactByPlaceId with place_id="${placeId}", account_id="${accountId}":`, error.message);
-      // Return null on error to allow processing to continue
+      console.error(`❌ [DUPLICATE CHECK FAILED]`);
+      console.error(`   place_id: "${placeId}" (${typeof placeId})`);
+      console.error(`   account_id: "${accountId}" (${typeof accountId})`);
+      console.error(`   Query: SELECT id, name, place_id FROM contacts WHERE place_id = $1 AND account_id = $2`);
+      console.error(`   Error name: ${error.name}`);
+      console.error(`   Error message: ${error.message}`);
+      console.error(`   Error code: ${error.code}`);
+      console.error(`   Full error:`, error);
+
+      // Return null to allow processing to continue
       return null;
     }
   }
