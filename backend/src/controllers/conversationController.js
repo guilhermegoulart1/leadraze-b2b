@@ -613,6 +613,17 @@ const getMessages = async (req, res) => {
           };
         });
 
+        // Determinar categoria do LinkedIn (InMail ou Sponsored)
+        const linkedinMsgType = msg.message_type; // INMAIL ou MESSAGE
+        const msgSubject = msg.subject || null;
+        let linkedinCategory = null;
+
+        if (linkedinMsgType === 'INMAIL') {
+          linkedinCategory = 'inmail';
+        } else if (linkedinMsgType === 'MESSAGE' && msgSubject) {
+          linkedinCategory = 'sponsored';
+        }
+
         return {
           id: msg.id,
           conversation_id: id,
@@ -622,7 +633,10 @@ const getMessages = async (req, res) => {
           message_type: attachments.length > 0 ? 'attachment' : (msg.message_type || 'text'),
           attachments: attachments,
           sent_at: msg.timestamp || msg.date || msg.created_at,
-          created_at: msg.created_at || msg.timestamp
+          created_at: msg.created_at || msg.timestamp,
+          // LinkedIn: categoria e subject para InMail/Sponsored
+          linkedin_category: linkedinCategory,
+          subject: msgSubject
         };
       });
 
@@ -654,7 +668,8 @@ const getMessages = async (req, res) => {
           content,
           message_type,
           sent_at,
-          created_at
+          created_at,
+          metadata
         FROM messages
         WHERE conversation_id = $1
         ORDER BY sent_at ASC, created_at ASC
@@ -665,8 +680,15 @@ const getMessages = async (req, res) => {
 
       console.log(`✅ ${messagesResult.rows.length} mensagens encontradas no cache local`);
 
+      // Processar mensagens para incluir linkedin_category e subject do metadata
+      const messagesWithCategory = messagesResult.rows.map(msg => ({
+        ...msg,
+        linkedin_category: msg.metadata?.linkedin_category || null,
+        subject: msg.metadata?.subject || null
+      }));
+
       sendSuccess(res, {
-        messages: messagesResult.rows,
+        messages: messagesWithCategory,
         fromCache: true,
         pagination: {
           page: 1,

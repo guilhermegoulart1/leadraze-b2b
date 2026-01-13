@@ -1017,6 +1017,82 @@ const UnifiedContactModal = ({ isOpen, onClose, contactId, onOpenConversation })
                           </a>
                         </div>
                       )}
+
+                      {/* Telefones Adicionais */}
+                      {parseJsonArray(contact.phones).length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                            <Phone className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            Telefones Adicionais
+                          </h4>
+                          <div className="space-y-1.5">
+                            {parseJsonArray(contact.phones).map((phone, idx) => (
+                              <div key={idx} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <span className="text-green-500">•</span>
+                                <span>{typeof phone === 'object' ? phone.number || phone.value : phone}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Redes Sociais */}
+                      {parseJsonArray(contact.social_links).length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                            <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            Redes Sociais
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {parseJsonArray(contact.social_links).map((link, idx) => {
+                              const url = typeof link === 'object' ? link.url || link.link : link;
+                              const platform = typeof link === 'object' ? (link.platform || link.type || 'Link') : 'Link';
+                              return (
+                                <a
+                                  key={idx}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm rounded-lg border border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1.5"
+                                >
+                                  {platform === 'facebook' || platform === 'Facebook' ? (
+                                    <Facebook className="w-3.5 h-3.5" />
+                                  ) : platform === 'instagram' || platform === 'Instagram' ? (
+                                    <Instagram className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Globe className="w-3.5 h-3.5" />
+                                  )}
+                                  {platform}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Equipe */}
+                      {parseJsonArray(contact.team_members).length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                            <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            Equipe
+                          </h4>
+                          <div className="space-y-2">
+                            {parseJsonArray(contact.team_members).map((member, idx) => {
+                              const name = typeof member === 'object' ? member.name : member;
+                              const role = typeof member === 'object' ? member.role || member.position : null;
+                              return (
+                                <div key={idx} className="flex items-center gap-2 text-sm">
+                                  <span className="font-medium text-gray-900 dark:text-gray-100">{name}</span>
+                                  {role && (
+                                    <span className="text-gray-500 dark:text-gray-400">- {role}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

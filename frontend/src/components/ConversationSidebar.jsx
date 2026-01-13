@@ -347,7 +347,7 @@ const ConversationSidebar = ({
                     )}
 
                     {/* Actions (visible on hover) - posicionado absoluto */}
-                    <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white dark:bg-gray-800 rounded-lg shadow-sm px-1">
                         {/* Create Opportunity - só mostra se não tiver oportunidade */}
                         {conversation.contact_id && !conversation.opportunity_id && onCreateOpportunity && (
                           <button

@@ -1065,6 +1065,27 @@ async function handleMessageReceived(payload) {
 
     // Salvar mensagem
     // ✅ Usar sender_type correto: 'user' se for mensagem própria, 'lead' se for do lead
+
+    // Extrair tipo de mensagem do LinkedIn (INMAIL, MESSAGE) e subject
+    const linkedinMessageType = message?.message_type || payload.message_type_linkedin || null;
+    const messageSubject = message?.subject || payload.subject || null;
+
+    // Determinar se é InMail ou Sponsored
+    // - INMAIL: message_type === "INMAIL"
+    // - Sponsored: message_type === "MESSAGE" + tem subject
+    let linkedinCategory = null;
+    if (linkedinMessageType === 'INMAIL') {
+      linkedinCategory = 'inmail';
+    } else if (linkedinMessageType === 'MESSAGE' && messageSubject) {
+      linkedinCategory = 'sponsored';
+    }
+
+    // Construir metadata se houver informações extras
+    const messageMetadata = (linkedinCategory || messageSubject) ? {
+      linkedin_category: linkedinCategory,
+      subject: messageSubject
+    } : null;
+
     const messageData = {
       conversation_id: conversation.id,
       unipile_message_id: message_id || payload.provider_message_id || `unipile_${Date.now()}`,
@@ -1072,7 +1093,8 @@ async function handleMessageReceived(payload) {
       content: messageContent || '',
       message_type: payload.message_type || 'text',
       sent_at: timestamp ? new Date(timestamp) : new Date(),
-      provider_type: providerType // ✅ MULTI-CHANNEL
+      provider_type: providerType, // ✅ MULTI-CHANNEL
+      metadata: messageMetadata
     };
 
     await db.insert('messages', messageData);

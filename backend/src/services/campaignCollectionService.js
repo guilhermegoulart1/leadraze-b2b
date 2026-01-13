@@ -105,12 +105,20 @@ async function createCollectionJob(campaignId, userId) {
     console.log(`\n🚀 === CRIANDO JOB DE COLETA ===`);
     console.log(`📊 Campaign ID: ${campaignId}`);
 
-    // 1. Buscar dados da campanha
+    // 1. Buscar dados da campanha com conta LinkedIn
+    // Prioridade: 1) campaigns.linkedin_account_id, 2) primeira conta ativa em campaign_linkedin_accounts
     const campaignQuery = await db.query(
-      `SELECT c.*, la.unipile_account_id, la.linkedin_username
+      `SELECT c.*,
+              COALESCE(la.id, cla_la.id) as resolved_linkedin_account_id,
+              COALESCE(la.unipile_account_id, cla_la.unipile_account_id) as unipile_account_id,
+              COALESCE(la.linkedin_username, cla_la.linkedin_username) as linkedin_username
        FROM campaigns c
        LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
-       WHERE c.id = $1 AND c.user_id = $2`,
+       LEFT JOIN campaign_linkedin_accounts cla ON cla.campaign_id = c.id AND cla.is_active = true
+       LEFT JOIN linkedin_accounts cla_la ON cla.linkedin_account_id = cla_la.id
+       WHERE c.id = $1 AND c.user_id = $2
+       ORDER BY cla.priority ASC
+       LIMIT 1`,
       [campaignId, userId]
     );
 
@@ -120,13 +128,26 @@ async function createCollectionJob(campaignId, userId) {
 
     const campaign = campaignQuery.rows[0];
 
+    // Usar a conta resolvida (do campo principal ou da tabela de associação)
+    const linkedinAccountId = campaign.linkedin_account_id || campaign.resolved_linkedin_account_id;
+
     // 2. Validações
-    if (!campaign.linkedin_account_id) {
-      throw new Error('Campanha não possui conta do LinkedIn associada');
+    if (!linkedinAccountId) {
+      throw new Error('Campanha não possui conta do LinkedIn associada. Por favor, selecione uma conta LinkedIn nas configurações da campanha.');
     }
 
     if (!campaign.unipile_account_id) {
       throw new Error('Conta do LinkedIn não está conectada ao Unipile');
+    }
+
+    // Atualizar o campo linkedin_account_id da campanha se estava vazio
+    if (!campaign.linkedin_account_id && linkedinAccountId) {
+      console.log(`📝 Atualizando linkedin_account_id da campanha para: ${linkedinAccountId}`);
+      await db.query(
+        'UPDATE campaigns SET linkedin_account_id = $1 WHERE id = $2',
+        [linkedinAccountId, campaignId]
+      );
+      campaign.linkedin_account_id = linkedinAccountId;
     }
 
     if (!campaign.search_filters) {

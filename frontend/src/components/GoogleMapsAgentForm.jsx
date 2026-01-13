@@ -106,7 +106,8 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
     try {
       const response = await apiService.getCrmProjects();
       if (response.success) {
-        setCrmProjects(response.projects || []);
+        // API returns data inside response.data
+        setCrmProjects(response.data?.projects || response.projects || []);
       }
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
@@ -120,7 +121,8 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
       const params = projectId ? { project_id: projectId } : {};
       const response = await apiService.getPipelines(params);
       if (response.success) {
-        setPipelines(response.pipelines || []);
+        // API returns data inside response.data
+        setPipelines(response.data?.pipelines || response.pipelines || []);
       }
     } catch (error) {
       console.error('Erro ao carregar pipelines:', error);
@@ -140,8 +142,10 @@ const GoogleMapsAgentForm = ({ onClose, onSubmit }) => {
       setLoadingStages(true);
       const response = await apiService.getPipeline(pipelineId);
       if (response.success) {
-        setPipelineStages(response.pipeline?.stages || []);
-        setPipelineUsers(response.pipeline?.users || []);
+        // API returns data inside response.data
+        const pipeline = response.data?.pipeline || response.pipeline;
+        setPipelineStages(pipeline?.stages || []);
+        setPipelineUsers(pipeline?.users || []);
       }
     } catch (error) {
       console.error('Erro ao carregar dados do pipeline:', error);

@@ -1,11 +1,11 @@
 // frontend/src/components/CampaignWizard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Hand, Bot, Users, MapPin, Briefcase } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Bot, Users, MapPin, Briefcase, Building2, Database, ChevronRight, Loader2, Crown, ChevronDown } from 'lucide-react';
 import AsyncSelect from 'react-select/async';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import TagsInput from './TagsInput';
+import RodizioUserSelector from './RodizioUserSelector';
 
 // Hook para detectar dark mode
 const useDarkMode = () => {
@@ -29,22 +29,30 @@ const useDarkMode = () => {
 
 const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const { t } = useTranslation('campaigns');
-  const navigate = useNavigate();
   const isDarkMode = useDarkMode();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(1.5);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [aiAgents, setAiAgents] = useState([]);
   const [linkedinAccounts, setLinkedinAccounts] = useState([]);
 
+  // Pipeline/CRM state
+  const [crmProjects, setCrmProjects] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
+  const [pipelineStages, setPipelineStages] = useState([]);
+  const [pipelineUsers, setPipelineUsers] = useState([]);
+  const [loadingPipelines, setLoadingPipelines] = useState(false);
+  const [loadingStages, setLoadingStages] = useState(false);
+
   const [formData, setFormData] = useState({
     // Step 1: Busca
-    type: '', // 'manual' | 'automatic'
+    type: 'automatic', // Always automatic now
     selected_location: null, // Location selecionada pelo usuário
     search_filters: null,
 
     // Campos estruturados para busca automática (simplificado)
     manual_job_titles: [], // Apenas cargos
+    searchLinkedinAccountId: '', // Conta LinkedIn para realizar a busca
 
     // Step 2: Coleta
     name: '',
@@ -54,13 +62,22 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     // Step 3: Validação
     linkedin_account_id: '',     // Legacy: single account
     linkedin_account_ids: [],    // New: multiple accounts
-    ai_agent_id: ''
+    ai_agent_id: '',
+
+    // Step 4: CRM Configuration
+    insertInCrm: true,           // true = insert in CRM, false = skip
+    projectId: null,             // Optional - for filtering pipelines
+    pipelineId: null,            // Required when insertInCrm - which pipeline to insert leads
+    stageId: null,               // Required when insertInCrm - which stage to insert leads
+    assignees: []                // Array of {id, name, email} in rotation order
   });
 
   useEffect(() => {
     if (isOpen) {
       loadAIAgents();
       loadLinkedinAccounts();
+      loadCrmProjects();
+      loadPipelines();
     }
   }, [isOpen]);
 
@@ -84,16 +101,82 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     }
   };
 
-  const handleCampaignTypeSelect = (type) => {
-    if (type === 'manual') {
-      // Redirecionar para página de busca
-      onClose();
-      navigate('/search');
-    } else {
-      setFormData({ ...formData, type });
-      setCurrentStep(1.5); // Sub-step para AI prompt
+  // Load CRM projects (optional, for filtering pipelines)
+  const loadCrmProjects = async () => {
+    try {
+      const response = await api.getCrmProjects();
+      if (response.success) {
+        setCrmProjects(response.data?.projects || response.projects || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar projetos:', error);
     }
   };
+
+  // Load pipelines (optionally filter by project)
+  const loadPipelines = async (projectId = null) => {
+    try {
+      setLoadingPipelines(true);
+      const params = projectId ? { project_id: projectId } : {};
+      const response = await api.getPipelines(params);
+      if (response.success) {
+        setPipelines(response.data?.pipelines || response.pipelines || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar pipelines:', error);
+    } finally {
+      setLoadingPipelines(false);
+    }
+  };
+
+  // Load stages and users for a specific pipeline
+  const loadPipelineData = async (pipelineId) => {
+    if (!pipelineId) {
+      setPipelineStages([]);
+      setPipelineUsers([]);
+      return;
+    }
+    try {
+      setLoadingStages(true);
+      const response = await api.getPipeline(pipelineId);
+      if (response.success) {
+        const pipeline = response.data?.pipeline || response.pipeline;
+        setPipelineStages(pipeline?.stages || []);
+        setPipelineUsers(pipeline?.users || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do pipeline:', error);
+    } finally {
+      setLoadingStages(false);
+    }
+  };
+
+  // Reload pipelines when project changes
+  useEffect(() => {
+    if (formData.projectId !== null) {
+      loadPipelines(formData.projectId);
+      // Clear pipeline/stage/assignees when project changes
+      setFormData(prev => ({
+        ...prev,
+        pipelineId: null,
+        stageId: null,
+        assignees: []
+      }));
+    }
+  }, [formData.projectId]);
+
+  // Load pipeline data when pipeline changes
+  useEffect(() => {
+    if (formData.pipelineId) {
+      loadPipelineData(formData.pipelineId);
+      // Clear stage and assignees when pipeline changes
+      setFormData(prev => ({
+        ...prev,
+        stageId: null,
+        assignees: []
+      }));
+    }
+  }, [formData.pipelineId]);
 
   const handleGenerateFilters = async () => {
     if (!formData.selected_location) {
@@ -149,6 +232,22 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const handleNext = () => {
     setError('');
 
+    // Validação do Step 1.5 - Busca Automática
+    if (currentStep === 1.5) {
+      if (!formData.searchLinkedinAccountId) {
+        setError('Selecione uma conta LinkedIn para realizar a busca');
+        return;
+      }
+      if (!formData.selected_location) {
+        setError(t('wizard.step1_5.location.required') || 'Selecione uma localização');
+        return;
+      }
+      if (formData.manual_job_titles.length === 0) {
+        setError(t('wizard.step1_5.jobTitles.required') || 'Adicione pelo menos um cargo');
+        return;
+      }
+    }
+
     if (currentStep === 2) {
       if (!formData.name || formData.name.trim().length < 3) {
         setError(t('wizard.errors.minName'));
@@ -167,15 +266,8 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const handleBack = () => {
     setError('');
     if (currentStep === 1.5) {
-      setCurrentStep(1);
-      setFormData({
-        ...formData,
-        type: '',
-        ai_search_prompt: '',
-        selected_location: null,
-        search_filters: null,
-        manual_job_titles: []
-      });
+      // First step - nothing to go back to
+      return;
     } else if (currentStep === 2) {
       setCurrentStep(1.5);
     } else {
@@ -196,6 +288,18 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       return;
     }
 
+    // Validar campos CRM se insertInCrm estiver ativo
+    if (formData.insertInCrm) {
+      if (!formData.pipelineId) {
+        setError('Selecione um pipeline para inserir os leads');
+        return;
+      }
+      if (!formData.stageId) {
+        setError('Selecione uma etapa inicial para os leads');
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -207,10 +311,16 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
         search_filters: formData.search_filters,
         ai_search_prompt: formData.ai_search_prompt,
         target_profiles_count: formData.target_profiles_count,
-        linkedin_account_ids: formData.linkedin_account_ids, // Múltiplas contas
+        linkedin_account_ids: formData.linkedin_account_ids, // Múltiplas contas para envio
+        search_linkedin_account_id: formData.searchLinkedinAccountId, // Conta para busca
         ai_agent_id: formData.ai_agent_id,
-        current_step: 3,
-        status: 'draft'
+        current_step: 4,
+        status: 'draft',
+        // CRM Configuration
+        insert_in_crm: formData.insertInCrm,
+        pipeline_id: formData.insertInCrm ? formData.pipelineId : null,
+        stage_id: formData.insertInCrm ? formData.stageId : null,
+        assignees: formData.insertInCrm ? formData.assignees.map(u => u.id) : []
       });
 
       console.log('✅ Campaign created successfully:', campaign);
@@ -238,9 +348,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   };
 
   const handleClose = () => {
-    setCurrentStep(1);
+    setCurrentStep(1.5);
     setFormData({
-      type: '',
+      type: 'automatic',
       ai_search_prompt: '',
       selected_location: null,
       search_filters: null,
@@ -248,12 +358,18 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       manual_industries: [],
       manual_companies: [],
       manual_keywords: [],
+      searchLinkedinAccountId: '',
       name: '',
       description: '',
       target_profiles_count: 100,
       linkedin_account_id: '',
       linkedin_account_ids: [],
-      ai_agent_id: ''
+      ai_agent_id: '',
+      insertInCrm: true,
+      projectId: null,
+      pipelineId: null,
+      stageId: null,
+      assignees: []
     });
     setError('');
     onClose();
@@ -262,10 +378,11 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   // Função para buscar localizações via Unipile
   const fetchLocationSuggestions = async (inputValue) => {
     if (!inputValue || inputValue.length < 2) return [];
-    if (!formData.type || !linkedinAccounts.length) return [];
+    if (!linkedinAccounts.length) return [];
 
     try {
-      const linkedinAccountId = linkedinAccounts[0]?.id;
+      // Use selected search account or first available
+      const linkedinAccountId = formData.searchLinkedinAccountId || linkedinAccounts[0]?.id;
       if (!linkedinAccountId) return [];
 
       const response = await api.searchLocations(inputValue, linkedinAccountId);
@@ -294,27 +411,32 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-2 p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-          {[1, 2, 3].map((step) => {
-            const isCurrent = Math.floor(currentStep) === step;
-            const isPast = currentStep > step;
+          {[
+            { num: 1, label: t('wizard.steps.search'), internalStep: 1.5 },
+            { num: 2, label: t('wizard.steps.collection'), internalStep: 2 },
+            { num: 3, label: t('wizard.steps.validation'), internalStep: 3 },
+            { num: 4, label: 'CRM', internalStep: 4 }
+          ].map((step, idx, arr) => {
+            const isCurrent = currentStep === step.internalStep;
+            const isPast = currentStep > step.internalStep;
 
             return (
-              <div key={step} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex flex-col items-center justify-center text-sm font-medium ${
+              <div key={step.num} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                   isCurrent
                     ? 'bg-blue-600 text-white'
                     : isPast
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}>
-                  {isPast ? <CheckCircle className="w-5 h-5" /> : step}
+                  {isPast ? <CheckCircle className="w-4 h-4" /> : step.num}
                 </div>
-                <div className="ml-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                  {step === 1 ? t('wizard.steps.search') : step === 2 ? t('wizard.steps.collection') : t('wizard.steps.validation')}
+                <div className="ml-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hidden sm:block">
+                  {step.label}
                 </div>
-                {step < 3 && (
-                  <div className={`w-16 h-1 mx-2 ${
-                    currentStep > step ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
+                {idx < arr.length - 1 && (
+                  <div className={`w-8 h-0.5 mx-1.5 ${
+                    currentStep > step.internalStep ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
                   }`} />
                 )}
               </div>
@@ -330,55 +452,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
             </div>
           )}
 
-          {/* Step 1: Escolher tipo de campanha */}
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">{t('wizard.step1.title')}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  {t('wizard.step1.subtitle')}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Manual */}
-                <button
-                  onClick={() => handleCampaignTypeSelect('manual')}
-                  className="p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-left group"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <Hand className="w-8 h-8 text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                    </div>
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('wizard.step1.manual.title')}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('wizard.step1.manual.description')}
-                    </p>
-                  </div>
-                </button>
-
-                {/* Automática */}
-                <button
-                  onClick={() => handleCampaignTypeSelect('automatic')}
-                  className="p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
-                      <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2 justify-center">
-                      {t('wizard.step1.automatic.title')}
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('wizard.step1.automatic.description')}
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 1.5: Descrição para IA */}
+          {/* Step 1: Configuração de Busca (always automatic) */}
           {currentStep === 1.5 && (
             <div className="space-y-5">
               <div>
@@ -388,6 +462,106 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   {t('wizard.step1_5.subtitle')}
+                </p>
+              </div>
+
+              {/* LinkedIn Account Selector for Search - Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Conta LinkedIn para Busca *
+                </label>
+                {linkedinAccounts.length === 0 ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                      {t('wizard.step3.linkedinAccount.noAccounts')}
+                    </p>
+                  </div>
+                ) : (
+                  (() => {
+                    // Filter only active accounts and sort alphabetically
+                    const activeAccounts = linkedinAccounts
+                      .filter(acc => acc.status === 'active')
+                      .sort((a, b) => {
+                        const nameA = (a.profile_name || a.linkedin_username || '').toLowerCase();
+                        const nameB = (b.profile_name || b.linkedin_username || '').toLowerCase();
+                        return nameA.localeCompare(nameB);
+                      });
+
+                    // Auto-select if only one active account
+                    if (activeAccounts.length === 1 && !formData.searchLinkedinAccountId) {
+                      setTimeout(() => setFormData(prev => ({ ...prev, searchLinkedinAccountId: activeAccounts[0].id })), 0);
+                    }
+                    const selectedAccount = activeAccounts.find(acc => acc.id === formData.searchLinkedinAccountId);
+
+                    // Helper to check if account is premium (from premium_features)
+                    const isPremiumAccount = (account) => {
+                      let info = {};
+                      try {
+                        info = typeof account.premium_features === 'string'
+                          ? JSON.parse(account.premium_features || '{}')
+                          : account.premium_features || {};
+                      } catch (e) { info = {}; }
+
+                      return (info.sales_navigator !== null && info.sales_navigator !== undefined) ||
+                             (info.recruiter !== null && info.recruiter !== undefined) ||
+                             info.premium === true;
+                    };
+
+                    if (activeAccounts.length === 0) {
+                      return (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3">
+                          <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                            Nenhuma conta LinkedIn ativa encontrada
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="relative">
+                        <select
+                          value={formData.searchLinkedinAccountId}
+                          onChange={(e) => setFormData({ ...formData, searchLinkedinAccountId: e.target.value })}
+                          className="w-full px-4 py-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 appearance-none cursor-pointer"
+                        >
+                          <option value="">Selecione uma conta...</option>
+                          {activeAccounts.map((account) => {
+                            const name = account.profile_name || account.linkedin_username;
+                            const premiumIcon = isPremiumAccount(account) ? ' 👑' : '';
+                            return (
+                              <option key={account.id} value={account.id}>
+                                {name}{premiumIcon}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+
+                        {/* Selected account details */}
+                        {selectedAccount && (
+                          <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+                                {(selectedAccount.profile_name || selectedAccount.linkedin_username || '?').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-900 dark:text-gray-100">
+                                  {selectedAccount.profile_name || selectedAccount.linkedin_username}
+                                </p>
+                                {isPremiumAccount(selectedAccount) && (
+                                  <Crown className="w-4 h-4 text-amber-500" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Esta conta será usada para buscar perfis no LinkedIn
                 </p>
               </div>
 
@@ -707,16 +881,180 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 </div>
               )}
 
-              {formData.linkedin_account_id && formData.ai_agent_id && (
-                <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4">
-                  <h4 className="font-medium text-green-900 dark:text-green-300 mb-2">{t('wizard.step3.summary.title')}</h4>
-                  <div className="space-y-1 text-sm text-green-800 dark:text-green-300">
-                    <p><strong>{t('wizard.step3.summary.name')}</strong> {formData.name}</p>
-                    <p><strong>{t('wizard.step3.summary.type')}</strong> {formData.type === 'automatic' ? t('wizard.step3.summary.typeAutomatic') : t('wizard.step3.summary.typeManual')}</p>
-                    <p><strong>{t('wizard.step3.summary.targetCount')}</strong> {formData.target_profiles_count}</p>
-                    <p><strong>{t('wizard.step3.summary.linkedinAccount')}</strong> {linkedinAccounts.find(a => a.id === formData.linkedin_account_id)?.profile_name || linkedinAccounts.find(a => a.id === formData.linkedin_account_id)?.linkedin_username}</p>
-                    <p><strong>{t('wizard.step3.summary.aiAgent')}</strong> {aiAgents.find(a => a.id === formData.ai_agent_id)?.name}</p>
+            </div>
+          )}
+
+          {/* Step 4: CRM Configuration */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  Configuração do CRM
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Defina como os leads aceitos serão inseridos no seu CRM
+                </p>
+              </div>
+
+              {/* Toggle CRM Insertion */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    Inserir leads automaticamente no CRM
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Leads aceitos serão criados como oportunidades no pipeline selecionado
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, insertInCrm: !formData.insertInCrm })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.insertInCrm ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.insertInCrm ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {formData.insertInCrm && (
+                <>
+                  {/* Project Selection (optional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Building2 className="w-4 h-4 inline mr-1" />
+                      Projeto <span className="text-gray-400">(opcional)</span>
+                    </label>
+                    <select
+                      value={formData.projectId || ''}
+                      onChange={(e) => setFormData({ ...formData, projectId: e.target.value || null })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="">Todos os projetos</option>
+                      {crmProjects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {/* Pipeline Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Database className="w-4 h-4 inline mr-1" />
+                      Pipeline <span className="text-red-500">*</span>
+                    </label>
+                    {loadingPipelines ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Carregando pipelines...
+                      </div>
+                    ) : pipelines.length === 0 ? (
+                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          Nenhum pipeline encontrado. Crie pipelines na página de CRM.
+                        </p>
+                      </div>
+                    ) : (
+                      <select
+                        value={formData.pipelineId || ''}
+                        onChange={(e) => setFormData({ ...formData, pipelineId: e.target.value || null })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="">Selecione um pipeline</option>
+                        {pipelines.map(pipeline => (
+                          <option key={pipeline.id} value={pipeline.id}>
+                            {pipeline.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Stage Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <ChevronRight className="w-4 h-4 inline mr-1" />
+                      Etapa Inicial <span className="text-red-500">*</span>
+                    </label>
+                    {loadingStages ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Carregando etapas...
+                      </div>
+                    ) : !formData.pipelineId ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                        Selecione um pipeline primeiro
+                      </p>
+                    ) : pipelineStages.length === 0 ? (
+                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          Nenhuma etapa encontrada neste pipeline.
+                        </p>
+                      </div>
+                    ) : (
+                      <select
+                        value={formData.stageId || ''}
+                        onChange={(e) => setFormData({ ...formData, stageId: e.target.value || null })}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="">Selecione uma etapa</option>
+                        {pipelineStages.map(stage => (
+                          <option key={stage.id} value={stage.id}>
+                            {stage.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Rotation Users */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Users className="w-4 h-4 inline mr-1" />
+                      Rodízio de Atendentes <span className="text-gray-400">(opcional)</span>
+                    </label>
+                    {!formData.pipelineId ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                        Selecione um pipeline primeiro
+                      </p>
+                    ) : pipelineUsers.length === 0 ? (
+                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          Nenhum usuário com acesso a este pipeline.
+                        </p>
+                      </div>
+                    ) : (
+                      <RodizioUserSelector
+                        users={pipelineUsers}
+                        selectedUsers={formData.assignees}
+                        onChange={(assignees) => setFormData({ ...formData, assignees })}
+                      />
+                    )}
+                  </div>
+
+                  {/* Info box */}
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      <strong>Como funciona:</strong> Quando um lead aceitar seu convite de conexão,
+                      ele será automaticamente inserido no pipeline e etapa selecionados,
+                      e distribuído entre os atendentes na ordem definida.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {!formData.insertInCrm && (
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Os leads aceitos não serão inseridos automaticamente no CRM.
+                    Você poderá gerenciá-los manualmente depois.
+                  </p>
                 </div>
               )}
             </div>
@@ -726,7 +1064,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <div>
-            {currentStep > 1 && (
+            {currentStep > 1.5 && (
               <button
                 onClick={handleBack}
                 disabled={isLoading}
@@ -765,7 +1103,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   </>
                 )}
               </button>
-            ) : currentStep < 3 ? (
+            ) : currentStep < 4 ? (
               <button
                 onClick={handleNext}
                 disabled={isLoading}
@@ -777,7 +1115,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={isLoading || formData.linkedin_account_ids.length === 0 || !formData.ai_agent_id}
+                disabled={isLoading || formData.linkedin_account_ids.length === 0 || !formData.ai_agent_id || (formData.insertInCrm && (!formData.pipelineId || !formData.stageId))}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isLoading ? (

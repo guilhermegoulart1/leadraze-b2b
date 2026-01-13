@@ -449,8 +449,13 @@ const ConversationsPage = () => {
     try {
       await api.closeConversation(conversationId);
 
-      // Recarregar conversas e estatísticas após fechar
-      loadConversations();
+      // Atualização otimista - atualizar apenas a conversa específica sem recarregar tudo
+      setConversations(prev => prev.map(conv =>
+        conv.id === conversationId
+          ? { ...conv, status: 'closed', closed_at: new Date().toISOString() }
+          : conv
+      ));
+      // Atualizar stats
       loadStats();
     } catch (error) {
       console.error(t('messages.closeError'), error);
@@ -461,8 +466,13 @@ const ConversationsPage = () => {
     try {
       await api.reopenConversation(conversationId, 'ai_active');
 
-      // Recarregar conversas e estatísticas após reabrir
-      loadConversations();
+      // Atualização otimista - atualizar apenas a conversa específica sem recarregar tudo
+      setConversations(prev => prev.map(conv =>
+        conv.id === conversationId
+          ? { ...conv, status: 'ai_active', closed_at: null }
+          : conv
+      ));
+      // Atualizar stats
       loadStats();
     } catch (error) {
       console.error(t('messages.reopenError'), error);
@@ -525,8 +535,13 @@ const ConversationsPage = () => {
         onToggleDetails={handleToggleDetailsPanel}
         showDetailsPanel={showDetailsPanel}
         onConversationRead={handleConversationRead}
-        onConversationClosed={() => {
-          loadConversations();
+        onConversationClosed={(conversationId) => {
+          // Atualização otimista - atualizar apenas a conversa específica
+          setConversations(prev => prev.map(conv =>
+            conv.id === conversationId
+              ? { ...conv, status: 'closed', closed_at: new Date().toISOString() }
+              : conv
+          ));
           loadStats();
         }}
         onConversationUpdated={handleConversationUpdated}

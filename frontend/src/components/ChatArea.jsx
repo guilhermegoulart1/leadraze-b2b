@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
-  ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, MoreVertical, CheckCircle, RotateCcw,
+  ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, CheckCircle, RotateCcw,
   Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check,
   Play, Pause, Sparkles, Copy, Forward, Mic, Square, Trash2
 } from 'lucide-react';
@@ -25,7 +25,6 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDownloading, setIsDownloading] = useState({});
   // Estado para modal de visualização de imagem
@@ -62,7 +61,6 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const quickRepliesRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-  const optionsMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const currentConversationIdRef = useRef(null);
   const nameInputRef = useRef(null);
@@ -161,13 +159,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     };
   }, [conversationId]);
 
-  // Close options menu when clicking outside
+  // Close quick replies dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
-        setShowOptionsMenu(false);
-      }
-      // Close quick replies dropdown when clicking outside
       if (quickRepliesRef.current && !quickRepliesRef.current.contains(event.target) &&
           textareaRef.current && !textareaRef.current.contains(event.target)) {
         setShowQuickReplies(false);
@@ -452,7 +446,6 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         if (currentConversationIdRef.current === conversationId && conversation) {
           setConversation({ ...conversation, status: 'closed', closed_at: new Date().toISOString() });
         }
-        setShowOptionsMenu(false);
         // Notificar o componente pai para atualizar a lista
         if (onConversationClosed) {
           onConversationClosed(conversationId);
@@ -472,7 +465,6 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         if (currentConversationIdRef.current === conversationId && conversation) {
           setConversation({ ...conversation, status: 'ai_active', closed_at: null });
         }
-        setShowOptionsMenu(false);
         // Notificar o componente pai para atualizar a lista
         if (onConversationClosed) {
           onConversationClosed(conversationId);
@@ -1162,7 +1154,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             ) : (
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                 title="Enviar convite de conexão"
               >
                 <UserPlus className="w-5 h-5" />
@@ -1199,38 +1191,24 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
             <Eye className="w-5 h-5" />
           </button>
 
-          {/* Options Menu */}
-          <div className="relative" ref={optionsMenuRef}>
+          {/* Close/Reopen Conversation Button */}
+          {conversation?.status === 'closed' ? (
             <button
-              onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+              onClick={handleReopenConversation}
               className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title={t('chatArea.moreOptions')}
+              title={t('chatArea.reopenConversation')}
             >
-              <MoreVertical className="w-5 h-5" />
+              <RotateCcw className="w-5 h-5" />
             </button>
-
-            {showOptionsMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 py-1 z-50">
-                {conversation?.status === 'closed' ? (
-                  <button
-                    onClick={handleReopenConversation}
-                    className="w-full px-4 py-2 text-left text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    {t('chatArea.reopenConversation')}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleCloseConversation}
-                    className="w-full px-4 py-2 text-left text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    {t('chatArea.closeConversation')}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          ) : (
+            <button
+              onClick={handleCloseConversation}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title={t('chatArea.closeConversation')}
+            >
+              <CheckCircle className="w-5 h-5" />
+            </button>
+          )}
 
           {/* Toggle Details Panel */}
           <button
@@ -1339,6 +1317,24 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
                     {/* Message Bubble */}
                     <div>
+                      {/* LinkedIn Badge: InMail ou Sponsored */}
+                      {message.linkedin_category && !isUser && (
+                        <div className={`mb-1 flex items-center gap-1 text-xs ${
+                          message.linkedin_category === 'inmail'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-orange-600 dark:text-orange-400'
+                        }`}>
+                          <span>{message.linkedin_category === 'inmail' ? '📧' : '📢'}</span>
+                          <span className="font-medium">
+                            {message.linkedin_category === 'inmail' ? 'InMail' : 'Sponsored'}
+                          </span>
+                          {message.subject && (
+                            <span className="text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                              : "{message.subject}"
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div
                         className={`rounded-2xl px-4 py-2 ${
                           isUser

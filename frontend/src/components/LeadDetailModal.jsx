@@ -1144,17 +1144,6 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   Detalhes
                 </button>
                 <button
-                  onClick={() => setActiveTab('intelligence')}
-                  className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                    activeTab === 'intelligence'
-                      ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Inteligência IA
-                </button>
-                <button
                   onClick={() => setActiveTab('comments')}
                   className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                     activeTab === 'comments'
@@ -1180,20 +1169,6 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                   <CheckSquare className="w-4 h-4" />
                   Tarefas
                 </button>
-                {/* Company Tab - show if lead has company */}
-                {lead?.company && (
-                  <button
-                    onClick={() => setActiveTab('company')}
-                    className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                      activeTab === 'company'
-                        ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    <Building2 className="w-4 h-4" />
-                    Empresa
-                  </button>
-                )}
               </div>
             </div>
 
@@ -1913,127 +1888,6 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                 </div>
               )}
 
-              {/* Company Tab */}
-              {activeTab === 'company' && lead?.company && (
-                <div className="p-6 space-y-4">
-                  {/* LinkedIn Account Selector (if multiple accounts) */}
-                  {linkedinAccounts.length > 1 && (
-                    <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <Linkedin className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Conta:</span>
-                      <select
-                        value={selectedLinkedinAccountId || ''}
-                        onChange={(e) => setSelectedLinkedinAccountId(e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                      >
-                        {linkedinAccounts.map(account => (
-                          <option key={account.id} value={account.id}>
-                            {account.profile_name || account.linkedin_username}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <CompanyDataTab
-                    companyIdentifier={lead.company}
-                    linkedinAccountId={selectedLinkedinAccountId}
-                    cnpjData={null}
-                  />
-                </div>
-              )}
-
-              {/* Intelligence Tab */}
-              {activeTab === 'intelligence' && (() => {
-                // Use full lead data if available, otherwise use prop
-                const leadData = fullLeadData || lead;
-                return (
-                <div className="p-6 space-y-6">
-                  {/* Company Description */}
-                  {leadData.company_description && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                        <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        Sobre a Empresa
-                      </h4>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {leadData.company_description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Services */}
-                  {parseJsonArray(leadData.company_services).length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                        <Briefcase className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        Serviços Oferecidos
-                      </h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {parseJsonArray(leadData.company_services).map((service, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-md border border-blue-200 dark:border-blue-700"
-                          >
-                            {service}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Pain Points */}
-                  {parseJsonArray(leadData.pain_points).length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                        <span className="text-amber-500">💡</span>
-                        Oportunidades de Venda
-                      </h4>
-                      <ul className="space-y-2">
-                        {parseJsonArray(leadData.pain_points).map((pain, idx) => (
-                          <li
-                            key={idx}
-                            className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
-                          >
-                            <span className="text-amber-500 mt-0.5">•</span>
-                            <span>{pain}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Website Link */}
-                  {leadData.website && (
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        Website Analisado
-                      </h4>
-                      <a
-                        href={leadData.website.startsWith('http') ? leadData.website : `https://${leadData.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
-                      >
-                        {leadData.website}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Empty State */}
-                  {!leadData.company_description &&
-                   parseJsonArray(leadData.company_services).length === 0 &&
-                   parseJsonArray(leadData.pain_points).length === 0 && (
-                    <div className="text-center py-8 text-gray-400 dark:text-gray-500">
-                      <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">Nenhuma análise de IA disponível</p>
-                      <p className="text-xs mt-1">Os dados serão preenchidos após análise do site</p>
-                    </div>
-                  )}
-                </div>
-              );})()}
             </div>
           </div>
 

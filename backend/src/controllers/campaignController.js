@@ -241,12 +241,18 @@ const createCampaign = async (req, res) => {
       sector_id,                 // Sector assignment
       linkedin_account_id,      // Single account (legacy)
       linkedin_account_ids,      // Multiple accounts (new)
+      search_linkedin_account_id, // Account to use for profile search
       ai_agent_id,
       search_filters,
       ai_search_prompt,
       target_profiles_count,
       current_step,
       status,
+      // CRM Configuration (new)
+      insert_in_crm,            // Boolean - whether to insert leads in CRM
+      pipeline_id,              // Pipeline to insert accepted leads
+      stage_id,                 // Stage to insert accepted leads
+      assignees,                // Array of user IDs for round-robin
       // Campos legados (manter compatibilidade)
       industry,
       location,
@@ -295,6 +301,18 @@ const createCampaign = async (req, res) => {
     const totalDailyLimit = linkedinAccounts.rows.reduce((sum, acc) => sum + (acc.daily_limit || 0), 0);
     console.log(`📊 Limite total disponível: ${totalDailyLimit} convites/dia`);
 
+    // Verificar se a conta de busca pertence ao usuário (se especificada)
+    if (search_linkedin_account_id) {
+      const searchAccount = await db.query(
+        'SELECT id FROM linkedin_accounts WHERE id = $1 AND user_id = $2 AND account_id = $3',
+        [search_linkedin_account_id, userId, accountId]
+      );
+      if (searchAccount.rows.length === 0) {
+        throw new NotFoundError('Search LinkedIn account not found in your account');
+      }
+      console.log(`🔍 Conta de busca selecionada: ${search_linkedin_account_id}`);
+    }
+
     // Se AI agent foi especificado, verificar se pertence ao usuário E à conta
     if (ai_agent_id) {
       const aiAgent = await db.query(
@@ -319,6 +337,27 @@ const createCampaign = async (req, res) => {
       }
     }
 
+    // Validar pipeline e stage se insert_in_crm for true
+    if (insert_in_crm && pipeline_id) {
+      const pipelineCheck = await db.query(
+        'SELECT id FROM pipelines WHERE id = $1 AND account_id = $2 AND is_active = true',
+        [pipeline_id, accountId]
+      );
+      if (pipelineCheck.rows.length === 0) {
+        throw new NotFoundError('Pipeline not found in your account');
+      }
+
+      if (stage_id) {
+        const stageCheck = await db.query(
+          'SELECT id FROM pipeline_stages WHERE id = $1 AND pipeline_id = $2',
+          [stage_id, pipeline_id]
+        );
+        if (stageCheck.rows.length === 0) {
+          throw new NotFoundError('Stage not found in the selected pipeline');
+        }
+      }
+    }
+
     // Criar campanha com account_id (multi-tenancy) e sector_id
     const campaignData = {
       user_id: userId,
@@ -327,7 +366,7 @@ const createCampaign = async (req, res) => {
       name,
       description: description || null,
       type: type || 'manual',
-      linkedin_account_id: accountIds[0], // Primeira conta (compatibilidade)
+      linkedin_account_id: search_linkedin_account_id || accountIds[0], // Conta para busca (ou primeira conta)
       ai_agent_id: ai_agent_id || null,
       status: status || CAMPAIGN_STATUS.DRAFT,
       automation_active: false,
@@ -335,6 +374,11 @@ const createCampaign = async (req, res) => {
       ai_search_prompt: ai_search_prompt || null,
       target_profiles_count: target_profiles_count || 100,
       current_step: current_step || 1,
+      // CRM Configuration
+      insert_in_crm: insert_in_crm !== false, // Default to true for backward compatibility
+      pipeline_id: insert_in_crm ? (pipeline_id || null) : null,
+      stage_id: insert_in_crm ? (stage_id || null) : null,
+      assignees: insert_in_crm && assignees ? JSON.stringify(assignees) : null,
       // Campos legados
       industry: industry || null,
       location: location || null,
