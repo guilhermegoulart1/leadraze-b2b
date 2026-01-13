@@ -1,0 +1,27 @@
+<h1>Bem-vindo ao time!</h1>
+
+<p>Olá {{name}},</p>
+
+<p><strong>{{inviterName}}</strong> adicionou você ao time no {{appName}}.</p>
+
+<p>Clique no botão abaixo para acessar sua conta e configurar sua senha:</p>
+
+<p style="text-align: center; margin: 30px 0;">
+  <a href="{{magicLinkUrl}}" class="btn btn-primary">Acessar Agora</a>
+</p>
+
+<div class="alert alert-info">
+  <strong>Importante:</strong>
+  <ul style="margin: 10px 0 0; padding-left: 20px;">
+    <li>Este link expira em {{expiryHours}} horas</li>
+    <li>Você precisará criar uma senha no primeiro acesso</li>
+    <li>Use apenas uma vez - após acessar, o link será invalidado</li>
+  </ul>
+</div>
+
+<p>Se você não esperava receber este convite, pode ignorar este email.</p>
+
+<p>
+  Atenciosamente,<br>
+  Equipe {{appName}}
+</p>

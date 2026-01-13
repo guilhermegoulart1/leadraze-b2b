@@ -351,6 +351,118 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// ================================
+// MAGIC LINK LOGIN
+// ================================
+const magicLinkLogin = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      throw new ValidationError('Token is required');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid token
+    const result = await db.query(`
+      SELECT id, email, name, account_id, role, is_active, must_change_password
+      FROM users
+      WHERE password_reset_token = $1
+        AND password_reset_expires > NOW()
+    `, [tokenHash]);
+
+    if (result.rows.length === 0) {
+      throw new UnauthorizedError('Invalid or expired magic link');
+    }
+
+    const user = result.rows[0];
+
+    if (!user.is_active) {
+      throw new UnauthorizedError('Account is disabled');
+    }
+
+    // Clear the magic link token (one-time use) and ensure must_change_password is set
+    await db.query(`
+      UPDATE users SET
+        password_reset_token = NULL,
+        password_reset_expires = NULL,
+        must_change_password = TRUE
+      WHERE id = $1
+    `, [user.id]);
+
+    // Generate JWT token
+    const jwtToken = generateToken({ userId: user.id, email: user.email });
+
+    // Return user with mustChangePassword flag
+    sendSuccess(res, {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        account_id: user.account_id,
+        must_change_password: true
+      },
+      token: jwtToken,
+      mustChangePassword: true
+    }, 'Login successful - password change required');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// FORCE CHANGE PASSWORD
+// ================================
+const forceChangePassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const userId = req.user.id;
+
+    if (!password) {
+      throw new ValidationError('Password is required');
+    }
+
+    if (password.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters');
+    }
+
+    // Validate password strength
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      throw new ValidationError('Password must contain uppercase, lowercase, and number');
+    }
+
+    // Hash new password
+    const passwordHash = await hashPassword(password);
+
+    // Update password and clear the flag
+    await db.query(`
+      UPDATE users SET
+        password_hash = $1,
+        must_change_password = FALSE,
+        updated_at = NOW()
+      WHERE id = $2
+    `, [passwordHash, userId]);
+
+    // Get updated user
+    const result = await db.query(`
+      SELECT id, email, name, role, account_id, must_change_password
+      FROM users WHERE id = $1
+    `, [userId]);
+
+    sendSuccess(res, { user: result.rows[0] }, 'Password changed successfully');
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -359,5 +471,7 @@ module.exports = {
   updateProfile,
   forgotPassword,
   validateResetToken,
-  resetPassword
+  resetPassword,
+  magicLinkLogin,
+  forceChangePassword
 };

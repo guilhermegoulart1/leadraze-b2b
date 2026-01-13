@@ -105,10 +105,9 @@ const UsersPage = () => {
       errors.email = t('form.emailInvalid');
     }
 
-    // Password is required only when creating new user
-    if (!selectedUser && !formData.password) {
-      errors.password = t('form.passwordRequired');
-    } else if (formData.password && formData.password.length < 6) {
+    // Password is NOT required for new users - they will receive a magic link via email
+    // Password validation only applies if password is provided (for edits)
+    if (formData.password && formData.password.length < 6) {
       errors.password = t('form.passwordMinLength');
     }
 
@@ -544,24 +543,32 @@ const UsersPage = () => {
                 )}
               </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('form.password')} {!selectedUser && <span className="text-red-500 dark:text-red-400">*</span>}
-                </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    formErrors.password ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
-                  }`}
-                  placeholder={selectedUser ? t('form.passwordLeaveBlank') : t('form.passwordPlaceholder')}
-                />
-                {formErrors.password && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.password}</p>
-                )}
-              </div>
+              {/* Password - only shown for editing existing users */}
+              {selectedUser ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('form.password')}
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                      formErrors.password ? 'border-red-500 dark:border-red-600' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder={t('form.passwordLeaveBlank')}
+                  />
+                  {formErrors.password && (
+                    <p className="mt-1 text-xs text-red-500 dark:text-red-400">{formErrors.password}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700/50 rounded-lg">
+                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                    {t('form.magicLinkInfo', 'O novo usuário receberá um email com link de acesso para criar sua própria senha.')}
+                  </p>
+                </div>
+              )}
 
               {/* Role */}
               <div>

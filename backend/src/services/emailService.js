@@ -240,6 +240,27 @@ class EmailService {
   }
 
   /**
+   * Send team member welcome email with magic link
+   * Used when admin creates a sub-user - user clicks and is logged in automatically
+   */
+  async sendTeamMemberWelcome({ email, name, inviterName, magicToken, language = 'pt' }, accountId) {
+    return this.queueEmail({
+      template: 'team-member-welcome',
+      to: { email, name },
+      data: {
+        name,
+        inviterName,
+        magicLinkUrl: `${process.env.FRONTEND_URL}/magic-login?token=${magicToken}`,
+        expiryHours: 24
+      },
+      language,
+      priority: 1,
+      accountId,
+      category: 'transactional'
+    });
+  }
+
+  /**
    * Send invoice email
    */
   async sendInvoice(user, invoice, accountId) {

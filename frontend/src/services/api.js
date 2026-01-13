@@ -116,6 +116,26 @@ class ApiService {
     });
   }
 
+  async magicLogin(token) {
+    const response = await this.request('/auth/magic-login', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+
+    if (response.success) {
+      this.setToken(response.data.token);
+    }
+
+    return response;
+  }
+
+  async forceChangePassword(password) {
+    return this.request('/auth/force-change-password', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  }
+
   // ================================
   // USER PROFILE
   // ================================

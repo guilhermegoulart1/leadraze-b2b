@@ -36,6 +36,8 @@ import CheckoutPage from './pages/CheckoutPage';
 import CheckoutSuccessPage from './pages/CheckoutSuccessPage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import MagicLoginPage from './pages/MagicLoginPage';
+import ForceChangePasswordPage from './pages/ForceChangePasswordPage';
 import BillingPage from './pages/BillingPage';
 import AffiliatePage from './pages/AffiliatePage';
 import ProfilePage from './pages/ProfilePage';
@@ -66,8 +68,8 @@ import Layout from './components/Layout';
 import SubscriptionBlockOverlay from './components/SubscriptionBlockOverlay';
 
 // Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children, allowPasswordChange = false }) => {
+  const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -82,6 +84,12 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to force-change-password if user must change password
+  // (except when we're already on that page)
+  if (user?.must_change_password && !allowPasswordChange) {
+    return <Navigate to="/force-change-password" replace />;
   }
 
   return children;
@@ -111,6 +119,19 @@ function AppRoutes() {
 
       {/* Forgot Password - recuperação de senha */}
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Magic Login - para sub-usuários convidados via email */}
+      <Route path="/magic-login" element={<MagicLoginPage />} />
+
+      {/* Force Change Password - para usuários que entraram via magic link */}
+      <Route
+        path="/force-change-password"
+        element={
+          <ProtectedRoute allowPasswordChange>
+            <ForceChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Checkout - protegido mas sem bloqueio de subscription */}
       <Route

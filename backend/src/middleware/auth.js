@@ -15,9 +15,9 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = verifyToken(token);
 
-    // Fetch full user data including account_id and role
+    // Fetch full user data including account_id, role, and must_change_password
     const userResult = await db.query(
-      'SELECT id, email, name, role, account_id FROM users WHERE id = $1',
+      'SELECT id, email, name, role, account_id, must_change_password FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -44,6 +44,7 @@ const authenticateToken = async (req, res, next) => {
       role: user.role,
       account_id: user.account_id,
       accountId: user.account_id,  // Add accountId for consistency
+      must_change_password: user.must_change_password || false,
       sectors: sectorsResult.rows || []
     };
 
@@ -90,8 +91,39 @@ const optionalAuth = (req, res, next) => {
   }
 };
 
+/**
+ * Middleware to check if user must change password
+ * Blocks access to most endpoints until password is changed
+ */
+const checkMustChangePassword = (req, res, next) => {
+  // Skip check for certain endpoints that should always be accessible
+  const skipPaths = [
+    '/api/auth/force-change-password',
+    '/api/auth/logout',
+    '/api/auth/profile',
+    '/api/users/profile'
+  ];
+
+  if (skipPaths.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+
+  // Check if user must change password
+  if (req.user && req.user.must_change_password) {
+    return res.status(403).json({
+      success: false,
+      message: 'Password change required',
+      code: 'PASSWORD_CHANGE_REQUIRED',
+      mustChangePassword: true
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   authenticateToken,
   authenticate: authenticateToken, // Alias para compatibilidade
-  optionalAuth
+  optionalAuth,
+  checkMustChangePassword
 };

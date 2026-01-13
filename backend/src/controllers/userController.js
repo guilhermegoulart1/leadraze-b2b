@@ -6,10 +6,12 @@
 
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const storageService = require('../services/storageService');
 const { assignUserToDefaultSector, getUserLanguage } = require('../services/sectorService');
+const emailService = require('../services/emailService');
 
 /**
  * GET /users
@@ -153,13 +155,15 @@ exports.getUser = async (req, res) => {
 /**
  * POST /users
  * Create new user (admin only)
+ * Sends welcome email with magic link for automatic login
  */
 exports.createUser = async (req, res) => {
   try {
-    const { email, password, name, company, role = 'user' } = req.body;
+    const { email, name, company, role = 'user' } = req.body;
     const accountId = req.user.account_id;
+    const creatorName = req.user.name;
 
-    // Validation
+    // Validation - password is NOT required (magic link will be sent)
     if (!email || !name) {
       throw new BadRequestError('Email and name are required');
     }
@@ -190,32 +194,52 @@ exports.createUser = async (req, res) => {
       }
     }
 
-    // Hash password if provided
-    let password_hash = null;
-    if (password) {
-      password_hash = await bcrypt.hash(password, 12);
-    }
+    // Generate magic link token (32 bytes = 64 hex characters)
+    const magicToken = crypto.randomBytes(32).toString('hex');
+    const magicTokenHash = crypto.createHash('sha256').update(magicToken).digest('hex');
+    const magicTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Create user with account_id
+    // Create user WITHOUT password, WITH magic link token
     const newUser = await db.query(`
-      INSERT INTO users (email, password_hash, name, company, role, is_active, account_id)
-      VALUES ($1, $2, $3, $4, $5, true, $6)
+      INSERT INTO users (
+        email, password_hash, name, company, role, is_active, account_id,
+        password_reset_token, password_reset_expires, must_change_password
+      )
+      VALUES ($1, NULL, $2, $3, $4, true, $5, $6, $7, true)
       RETURNING id, email, name, company, role, is_active, created_at
-    `, [email, password_hash, name, company, role, accountId]);
+    `, [email, name, company, role, accountId, magicTokenHash, magicTokenExpiry]);
 
     // Auto-assign new user to default "Geral" sector
+    let creatorLanguage = 'pt';
     try {
-      // Get the creator's language preference to use for sector name
-      const creatorLanguage = await getUserLanguage(req.user.id);
+      creatorLanguage = await getUserLanguage(req.user.id);
       await assignUserToDefaultSector(newUser.rows[0].id, accountId, creatorLanguage);
     } catch (sectorError) {
       // Log but don't fail user creation if sector assignment fails
       console.error('Warning: Could not assign user to default sector:', sectorError.message);
     }
 
+    // Send welcome email with magic link
+    let emailSent = false;
+    try {
+      await emailService.sendTeamMemberWelcome({
+        email,
+        name,
+        inviterName: creatorName,
+        magicToken,
+        language: creatorLanguage
+      }, accountId);
+      emailSent = true;
+    } catch (emailError) {
+      console.error('Warning: Could not send welcome email:', emailError.message);
+    }
+
     sendSuccess(res, {
-      message: 'User created successfully',
-      user: newUser.rows[0]
+      message: emailSent
+        ? 'User created successfully. Welcome email sent.'
+        : 'User created successfully. Email could not be sent.',
+      user: newUser.rows[0],
+      emailSent
     }, 201);
 
   } catch (error) {

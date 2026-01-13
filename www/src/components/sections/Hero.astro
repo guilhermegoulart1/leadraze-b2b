@@ -1,6 +1,5 @@
 ---
 import { getTranslation } from '../../i18n/translations';
-import HeroEmailCapture from '../HeroEmailCapture';
 
 const locale = Astro.currentLocale || 'en';
 const t = getTranslation(locale);
@@ -106,9 +105,18 @@ const t = getTranslation(locale);
         {t.hero.subtitle}
       </p>
 
-      <!-- Email Capture Form -->
-      <div class="mb-8 relative z-30">
-        <HeroEmailCapture client:visible locale={locale} />
+      <!-- CTA Button -->
+      <div class="mb-8 relative z-30 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button
+          id="hero-demo-btn"
+          class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/40"
+        >
+          {t.hero.ctaButton}
+          <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </button>
+        <p class="text-sm text-gray-500">{t.hero.noCreditCard}</p>
       </div>
 
     </div>
@@ -260,6 +268,11 @@ const t = getTranslation(locale);
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(initConnectionLines, 200);
+  });
+
+  // Hero demo button opens sales chat
+  document.getElementById('hero-demo-btn')?.addEventListener('click', () => {
+    window.dispatchEvent(new Event('openSalesChat'));
   });
 </script>
 

@@ -21,6 +21,9 @@ router.post('/forgot-password', authLimiter, authController.forgotPassword);
 router.get('/validate-reset-token', authController.validateResetToken);
 router.post('/reset-password', authController.resetPassword);
 
+// Magic Link Login (for team member invites)
+router.post('/magic-login', authLimiter, authController.magicLinkLogin);
+
 // Google OAuth
 router.get('/google',
   passport.authenticate('google', { 
@@ -46,5 +49,8 @@ router.get('/profile', authenticateToken, authController.getProfile);
 
 // Update profile
 router.put('/profile', authenticateToken, authController.updateProfile);
+
+// Force change password (for magic link login users)
+router.post('/force-change-password', authenticateToken, authController.forceChangePassword);
 
 module.exports = router;
