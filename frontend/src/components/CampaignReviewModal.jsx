@@ -62,7 +62,18 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
       // Load leads (with high limit to get all leads)
       const leadsResponse = await api.getCampaignLeads(campaign.id, { limit: 1000 });
-      const campaignLeads = leadsResponse.data?.leads || [];
+      const rawLeads = leadsResponse.data?.opportunities || [];
+      // Map contact_ prefixed fields to expected field names
+      const campaignLeads = rawLeads.map(lead => ({
+        ...lead,
+        name: lead.contact_name || lead.name,
+        profile_picture: lead.contact_profile_picture || lead.profile_picture,
+        profile_url: lead.contact_profile_url || lead.profile_url,
+        title: lead.contact_title || lead.title,
+        company: lead.contact_company || lead.company,
+        email: lead.contact_email || lead.email,
+        phone: lead.contact_phone || lead.phone,
+      }));
       setLeads(campaignLeads);
 
       // Load AI agent if exists

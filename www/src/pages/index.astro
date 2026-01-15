@@ -9,6 +9,7 @@ import Benefits from '../components/sections/Benefits.astro';
 import Testimonials from '../components/sections/Testimonials.astro';
 import FAQ from '../components/sections/FAQ.astro';
 import ChatWidget from '../components/ChatWidget';
+import PolicyModal from '../components/PolicyModal.astro';
 ---
 
 <Layout title="GetRaze | World's First DHE (Deal Hunting Engine) Platform">
@@ -24,6 +25,7 @@ import ChatWidget from '../components/ChatWidget';
   </main>
 
   <Footer />
+  <PolicyModal />
 
   <!-- AI Chat Widget -->
   <ChatWidget client:idle />

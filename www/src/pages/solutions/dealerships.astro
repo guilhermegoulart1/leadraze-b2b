@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import ChatWidget from '../../components/ChatWidget';
+import PolicyModal from '../../components/PolicyModal.astro';
 import { getTranslation } from '../../i18n/translations';
 
 import SolutionHero from '../../components/solutions/SolutionHero.astro';
@@ -91,5 +92,6 @@ const s = t.solutions.dealerships;
   </main>
 
   <Footer />
+  <PolicyModal />
   <ChatWidget client:idle />
 </Layout>
