@@ -21,9 +21,9 @@ async function processJobs() {
   isProcessing = true;
 
   try {
-    // Buscar jobs pendentes (com account_id da campanha)
+    // Buscar jobs pendentes (com account_id e user_id da campanha)
     const result = await db.query(
-      `SELECT bcj.*, c.account_id
+      `SELECT bcj.*, c.account_id, c.user_id
        FROM bulk_collection_jobs bcj
        JOIN campaigns c ON bcj.campaign_id = c.id
        WHERE bcj.status = 'pending'
@@ -323,12 +323,13 @@ async function saveProfiles(profiles, job) {
         // 2. Criar contact
         const contactInsert = await db.query(
           `INSERT INTO contacts
-           (account_id, linkedin_profile_id, name, title, company, location,
+           (user_id, account_id, linkedin_profile_id, name, title, company, location,
             profile_url, profile_picture, headline, email, phone,
             connections_count, is_premium, source, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
            RETURNING id`,
           [
+            job.user_id,
             job.account_id,
             profileId,
             name,
