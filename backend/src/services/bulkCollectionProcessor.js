@@ -21,9 +21,9 @@ async function processJobs() {
   isProcessing = true;
 
   try {
-    // Buscar jobs pendentes (com account_id e user_id da campanha)
+    // Buscar jobs pendentes (com account_id, user_id, pipeline_id e stage_id da campanha)
     const result = await db.query(
-      `SELECT bcj.*, c.account_id, c.user_id
+      `SELECT bcj.*, c.account_id, c.user_id, c.pipeline_id, c.stage_id
        FROM bulk_collection_jobs bcj
        JOIN campaigns c ON bcj.campaign_id = c.id
        WHERE bcj.status = 'pending'
@@ -353,13 +353,15 @@ async function saveProfiles(profiles, job) {
       // 3. Criar opportunity vinculada ao contact
       await db.query(
         `INSERT INTO opportunities
-         (account_id, contact_id, campaign_id, linkedin_profile_id,
+         (account_id, contact_id, campaign_id, pipeline_id, stage_id, linkedin_profile_id,
           title, score, source, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
         [
           job.account_id,
           contactId,
           job.campaign_id,
+          job.pipeline_id,
+          job.stage_id,
           profileId,
           name,
           calculateProfileScore(profile),
