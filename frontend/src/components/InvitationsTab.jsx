@@ -57,7 +57,20 @@ const InvitationsTab = ({ linkedinAccounts }) => {
   const handleAccept = async (invitationId) => {
     setActionLoading(prev => ({ ...prev, [invitationId]: 'accept' }));
     try {
-      const response = await api.acceptInvitation(invitationId, selectedAccountId);
+      // Buscar dados do convite para obter provider, shared_secret e dados do inviter
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      const response = await api.acceptInvitation(invitationId, selectedAccountId, {
+        provider: invitation?.provider,
+        shared_secret: invitation?.shared_secret,
+        // Dados do remetente para criar contato e enriquecer
+        inviter: {
+          provider_id: invitation?.provider_id,
+          name: invitation?.name,
+          headline: invitation?.headline,
+          profile_picture: invitation?.profile_picture,
+          public_identifier: invitation?.profile_url?.replace('https://linkedin.com/in/', '')
+        }
+      });
       if (response.success) {
         // Remover da lista
         setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
@@ -75,7 +88,12 @@ const InvitationsTab = ({ linkedinAccounts }) => {
   const handleReject = async (invitationId) => {
     setActionLoading(prev => ({ ...prev, [invitationId]: 'reject' }));
     try {
-      const response = await api.rejectInvitation(invitationId, selectedAccountId);
+      // Buscar dados do convite para obter provider e shared_secret
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      const response = await api.rejectInvitation(invitationId, selectedAccountId, {
+        provider: invitation?.provider,
+        shared_secret: invitation?.shared_secret
+      });
       if (response.success) {
         setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       } else {

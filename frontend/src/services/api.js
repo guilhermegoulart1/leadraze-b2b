@@ -1904,18 +1904,27 @@ class ApiService {
   }
 
   // Aceitar convite recebido
-  async acceptInvitation(invitationId, linkedinAccountId) {
+  async acceptInvitation(invitationId, linkedinAccountId, { provider, shared_secret, inviter } = {}) {
     return this.request(`/connections/invitations/${invitationId}/accept`, {
       method: 'POST',
-      body: JSON.stringify({ linkedin_account_id: linkedinAccountId }),
+      body: JSON.stringify({
+        linkedin_account_id: linkedinAccountId,
+        provider,
+        shared_secret,
+        inviter // Dados do remetente para criar contato e enriquecer
+      }),
     });
   }
 
   // Rejeitar convite recebido
-  async rejectInvitation(invitationId, linkedinAccountId) {
+  async rejectInvitation(invitationId, linkedinAccountId, { provider, shared_secret } = {}) {
     return this.request(`/connections/invitations/${invitationId}/reject`, {
       method: 'POST',
-      body: JSON.stringify({ linkedin_account_id: linkedinAccountId }),
+      body: JSON.stringify({
+        linkedin_account_id: linkedinAccountId,
+        provider,
+        shared_secret
+      }),
     });
   }
 

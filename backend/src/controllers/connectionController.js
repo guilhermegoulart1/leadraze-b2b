@@ -3,6 +3,7 @@ const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const { sendSuccess, sendError } = require('../utils/responses');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const { enrichContactInBackground } = require('../services/contactEnrichmentService');
 
 /**
  * Extrai primeiro nome de um nome completo
@@ -492,20 +493,29 @@ const getReceivedInvitations = async (req, res) => {
     });
 
     // Normalizar dados dos convites recebidos
-    // Campos: sender_user, sender_user_id, sender_user_public_id, sender_user_profile_picture_url, sender_user_description
-    const invitations = (invitationsData.items || []).map(invite => ({
-      id: invite.id,
-      provider_id: invite.sender_user_id || invite.invited_user_id,
-      name: invite.sender_user || invite.invited_user || 'Usuário LinkedIn',
-      first_name: extractFirstName(invite.sender_user || invite.invited_user),
-      headline: invite.sender_user_description || invite.invited_user_description || '',
-      profile_picture: invite.sender_user_profile_picture_url || invite.invited_user_profile_picture_url || null,
-      profile_url: (invite.sender_user_public_id || invite.invited_user_public_id)
-        ? `https://linkedin.com/in/${invite.sender_user_public_id || invite.invited_user_public_id}`
-        : null,
-      received_at: invite.parsed_datetime || null,
-      message: invite.invitation_text || null
-    }));
+    // Estrutura real da Unipile: dados do remetente estão em invite.inviter
+    // - inviter.inviter_id, inviter.inviter_name, inviter.inviter_public_identifier
+    // - inviter.inviter_description, inviter.inviter_profile_picture_url
+    const invitations = (invitationsData.items || []).map(invite => {
+      const inviter = invite.inviter || {};
+      const specifics = invite.specifics || {};
+      return {
+        id: invite.id,
+        provider_id: inviter.inviter_id || null,
+        name: inviter.inviter_name || 'Usuário LinkedIn',
+        first_name: extractFirstName(inviter.inviter_name),
+        headline: inviter.inviter_description || '',
+        profile_picture: inviter.inviter_profile_picture_url || null,
+        profile_url: inviter.inviter_public_identifier
+          ? `https://linkedin.com/in/${inviter.inviter_public_identifier}`
+          : null,
+        received_at: invite.parsed_datetime || null,
+        message: invite.invitation_text || null,
+        // Dados necessários para aceitar/rejeitar o convite
+        provider: specifics.provider || 'LINKEDIN',
+        shared_secret: specifics.shared_secret || null
+      };
+    });
 
     console.log(`✅ [Invitations] Encontrados ${invitations.length} convites recebidos`);
 
@@ -523,17 +533,23 @@ const getReceivedInvitations = async (req, res) => {
 
 /**
  * Aceitar convite recebido
+ * Também cria/atualiza o contato e dispara enriquecimento (igual ao fluxo de mensagens)
  */
 const acceptInvitation = async (req, res) => {
   try {
     const accountId = req.user.account_id;
+    const userId = req.user.id;
     const { invitation_id } = req.params;
-    const { linkedin_account_id } = req.body;
+    const { linkedin_account_id, provider, shared_secret, inviter } = req.body;
 
     console.log(`✅ [Invitations] Aceitando convite: ${invitation_id}`);
 
     if (!linkedin_account_id) {
       throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    if (!shared_secret) {
+      throw new ValidationError('shared_secret é obrigatório para aceitar convites do LinkedIn');
     }
 
     // Buscar conta LinkedIn do usuário
@@ -549,16 +565,91 @@ const acceptInvitation = async (req, res) => {
 
     const linkedinAccount = linkedinResult.rows[0];
 
-    // Aceitar convite via Unipile
+    // Aceitar convite via Unipile (requer provider e shared_secret para LinkedIn)
     const result = await unipileClient.users.handleReceivedInvitation({
       account_id: linkedinAccount.unipile_account_id,
       invitation_id,
-      action: 'accept'
+      action: 'accept',
+      provider: provider || 'LINKEDIN',
+      shared_secret
     });
 
     console.log(`✅ [Invitations] Convite aceito com sucesso`);
 
-    sendSuccess(res, { success: true, result });
+    // =====================================================
+    // CRIAR/ATUALIZAR CONTATO E ENRIQUECER
+    // Ao aceitar o convite, a pessoa vira conexão de 1º grau
+    // =====================================================
+    let contactId = null;
+    const inviterProviderId = inviter?.provider_id;
+
+    if (inviterProviderId) {
+      try {
+        // Verificar se já existe contato com este provider_id
+        const existingContact = await db.query(
+          `SELECT id, full_profile_fetched_at FROM contacts
+           WHERE account_id = $1 AND linkedin_profile_id = $2 LIMIT 1`,
+          [accountId, inviterProviderId]
+        );
+
+        if (existingContact.rows.length > 0) {
+          // Atualizar contato existente
+          contactId = existingContact.rows[0].id;
+          const updateData = {
+            updated_at: new Date(),
+            network_distance: 'DISTANCE_1' // Agora é 1º grau
+          };
+          if (inviter?.name) updateData.name = inviter.name;
+          if (inviter?.headline) updateData.headline = inviter.headline;
+          if (inviter?.profile_picture) updateData.profile_picture = inviter.profile_picture;
+          if (inviter?.public_identifier) {
+            updateData.public_identifier = inviter.public_identifier;
+            updateData.profile_url = `https://www.linkedin.com/in/${inviter.public_identifier}`;
+          }
+
+          await db.update('contacts', updateData, { id: contactId });
+          console.log(`✅ [Invitations] Contato atualizado: ${contactId}`);
+        } else {
+          // Criar novo contato
+          const newContact = await db.insert('contacts', {
+            user_id: userId,
+            account_id: accountId,
+            linkedin_profile_id: inviterProviderId,
+            name: inviter?.name || 'Usuário LinkedIn',
+            headline: inviter?.headline || null,
+            profile_picture: inviter?.profile_picture || null,
+            public_identifier: inviter?.public_identifier || null,
+            profile_url: inviter?.public_identifier
+              ? `https://www.linkedin.com/in/${inviter.public_identifier}`
+              : null,
+            network_distance: 'DISTANCE_1', // Ao aceitar, vira 1º grau
+            source: 'linkedin_invitation'
+          });
+          contactId = newContact.id;
+          console.log(`✅ [Invitations] Novo contato criado: ${contactId}`);
+        }
+
+        // Disparar enriquecimento em background (igual ao fluxo de mensagens)
+        // Como acabou de aceitar, é 1º grau e podemos buscar perfil completo + empresa
+        if (contactId && inviterProviderId) {
+          console.log(`🔄 [Invitations] Iniciando enriquecimento do contato ${contactId}`);
+          enrichContactInBackground(
+            contactId,
+            linkedinAccount.unipile_account_id,
+            inviterProviderId,
+            { enrichCompanyData: true }
+          );
+        }
+
+      } catch (contactError) {
+        // Erro ao criar contato não deve falhar a aceitação do convite
+        console.error('⚠️ [Invitations] Erro ao criar/atualizar contato (não crítico):', contactError.message);
+      }
+    } else {
+      console.log('⚠️ [Invitations] Dados do inviter não fornecidos, pulando criação de contato');
+    }
+
+    sendSuccess(res, { success: true, result, contact_id: contactId });
 
   } catch (error) {
     console.error('❌ [Invitations] Erro ao aceitar convite:', error);
@@ -573,12 +664,16 @@ const rejectInvitation = async (req, res) => {
   try {
     const accountId = req.user.account_id;
     const { invitation_id } = req.params;
-    const { linkedin_account_id } = req.body;
+    const { linkedin_account_id, provider, shared_secret } = req.body;
 
     console.log(`❌ [Invitations] Rejeitando convite: ${invitation_id}`);
 
     if (!linkedin_account_id) {
       throw new ValidationError('linkedin_account_id é obrigatório');
+    }
+
+    if (!shared_secret) {
+      throw new ValidationError('shared_secret é obrigatório para rejeitar convites do LinkedIn');
     }
 
     // Buscar conta LinkedIn do usuário
@@ -594,11 +689,13 @@ const rejectInvitation = async (req, res) => {
 
     const linkedinAccount = linkedinResult.rows[0];
 
-    // Rejeitar convite via Unipile
+    // Rejeitar convite via Unipile (requer provider e shared_secret para LinkedIn)
     const result = await unipileClient.users.handleReceivedInvitation({
       account_id: linkedinAccount.unipile_account_id,
       invitation_id,
-      action: 'reject'
+      action: 'decline',
+      provider: provider || 'LINKEDIN',
+      shared_secret
     });
 
     console.log(`✅ [Invitations] Convite rejeitado com sucesso`);
