@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, CheckCircle, Users, Sparkles, MessageSquare, Play,
   ArrowLeft, Loader, AlertCircle, Trash2, Settings, Clock,
-  Save, Globe, Calendar, Bot, Download
+  Save, Globe, Calendar, Bot, Download, Check, XCircle, Ban
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -24,11 +24,15 @@ const TIMEZONES = [
 
 const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const { t } = useTranslation('modals');
-  const [leads, setLeads] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [contactsStats, setContactsStats] = useState({});
   const [aiAgent, setAiAgent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActivating, setIsActivating] = useState(false);
-  const [selectedLeads, setSelectedLeads] = useState(new Set());
+  const [selectedContacts, setSelectedContacts] = useState(new Set());
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('collected'); // collected, approved, rejected, all
 
   // Configuration states
   const [sectors, setSectors] = useState([]);
@@ -60,21 +64,29 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
     try {
       setIsLoading(true);
 
-      // Load leads (with high limit to get all leads)
-      const leadsResponse = await api.getCampaignLeads(campaign.id, { limit: 1000 });
-      const rawLeads = leadsResponse.data?.opportunities || [];
+      // Load contacts from campaign_contacts (with high limit to get all)
+      const contactsResponse = await api.getCampaignContacts(campaign.id, { limit: 1000 });
+      const rawContacts = contactsResponse.data?.contacts || [];
       // Map contact_ prefixed fields to expected field names
-      const campaignLeads = rawLeads.map(lead => ({
-        ...lead,
-        name: lead.contact_name || lead.name,
-        profile_picture: lead.contact_profile_picture || lead.profile_picture,
-        profile_url: lead.contact_profile_url || lead.profile_url,
-        title: lead.contact_title || lead.title,
-        company: lead.contact_company || lead.company,
-        email: lead.contact_email || lead.email,
-        phone: lead.contact_phone || lead.phone,
+      const campaignContacts = rawContacts.map(contact => ({
+        ...contact,
+        name: contact.contact_name || contact.name,
+        profile_picture: contact.contact_profile_picture || contact.profile_picture,
+        profile_url: contact.contact_profile_url || contact.profile_url,
+        title: contact.contact_title || contact.title,
+        company: contact.contact_company || contact.company,
+        email: contact.contact_email || contact.email,
+        phone: contact.contact_phone || contact.phone,
       }));
-      setLeads(campaignLeads);
+      setContacts(campaignContacts);
+
+      // Load contacts stats
+      try {
+        const statsResponse = await api.getCampaignContactsStats(campaign.id);
+        setContactsStats(statsResponse.data?.stats || {});
+      } catch (e) {
+        console.warn('Could not load contacts stats:', e);
+      }
 
       // Load AI agent if exists
       if (campaign.ai_agent_id) {
@@ -118,8 +130,8 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
         console.warn('Could not load review config:', e);
       }
 
-      // Start with no leads selected
-      setSelectedLeads(new Set());
+      // Start with no contacts selected
+      setSelectedContacts(new Set());
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -193,51 +205,111 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
     }
   };
 
-  const toggleLead = (leadId) => {
-    const newSelected = new Set(selectedLeads);
-    if (newSelected.has(leadId)) {
-      newSelected.delete(leadId);
+  const toggleContact = (contactId) => {
+    const newSelected = new Set(selectedContacts);
+    if (newSelected.has(contactId)) {
+      newSelected.delete(contactId);
     } else {
-      newSelected.add(leadId);
+      newSelected.add(contactId);
     }
-    setSelectedLeads(newSelected);
+    setSelectedContacts(newSelected);
   };
 
   const toggleAll = () => {
-    if (selectedLeads.size === leads.length) {
-      setSelectedLeads(new Set());
+    const filteredContacts = getFilteredContacts();
+    if (selectedContacts.size === filteredContacts.length) {
+      setSelectedContacts(new Set());
     } else {
-      setSelectedLeads(new Set(leads.map(lead => lead.id)));
+      setSelectedContacts(new Set(filteredContacts.map(c => c.id)));
     }
   };
 
-  const handleDeleteSelected = async () => {
-    if (selectedLeads.size === 0) return;
+  // Filter contacts by status
+  const getFilteredContacts = () => {
+    if (statusFilter === 'all') return contacts;
+    return contacts.filter(c => c.status === statusFilter);
+  };
 
-    if (!confirm(t('campaignReview.confirmDeleteLeads', { count: selectedLeads.size }))) {
+  // Approve selected contacts
+  const handleApproveSelected = async () => {
+    if (selectedContacts.size === 0) return;
+
+    try {
+      setIsApproving(true);
+      await api.approveContacts(campaign.id, Array.from(selectedContacts));
+
+      // Update local state
+      setContacts(contacts.map(c =>
+        selectedContacts.has(c.id) ? { ...c, status: 'approved' } : c
+      ));
+      setSelectedContacts(new Set());
+
+      // Reload stats
+      const statsResponse = await api.getCampaignContactsStats(campaign.id);
+      setContactsStats(statsResponse.data?.stats || {});
+    } catch (error) {
+      console.error('Error approving contacts:', error);
+      alert(t('campaignReview.approveError', 'Erro ao aprovar contatos'));
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Reject selected contacts
+  const handleRejectSelected = async () => {
+    if (selectedContacts.size === 0) return;
+
+    try {
+      setIsRejecting(true);
+      await api.rejectContacts(campaign.id, Array.from(selectedContacts));
+
+      // Update local state
+      setContacts(contacts.map(c =>
+        selectedContacts.has(c.id) ? { ...c, status: 'rejected' } : c
+      ));
+      setSelectedContacts(new Set());
+
+      // Reload stats
+      const statsResponse = await api.getCampaignContactsStats(campaign.id);
+      setContactsStats(statsResponse.data?.stats || {});
+    } catch (error) {
+      console.error('Error rejecting contacts:', error);
+      alert(t('campaignReview.rejectError', 'Erro ao rejeitar contatos'));
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  // Approve all collected contacts
+  const handleApproveAll = async () => {
+    if (!confirm(t('campaignReview.confirmApproveAll', 'Deseja aprovar todos os contatos coletados?'))) {
       return;
     }
 
     try {
-      // Delete leads in parallel
-      const deletePromises = Array.from(selectedLeads).map(leadId =>
-        api.deleteLead(leadId)
-      );
+      setIsApproving(true);
+      await api.approveContacts(campaign.id, null, true); // approveAll = true
 
-      await Promise.all(deletePromises);
+      // Update local state
+      setContacts(contacts.map(c =>
+        c.status === 'collected' ? { ...c, status: 'approved' } : c
+      ));
+      setSelectedContacts(new Set());
 
-      // Remove deleted leads from state
-      setLeads(leads.filter(lead => !selectedLeads.has(lead.id)));
-      setSelectedLeads(new Set());
+      // Reload stats
+      const statsResponse = await api.getCampaignContactsStats(campaign.id);
+      setContactsStats(statsResponse.data?.stats || {});
     } catch (error) {
-      console.error('Error deleting leads:', error);
-      alert(t('campaignReview.deleteLeadsError'));
+      console.error('Error approving all contacts:', error);
+      alert(t('campaignReview.approveError', 'Erro ao aprovar contatos'));
+    } finally {
+      setIsApproving(false);
     }
   };
 
-  // Exportar leads para CSV
+  // Exportar contatos para CSV
   const handleExportCSV = () => {
-    if (leads.length === 0) return;
+    if (contacts.length === 0) return;
 
     const headers = [
       'Nome',
@@ -250,6 +322,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       'URL LinkedIn',
       'Conexões',
       'Seguidores',
+      'Status',
       'Premium',
       'Creator',
       'Influencer'
@@ -264,20 +337,21 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       return str;
     };
 
-    const rows = leads.map(lead => [
-      escapeCsvValue(lead.name || ''),
-      escapeCsvValue(lead.title || ''),
-      escapeCsvValue(lead.company || ''),
-      escapeCsvValue(lead.email || ''),
-      escapeCsvValue(lead.phone || ''),
-      escapeCsvValue(lead.location || ''),
-      escapeCsvValue(lead.headline || ''),
-      escapeCsvValue(lead.profile_url || ''),
-      lead.connections_count || '',
-      lead.follower_count || '',
-      lead.is_premium ? 'Sim' : 'Não',
-      lead.is_creator ? 'Sim' : 'Não',
-      lead.is_influencer ? 'Sim' : 'Não'
+    const rows = contacts.map(contact => [
+      escapeCsvValue(contact.name || ''),
+      escapeCsvValue(contact.title || ''),
+      escapeCsvValue(contact.company || ''),
+      escapeCsvValue(contact.email || ''),
+      escapeCsvValue(contact.phone || ''),
+      escapeCsvValue(contact.location || ''),
+      escapeCsvValue(contact.headline || ''),
+      escapeCsvValue(contact.profile_url || ''),
+      contact.connections_count || '',
+      contact.follower_count || '',
+      contact.status || '',
+      contact.is_premium ? 'Sim' : 'Não',
+      contact.is_creator ? 'Sim' : 'Não',
+      contact.is_influencer ? 'Sim' : 'Não'
     ]);
 
     const csvContent = [
@@ -289,7 +363,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `leads-${campaign?.name || 'campanha'}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `contatos-${campaign?.name || 'campanha'}-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -333,35 +407,71 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
             <div className="flex h-full" style={{ minHeight: 0 }}>
               {/* Coluna Esquerda - Informações da Campanha */}
               <div className="flex-1 p-6 space-y-6 overflow-y-auto" style={{ minHeight: 0 }}>
-                {/* Stats Overview - Apenas 3 cards */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-sm font-medium text-blue-900 dark:text-blue-300">{t('campaignReview.leadsCollected')}</span>
+                {/* Stats Overview - 4 cards showing contact status */}
+                <div className="grid grid-cols-4 gap-3">
+                  {/* Total coletados */}
+                  <button
+                    onClick={() => setStatusFilter('collected')}
+                    className={`rounded-lg p-3 border transition-all ${
+                      statusFilter === 'collected'
+                        ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-600 ring-2 ring-blue-500'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-medium text-blue-900 dark:text-blue-300">{t('campaignReview.collected', 'Coletados')}</span>
                     </div>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{leads.length}</p>
-                  </div>
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{contactsStats.collected || 0}</p>
+                  </button>
 
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-100 dark:border-purple-800">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      <span className="text-sm font-medium text-purple-900 dark:text-purple-300">{t('campaignReview.initialGoal')}</span>
+                  {/* Aprovados */}
+                  <button
+                    onClick={() => setStatusFilter('approved')}
+                    className={`rounded-lg p-3 border transition-all ${
+                      statusFilter === 'approved'
+                        ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-600 ring-2 ring-green-500'
+                        : 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      <span className="text-xs font-medium text-green-900 dark:text-green-300">{t('campaignReview.approved', 'Aprovados')}</span>
                     </div>
-                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{campaign?.target_profiles_count || 0}</p>
-                  </div>
+                    <p className="text-xl font-bold text-green-600 dark:text-green-400">{contactsStats.approved || 0}</p>
+                  </button>
 
-                  <div className={`rounded-lg p-4 border ${selectedLeads.size > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-700'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Trash2 className={`w-5 h-5 ${selectedLeads.size > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-medium ${selectedLeads.size > 0 ? 'text-red-900' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {t('campaignReview.toDelete')}
-                      </span>
+                  {/* Rejeitados */}
+                  <button
+                    onClick={() => setStatusFilter('rejected')}
+                    className={`rounded-lg p-3 border transition-all ${
+                      statusFilter === 'rejected'
+                        ? 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-600 ring-2 ring-red-500'
+                        : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Ban className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      <span className="text-xs font-medium text-red-900 dark:text-red-300">{t('campaignReview.rejected', 'Rejeitados')}</span>
                     </div>
-                    <p className={`text-2xl font-bold ${selectedLeads.size > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>
-                      {selectedLeads.size}
-                    </p>
-                  </div>
+                    <p className="text-xl font-bold text-red-600 dark:text-red-400">{contactsStats.rejected || 0}</p>
+                  </button>
+
+                  {/* Todos */}
+                  <button
+                    onClick={() => setStatusFilter('all')}
+                    className={`rounded-lg p-3 border transition-all ${
+                      statusFilter === 'all'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-300 dark:border-purple-600 ring-2 ring-purple-500'
+                        : 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-medium text-purple-900 dark:text-purple-300">{t('campaignReview.total', 'Total')}</span>
+                    </div>
+                    <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{contacts.length}</p>
+                  </button>
                 </div>
 
               {/* AI Agent Section */}
@@ -645,45 +755,77 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
               </div>
               </div>
 
-              {/* Coluna Direita - Lista de Leads */}
+              {/* Coluna Direita - Lista de Contatos */}
               <div className="w-96 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800" style={{ minHeight: 0 }}>
                 {/* Header da lista */}
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('campaignReview.leadsCollectedTitle')}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {statusFilter === 'all' ? t('campaignReview.allContacts', 'Todos os Contatos') :
+                         statusFilter === 'collected' ? t('campaignReview.pendingReview', 'Aguardando Revisão') :
+                         statusFilter === 'approved' ? t('campaignReview.approvedContacts', 'Contatos Aprovados') :
+                         t('campaignReview.rejectedContacts', 'Contatos Rejeitados')}
+                      </h3>
                       <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 rounded text-xs font-medium">
-                        {leads.length}
+                        {getFilteredContacts().length}
                       </span>
                     </div>
                     <button
                       onClick={handleExportCSV}
-                      disabled={leads.length === 0}
+                      disabled={contacts.length === 0}
                       className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={t('campaignReview.exportCSV', 'Exportar CSV')}
                     >
                       <Download className="w-4 h-4" />
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    {t('campaignReview.selectLeadsToDelete')}
-                  </p>
-                  <div className="flex items-center gap-2">
+
+                  {/* Actions bar */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={toggleAll}
                       className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
                     >
-                      {selectedLeads.size === leads.length ? t('campaignReview.unselectAll') : t('campaignReview.selectAll')} {t('campaignReview.all')}
+                      {selectedContacts.size === getFilteredContacts().length && getFilteredContacts().length > 0
+                        ? t('campaignReview.unselectAll', 'Desmarcar')
+                        : t('campaignReview.selectAll', 'Selecionar')} {t('campaignReview.all', 'Todos')}
                     </button>
-                    {selectedLeads.size > 0 && (
+
+                    {/* Show approve all button for collected filter */}
+                    {statusFilter === 'collected' && (contactsStats.collected || 0) > 0 && (
                       <>
                         <span className="text-gray-300">•</span>
                         <button
-                          onClick={handleDeleteSelected}
+                          onClick={handleApproveAll}
+                          disabled={isApproving}
+                          className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 font-medium flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" />
+                          {t('campaignReview.approveAll', 'Aprovar Todos')}
+                        </button>
+                      </>
+                    )}
+
+                    {/* Show actions when items selected */}
+                    {selectedContacts.size > 0 && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <button
+                          onClick={handleApproveSelected}
+                          disabled={isApproving}
+                          className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 font-medium flex items-center gap-1"
+                        >
+                          {isApproving ? <Loader className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                          {t('campaignReview.approve', 'Aprovar')} {selectedContacts.size}
+                        </button>
+                        <button
+                          onClick={handleRejectSelected}
+                          disabled={isRejecting}
                           className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 font-medium flex items-center gap-1"
                         >
-                          <Trash2 className="w-3 h-3" />
-                          {t('campaignReview.delete')} {selectedLeads.size}
+                          {isRejecting ? <Loader className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                          {t('campaignReview.reject', 'Rejeitar')} {selectedContacts.size}
                         </button>
                       </>
                     )}
@@ -692,53 +834,72 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
                 {/* Lista scrollável */}
                 <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
-                  {leads.length === 0 ? (
+                  {getFilteredContacts().length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <AlertCircle className="w-12 h-12 text-gray-400 mb-3" />
-                      <p className="text-gray-600 dark:text-gray-400">{t('campaignReview.noLeadsCollected')}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{t('campaignReview.noContactsFound', 'Nenhum contato encontrado')}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {leads.map((lead) => (
+                      {getFilteredContacts().map((contact) => (
                         <div
-                          key={lead.id}
+                          key={contact.id}
                           className={`px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900/50 transition-colors cursor-pointer ${
-                            selectedLeads.has(lead.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                            selectedContacts.has(contact.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                           }`}
-                          onClick={() => toggleLead(lead.id)}
+                          onClick={() => toggleContact(contact.id)}
                         >
                           <div className="flex items-center gap-2">
                             <input
                               type="checkbox"
-                              checked={selectedLeads.has(lead.id)}
-                              onChange={() => toggleLead(lead.id)}
+                              checked={selectedContacts.has(contact.id)}
+                              onChange={() => toggleContact(contact.id)}
                               className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                             />
 
-                            {lead.profile_picture ? (
+                            {contact.profile_picture ? (
                               <img
-                                src={lead.profile_picture}
-                                alt={lead.name}
+                                src={contact.profile_picture}
+                                alt={contact.name}
                                 className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                               />
                             ) : (
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
                                 <span className="text-white font-semibold text-base">
-                                  {lead.name?.charAt(0) || '?'}
+                                  {contact.name?.charAt(0) || '?'}
                                 </span>
                               </div>
                             )}
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm">{lead.name}</h4>
-                                {lead.profile_url && (
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm">{contact.name}</h4>
+                                  {/* Status badge */}
+                                  {statusFilter === 'all' && (
+                                    <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      contact.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                      contact.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                      contact.status === 'invite_sent' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                      contact.status === 'invite_accepted' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' :
+                                      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    }`}>
+                                      {contact.status === 'collected' ? t('campaignReview.statusCollected', 'Novo') :
+                                       contact.status === 'approved' ? t('campaignReview.statusApproved', 'Aprovado') :
+                                       contact.status === 'rejected' ? t('campaignReview.statusRejected', 'Rejeitado') :
+                                       contact.status === 'invite_sent' ? t('campaignReview.statusInviteSent', 'Convite Enviado') :
+                                       contact.status === 'invite_accepted' ? t('campaignReview.statusInviteAccepted', 'Conectado') :
+                                       contact.status}
+                                    </span>
+                                  )}
+                                </div>
+                                {contact.profile_url && (
                                   <a
-                                    href={lead.profile_url}
+                                    href={contact.profile_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="flex-shrink-0 p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 rounded transition-colors"
+                                    className="flex-shrink-0 p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
                                     title={t('campaignReview.viewLinkedInProfile')}
                                   >
                                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -748,7 +909,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                                 )}
                               </div>
                               <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
-                                {[lead.title, lead.company].filter(Boolean).join(' • ')}
+                                {[contact.title, contact.company].filter(Boolean).join(' • ')}
                               </div>
                             </div>
                           </div>
@@ -775,26 +936,31 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
 
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                {selectedLeads.size > 0 ? (
-                  <>
-                    <span className="font-medium text-red-600 dark:text-red-400">{selectedLeads.size}</span> {t('campaignReview.leadsSelectedForDeletion')}
-                  </>
+                {(contactsStats.collected || 0) > 0 ? (
+                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {t('campaignReview.pendingApproval', { count: contactsStats.collected }, `${contactsStats.collected} contatos aguardando aprovação`)}
+                  </span>
                 ) : !isConfigSaved ? (
                   <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {t('campaignReview.configRequired', 'Configure e salve antes de iniciar')}
                   </span>
+                ) : (contactsStats.approved || 0) === 0 ? (
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {t('campaignReview.noApprovedContacts', 'Nenhum contato aprovado para enviar convites')}
+                  </span>
                 ) : (
                   <>
-                    <span className="font-medium text-blue-600 dark:text-blue-400">{leads.length}</span> {t('campaignReview.leadsWillBeActivated')}
+                    <span className="font-medium text-green-600 dark:text-green-400">{contactsStats.approved || 0}</span> {t('campaignReview.contactsReadyForInvite', 'contatos prontos para envio de convite')}
                   </>
                 )}
               </div>
               <button
                 onClick={handleActivate}
-                disabled={isActivating || isLoading || leads.length === 0 || !isConfigSaved}
+                disabled={isActivating || isLoading || (contactsStats.approved || 0) === 0 || !isConfigSaved}
                 className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
-                title={!isConfigSaved ? t('campaignReview.saveConfigFirst', 'Salve a configuração primeiro') : ''}
+                title={!isConfigSaved ? t('campaignReview.saveConfigFirst', 'Salve a configuração primeiro') : (contactsStats.approved || 0) === 0 ? t('campaignReview.approveContactsFirst', 'Aprove contatos primeiro') : ''}
               >
                 {isActivating ? (
                   <>

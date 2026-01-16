@@ -248,11 +248,6 @@ const createCampaign = async (req, res) => {
       target_profiles_count,
       current_step,
       status,
-      // CRM Configuration (new)
-      insert_in_crm,            // Boolean - whether to insert leads in CRM
-      pipeline_id,              // Pipeline to insert accepted leads
-      stage_id,                 // Stage to insert accepted leads
-      assignees,                // Array of user IDs for round-robin
       // Campos legados (manter compatibilidade)
       industry,
       location,
@@ -337,27 +332,6 @@ const createCampaign = async (req, res) => {
       }
     }
 
-    // Validar pipeline e stage se insert_in_crm for true
-    if (insert_in_crm && pipeline_id) {
-      const pipelineCheck = await db.query(
-        'SELECT id FROM pipelines WHERE id = $1 AND account_id = $2 AND is_active = true',
-        [pipeline_id, accountId]
-      );
-      if (pipelineCheck.rows.length === 0) {
-        throw new NotFoundError('Pipeline not found in your account');
-      }
-
-      if (stage_id) {
-        const stageCheck = await db.query(
-          'SELECT id FROM pipeline_stages WHERE id = $1 AND pipeline_id = $2',
-          [stage_id, pipeline_id]
-        );
-        if (stageCheck.rows.length === 0) {
-          throw new NotFoundError('Stage not found in the selected pipeline');
-        }
-      }
-    }
-
     // Criar campanha com account_id (multi-tenancy) e sector_id
     const campaignData = {
       user_id: userId,
@@ -374,11 +348,6 @@ const createCampaign = async (req, res) => {
       ai_search_prompt: ai_search_prompt || null,
       target_profiles_count: target_profiles_count || 100,
       current_step: current_step || 1,
-      // CRM Configuration
-      insert_in_crm: insert_in_crm !== false, // Default to true for backward compatibility
-      pipeline_id: insert_in_crm ? (pipeline_id || null) : null,
-      stage_id: insert_in_crm ? (stage_id || null) : null,
-      assignees: insert_in_crm && assignees ? JSON.stringify(assignees) : null,
       // Campos legados
       industry: industry || null,
       location: location || null,
@@ -494,8 +463,10 @@ const deleteCampaign = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
     const accountId = req.user.account_id;
+    const { delete_contacts, delete_opportunities } = req.body || {};
 
     console.log(`🗑️ Deletando campanha ${id} (conta ${accountId})`);
+    console.log(`   Opções: delete_contacts=${delete_contacts}, delete_opportunities=${delete_opportunities}`);
 
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
@@ -539,16 +510,71 @@ const deleteCampaign = async (req, res) => {
       console.log('⚠️ Deletando campanha ativa sem opportunities');
     }
 
+    // Estatísticas do que será deletado
+    let deletedContactsCount = 0;
+    let deletedOpportunitiesCount = 0;
+
+    // Se delete_opportunities = true, deletar opportunities associadas
+    if (delete_opportunities) {
+      const oppsResult = await db.query('DELETE FROM opportunities WHERE campaign_id = $1 RETURNING id', [id]);
+      deletedOpportunitiesCount = oppsResult.rowCount;
+      console.log(`   🗑️ ${deletedOpportunitiesCount} opportunities deletadas`);
+    }
+
+    // Se delete_contacts = true, deletar contacts que estão APENAS nesta campanha
+    if (delete_contacts) {
+      // Primeiro, buscar IDs dos contacts que estão APENAS nesta campanha (não em outras)
+      const contactsToDeleteResult = await db.query(`
+        SELECT cc.contact_id
+        FROM campaign_contacts cc
+        WHERE cc.campaign_id = $1
+        AND NOT EXISTS (
+          SELECT 1 FROM campaign_contacts cc2
+          WHERE cc2.contact_id = cc.contact_id
+          AND cc2.campaign_id != $1
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM opportunities o
+          WHERE o.contact_id = cc.contact_id
+          AND o.campaign_id != $1
+        )
+      `, [id]);
+
+      const contactIdsToDelete = contactsToDeleteResult.rows.map(r => r.contact_id);
+
+      if (contactIdsToDelete.length > 0) {
+        // Deletar contacts (cascade vai deletar campaign_contacts automaticamente)
+        const deleteContactsResult = await db.query(
+          'DELETE FROM contacts WHERE id = ANY($1) RETURNING id',
+          [contactIdsToDelete]
+        );
+        deletedContactsCount = deleteContactsResult.rowCount;
+        console.log(`   🗑️ ${deletedContactsCount} contacts deletados`);
+      }
+    }
+
+    // Sempre deletar campaign_contacts (relacionamento campanha-contato)
+    await db.query('DELETE FROM campaign_contacts WHERE campaign_id = $1', [id]);
+
     // Deletar dados relacionados
     await db.query('DELETE FROM bulk_collection_jobs WHERE campaign_id = $1', [id]);
-    await db.query('DELETE FROM opportunities WHERE campaign_id = $1', [id]);
+    await db.query('DELETE FROM campaign_invite_queue WHERE campaign_id = $1', [id]);
+    await db.query('DELETE FROM campaign_review_config WHERE campaign_id = $1', [id]);
+
+    // Se não pediu para deletar opportunities, mas existem, apenas desvincula da campanha
+    if (!delete_opportunities) {
+      await db.query('UPDATE opportunities SET campaign_id = NULL WHERE campaign_id = $1', [id]);
+    }
 
     // Deletar campanha
     await db.delete('campaigns', { id });
 
     console.log(`✅ Campanha deletada`);
 
-    sendSuccess(res, null, 'Campaign deleted successfully');
+    sendSuccess(res, {
+      deleted_contacts: deletedContactsCount,
+      deleted_opportunities: deletedOpportunitiesCount
+    }, 'Campaign deleted successfully');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);

@@ -39,6 +39,12 @@ const CampaignsPage = () => {
   const [availableAgents, setAvailableAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState(null);
 
+  // Estado para opções de exclusão
+  const [deleteOptions, setDeleteOptions] = useState({
+    deleteContacts: false,
+    deleteOpportunities: false
+  });
+
   // Usar ref para manter referência atualizada de campaigns
   const campaignsRef = useRef(campaigns);
 
@@ -208,13 +214,19 @@ const CampaignsPage = () => {
   const handleDeleteCampaign = async (campaignId) => {
     try {
       setLoadingActions({ ...loadingActions, [campaignId]: 'deleting' });
-      await api.deleteCampaign(campaignId);
+      await api.deleteCampaign(campaignId, deleteOptions);
       setDeleteConfirmation(null);
+      setDeleteOptions({ deleteContacts: false, deleteOpportunities: false });
       await loadCampaigns();
     } catch (error) {
       alert(error.message || t('messages.errorDelete'));
       setLoadingActions({ ...loadingActions, [campaignId]: null });
     }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setDeleteConfirmation(null);
+    setDeleteOptions({ deleteContacts: false, deleteOpportunities: false });
   };
 
   const handleActivateCampaign = async (campaignId) => {
@@ -758,8 +770,8 @@ const CampaignsPage = () => {
       {/* Delete Confirmation Modal */}
       {deleteConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-start gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-start gap-4 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
                 <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
@@ -770,14 +782,67 @@ const CampaignsPage = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {t('messages.confirmDeleteMessage')} <strong>"{deleteConfirmation.name}"</strong>?
                 </p>
-                <p className="text-sm text-red-600 dark:text-red-400 mt-2">
-                  {t('messages.confirmDeleteWarning')}
-                </p>
               </div>
             </div>
+
+            {/* Opções de exclusão */}
+            <div className="mb-6 space-y-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                {t('deleteOptions.title', 'O que deseja excluir junto com a campanha?')}
+              </p>
+
+              <label className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={deleteOptions.deleteContacts}
+                  onChange={(e) => setDeleteOptions(prev => ({ ...prev, deleteContacts: e.target.checked }))}
+                  disabled={loadingActions[deleteConfirmation.id] === 'deleting'}
+                  className="w-4 h-4 mt-0.5 text-red-600 border-gray-300 dark:border-gray-600 rounded focus:ring-red-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {t('deleteOptions.deleteContacts', 'Excluir contatos')}
+                  </span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {t('deleteOptions.deleteContactsHelp', 'Remove contatos que estão apenas nesta campanha')}
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={deleteOptions.deleteOpportunities}
+                  onChange={(e) => setDeleteOptions(prev => ({ ...prev, deleteOpportunities: e.target.checked }))}
+                  disabled={loadingActions[deleteConfirmation.id] === 'deleting'}
+                  className="w-4 h-4 mt-0.5 text-red-600 border-gray-300 dark:border-gray-600 rounded focus:ring-red-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {t('deleteOptions.deleteOpportunities', 'Excluir oportunidades')}
+                  </span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {t('deleteOptions.deleteOpportunitiesHelp', 'Remove todas as oportunidades desta campanha do CRM')}
+                  </p>
+                </div>
+              </label>
+
+              {!deleteOptions.deleteContacts && !deleteOptions.deleteOpportunities && (
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                  {t('deleteOptions.keepDataInfo', 'Os contatos e oportunidades serão mantidos, apenas desvinculados da campanha')}
+                </p>
+              )}
+
+              {(deleteOptions.deleteContacts || deleteOptions.deleteOpportunities) && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded">
+                  {t('deleteOptions.deleteWarning', 'Atenção: esta ação não pode ser desfeita!')}
+                </p>
+              )}
+            </div>
+
             <div className="flex items-center gap-3 justify-end">
               <button
-                onClick={() => setDeleteConfirmation(null)}
+                onClick={handleCloseDeleteModal}
                 disabled={loadingActions[deleteConfirmation.id] === 'deleting'}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors font-medium disabled:opacity-50"
               >

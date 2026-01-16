@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const campaignController = require('../controllers/campaignController');
+const campaignContactsController = require('../controllers/campaignContactsController');
 const { authenticateToken } = require('../middleware/auth');
 const { apiLimiter, campaignLimiter } = require('../middleware/rateLimiter');
 
@@ -84,5 +85,24 @@ router.get('/:id/queue-status', campaignController.getQueueStatus);
 
 // Cancelar campanha (retirar convites pendentes)
 router.post('/:id/cancel', campaignController.cancelCampaign);
+
+// ================================
+// GERENCIAMENTO DE CONTATOS DA CAMPANHA
+// ================================
+
+// Listar contatos da campanha
+router.get('/:id/contacts', campaignContactsController.getCampaignContacts);
+
+// Estatísticas de contatos
+router.get('/:id/contacts/stats', campaignContactsController.getCampaignContactsStats);
+
+// Aprovar contatos (bulk)
+router.patch('/:id/contacts/approve', campaignContactsController.approveContacts);
+
+// Rejeitar contatos (bulk)
+router.patch('/:id/contacts/reject', campaignContactsController.rejectContacts);
+
+// Atualizar status de um contato específico
+router.patch('/:id/contacts/:contactId/status', campaignContactsController.updateContactStatus);
 
 module.exports = router;

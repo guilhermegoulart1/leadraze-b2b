@@ -178,9 +178,13 @@ class ApiService {
     });
   }
 
-  async deleteCampaign(id) {
+  async deleteCampaign(id, options = {}) {
     return this.request(`/campaigns/${id}`, {
       method: 'DELETE',
+      body: JSON.stringify({
+        delete_contacts: options.deleteContacts || false,
+        delete_opportunities: options.deleteOpportunities || false
+      }),
     });
   }
 
@@ -318,6 +322,36 @@ class ApiService {
   async getCampaignLeads(campaignId, params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/opportunities/campaign/${campaignId}?${query}`);
+  }
+
+  // Campaign Contacts (new system - contacts without opportunities)
+  async getCampaignContacts(campaignId, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/campaigns/${campaignId}/contacts?${query}`);
+  }
+
+  async getCampaignContactsStats(campaignId) {
+    return this.request(`/campaigns/${campaignId}/contacts/stats`);
+  }
+
+  async approveContacts(campaignId, contactIds = null, approveAll = false) {
+    return this.request(`/campaigns/${campaignId}/contacts/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        contact_ids: contactIds,
+        approve_all: approveAll
+      }),
+    });
+  }
+
+  async rejectContacts(campaignId, contactIds = null, rejectAll = false) {
+    return this.request(`/campaigns/${campaignId}/contacts/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        contact_ids: contactIds,
+        reject_all: rejectAll
+      }),
+    });
   }
 
   async updateLeadStatus(opportunityId, status) {

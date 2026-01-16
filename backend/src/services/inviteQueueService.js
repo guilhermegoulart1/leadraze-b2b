@@ -112,24 +112,24 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
       throw new Error('Campaign must be reviewed before starting');
     }
 
-    // Get pending opportunities (via first stage)
-    const oppsResult = await client.query(
-      `SELECT o.id, o.linkedin_profile_id, o.title as name, c.name as contact_name
-       FROM opportunities o
-       LEFT JOIN contacts c ON o.contact_id = c.id
-       JOIN pipeline_stages ps ON o.stage_id = ps.id
-       WHERE o.campaign_id = $1 AND ps.position = 0 AND o.sent_at IS NULL
-       ORDER BY o.created_at ASC`,
+    // Get approved campaign_contacts (pending invite)
+    const contactsResult = await client.query(
+      `SELECT cc.id as campaign_contact_id, cc.linkedin_profile_id, cc.contact_id,
+              c.name as contact_name, c.title, c.company
+       FROM campaign_contacts cc
+       JOIN contacts c ON cc.contact_id = c.id
+       WHERE cc.campaign_id = $1 AND cc.status = 'approved'
+       ORDER BY cc.created_at ASC`,
       [campaignId]
     );
 
-    const opportunities = oppsResult.rows;
-    log.step('3/6', `Oportunidades pendentes encontradas: ${opportunities.length}`);
-    opportunities.forEach((o, i) => log.info(`   [${i+1}] ${o.contact_name || o.name} (${o.linkedin_profile_id})`));
+    const campaignContacts = contactsResult.rows;
+    log.step('3/6', `Contatos aprovados encontrados: ${campaignContacts.length}`);
+    campaignContacts.forEach((cc, i) => log.info(`   [${i+1}] ${cc.contact_name} (${cc.linkedin_profile_id})`));
 
-    if (opportunities.length === 0) {
-      log.warn('Nenhuma oportunidade pendente para enfileirar');
-      throw new Error('No pending opportunities to queue');
+    if (campaignContacts.length === 0) {
+      log.warn('Nenhum contato aprovado para enfileirar');
+      throw new Error('No approved contacts to queue');
     }
 
     // Get daily limit and pending count
@@ -155,7 +155,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     });
 
     // Calculate how many invites we can queue today
-    const invitesToday = Math.min(opportunities.length, dailyLimit, availableSlots);
+    const invitesToday = Math.min(campaignContacts.length, dailyLimit, availableSlots);
     log.info(`   Convites para hoje: ${invitesToday}`);
 
     // Calculate random send times for today's invites
@@ -179,10 +179,10 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     let queuedCount = 0;
     log.step('6/6', 'Criando entradas na fila...');
 
-    for (let i = 0; i < opportunities.length; i++) {
-      const opp = opportunities[i];
+    for (let i = 0; i < campaignContacts.length; i++) {
+      const cc = campaignContacts[i];
       const scheduledFor = i < sendTimes.length ? sendTimes[i] : null;
-      const status = scheduledFor ? 'scheduled' : 'pending';
+      const queueStatus = scheduledFor ? 'scheduled' : 'pending';
 
       // Calculate expiration (from when it will be sent)
       const expiresAt = scheduledFor
@@ -191,21 +191,21 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
 
       await client.query(
         `INSERT INTO campaign_invite_queue
-         (account_id, campaign_id, opportunity_id, linkedin_account_id, status, scheduled_for, expires_at, priority)
+         (account_id, campaign_id, campaign_contact_id, linkedin_account_id, status, scheduled_for, expires_at, priority)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [accountId, campaignId, opp.id, campaign.linkedin_account_id, status, scheduledFor, expiresAt, i]
+        [accountId, campaignId, cc.campaign_contact_id, campaign.linkedin_account_id, queueStatus, scheduledFor, expiresAt, i]
       );
 
-      // Update opportunity
+      // Update campaign_contact status to indicate queued
       await client.query(
-        `UPDATE opportunities SET invite_queued_at = NOW() WHERE id = $1`,
-        [opp.id]
+        `UPDATE campaign_contacts SET status = 'invite_queued', updated_at = NOW() WHERE id = $1`,
+        [cc.campaign_contact_id]
       );
 
       const scheduleInfo = scheduledFor
         ? `agendado para ${DateTime.fromJSDate(scheduledFor).toFormat('HH:mm')}`
         : 'pendente (próximo dia)';
-      log.info(`   ✓ ${opp.contact_name || opp.name} - ${status} (${scheduleInfo})`);
+      log.info(`   ✓ ${cc.contact_name} - ${queueStatus} (${scheduleInfo})`);
 
       queuedCount++;
     }
@@ -253,11 +253,11 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
  */
 const getScheduledInvites = async (limit = 10) => {
   const result = await db.query(
-    `SELECT ciq.*, o.linkedin_profile_id, COALESCE(ct.name, o.title) as contact_name, ct.profile_url,
+    `SELECT ciq.*, cc.linkedin_profile_id, cc.contact_id, ct.name as contact_name, ct.profile_url,
             camp.name as campaign_name, la.unipile_account_id
      FROM campaign_invite_queue ciq
-     JOIN opportunities o ON o.id = ciq.opportunity_id
-     LEFT JOIN contacts ct ON ct.id = o.contact_id
+     JOIN campaign_contacts cc ON cc.id = ciq.campaign_contact_id
+     JOIN contacts ct ON ct.id = cc.contact_id
      JOIN campaigns camp ON camp.id = ciq.campaign_id
      JOIN linkedin_accounts la ON la.id = ciq.linkedin_account_id
      WHERE ciq.status = 'scheduled'
@@ -275,16 +275,16 @@ const getScheduledInvites = async (limit = 10) => {
 /**
  * Mark invite as sent
  * @param {string} queueId - Queue entry ID
- * @param {string} opportunityId - Opportunity ID
+ * @param {string} campaignContactId - Campaign Contact ID
  * @param {number} expiryDays - Days until expiration
  */
-const markInviteAsSent = async (queueId, opportunityId, expiryDays = 7) => {
+const markInviteAsSent = async (queueId, campaignContactId, expiryDays = 7) => {
   const expiresAt = DateTime.now().plus({ days: expiryDays }).toJSDate();
 
   log.info('───────────────────────────────────────────────────────────');
   log.info('📤 MARCANDO CONVITE COMO ENVIADO');
   log.info(`   Queue ID: ${queueId}`);
-  log.info(`   Opportunity ID: ${opportunityId}`);
+  log.info(`   Campaign Contact ID: ${campaignContactId}`);
   log.info(`   Expira em: ${expiryDays} dias (${DateTime.fromJSDate(expiresAt).toFormat('dd/MM/yyyy HH:mm')})`);
 
   await db.query(
@@ -295,10 +295,10 @@ const markInviteAsSent = async (queueId, opportunityId, expiryDays = 7) => {
   );
 
   await db.query(
-    `UPDATE opportunities
-     SET sent_at = NOW(), invite_expires_at = $1
+    `UPDATE campaign_contacts
+     SET status = 'invite_sent', invite_sent_at = NOW(), invite_expires_at = $1, updated_at = NOW()
      WHERE id = $2`,
-    [expiresAt, opportunityId]
+    [expiresAt, campaignContactId]
   );
 
   log.success('Convite marcado como ENVIADO');
@@ -307,20 +307,20 @@ const markInviteAsSent = async (queueId, opportunityId, expiryDays = 7) => {
 
 /**
  * Mark invite as accepted
- * @param {string} opportunityId - Opportunity ID
+ * @param {string} campaignContactId - Campaign Contact ID
  */
-const markInviteAsAccepted = async (opportunityId) => {
+const markInviteAsAccepted = async (campaignContactId) => {
   log.info('───────────────────────────────────────────────────────────');
   log.info('🎉 MARCANDO CONVITE COMO ACEITO');
-  log.info(`   Opportunity ID: ${opportunityId}`);
+  log.info(`   Campaign Contact ID: ${campaignContactId}`);
 
   // Update queue entry
   const queueResult = await db.query(
     `UPDATE campaign_invite_queue
      SET status = 'accepted', updated_at = NOW()
-     WHERE opportunity_id = $1 AND status = 'sent'
+     WHERE campaign_contact_id = $1 AND status = 'sent'
      RETURNING id, campaign_id`,
-    [opportunityId]
+    [campaignContactId]
   );
 
   if (queueResult.rows.length > 0) {
@@ -329,21 +329,21 @@ const markInviteAsAccepted = async (opportunityId) => {
     log.warn('   Nenhuma entrada encontrada na fila com status "sent"');
   }
 
-  // Update opportunity
+  // Update campaign_contact
   await db.query(
-    `UPDATE opportunities
-     SET accepted_at = NOW()
+    `UPDATE campaign_contacts
+     SET status = 'invite_accepted', invite_accepted_at = NOW(), updated_at = NOW()
      WHERE id = $1`,
-    [opportunityId]
+    [campaignContactId]
   );
 
   // Decrement pending count
   await db.query(
     `UPDATE campaigns c
      SET pending_invites_count = GREATEST(0, pending_invites_count - 1)
-     FROM opportunities o
-     WHERE o.id = $1 AND c.id = o.campaign_id`,
-    [opportunityId]
+     FROM campaign_contacts cc
+     WHERE cc.id = $1 AND c.id = cc.campaign_id`,
+    [campaignContactId]
   );
 
   log.success('Convite marcado como ACEITO! 🎊');
@@ -356,13 +356,13 @@ const markInviteAsAccepted = async (opportunityId) => {
  */
 const getExpiredInvites = async () => {
   const result = await db.query(
-    `SELECT ciq.*, o.linkedin_profile_id, COALESCE(ct.name, o.title) as contact_name,
+    `SELECT ciq.*, cc.linkedin_profile_id, ct.name as contact_name,
             camp.id as campaign_id, camp.name as campaign_name, camp.account_id,
             crc.withdraw_expired_invites, crc.sector_id, crc.round_robin_users,
             la.unipile_account_id
      FROM campaign_invite_queue ciq
-     JOIN opportunities o ON o.id = ciq.opportunity_id
-     LEFT JOIN contacts ct ON ct.id = o.contact_id
+     JOIN campaign_contacts cc ON cc.id = ciq.campaign_contact_id
+     JOIN contacts ct ON ct.id = cc.contact_id
      JOIN campaigns camp ON camp.id = ciq.campaign_id
      LEFT JOIN campaign_review_config crc ON crc.campaign_id = camp.id
      JOIN linkedin_accounts la ON la.id = ciq.linkedin_account_id
@@ -377,13 +377,13 @@ const getExpiredInvites = async () => {
 /**
  * Mark invite as expired
  * @param {string} queueId - Queue entry ID
- * @param {string} opportunityId - Opportunity ID
+ * @param {string} campaignContactId - Campaign Contact ID
  */
-const markInviteAsExpired = async (queueId, opportunityId) => {
+const markInviteAsExpired = async (queueId, campaignContactId) => {
   log.info('───────────────────────────────────────────────────────────');
   log.info('⏰ MARCANDO CONVITE COMO EXPIRADO');
   log.info(`   Queue ID: ${queueId}`);
-  log.info(`   Opportunity ID: ${opportunityId}`);
+  log.info(`   Campaign Contact ID: ${campaignContactId}`);
 
   await db.query(
     `UPDATE campaign_invite_queue
@@ -393,19 +393,19 @@ const markInviteAsExpired = async (queueId, opportunityId) => {
   );
 
   await db.query(
-    `UPDATE opportunities
-     SET invite_expired_at = NOW()
+    `UPDATE campaign_contacts
+     SET status = 'invite_expired', updated_at = NOW()
      WHERE id = $1`,
-    [opportunityId]
+    [campaignContactId]
   );
 
   // Decrement pending count
   await db.query(
     `UPDATE campaigns c
      SET pending_invites_count = GREATEST(0, pending_invites_count - 1)
-     FROM opportunities o
-     WHERE o.id = $1 AND c.id = o.campaign_id`,
-    [opportunityId]
+     FROM campaign_contacts cc
+     WHERE cc.id = $1 AND c.id = cc.campaign_id`,
+    [campaignContactId]
   );
 
   log.success('Convite marcado como EXPIRADO');
@@ -615,20 +615,22 @@ const cancelCampaignInvites = async (campaignId) => {
     `UPDATE campaign_invite_queue
      SET status = 'withdrawn', withdrawn_at = NOW()
      WHERE campaign_id = $1 AND status IN ('pending', 'scheduled')
-     RETURNING id`,
+     RETURNING id, campaign_contact_id`,
     [campaignId]
   );
 
-  // Update opportunities - reset invite_queued_at
-  await db.query(
-    `UPDATE opportunities o
-     SET invite_queued_at = NULL
-     FROM campaign_invite_queue ciq
-     WHERE ciq.opportunity_id = o.id
-       AND ciq.campaign_id = $1
-       AND ciq.status = 'withdrawn'`,
-    [campaignId]
-  );
+  // Update campaign_contacts - reset to approved status
+  if (result.rows.length > 0) {
+    const campaignContactIds = result.rows.map(r => r.campaign_contact_id).filter(Boolean);
+    if (campaignContactIds.length > 0) {
+      await db.query(
+        `UPDATE campaign_contacts
+         SET status = 'approved', updated_at = NOW()
+         WHERE id = ANY($1)`,
+        [campaignContactIds]
+      );
+    }
+  }
 
   return result.rowCount;
 };
@@ -640,76 +642,62 @@ const cancelCampaignInvites = async (campaignId) => {
  * @returns {object} Report data
  */
 const getCampaignReport = async (campaignId, filters = {}) => {
-  const { status, assignedUserId, page = 1, limit = 50 } = filters;
+  const { status, page = 1, limit = 50 } = filters;
   const offset = (page - 1) * limit;
 
-  let whereClause = 'WHERE o.campaign_id = $1';
+  let whereClause = 'WHERE cc.campaign_id = $1';
   const params = [campaignId];
   let paramIndex = 2;
 
   if (status) {
-    // Filter by invite status (ciq.status) for invite-related filters
-    const inviteStatuses = ['pending', 'scheduled', 'sent', 'accepted', 'expired', 'withdrawn', 'failed'];
-    if (inviteStatuses.includes(status)) {
-      whereClause += ` AND ciq.status = $${paramIndex}`;
-    }
+    whereClause += ` AND cc.status = $${paramIndex}`;
     params.push(status);
     paramIndex++;
   }
 
-  if (assignedUserId) {
-    whereClause += ` AND o.owner_user_id = $${paramIndex}`;
-    params.push(assignedUserId);
-    paramIndex++;
-  }
-
-  // Get opportunities with queue info
-  const oppsResult = await db.query(
-    `SELECT o.*, ct.name as contact_name, ct.company as contact_company,
-            ciq.status as invite_status, ciq.scheduled_for, ciq.sent_at as invite_sent_at,
+  // Get campaign_contacts with contact info and queue info
+  const contactsResult = await db.query(
+    `SELECT cc.*, ct.name as contact_name, ct.company as contact_company, ct.title as contact_title,
+            ct.profile_picture, ct.profile_url,
+            ciq.status as queue_status, ciq.scheduled_for, ciq.sent_at as invite_sent_at,
             ciq.expires_at, ciq.expired_at, ciq.withdrawn_at,
-            u.id as responsible_id, u.name as responsible_name, u.avatar_url as responsible_avatar,
-            EXTRACT(DAY FROM NOW() - o.sent_at) as days_waiting,
-            ps.name as stage_name, ps.position as stage_position
-     FROM opportunities o
-     LEFT JOIN contacts ct ON ct.id = o.contact_id
-     LEFT JOIN campaign_invite_queue ciq ON ciq.opportunity_id = o.id
-     LEFT JOIN users u ON u.id = o.owner_user_id
-     LEFT JOIN pipeline_stages ps ON ps.id = o.stage_id
+            EXTRACT(DAY FROM NOW() - cc.invite_sent_at) as days_waiting
+     FROM campaign_contacts cc
+     JOIN contacts ct ON ct.id = cc.contact_id
+     LEFT JOIN campaign_invite_queue ciq ON ciq.campaign_contact_id = cc.id
      ${whereClause}
-     ORDER BY o.created_at DESC
+     ORDER BY cc.created_at DESC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     [...params, limit, offset]
   );
 
   // Get total count
   const countResult = await db.query(
-    `SELECT COUNT(*) FROM opportunities o
-     LEFT JOIN campaign_invite_queue ciq ON ciq.opportunity_id = o.id
+    `SELECT COUNT(*) FROM campaign_contacts cc
      ${whereClause}`,
     params
   );
 
-  // Get summary stats based on stage and timestamps
+  // Get summary stats based on campaign_contacts status
   const statsResult = await db.query(
     `SELECT
        COUNT(*) as total,
-       COUNT(*) FILTER (WHERE o.sent_at IS NULL) as pending,
-       COUNT(*) FILTER (WHERE o.sent_at IS NOT NULL AND o.accepted_at IS NULL AND o.invite_expired_at IS NULL) as sent,
-       COUNT(*) FILTER (WHERE o.accepted_at IS NOT NULL) as accepted,
-       COUNT(*) FILTER (WHERE o.invite_expired_at IS NOT NULL) as expired,
-       COUNT(*) FILTER (WHERE o.qualifying_started_at IS NOT NULL AND o.qualified_at IS NULL) as qualifying,
-       COUNT(*) FILTER (WHERE o.qualified_at IS NOT NULL) as qualified,
-       COUNT(*) FILTER (WHERE o.scheduled_at IS NOT NULL) as scheduled_meetings,
-       COUNT(*) FILTER (WHERE o.won_at IS NOT NULL) as won,
-       COUNT(*) FILTER (WHERE o.lost_at IS NOT NULL OR o.discarded_at IS NOT NULL) as lost
-     FROM opportunities o
-     WHERE o.campaign_id = $1`,
+       COUNT(*) FILTER (WHERE status = 'collected') as collected,
+       COUNT(*) FILTER (WHERE status = 'approved') as approved,
+       COUNT(*) FILTER (WHERE status = 'rejected') as rejected,
+       COUNT(*) FILTER (WHERE status = 'invite_queued') as queued,
+       COUNT(*) FILTER (WHERE status = 'invite_sent') as sent,
+       COUNT(*) FILTER (WHERE status = 'invite_accepted') as accepted,
+       COUNT(*) FILTER (WHERE status = 'invite_expired') as expired,
+       COUNT(*) FILTER (WHERE status = 'conversation_started') as conversation_started,
+       COUNT(*) FILTER (WHERE status = 'conversation_ended') as conversation_ended
+     FROM campaign_contacts
+     WHERE campaign_id = $1`,
     [campaignId]
   );
 
   return {
-    opportunities: oppsResult.rows,
+    contacts: contactsResult.rows,
     summary: statsResult.rows[0],
     pagination: {
       page,

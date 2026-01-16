@@ -1,11 +1,10 @@
 // frontend/src/components/CampaignWizard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Bot, Users, MapPin, Briefcase, Building2, Database, ChevronRight, Loader2, Crown, ChevronDown } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Bot, Users, MapPin, Briefcase, Crown, ChevronDown, Building } from 'lucide-react';
 import AsyncSelect from 'react-select/async';
 import api from '../services/api';
 import { useTranslation } from 'react-i18next';
 import TagsInput from './TagsInput';
-import RodizioUserSelector from './RodizioUserSelector';
 
 // Hook para detectar dark mode
 const useDarkMode = () => {
@@ -36,22 +35,16 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
   const [aiAgents, setAiAgents] = useState([]);
   const [linkedinAccounts, setLinkedinAccounts] = useState([]);
 
-  // Pipeline/CRM state
-  const [crmProjects, setCrmProjects] = useState([]);
-  const [pipelines, setPipelines] = useState([]);
-  const [pipelineStages, setPipelineStages] = useState([]);
-  const [pipelineUsers, setPipelineUsers] = useState([]);
-  const [loadingPipelines, setLoadingPipelines] = useState(false);
-  const [loadingStages, setLoadingStages] = useState(false);
-
   const [formData, setFormData] = useState({
     // Step 1: Busca
     type: 'automatic', // Always automatic now
     selected_location: null, // Location selecionada pelo usuário
     search_filters: null,
 
-    // Campos estruturados para busca automática (simplificado)
-    manual_job_titles: [], // Apenas cargos
+    // Campos estruturados para busca automática
+    manual_job_titles: [], // Cargos (obrigatório)
+    manual_industries: [], // Setores (opcional)
+    manual_companies: [], // Empresas (opcional)
     searchLinkedinAccountId: '', // Conta LinkedIn para realizar a busca
 
     // Step 2: Coleta
@@ -62,22 +55,13 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     // Step 3: Validação
     linkedin_account_id: '',     // Legacy: single account
     linkedin_account_ids: [],    // New: multiple accounts
-    ai_agent_id: '',
-
-    // Step 4: CRM Configuration
-    insertInCrm: true,           // true = insert in CRM, false = skip
-    projectId: null,             // Optional - for filtering pipelines
-    pipelineId: null,            // Required when insertInCrm - which pipeline to insert leads
-    stageId: null,               // Required when insertInCrm - which stage to insert leads
-    assignees: []                // Array of {id, name, email} in rotation order
+    ai_agent_id: ''
   });
 
   useEffect(() => {
     if (isOpen) {
       loadAIAgents();
       loadLinkedinAccounts();
-      loadCrmProjects();
-      loadPipelines();
     }
   }, [isOpen]);
 
@@ -101,83 +85,6 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     }
   };
 
-  // Load CRM projects (optional, for filtering pipelines)
-  const loadCrmProjects = async () => {
-    try {
-      const response = await api.getCrmProjects();
-      if (response.success) {
-        setCrmProjects(response.data?.projects || response.projects || []);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar projetos:', error);
-    }
-  };
-
-  // Load pipelines (optionally filter by project)
-  const loadPipelines = async (projectId = null) => {
-    try {
-      setLoadingPipelines(true);
-      const params = projectId ? { project_id: projectId } : {};
-      const response = await api.getPipelines(params);
-      if (response.success) {
-        setPipelines(response.data?.pipelines || response.pipelines || []);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar pipelines:', error);
-    } finally {
-      setLoadingPipelines(false);
-    }
-  };
-
-  // Load stages and users for a specific pipeline
-  const loadPipelineData = async (pipelineId) => {
-    if (!pipelineId) {
-      setPipelineStages([]);
-      setPipelineUsers([]);
-      return;
-    }
-    try {
-      setLoadingStages(true);
-      const response = await api.getPipeline(pipelineId);
-      if (response.success) {
-        const pipeline = response.data?.pipeline || response.pipeline;
-        setPipelineStages(pipeline?.stages || []);
-        setPipelineUsers(pipeline?.users || []);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados do pipeline:', error);
-    } finally {
-      setLoadingStages(false);
-    }
-  };
-
-  // Reload pipelines when project changes
-  useEffect(() => {
-    if (formData.projectId !== null) {
-      loadPipelines(formData.projectId);
-      // Clear pipeline/stage/assignees when project changes
-      setFormData(prev => ({
-        ...prev,
-        pipelineId: null,
-        stageId: null,
-        assignees: []
-      }));
-    }
-  }, [formData.projectId]);
-
-  // Load pipeline data when pipeline changes
-  useEffect(() => {
-    if (formData.pipelineId) {
-      loadPipelineData(formData.pipelineId);
-      // Clear stage and assignees when pipeline changes
-      setFormData(prev => ({
-        ...prev,
-        stageId: null,
-        assignees: []
-      }));
-    }
-  }, [formData.pipelineId]);
-
   const handleGenerateFilters = async () => {
     if (!formData.selected_location) {
       setError(t('wizard.errors.selectLocation'));
@@ -198,8 +105,25 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     setError('');
 
     try {
-      // Construir prompt incluindo localização para a IA adaptar ao idioma/contexto correto
-      const structuredPrompt = `Localização: ${formData.selected_location.label}. Cargos: ${formData.manual_job_titles.join(', ')}`;
+      // Construir prompt incluindo todos os campos para a IA adaptar ao idioma/contexto correto
+      let promptParts = [
+        `Localização: ${formData.selected_location.label}`,
+        `Cargos: ${formData.manual_job_titles.join(', ')}`
+      ];
+
+      // Adicionar setores se preenchidos
+      if (formData.manual_industries && formData.manual_industries.length > 0) {
+        const industries = formData.manual_industries.map(i => i.label || i.value).join(', ');
+        promptParts.push(`Setores: ${industries}`);
+      }
+
+      // Adicionar empresas se preenchidas
+      if (formData.manual_companies && formData.manual_companies.length > 0) {
+        const companies = formData.manual_companies.map(c => c.label || c.value).join(', ');
+        promptParts.push(`Empresas: ${companies}`);
+      }
+
+      const structuredPrompt = promptParts.join('. ');
 
       console.log('📝 Prompt estruturado:', structuredPrompt);
 
@@ -207,18 +131,33 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
       console.log('🤖 Filtros recebidos da IA:', result.data.filters);
 
-      // Combinar filtros da IA com a location selecionada pelo usuário
+      // Combinar filtros da IA com os dados selecionados pelo usuário
       const filters = {
         ...result.data.filters,
         location: [formData.selected_location.value] // Usar o ID da location selecionada
       };
 
+      // Adicionar industries selecionados manualmente (sobrescrever IA se o usuário selecionou)
+      if (formData.manual_industries && formData.manual_industries.length > 0) {
+        filters.industries = formData.manual_industries.map(i => i.value || i.label);
+      }
+
+      // Adicionar companies selecionadas manualmente
+      if (formData.manual_companies && formData.manual_companies.length > 0) {
+        filters.companies = formData.manual_companies.map(c => c.value || c.label);
+      }
+
       console.log('✅ Filtros finais combinados:', filters);
+
+      // Determinar nome da campanha baseado nos filtros
+      const campaignNameBase = formData.manual_industries?.length > 0
+        ? formData.manual_industries[0].label
+        : (result.data.filters.industries?.[0] || 'Automática');
 
       setFormData({
         ...formData,
         search_filters: filters,
-        name: `Campanha ${result.data.filters.industries?.[0] || 'Automática'} - ${new Date().toLocaleDateString('pt-BR')}`
+        name: `Campanha ${campaignNameBase} - ${new Date().toLocaleDateString('pt-BR')}`
       });
       setCurrentStep(2);
     } catch (err) {
@@ -288,18 +227,6 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       return;
     }
 
-    // Validar campos CRM se insertInCrm estiver ativo
-    if (formData.insertInCrm) {
-      if (!formData.pipelineId) {
-        setError('Selecione um pipeline para inserir os leads');
-        return;
-      }
-      if (!formData.stageId) {
-        setError('Selecione uma etapa inicial para os leads');
-        return;
-      }
-    }
-
     setIsLoading(true);
 
     try {
@@ -314,13 +241,8 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
         linkedin_account_ids: formData.linkedin_account_ids, // Múltiplas contas para envio
         search_linkedin_account_id: formData.searchLinkedinAccountId, // Conta para busca
         ai_agent_id: formData.ai_agent_id,
-        current_step: 4,
-        status: 'draft',
-        // CRM Configuration
-        insert_in_crm: formData.insertInCrm,
-        pipeline_id: formData.insertInCrm ? formData.pipelineId : null,
-        stage_id: formData.insertInCrm ? formData.stageId : null,
-        assignees: formData.insertInCrm ? formData.assignees.map(u => u.id) : []
+        current_step: 3,
+        status: 'draft'
       });
 
       console.log('✅ Campaign created successfully:', campaign);
@@ -364,12 +286,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       target_profiles_count: 100,
       linkedin_account_id: '',
       linkedin_account_ids: [],
-      ai_agent_id: '',
-      insertInCrm: true,
-      projectId: null,
-      pipelineId: null,
-      stageId: null,
-      assignees: []
+      ai_agent_id: ''
     });
     setError('');
     onClose();
@@ -389,6 +306,46 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       return response.data || [];
     } catch (error) {
       console.error('Erro ao buscar localizações:', error);
+      return [];
+    }
+  };
+
+  // Função para buscar setores via Unipile
+  const fetchIndustrySuggestions = async (inputValue) => {
+    if (!inputValue || inputValue.length < 2) return [];
+    if (!linkedinAccounts.length) return [];
+
+    try {
+      const linkedinAccountId = formData.searchLinkedinAccountId || linkedinAccounts[0]?.id;
+      if (!linkedinAccountId) return [];
+
+      const response = await api.searchIndustries(inputValue, linkedinAccountId);
+      return (response.data || []).map(item => ({
+        value: item,
+        label: item
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar setores:', error);
+      return [];
+    }
+  };
+
+  // Função para buscar empresas via Unipile
+  const fetchCompanySuggestions = async (inputValue) => {
+    if (!inputValue || inputValue.length < 2) return [];
+    if (!linkedinAccounts.length) return [];
+
+    try {
+      const linkedinAccountId = formData.searchLinkedinAccountId || linkedinAccounts[0]?.id;
+      if (!linkedinAccountId) return [];
+
+      const response = await api.searchCompanies(inputValue, linkedinAccountId);
+      return (response.data || []).map(item => ({
+        value: item,
+        label: item
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar empresas:', error);
       return [];
     }
   };
@@ -414,8 +371,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
           {[
             { num: 1, label: t('wizard.steps.search'), internalStep: 1.5 },
             { num: 2, label: t('wizard.steps.collection'), internalStep: 2 },
-            { num: 3, label: t('wizard.steps.validation'), internalStep: 3 },
-            { num: 4, label: 'CRM', internalStep: 4 }
+            { num: 3, label: t('wizard.steps.validation'), internalStep: 3 }
           ].map((step, idx, arr) => {
             const isCurrent = currentStep === step.internalStep;
             const isPast = currentStep > step.internalStep;
@@ -537,32 +493,10 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                           })}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-
-                        {/* Selected account details */}
-                        {selectedAccount && (
-                          <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
-                                {(selectedAccount.profile_name || selectedAccount.linkedin_username || '?').charAt(0).toUpperCase()}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium text-gray-900 dark:text-gray-100">
-                                  {selectedAccount.profile_name || selectedAccount.linkedin_username}
-                                </p>
-                                {isPremiumAccount(selectedAccount) && (
-                                  <Crown className="w-4 h-4 text-amber-500" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })()
                 )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Esta conta será usada para buscar perfis no LinkedIn
-                </p>
               </div>
 
               {/* Location Autocomplete */}
@@ -658,6 +592,182 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 </p>
               </div>
 
+              {/* Setores (opcional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Building className="w-4 h-4" />
+                  {t('wizard.step1_5.industries.label', 'Setores')}
+                  <span className="text-xs text-gray-400 font-normal">({t('wizard.step1_5.optional', 'opcional')})</span>
+                </label>
+                <AsyncSelect
+                  cacheOptions
+                  isMulti
+                  loadOptions={fetchIndustrySuggestions}
+                  onChange={(selected) => setFormData({ ...formData, manual_industries: selected || [] })}
+                  value={formData.manual_industries}
+                  placeholder={t('wizard.step1_5.industries.placeholder', 'Busque por setores...')}
+                  noOptionsMessage={() => t('wizard.step1_5.industries.noOptions', 'Digite para buscar setores')}
+                  loadingMessage={() => t('wizard.step1_5.industries.loading', 'Buscando...')}
+                  isDisabled={!formData.searchLinkedinAccountId}
+                  className="text-sm"
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#374151' : '#fff',
+                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                      '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
+                      boxShadow: 'none',
+                      '&:focus-within': {
+                        borderColor: '#a855f7',
+                        boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)'
+                      }
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#374151' : '#fff',
+                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isFocused
+                        ? (isDarkMode ? '#4b5563' : '#f3f4f6')
+                        : (isDarkMode ? '#374151' : '#fff'),
+                      color: isDarkMode ? '#f3f4f6' : '#111827',
+                      '&:active': {
+                        backgroundColor: isDarkMode ? '#6b7280' : '#e5e7eb'
+                      }
+                    }),
+                    multiValue: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#4b5563' : '#e5e7eb'
+                    }),
+                    multiValueLabel: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#f3f4f6' : '#111827'
+                    }),
+                    multiValueRemove: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280',
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? '#6b7280' : '#d1d5db',
+                        color: isDarkMode ? '#f3f4f6' : '#111827'
+                      }
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#f3f4f6' : '#111827'
+                    }),
+                    placeholder: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    indicatorSeparator: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db'
+                    }),
+                    dropdownIndicator: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    clearIndicator: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    })
+                  }}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t('wizard.step1_5.industries.help', 'Ex: Tecnologia, Financeiro, Saúde')}
+                </p>
+              </div>
+
+              {/* Empresas (opcional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  {t('wizard.step1_5.companies.label', 'Empresas')}
+                  <span className="text-xs text-gray-400 font-normal">({t('wizard.step1_5.optional', 'opcional')})</span>
+                </label>
+                <AsyncSelect
+                  cacheOptions
+                  isMulti
+                  loadOptions={fetchCompanySuggestions}
+                  onChange={(selected) => setFormData({ ...formData, manual_companies: selected || [] })}
+                  value={formData.manual_companies}
+                  placeholder={t('wizard.step1_5.companies.placeholder', 'Busque por empresas...')}
+                  noOptionsMessage={() => t('wizard.step1_5.companies.noOptions', 'Digite para buscar empresas')}
+                  loadingMessage={() => t('wizard.step1_5.companies.loading', 'Buscando...')}
+                  isDisabled={!formData.searchLinkedinAccountId}
+                  className="text-sm"
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#374151' : '#fff',
+                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                      '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
+                      boxShadow: 'none',
+                      '&:focus-within': {
+                        borderColor: '#a855f7',
+                        boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)'
+                      }
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#374151' : '#fff',
+                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isFocused
+                        ? (isDarkMode ? '#4b5563' : '#f3f4f6')
+                        : (isDarkMode ? '#374151' : '#fff'),
+                      color: isDarkMode ? '#f3f4f6' : '#111827',
+                      '&:active': {
+                        backgroundColor: isDarkMode ? '#6b7280' : '#e5e7eb'
+                      }
+                    }),
+                    multiValue: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#4b5563' : '#e5e7eb'
+                    }),
+                    multiValueLabel: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#f3f4f6' : '#111827'
+                    }),
+                    multiValueRemove: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280',
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? '#6b7280' : '#d1d5db',
+                        color: isDarkMode ? '#f3f4f6' : '#111827'
+                      }
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#f3f4f6' : '#111827'
+                    }),
+                    placeholder: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    indicatorSeparator: (base) => ({
+                      ...base,
+                      backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db'
+                    }),
+                    dropdownIndicator: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    }),
+                    clearIndicator: (base) => ({
+                      ...base,
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
+                    })
+                  }}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t('wizard.step1_5.companies.help', 'Ex: Google, Microsoft, Apple')}
+                </p>
+              </div>
+
               <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
                 <p className="text-sm text-purple-800 dark:text-purple-300">
                   <strong>✨ {t('wizard.step1_5.howItWorks')}</strong>
@@ -706,6 +816,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                       <div>
                         <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.jobTitles')}</span>{' '}
                         <span className="text-gray-900 dark:text-gray-100">{formData.search_filters.job_titles.join(', ')}</span>
+                      </div>
+                    )}
+                    {formData.search_filters.companies && formData.search_filters.companies.length > 0 && (
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.companies', 'Empresas:')}</span>{' '}
+                        <span className="text-gray-900 dark:text-gray-100">{formData.search_filters.companies.join(', ')}</span>
                       </div>
                     )}
                   </div>
@@ -883,182 +999,6 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
 
             </div>
           )}
-
-          {/* Step 4: CRM Configuration */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  Configuração do CRM
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Defina como os leads aceitos serão inseridos no seu CRM
-                </p>
-              </div>
-
-              {/* Toggle CRM Insertion */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    Inserir leads automaticamente no CRM
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Leads aceitos serão criados como oportunidades no pipeline selecionado
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, insertInCrm: !formData.insertInCrm })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    formData.insertInCrm ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      formData.insertInCrm ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {formData.insertInCrm && (
-                <>
-                  {/* Project Selection (optional) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <Building2 className="w-4 h-4 inline mr-1" />
-                      Projeto <span className="text-gray-400">(opcional)</span>
-                    </label>
-                    <select
-                      value={formData.projectId || ''}
-                      onChange={(e) => setFormData({ ...formData, projectId: e.target.value || null })}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    >
-                      <option value="">Todos os projetos</option>
-                      {crmProjects.map(project => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Pipeline Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <Database className="w-4 h-4 inline mr-1" />
-                      Pipeline <span className="text-red-500">*</span>
-                    </label>
-                    {loadingPipelines ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Carregando pipelines...
-                      </div>
-                    ) : pipelines.length === 0 ? (
-                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
-                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                          Nenhum pipeline encontrado. Crie pipelines na página de CRM.
-                        </p>
-                      </div>
-                    ) : (
-                      <select
-                        value={formData.pipelineId || ''}
-                        onChange={(e) => setFormData({ ...formData, pipelineId: e.target.value || null })}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      >
-                        <option value="">Selecione um pipeline</option>
-                        {pipelines.map(pipeline => (
-                          <option key={pipeline.id} value={pipeline.id}>
-                            {pipeline.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  {/* Stage Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <ChevronRight className="w-4 h-4 inline mr-1" />
-                      Etapa Inicial <span className="text-red-500">*</span>
-                    </label>
-                    {loadingStages ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Carregando etapas...
-                      </div>
-                    ) : !formData.pipelineId ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                        Selecione um pipeline primeiro
-                      </p>
-                    ) : pipelineStages.length === 0 ? (
-                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
-                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                          Nenhuma etapa encontrada neste pipeline.
-                        </p>
-                      </div>
-                    ) : (
-                      <select
-                        value={formData.stageId || ''}
-                        onChange={(e) => setFormData({ ...formData, stageId: e.target.value || null })}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      >
-                        <option value="">Selecione uma etapa</option>
-                        {pipelineStages.map(stage => (
-                          <option key={stage.id} value={stage.id}>
-                            {stage.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  {/* Rotation Users */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <Users className="w-4 h-4 inline mr-1" />
-                      Rodízio de Atendentes <span className="text-gray-400">(opcional)</span>
-                    </label>
-                    {!formData.pipelineId ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                        Selecione um pipeline primeiro
-                      </p>
-                    ) : pipelineUsers.length === 0 ? (
-                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
-                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                          Nenhum usuário com acesso a este pipeline.
-                        </p>
-                      </div>
-                    ) : (
-                      <RodizioUserSelector
-                        users={pipelineUsers}
-                        selectedUsers={formData.assignees}
-                        onChange={(assignees) => setFormData({ ...formData, assignees })}
-                      />
-                    )}
-                  </div>
-
-                  {/* Info box */}
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      <strong>Como funciona:</strong> Quando um lead aceitar seu convite de conexão,
-                      ele será automaticamente inserido no pipeline e etapa selecionados,
-                      e distribuído entre os atendentes na ordem definida.
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {!formData.insertInCrm && (
-                <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Os leads aceitos não serão inseridos automaticamente no CRM.
-                    Você poderá gerenciá-los manualmente depois.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Footer */}
@@ -1103,7 +1043,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   </>
                 )}
               </button>
-            ) : currentStep < 4 ? (
+            ) : currentStep < 3 ? (
               <button
                 onClick={handleNext}
                 disabled={isLoading}
@@ -1115,7 +1055,7 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={isLoading || formData.linkedin_account_ids.length === 0 || !formData.ai_agent_id || (formData.insertInCrm && (!formData.pipelineId || !formData.stageId))}
+                disabled={isLoading || formData.linkedin_account_ids.length === 0 || !formData.ai_agent_id}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isLoading ? (

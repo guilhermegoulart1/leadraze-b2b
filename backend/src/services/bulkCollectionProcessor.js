@@ -21,9 +21,9 @@ async function processJobs() {
   isProcessing = true;
 
   try {
-    // Buscar jobs pendentes (com account_id, user_id, pipeline_id e stage_id da campanha)
+    // Buscar jobs pendentes (com account_id e user_id da campanha)
     const result = await db.query(
-      `SELECT bcj.*, c.account_id, c.user_id, c.pipeline_id, c.stage_id
+      `SELECT bcj.*, c.account_id, c.user_id
        FROM bulk_collection_jobs bcj
        JOIN campaigns c ON bcj.campaign_id = c.id
        WHERE bcj.status = 'pending'
@@ -228,7 +228,7 @@ async function processJob(job) {
 }
 
 // ================================
-// SALVAR PERFIS COMO CONTACTS + OPPORTUNITIES
+// SALVAR PERFIS COMO CONTACTS + CAMPAIGN_CONTACTS
 // ================================
 async function saveProfiles(profiles, job) {
   let savedCount = 0;
@@ -242,17 +242,17 @@ async function saveProfiles(profiles, job) {
         continue;
       }
 
-      // Verificar se já existe opportunity para este perfil na mesma campanha
-      const existsOppCheck = await db.query(
-        `SELECT o.id, o.campaign_id FROM opportunities o
-         WHERE o.account_id = $1
-         AND o.linkedin_profile_id = $2
-         AND o.campaign_id = $3
+      // Verificar se já existe campaign_contact para este perfil na mesma campanha
+      const existsCheck = await db.query(
+        `SELECT cc.id FROM campaign_contacts cc
+         WHERE cc.account_id = $1
+         AND cc.linkedin_profile_id = $2
+         AND cc.campaign_id = $3
          LIMIT 1`,
         [job.account_id, profileId, job.campaign_id]
       );
 
-      if (existsOppCheck.rows.length > 0) {
+      if (existsCheck.rows.length > 0) {
         console.log(`⏭️ Perfil ${profileId} já existe nesta campanha, pulando`);
         continue;
       }
@@ -350,22 +350,18 @@ async function saveProfiles(profiles, job) {
         console.log(`📇 Novo contact criado: ${contactId}`);
       }
 
-      // 3. Criar opportunity vinculada ao contact
+      // 3. Criar campaign_contact vinculando contact à campanha
       await db.query(
-        `INSERT INTO opportunities
-         (account_id, contact_id, campaign_id, pipeline_id, stage_id, linkedin_profile_id,
-          title, score, source, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+        `INSERT INTO campaign_contacts
+         (campaign_id, contact_id, account_id, status, linkedin_profile_id, provider_id, created_at, updated_at)
+         VALUES ($1, $2, $3, 'collected', $4, $5, NOW(), NOW())
+         ON CONFLICT (campaign_id, contact_id) DO NOTHING`,
         [
-          job.account_id,
-          contactId,
           job.campaign_id,
-          job.pipeline_id,
-          job.stage_id,
+          contactId,
+          job.account_id,
           profileId,
-          name,
-          calculateProfileScore(profile),
-          'linkedin'
+          profile.provider_id || profileId
         ]
       );
 
