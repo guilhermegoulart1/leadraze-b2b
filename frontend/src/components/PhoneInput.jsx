@@ -798,9 +798,9 @@ const PhoneInput = ({
   );
 };
 
-// Funcao para validar telefone
+// Funcao para validar telefone (opcional, mas se fornecido deve ser valido)
 export const validatePhone = (phone, countryCode) => {
-  if (!phone) return 'Telefone e obrigatorio';
+  if (!phone) return null; // Telefone nao e obrigatorio
 
   const country = COUNTRIES.find(c => c.code === countryCode);
   if (!country) return 'Pais invalido';

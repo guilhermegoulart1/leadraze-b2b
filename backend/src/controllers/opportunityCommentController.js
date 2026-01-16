@@ -77,7 +77,21 @@ const getComments = async (req, res) => {
     );
 
     sendSuccess(res, {
-      comments: result.rows,
+      comments: result.rows.map(row => ({
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        content: row.content,
+        mentions: row.mentions || [],
+        attachments: row.attachments,
+        user: {
+          id: row.user_id,
+          name: row.user_name,
+          email: row.user_email,
+          avatar: row.user_avatar
+        },
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      })),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -127,11 +141,21 @@ const createComment = async (req, res) => {
       [userId]
     );
 
+    const row = result.rows[0];
     const comment = {
-      ...result.rows[0],
-      user_name: userResult.rows[0].name,
-      user_email: userResult.rows[0].email,
-      user_avatar: userResult.rows[0].avatar_url
+      id: row.id,
+      opportunityId: row.opportunity_id,
+      content: row.content,
+      mentions: row.mentions || [],
+      attachments: row.attachments,
+      user: {
+        id: row.user_id,
+        name: userResult.rows[0].name,
+        email: userResult.rows[0].email,
+        avatar: userResult.rows[0].avatar_url
+      },
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
     };
 
     console.log(`💬 Comentário criado na oportunidade ${opportunityId}`);

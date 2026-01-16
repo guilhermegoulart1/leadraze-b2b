@@ -50,9 +50,9 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
     { value: 'other', label: 'Outro' }
   ];
 
-  // Validação de email
+  // Validação de email (opcional, mas se fornecido deve ser válido)
   const validateEmail = (email) => {
-    if (!email) return 'Email é obrigatório';
+    if (!email) return null; // Email não é obrigatório
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return 'Email inválido';
     return null;
@@ -146,11 +146,25 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
       errors.name = 'Nome é obrigatório';
     }
 
-    const emailError = validateEmail(newContactData.email);
-    if (emailError) errors.email = emailError;
+    // Validar que pelo menos email OU telefone foi fornecido
+    const hasEmail = newContactData.email && newContactData.email.trim();
+    const hasPhone = newContactData.phone && newContactData.phone.trim();
 
-    const phoneError = validatePhone(newContactData.phone, newContactData.phone_country_code);
-    if (phoneError) errors.phone = phoneError;
+    if (!hasEmail && !hasPhone) {
+      errors.email = 'Informe email ou telefone';
+      errors.phone = 'Informe email ou telefone';
+    } else {
+      // Validar formato apenas se o campo foi preenchido
+      if (hasEmail) {
+        const emailError = validateEmail(newContactData.email);
+        if (emailError) errors.email = emailError;
+      }
+
+      if (hasPhone) {
+        const phoneError = validatePhone(newContactData.phone, newContactData.phone_country_code);
+        if (phoneError) errors.phone = phoneError;
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setContactErrors(errors);
