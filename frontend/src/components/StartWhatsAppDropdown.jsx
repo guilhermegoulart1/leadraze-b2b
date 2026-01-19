@@ -60,7 +60,7 @@ const StartWhatsAppModal = ({
       const [accountsRes, sectorsRes, usersRes] = await Promise.all([
         api.getWhatsAppAccounts(),
         api.getSectors(),
-        api.getUsers()
+        api.getConversationAssignableUsers()
       ]);
 
       if (accountsRes.success) {

@@ -531,6 +531,11 @@ class ApiService {
     return this.request('/conversations/stats');
   }
 
+  // Get assignable users for conversations (no users:view permission required)
+  async getConversationAssignableUsers() {
+    return this.request('/conversations/assignable-users');
+  }
+
   async assignConversation(conversationId, userId) {
     return this.request(`/conversations/${conversationId}/assign`, {
       method: 'POST',

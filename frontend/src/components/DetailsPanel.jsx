@@ -195,7 +195,7 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
 
   const loadUsers = async () => {
     try {
-      const response = await api.getUsers();
+      const response = await api.getConversationAssignableUsers();
       if (response.success) {
         // A API pode retornar response.data.users ou response.data diretamente
         const usersList = Array.isArray(response.data) ? response.data : (response.data?.users || []);

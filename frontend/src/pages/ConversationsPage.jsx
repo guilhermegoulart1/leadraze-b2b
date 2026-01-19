@@ -182,7 +182,7 @@ const ConversationsPage = () => {
 
   const loadUsers = async () => {
     try {
-      const response = await api.getUsers();
+      const response = await api.getConversationAssignableUsers();
       const usersList = Array.isArray(response.data)
         ? response.data
         : (response.data?.users || []);

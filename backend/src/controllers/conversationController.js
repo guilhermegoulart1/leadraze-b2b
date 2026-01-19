@@ -1721,6 +1721,34 @@ const unassignSectorFromConversation = async (req, res) => {
 };
 
 // ================================
+// GET ASSIGNABLE USERS (for conversation assignment)
+// Returns list of active users in the account (no users:view permission required)
+// ================================
+const getAssignableUsers = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+
+    console.log(`👥 Buscando usuários atribuíveis para conta ${accountId}`);
+
+    const usersQuery = `
+      SELECT id, name, email, avatar_url, profile_picture
+      FROM users
+      WHERE account_id = $1 AND is_active = true
+      ORDER BY name ASC
+    `;
+
+    const usersResult = await db.query(usersQuery, [accountId]);
+
+    console.log(`✅ Encontrados ${usersResult.rows.length} usuários atribuíveis`);
+
+    sendSuccess(res, { users: usersResult.rows });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
 // CONVERSATION SUMMARY ENDPOINTS
 // ================================
 
@@ -2089,6 +2117,8 @@ module.exports = {
   unassignConversation,
   assignSectorToConversation,
   unassignSectorFromConversation,
+  // Assignable users (no users:view required)
+  getAssignableUsers,
   // Summary endpoints
   getSummaryStats,
   generateSummary,
