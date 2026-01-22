@@ -64,7 +64,7 @@ const query = async (text, params) => {
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    if (duration > 1000) {
+    if (duration > 3000) {
       console.warn(`⚠️ Slow query (${duration}ms):`, text);
     }
     return res;
