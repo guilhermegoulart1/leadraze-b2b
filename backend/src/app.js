@@ -122,14 +122,12 @@ app.get('/api', (req, res) => {
       auth: '/api/auth',
       profiles: '/api/profiles',
       campaigns: '/api/campaigns',
-      leads: '/api/leads',
       contacts: '/api/contacts',
       conversations: '/api/conversations',
       analytics: '/api/analytics',
       users: '/api/users',
       permissions: '/api/permissions',
       sectors: '/api/sectors',
-      googleMaps: '/api/google-maps',
       googleMapsAgents: '/api/google-maps-agents',
       contactLists: '/api/contact-lists',
       activationAgents: '/api/activation-agents',
@@ -262,12 +260,6 @@ try {
   console.error('❌ Error loading campaign routes:', error.message);
 }
 
-try {
-  app.use('/api/leads', require('./routes/leads'));
-  console.log('✅ Lead routes loaded');
-} catch (error) {
-  console.error('❌ Error loading lead routes:', error.message);
-}
 
 try {
   app.use('/api/tags', require('./routes/tags'));
@@ -367,12 +359,6 @@ try {
   console.error('❌ Error loading contacts routes:', error.message);
 }
 
-try {
-  app.use('/api/google-maps', require('./routes/googleMaps'));
-  console.log('✅ Google Maps search routes loaded');
-} catch (error) {
-  console.error('❌ Error loading Google Maps routes:', error.message);
-}
 
 try {
   app.use('/api/google-maps-agents', require('./routes/googleMapsAgents'));

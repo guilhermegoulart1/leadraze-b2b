@@ -1,5 +1,4 @@
 // backend/src/controllers/leadProductController.js
-// ⚠️ Migrated from lead_products to opportunity_products
 // Uses opportunityId but maintains compatibility with leadId param name in routes
 
 const db = require('../config/database');
