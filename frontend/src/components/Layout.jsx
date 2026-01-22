@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
   Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo,
-  AlertCircle, Check, X, UserPlus, Loader
+  AlertCircle, Check, X, UserPlus, Loader, ClipboardList
 } from 'lucide-react';
 import { onAccountDisconnected } from '../services/ably';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import api from '../services/api';
 import CreditsIndicator from './CreditsIndicator';
 import TrialIndicator from './TrialIndicator';
 import CanceledOverlay from './CanceledOverlay';
+import OnboardingAlert from './OnboardingAlert';
 
 const Layout = () => {
   const location = useLocation();
@@ -31,6 +32,7 @@ const Layout = () => {
   const [unreadMessages, setUnreadMessages] = useState(0); // Real data from API
   const [unreadNotifications, setUnreadNotifications] = useState(0); // System notifications
   const [notifications, setNotifications] = useState([]); // Notification list
+  const [needsOnboarding, setNeedsOnboarding] = useState(false); // Onboarding pending
 
   const isActive = (path) => location.pathname === path;
 
@@ -44,6 +46,37 @@ const Layout = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // ✅ Verificar status do onboarding
+  useEffect(() => {
+    checkOnboardingStatus();
+  }, []);
+
+  // ✅ Escutar evento de onboarding completado
+  useEffect(() => {
+    const handleOnboardingCompleted = () => {
+      setNeedsOnboarding(false);
+    };
+
+    window.addEventListener('onboarding-completed', handleOnboardingCompleted);
+    return () => window.removeEventListener('onboarding-completed', handleOnboardingCompleted);
+  }, []);
+
+  const checkOnboardingStatus = async () => {
+    try {
+      const response = await api.getOnboarding();
+      if (response.success) {
+        const onboarding = response.data.onboarding;
+        if (!onboarding || (onboarding.status !== 'completed' && onboarding.status !== 'reviewed')) {
+          setNeedsOnboarding(true);
+        } else {
+          setNeedsOnboarding(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+    }
+  };
 
   // ✅ Carregar estatísticas de conversas não lidas
   // Atualiza ao montar o componente e quando navega para /conversations
@@ -90,8 +123,9 @@ const Layout = () => {
     try {
       const response = await api.getNotifications({ limit: 10 });
       if (response.success) {
-        setNotifications(response.data || []);
-        const unreadCount = (response.data || []).filter(n => !n.is_read).length;
+        const notifications = response.data?.notifications || [];
+        setNotifications(notifications);
+        const unreadCount = notifications.filter(n => !n.is_read).length;
         setUnreadNotifications(unreadCount);
       }
     } catch (error) {
@@ -126,6 +160,20 @@ const Layout = () => {
       setUnreadNotifications(0);
     } catch (error) {
       console.error('Erro ao marcar todas como lidas:', error);
+    }
+  };
+
+  // Marcar como lido sem navegar (apenas remove da lista do dropdown)
+  const handleMarkAsReadOnly = async (e, notification) => {
+    e.stopPropagation();
+    try {
+      await api.markNotificationAsRead(notification.id);
+      setNotifications(prev => prev.map(n =>
+        n.id === notification.id ? { ...n, is_read: true } : n
+      ));
+      setUnreadNotifications(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
     }
   };
 
@@ -185,6 +233,9 @@ const Layout = () => {
   };
 
   const navItems = [
+    // Onboarding - aparece só quando não está completo
+    ...(needsOnboarding ? [{ path: '/onboarding', label: 'Onboarding', icon: ClipboardList, isOnboarding: true }] : []),
+
     { path: '/', labelKey: 'menu.dashboard', icon: Home, section: null },
 
     // TRABALHO
@@ -306,7 +357,7 @@ const Layout = () => {
             // Nav Item
             const Icon = item.icon;
             const active = isActive(item.path);
-            const label = t(item.labelKey);
+            const label = item.label || t(item.labelKey);
 
             // Links que abrem em nova aba
             if (item.newTab) {
@@ -341,13 +392,15 @@ const Layout = () => {
                 to={item.path}
                 className={`
                   flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative group
-                  ${active
-                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400'
+                  ${item.isOnboarding
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800 animate-pulse'
+                    : active
+                      ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400'
                   }
                 `}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
+                <Icon className={`w-4 h-4 flex-shrink-0 ${item.isOnboarding ? 'animate-bounce' : ''}`} />
                 {!isCollapsed && (
                   <>
                     <span className="text-sm flex-1">{label}</span>
@@ -363,14 +416,17 @@ const Layout = () => {
                     {item.badge > 0 && (
                       <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm" />
                     )}
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-150 z-50 shadow-lg">
+                    {item.isOnboarding && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm animate-ping" />
+                    )}
+                    <div className={`absolute left-full ml-2 px-2 py-1 ${item.isOnboarding ? 'bg-red-600' : 'bg-gray-900 dark:bg-gray-700'} text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-150 z-50 shadow-lg`}>
                       {label}
                       {item.badge > 0 && (
                         <span className="ml-2 px-1.5 py-0.5 bg-red-500 rounded-full text-[10px] font-bold">
                           {item.badge > 99 ? '99+' : item.badge}
                         </span>
                       )}
-                      <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700" />
+                      <div className={`absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent ${item.isOnboarding ? 'border-r-red-600' : 'border-r-gray-900 dark:border-r-gray-700'}`} />
                     </div>
                   </>
                 )}
@@ -580,12 +636,12 @@ const Layout = () => {
                       )}
                     </div>
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {notifications.length === 0 ? (
+                      {notifications.filter(n => !n.is_read).length === 0 ? (
                         <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                          Nenhuma notificação
+                          Nenhuma notificação não lida
                         </div>
                       ) : (
-                        notifications.map((notification) => {
+                        notifications.filter(n => !n.is_read).map((notification) => {
                           const metadata = getNotificationMetadata(notification);
                           const isInvitation = isInvitationNotification(notification);
                           const isHandled = metadata?.handled;
@@ -669,34 +725,39 @@ const Layout = () => {
                                   )}
                                 </div>
 
-                                {!notification.is_read && (
-                                  <span className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0 mt-1" />
-                                )}
+                                <button
+                                  onClick={(e) => handleMarkAsReadOnly(e, notification)}
+                                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex-shrink-0 transition-colors"
+                                  title="Marcar como lido"
+                                >
+                                  <Check className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+                                </button>
                               </div>
                             </div>
                           );
                         })
                       )}
                     </div>
-                    {notifications.length > 0 && (
-                      <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                          onClick={() => {
-                            navigate('/notifications');
-                            setShowNotifications(false);
-                          }}
-                          className="w-full text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 font-medium py-1"
-                        >
-                          Ver todas notificações
-                        </button>
-                      </div>
-                    )}
+                    <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={() => {
+                          navigate('/notifications');
+                          setShowNotifications(false);
+                        }}
+                        className="w-full text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 font-medium py-1"
+                      >
+                        Ver todas notificações
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
             </div>
           </div>
         </header>
+
+        {/* Onboarding Alert - shows when onboarding is not completed */}
+        <OnboardingAlert />
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto">

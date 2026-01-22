@@ -1,0 +1,220 @@
+{
+  "steps": {
+    "company": "Tu Empresa",
+    "customers": "Tus Clientes",
+    "support": "Atención",
+    "finish": "Finalización"
+  },
+  "welcome": {
+    "title": "¡Estamos muy felices de tenerte aquí!",
+    "description": "Completa este formulario para contarnos sobre tu negocio. Con esta información, nuestro equipo creará tus agentes de IA personalizados."
+  },
+  "alert": {
+    "title": "Completa tu Onboarding",
+    "description": "Completa la información de tu negocio para configurar tus agentes de IA.",
+    "button": "Completar Ahora",
+    "dismiss": "Cerrar"
+  },
+  "step1": {
+    "title": "Sobre Tu Empresa",
+    "description": "Cuéntanos sobre lo que hace tu empresa. Esto nos ayuda a crear una comunicación auténtica."
+  },
+  "step2": {
+    "title": "Sobre Tus Clientes",
+    "description": "Ayúdanos a entender quiénes son tus clientes ideales para encontrar a las personas correctas.",
+    "tip": "Piensa en tus mejores clientes - aquellos que dan menos trabajo, pagan a tiempo y te recomiendan a otros. ¡Queremos encontrar más personas así!"
+  },
+  "step3": {
+    "title": "Tu Atención",
+    "description": "Cuéntanos cómo atiendes a tus clientes y qué dudas suelen tener."
+  },
+  "step4": {
+    "title": "Información Final",
+    "description": "Últimas informaciones para finalizar tu registro.",
+    "contactInfo": "Tus Datos de Contacto",
+    "nextStepsTitle": "¿Qué pasa después?",
+    "nextStep1": "Nuestro equipo analiza tus respuestas",
+    "nextStep2": "Creamos tus agentes de IA personalizados",
+    "nextStep3": "Programamos una llamada para mostrar todo funcionando",
+    "nextStep4": "¡Empezamos a prospectar y atender!"
+  },
+  "fields": {
+    "companyName": "Nombre de la Empresa",
+    "website": "Tu Sitio Web",
+    "industry": "¿En qué área trabaja tu empresa?",
+    "description": "Describe lo que hace tu empresa",
+    "productsServices": "¿Cuáles son tus principales productos o servicios?",
+    "differentials": "¿Qué hace diferente a tu empresa de las demás?",
+    "successCases": "¿Tienes algún caso de éxito o resultado para compartir?",
+    "idealCustomer": "¿Quiénes son tus clientes ideales?",
+    "targetRoles": "¿Con quién sueles hablar para cerrar una venta?",
+    "targetLocation": "¿En qué ciudades o regiones atiendes?",
+    "targetIndustries": "¿Qué sectores o nichos atiendes más?",
+    "buyingSignals": "¿Cómo sabes que alguien necesita tu servicio?",
+    "mainProblem": "¿Cuál es el principal problema que resuelves?",
+    "faq": "¿Qué preguntas hacen tus clientes con más frecuencia?",
+    "objections": "¿Cuáles son las objeciones más comunes que escuchas?",
+    "policies": "¿Hay alguna política importante que el servicio deba saber?",
+    "businessHours": "¿Cuál es tu horario de atención?",
+    "escalationTriggers": "¿Cuándo debe pasarse una conversación a ti?",
+    "goals": "¿Qué esperas lograr con GetRaze?",
+    "leadTarget": "¿Cuántos clientes nuevos quieres por mes?",
+    "meetingTarget": "¿Cuántas reuniones quieres programar por mes?",
+    "materialsLinks": "¿Tienes algún material de la empresa que podamos usar?",
+    "calendarLink": "Link de tu calendario para agendamientos",
+    "blacklist": "¿Hay alguien con quien NO debamos contactar?",
+    "additionalNotes": "¿Alguna observación importante?",
+    "contactName": "Tu Nombre",
+    "contactRole": "Tu Cargo",
+    "contactEmail": "Correo Electrónico",
+    "contactPhone": "WhatsApp"
+  },
+  "hints": {
+    "description": "Explica como si estuvieras contándole a alguien que nunca escuchó de tu empresa",
+    "productsServices": "Lista los principales, con una breve descripción y el precio (o rango de precio)",
+    "differentials": "¿Por qué un cliente debería elegirte a ti y no al competidor?",
+    "successCases": "Resultados concretos que tus clientes han alcanzado",
+    "idealCustomer": "¿Qué tipo de empresa o persona te gustaría atender más?",
+    "targetRoles": "¿Cuál es el cargo o función de la persona que decide la compra?",
+    "targetIndustries": "Lista los tipos de empresa que quieres prospectar",
+    "buyingSignals": "¿Qué señales muestran que una empresa necesita tu ayuda?",
+    "mainProblem": "Si tuvieras que resumirlo en una frase, ¿cuál sería?",
+    "faq": "Lista las preguntas que siempre respondes y cómo respondes",
+    "objections": "¿Qué dicen las personas cuando no quieren comprar? ¿Y cómo respondes?",
+    "policies": "Reglas sobre descuentos, plazos, formas de pago, garantías, etc.",
+    "escalationTriggers": "¿En qué momento el agente debe llamar a un humano?",
+    "materialsLinks": "Links a presentaciones, videos, sitio web, etc.",
+    "calendarLink": "Si usas Calendly, Google Calendar, o similar",
+    "blacklist": "Competidores, clientes actuales, socios, etc."
+  },
+  "placeholders": {
+    "select": "Selecciona...",
+    "companyName": "Ej: Tech Solutions",
+    "description": "Ej: Somos una consultoría que ayuda a pequeñas y medianas empresas a implementar sistemas de gestión...",
+    "productsServices": "Ej:\n\n1. Consultoría de Procesos - $1,000 a $3,000\n\n2. Implementación de Sistema - $600 a $1,600",
+    "differentials": "Ej:\n- Tenemos 10 años de experiencia\n- Nuestro equipo está certificado\n- Ofrecemos garantía de resultado",
+    "successCases": "Ej:\n- Cliente X aumentó ventas en 40% en 3 meses\n- Empresa Y redujo costos en 25%",
+    "idealCustomer": "Ej: Dueños de pequeñas empresas de retail, con 5 a 50 empleados, que están creciendo...",
+    "targetRoles": "Ej: Dueño de la empresa, Director, Gerente de TI",
+    "targetLocation": "Ej: Ciudad de México y alrededores, Todo México",
+    "targetIndustries": "Ej:\n- Tiendas de ropa y calzado\n- Restaurantes y bares\n- Clínicas médicas",
+    "buyingSignals": "Ej:\n- Empresa quejándose de desorganización\n- Creciendo rápido y no puede seguir el ritmo",
+    "mainProblem": "Ej: Ayudo a empresas de retail a vender más y tener menos dolores de cabeza con la operación...",
+    "faq": "Ej:\n\nPREGUNTA: ¿Cuánto cuesta?\nRESPUESTA: Depende del tamaño del proyecto. Para pequeñas empresas, nuestros proyectos empiezan en $600...",
+    "objections": "Ej:\n\nOBJECIÓN: 'Es caro'\nCÓMO RESPONDO: Entiendo la preocupación. Nuestros clientes suelen recuperar la inversión en 2-3 meses...",
+    "policies": "Ej:\n- Descuento máximo del 10% para pago en efectivo\n- Aceptamos hasta 6 cuotas sin intereses",
+    "businessHours": "Ej: Lunes a viernes, de 9h a 18h",
+    "leadTarget": "Ej: 10 clientes",
+    "meetingTarget": "Ej: 30 reuniones",
+    "materialsLinks": "Ej:\n- Presentación: https://drive.google.com/...\n- Video institucional: https://youtube.com/...",
+    "blacklist": "Ej:\n- Empresa X (es competidor)\n- Empresa Y (ya es nuestro cliente)",
+    "additionalNotes": "Cualquier información adicional que creas relevante...",
+    "contactName": "Nombre completo",
+    "contactRole": "Ej: Director, Socio, CEO"
+  },
+  "industries": {
+    "technology": "Tecnología / Software",
+    "marketing": "Marketing / Publicidad",
+    "consulting": "Consultoría",
+    "financial": "Servicios Financieros",
+    "accounting": "Contabilidad",
+    "health": "Salud",
+    "education": "Educación",
+    "retail": "Retail / E-commerce",
+    "manufacturing": "Industria",
+    "realestate": "Inmobiliario",
+    "legal": "Jurídico",
+    "hr": "Recursos Humanos",
+    "logistics": "Logística / Transporte",
+    "construction": "Construcción / Arquitectura",
+    "agribusiness": "Agronegocios",
+    "tourism": "Turismo / Hotelería",
+    "foodservice": "Alimentación / Restaurantes",
+    "beauty": "Belleza / Estética",
+    "automotive": "Automotriz",
+    "insurance": "Seguros",
+    "energy": "Energía",
+    "telecom": "Telecomunicaciones",
+    "events": "Eventos",
+    "other": "Otro"
+  },
+  "goals": {
+    "moreClients": "Conseguir más clientes",
+    "moreTime": "Tener más tiempo libre",
+    "betterSupport": "Mejorar la atención",
+    "scaleSales": "Escalar las ventas",
+    "reduceCosts": "Reducir costos",
+    "organizeProspecting": "Organizar la prospección"
+  },
+  "escalation": {
+    "firstContact": "Desde el primer contacto",
+    "replied": "Cuando responda al mensaje",
+    "minimalInterest": "Cuando muestre interés mínimo",
+    "askedPrice": "Cuando pregunte sobre precio",
+    "qualified": "Cuando esté calificado",
+    "wantsMeeting": "Cuando quiera agendar reunión",
+    "wantsToBuy": "Cuando quiera comprar",
+    "wantsNegotiation": "Cuando quiera negociar precio",
+    "hasComplaint": "Cuando tenga una queja",
+    "wantsHuman": "Cuando pida hablar con un humano",
+    "complexQuestion": "Dudas muy específicas"
+  },
+  "buttons": {
+    "back": "Volver",
+    "next": "Siguiente",
+    "saving": "Guardando...",
+    "submit": "Enviar Formulario",
+    "submitting": "Enviando..."
+  },
+  "success": {
+    "title": "¡Formulario Enviado!",
+    "description": "¡Gracias! Hemos recibido tu información y nuestro equipo ya está trabajando en la creación de tus agentes.",
+    "submitted": "¡Onboarding enviado con éxito!",
+    "nextSteps": "¿Qué pasa ahora?",
+    "step1": "Nuestro equipo analiza tus respuestas",
+    "step2": "Creamos tus agentes de IA personalizados",
+    "step3": "Programamos una llamada para mostrar todo funcionando",
+    "step4": "¡Empezamos a prospectar y atender!",
+    "goToDashboard": "Ir al Dashboard"
+  },
+  "errors": {
+    "saveFailed": "Error al guardar. Intenta de nuevo.",
+    "requiredFields": "Completa los campos obligatorios"
+  },
+  "admin": {
+    "title": "Onboardings",
+    "subtitle": "Visualiza y gestiona los onboardings de los clientes",
+    "filters": {
+      "all": "Todos",
+      "pending": "Pendientes",
+      "completed": "Completados",
+      "reviewed": "Revisados"
+    },
+    "table": {
+      "company": "Empresa",
+      "contact": "Contacto",
+      "status": "Estado",
+      "createdAt": "Creado en",
+      "actions": "Acciones"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "completed": "Completado",
+      "reviewed": "Revisado"
+    },
+    "actions": {
+      "view": "Ver",
+      "markReviewed": "Marcar como Revisado"
+    },
+    "modal": {
+      "title": "Detalles del Onboarding",
+      "section1": "Datos de la Empresa",
+      "section2": "Datos de los Clientes",
+      "section3": "Atención",
+      "section4": "Información Final",
+      "contact": "Contacto"
+    },
+    "empty": "No se encontraron onboardings",
+    "reviewedSuccess": "Onboarding marcado como revisado"
+  }
+}

@@ -59,6 +59,9 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
 
   useEffect(() => {
     if (isOpen) {
+      // DEBUG: Log full task object
+      console.log('[TaskModal] Modal opened, task object:', JSON.stringify(task, null, 2));
+
       loadData();
       if (task) {
         // Parse assignees - could be array of objects or array of IDs
@@ -68,6 +71,10 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
         } else if (task.assignedTo) {
           assignees = [task.assignedTo];
         }
+
+        // DEBUG: Log date conversion
+        console.log('[TaskModal] task.dueDate from server:', task.dueDate);
+        console.log('[TaskModal] formatDateForInput result:', task.dueDate ? formatDateForInput(task.dueDate) : '');
 
         setFormData({
           title: task.title || '',
@@ -142,17 +149,24 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
     if (!dateStr) return '';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // Use UTC methods to keep timezone consistent
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   // Auto-save function
   const autoSaveTask = async (updatedData) => {
-    if (!task) return; // Only auto-save for existing tasks
+    // DEBUG: Log auto-save trigger
+    console.log('[TaskModal] autoSaveTask called, task.id:', task?.id);
+
+    if (!task) {
+      console.log('[TaskModal] No task, skipping auto-save');
+      return; // Only auto-save for existing tasks
+    }
 
     setAutoSaving(true);
     try {
@@ -167,10 +181,17 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
         lead_id: (leadId || updatedData.lead_id) || null
       };
 
-      await api.updateTask(task.id, payload);
+      // DEBUG: Log payload being sent
+      console.log('[TaskModal] autoSaveTask payload:', JSON.stringify(payload, null, 2));
+
+      const response = await api.updateTask(task.id, payload);
+
+      // DEBUG: Log response
+      console.log('[TaskModal] autoSaveTask response:', response);
+
       onSave?.();
     } catch (error) {
-      console.error('Error auto-saving task:', error);
+      console.error('[TaskModal] Error auto-saving task:', error);
     } finally {
       setAutoSaving(false);
     }
@@ -178,6 +199,10 @@ const TaskModal = ({ isOpen, onClose, task = null, leadId = null, onSave, isNest
 
   // Debounced auto-save
   const handleFieldChange = (field, value) => {
+    // DEBUG: Log field change
+    console.log('[TaskModal] handleFieldChange:', field, '=', value);
+    console.log('[TaskModal] task exists:', !!task, 'task.id:', task?.id);
+
     const updatedData = { ...formData, [field]: value };
     setFormData(updatedData);
 

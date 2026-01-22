@@ -1,5 +1,6 @@
 // frontend/src/components/ChatArea.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
@@ -18,6 +19,7 @@ import UnifiedContactModal from './UnifiedContactModal';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const { t, i18n } = useTranslation('conversations');
+  const navigate = useNavigate();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -1796,11 +1798,11 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   {showQuickReplies && filteredQuickReplies.length > 0 && (
                     <div
                       ref={quickRepliesRef}
-                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
+                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-72 overflow-y-auto z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
                     >
-                      <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {t('chatArea.quickReplies', 'Respostas Rápidas')} • {t('chatArea.useArrowKeys', 'Use ↑↓ para navegar, Enter para selecionar')}
+                      <div className="sticky top-0 p-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/90 backdrop-blur-sm rounded-t-xl">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                          {t('chatArea.quickReplies', 'Respostas Rápidas')} • <span className="text-gray-400 dark:text-gray-500">{t('chatArea.useArrowKeys', 'Use ↑↓ para navegar, Enter para selecionar')}</span>
                         </p>
                       </div>
                       {filteredQuickReplies.map((reply, index) => (
@@ -1808,10 +1810,10 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                           key={reply.id}
                           type="button"
                           onClick={() => insertQuickReply(reply)}
-                          className={`w-full text-left px-3 py-2 transition-colors ${
+                          className={`w-full text-left px-3 py-2.5 transition-all duration-150 border-l-2 ${
                             index === selectedQuickReplyIndex
-                              ? 'bg-purple-50 dark:bg-purple-900/30'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                              ? 'bg-purple-50 dark:bg-purple-900/30 border-l-purple-500'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-transparent'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1829,22 +1831,42 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                             {reply.content}
                           </p>
                         </button>
                       ))}
                     </div>
                   )}
-                  {/* Empty state when no quick replies match */}
+                  {/* Empty state when no quick replies match filter */}
                   {showQuickReplies && filteredQuickReplies.length === 0 && quickReplies.length > 0 && (
                     <div
                       ref={quickRepliesRef}
-                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-50"
+                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
                     >
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                        {t('chatArea.noQuickRepliesFound', 'Nenhuma resposta encontrada')}
+                        {t('chatArea.noQuickRepliesFound', 'Nenhuma resposta encontrada para')} "<span className="font-medium text-gray-700 dark:text-gray-300">{quickReplyFilter}</span>"
                       </p>
+                    </div>
+                  )}
+                  {/* Empty state when no quick replies configured */}
+                  {showQuickReplies && quickReplies.length === 0 && (
+                    <div
+                      ref={quickRepliesRef}
+                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+                    >
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          {t('chatArea.noQuickRepliesConfigured', 'Você ainda não tem respostas rápidas configuradas')}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/config?tab=quick-replies')}
+                          className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium hover:underline"
+                        >
+                          {t('chatArea.configureQuickReplies', 'Configurar respostas rápidas →')}
+                        </button>
+                      </div>
                     </div>
                   )}
                   <textarea

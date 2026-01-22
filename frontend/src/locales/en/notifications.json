@@ -1,0 +1,17 @@
+{
+  "title": "Notifications",
+  "filters": {
+    "all": "All",
+    "unread": "Unread",
+    "read": "Read"
+  },
+  "markAsRead": "Mark as read",
+  "markAllAsRead": "Mark all as read",
+  "noNotifications": "No notifications",
+  "noUnread": "No unread notifications",
+  "noRead": "No read notifications",
+  "accept": "Accept",
+  "reject": "Reject",
+  "loading": "Loading...",
+  "loadMore": "Load more notifications"
+}

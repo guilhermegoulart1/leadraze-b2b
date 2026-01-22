@@ -648,7 +648,8 @@ const updateOpportunity = async (req, res) => {
       loss_reason_id,
       loss_notes,
       custom_fields,
-      tags
+      tags,
+      source
     } = req.body;
 
     const { opportunity } = await checkOpportunityAccess(userId, id, accountId);
@@ -716,6 +717,15 @@ const updateOpportunity = async (req, res) => {
       updates.push(`custom_fields = $${paramIndex}`);
       values.push(JSON.stringify(custom_fields));
       paramIndex++;
+    }
+
+    if (source !== undefined) {
+      updates.push(`source = $${paramIndex}`);
+      values.push(source);
+      paramIndex++;
+      if (source !== opportunity.source) {
+        changes.push({ field: 'source', from: opportunity.source, to: source });
+      }
     }
 
     if (updates.length === 0 && !tags) {

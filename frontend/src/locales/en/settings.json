@@ -4,6 +4,7 @@
   "configTabs": {
     "products": "Products",
     "discardReasons": "Discard Reasons",
+    "leadSources": "Sources",
     "tags": "Tags",
     "apiKeys": "API Key",
     "channels": "Connected Channels",

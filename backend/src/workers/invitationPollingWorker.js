@@ -125,36 +125,44 @@ async function processAccountInvitations(account) {
     }
 
     // This is a NEW invitation!
-    log.success(`  NEW invitation from: ${invitation.name || invitation.inviter_name || 'Unknown'}`);
+    // Extract from nested inviter object (Unipile API structure)
+    const inviter = invitation.inviter || {};
 
-    // Extract invitation details
-    const inviterName = invitation.name
+    log.success(`  NEW invitation from: ${inviter.inviter_name || invitation.name || 'Unknown'}`);
+
+    // Extract invitation details matching Unipile's nested structure
+    const inviterName = inviter.inviter_name
+      || invitation.name
       || invitation.inviter_name
       || invitation.display_name
       || [invitation.first_name, invitation.last_name].filter(Boolean).join(' ')
       || 'Usuario LinkedIn';
 
-    const inviterId = invitation.provider_id
+    const inviterId = inviter.inviter_id
+      || invitation.provider_id
       || invitation.inviter_provider_id
       || invitation.user_provider_id
       || null;
 
-    const headline = invitation.headline
+    const headline = inviter.inviter_description
+      || invitation.headline
       || invitation.title
       || null;
 
-    const profilePicture = invitation.profile_picture
+    const profilePicture = inviter.inviter_profile_picture_url
+      || invitation.profile_picture
       || invitation.profile_picture_url
       || invitation.picture_url
       || invitation.inviter_picture
       || null;
 
-    const invitationMessage = invitation.message
+    const invitationMessage = invitation.invitation_text
+      || invitation.message
       || invitation.invitation_message
       || null;
 
-    const publicIdentifier = invitation.public_identifier
-      || invitation.inviter_public_identifier
+    const publicIdentifier = inviter.inviter_public_identifier
+      || invitation.public_identifier
       || null;
 
     // 1. Save to snapshot

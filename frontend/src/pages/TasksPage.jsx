@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Plus, RefreshCw, Calendar, CheckCircle2, Clock, AlertCircle,
+  Plus, RefreshCw, Calendar as CalendarIcon, CheckCircle2, Clock, AlertCircle,
   ChevronDown, ChevronRight, Filter, User, MoreHorizontal, Check, X, Link as LinkIcon,
   Loader, LayoutGrid, List, Phone, Video, Mail, MessageSquare, FileCheck
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../services/api';
 import TaskModal from '../components/TaskModal';
+import { CalendarView } from '../components/calendar';
 import { useAuth } from '../contexts/AuthContext';
 
 const TASK_TYPES = {
@@ -61,6 +62,7 @@ const TasksPage = () => {
   const [users, setUsers] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+  const [calendarRefreshTrigger, setCalendarRefreshTrigger] = useState(0);
 
   useEffect(() => {
     setTasks({});  // Clear tasks to show spinner during view switch
@@ -82,6 +84,8 @@ const TasksPage = () => {
       setTasks(boardResponse.data?.grouped || {});
       setUsers(usersResponse.data?.users || []);
       setError('');
+      // Trigger calendar refresh
+      setCalendarRefreshTrigger(prev => prev + 1);
     } catch (err) {
       console.error('Error loading tasks:', err);
       setError(t('error'));
@@ -389,7 +393,7 @@ const TasksPage = () => {
                 {/* Due Date with calendar icon */}
                 {task.dueDate && (
                   <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                    <Calendar className="w-3 h-3" />
+                    <CalendarIcon className="w-3 h-3" />
                     <span className="text-xs">
                       {formatDate(task.dueDate)}
                     </span>
@@ -766,7 +770,7 @@ const TasksPage = () => {
 
           {/* Period Filter */}
           <div className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+            <CalendarIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <select
               value={filters.period}
               onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
@@ -834,6 +838,13 @@ const TasksPage = () => {
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`p-1 rounded ${viewMode === 'calendar' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300'}`}
+              title={t('viewMode.calendar')}
+            >
+              <CalendarIcon className="w-4 h-4" />
+            </button>
           </div>
 
           <button
@@ -896,7 +907,21 @@ const TasksPage = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {viewMode === 'board' ? (
+        {viewMode === 'calendar' ? (
+          /* Calendar View */
+          <div className="h-full px-6 py-4">
+            <CalendarView
+              filters={filters}
+              onTaskClick={handleEditTask}
+              onTaskCreate={(dateTime) => {
+                setSelectedTask({ prefillDueDate: dateTime });
+                setShowTaskModal(true);
+              }}
+              onRefresh={loadData}
+              refreshTrigger={calendarRefreshTrigger}
+            />
+          </div>
+        ) : viewMode === 'board' ? (
           /* Board View */
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="h-full px-6 py-4 overflow-auto">

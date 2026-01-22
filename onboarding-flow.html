@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GetRaze - Onboarding</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 40px;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .progress-step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            z-index: 2;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .progress-step.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .progress-step.completed {
+            background: #10b981;
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-label {
+            font-size: 0.75em;
+            color: #666;
+            text-align: center;
+            width: 80px;
+            margin-left: -20px;
+        }
+
+        .progress-label.active {
+            color: #667eea;
+        }
+
+        /* Form Sections */
+        .form-section {
+            display: none;
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-description {
+            color: #a0a0a0;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+
+        .form-group label .required {
+            color: #ef4444;
+            margin-left: 4px;
+        }
+
+        .form-group label .hint {
+            font-weight: 400;
+            color: #666;
+            font-size: 0.85em;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        /* Checkbox/Radio Groups */
+        .checkbox-group,
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .checkbox-item,
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .checkbox-item:hover,
+        .radio-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .checkbox-item.selected,
+        .radio-item.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-item input,
+        .radio-item input {
+            width: 20px;
+            height: 20px;
+            accent-color: #667eea;
+        }
+
+        /* Two Column Layout */
+        .two-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .two-cols {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-box .icon {
+            font-size: 1.2em;
+        }
+
+        .info-box p {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        /* Subsection */
+        .subsection {
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .subsection-title {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Buttons */
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Tags Input */
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            min-height: 50px;
+        }
+
+        .tag {
+            background: rgba(102, 126, 234, 0.3);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tag .remove {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .tag .remove:hover {
+            opacity: 1;
+        }
+
+        .tags-input {
+            border: none !important;
+            background: transparent !important;
+            flex: 1;
+            min-width: 150px;
+            padding: 6px !important;
+        }
+
+        /* Example Text */
+        .example {
+            color: #666;
+            font-size: 0.85em;
+            font-style: italic;
+            margin-top: 6px;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 30px 0;
+        }
+
+        /* Success Message */
+        .success-message {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .success-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 2em;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .success-description {
+            color: #a0a0a0;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .form-section {
+                display: block !important;
+                page-break-inside: avoid;
+                border: 1px solid #ccc;
+                margin-bottom: 20px;
+            }
+            .buttons, .progress-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">GetRaze</div>
+            <div class="subtitle">Formulário de Onboarding</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-step active" data-step="1">1</div>
+                <div class="progress-step" data-step="2">2</div>
+                <div class="progress-step" data-step="3">3</div>
+                <div class="progress-step" data-step="4">4</div>
+                <div class="progress-step" data-step="5">5</div>
+            </div>
+            <div class="progress-labels">
+                <span class="progress-label active">Empresa</span>
+                <span class="progress-label">Prospecção</span>
+                <span class="progress-label">Atendimento</span>
+                <span class="progress-label">Canais</span>
+                <span class="progress-label">Revisão</span>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 1: Dados da Empresa -->
+        <div class="form-section active" id="section-1">
+            <h2 class="section-title">🏢 Dados da Empresa</h2>
+            <p class="section-description">Informações básicas sobre sua empresa para personalizar a experiência.</p>
+
+            <div class="two-cols">
+                <div class="form-group">
+                    <label>Nome da Empresa <span class="required">*</span></label>
+                    <input type="text" placeholder="Ex: Tech Solutions Ltda">
+                </div>
+                <div class="form-group">
+                    <label>Website</label>
+                    <input type="url" placeholder="https://suaempresa.com.br">
+                </div>
+            </div>
+
+            <div class="two-cols">
+                <div class="form-group">
+                    <label>Segmento de Atuação <span class="required">*</span></label>
+                    <select>
+                        <option value="">Selecione...</option>
+                        <option value="tecnologia">Tecnologia / Software</option>
+                        <option value="marketing">Marketing / Publicidade</option>
+                        <option value="consultoria">Consultoria</option>
+                        <option value="financeiro">Serviços Financeiros</option>
+                        <option value="saude">Saúde</option>
+                        <option value="educacao">Educação</option>
+                        <option value="varejo">Varejo / E-commerce</option>
+                        <option value="industria">Indústria</option>
+                        <option value="imobiliario">Imobiliário</option>
+                        <option value="juridico">Jurídico</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tamanho da Empresa</label>
+                    <select>
+                        <option value="">Selecione...</option>
+                        <option value="1-10">1-10 funcionários</option>
+                        <option value="11-50">11-50 funcionários</option>
+                        <option value="51-200">51-200 funcionários</option>
+                        <option value="201-500">201-500 funcionários</option>
+                        <option value="500+">500+ funcionários</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Descrição da Empresa <span class="required">*</span>
+                    <span class="hint">Descreva o que sua empresa faz, principais produtos/serviços</span>
+                </label>
+                <textarea placeholder="Ex: Somos uma empresa de consultoria em transformação digital que ajuda PMEs a implementar soluções tecnológicas para aumentar produtividade e reduzir custos operacionais..."></textarea>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">📦 Produtos/Serviços Principais</h3>
+
+                <div class="form-group">
+                    <label>Liste seus principais produtos ou serviços <span class="required">*</span>
+                        <span class="hint">Descreva cada produto/serviço com nome, descrição e faixa de preço</span>
+                    </label>
+                    <textarea placeholder="1. Consultoria em Processos - Análise e otimização de processos empresariais - R$ 5.000 a R$ 15.000&#10;2. Implementação de CRM - Setup e treinamento de CRM - R$ 3.000 a R$ 8.000&#10;3. Automação de Marketing - Configuração de fluxos automatizados - R$ 2.000/mês"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">💎 Diferenciais Competitivos</h3>
+
+                <div class="form-group">
+                    <label>O que diferencia sua empresa da concorrência? <span class="required">*</span></label>
+                    <textarea placeholder="Ex: &#10;- 15 anos de experiência no mercado&#10;- Equipe certificada pelas principais ferramentas&#10;- Metodologia própria com resultados comprovados&#10;- Suporte 24/7&#10;- Garantia de satisfação ou dinheiro de volta"></textarea>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <div></div>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 2: Agente de Prospecção -->
+        <div class="form-section" id="section-2">
+            <h2 class="section-title">🎯 Agente de Prospecção</h2>
+            <p class="section-description">Configure seu agente de IA para prospectar novos clientes automaticamente.</p>
+
+            <div class="info-box">
+                <span class="icon">💡</span>
+                <p>O Agente de Prospecção vai buscar leads qualificados, iniciar conversas e agendar reuniões automaticamente. Quanto mais detalhes você fornecer, melhor será a performance.</p>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">👤 Perfil de Cliente Ideal (ICP)</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Cargo/Função do decisor <span class="required">*</span>
+                            <span class="hint">Quem toma a decisão de compra?</span>
+                        </label>
+                        <input type="text" placeholder="Ex: CEO, Diretor de Marketing, Gerente de TI">
+                    </div>
+                    <div class="form-group">
+                        <label>Tamanho da empresa alvo</label>
+                        <select>
+                            <option value="">Selecione...</option>
+                            <option value="micro">Micro (1-9 funcionários)</option>
+                            <option value="pequena">Pequena (10-49 funcionários)</option>
+                            <option value="media">Média (50-249 funcionários)</option>
+                            <option value="grande">Grande (250+ funcionários)</option>
+                            <option value="todas">Todas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Segmentos/Nichos alvo <span class="required">*</span>
+                        <span class="hint">Quais setores você quer prospectar?</span>
+                    </label>
+                    <textarea placeholder="Ex: &#10;- Agências de marketing digital&#10;- Escritórios de advocacia&#10;- Clínicas médicas e odontológicas&#10;- E-commerces de moda&#10;- Startups de tecnologia"></textarea>
+                </div>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Localização geográfica</label>
+                        <input type="text" placeholder="Ex: São Paulo, Rio de Janeiro, Brasil">
+                    </div>
+                    <div class="form-group">
+                        <label>Faturamento mínimo (se aplicável)</label>
+                        <input type="text" placeholder="Ex: R$ 500.000/ano">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Sinais de que o lead está pronto para comprar
+                        <span class="hint">Indicadores que mostram que o lead precisa da sua solução</span>
+                    </label>
+                    <textarea placeholder="Ex: &#10;- Empresa em crescimento (contratando)&#10;- Mencionou problemas com processo atual&#10;- Buscando soluções no LinkedIn&#10;- Empresa nova no mercado&#10;- Recebeu investimento recentemente"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">💬 Comunicação e Abordagem</h3>
+
+                <div class="form-group">
+                    <label>Tom de voz desejado <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="tom_prospeccao" value="formal">
+                            <span>Formal e Corporativo</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tom_prospeccao" value="profissional">
+                            <span>Profissional e Amigável</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tom_prospeccao" value="casual">
+                            <span>Casual e Descontraído</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tom_prospeccao" value="consultivo">
+                            <span>Consultivo e Educativo</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Proposta de valor principal <span class="required">*</span>
+                        <span class="hint">Qual o principal benefício que você entrega? (1-2 frases)</span>
+                    </label>
+                    <textarea placeholder="Ex: Ajudamos empresas a triplicar suas vendas B2B em 90 dias usando automação inteligente e prospecção ativa, sem aumentar a equipe comercial."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Cases de sucesso / Resultados comprovados
+                        <span class="hint">Exemplos reais para usar na abordagem</span>
+                    </label>
+                    <textarea placeholder="Ex: &#10;- Cliente X aumentou vendas em 150% em 3 meses&#10;- Empresa Y reduziu custo de aquisição em 40%&#10;- Z gerou 500 leads qualificados no primeiro mês"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Objetivo da prospecção <span class="required">*</span></label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="reuniao">
+                            <span>Agendar reunião/demonstração</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="qualificar">
+                            <span>Qualificar interesse</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="orcamento">
+                            <span>Enviar orçamento/proposta</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="trial">
+                            <span>Oferecer trial/demonstração</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">🚫 Objeções Comuns</h3>
+
+                <div class="form-group">
+                    <label>Quais as objeções mais comuns e como respondê-las? <span class="required">*</span>
+                        <span class="hint">Liste as objeções e a melhor forma de contorná-las</span>
+                    </label>
+                    <textarea placeholder="Ex:&#10;&#10;OBJEÇÃO: 'Está muito caro'&#10;RESPOSTA: Nosso ROI médio é de 300% em 6 meses. Posso mostrar cases de clientes do seu segmento?&#10;&#10;OBJEÇÃO: 'Já tenho uma solução'&#10;RESPOSTA: Entendo! Muitos clientes migraram de outras soluções. O que você sente que poderia ser melhor na sua ferramenta atual?&#10;&#10;OBJEÇÃO: 'Preciso pensar'&#10;RESPOSTA: Claro! Que tal eu enviar um material com cases do seu segmento para ajudar na decisão?"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">⚙️ Configurações de Prospecção</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Quantidade de abordagens por dia</label>
+                        <select>
+                            <option value="10-20">10-20 (Conservador)</option>
+                            <option value="20-50" selected>20-50 (Moderado)</option>
+                            <option value="50-100">50-100 (Agressivo)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Horário de prospecção</label>
+                        <select>
+                            <option value="comercial">Horário comercial (9h-18h)</option>
+                            <option value="manha">Manhã (8h-12h)</option>
+                            <option value="tarde">Tarde (14h-18h)</option>
+                            <option value="flexivel">Flexível</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Quando escalar para um humano?
+                        <span class="hint">Em quais situações o agente deve passar para sua equipe?</span>
+                    </label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="interesse" checked>
+                            <span>Lead demonstrou interesse real</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="reuniao" checked>
+                            <span>Quer agendar reunião</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="preco">
+                            <span>Perguntou sobre preço</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="objecao">
+                            <span>Objeção complexa</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 3: Agente de Atendimento -->
+        <div class="form-section" id="section-3">
+            <h2 class="section-title">💬 Agente de Atendimento</h2>
+            <p class="section-description">Configure seu agente de IA para atender clientes e leads automaticamente.</p>
+
+            <div class="info-box">
+                <span class="icon">💡</span>
+                <p>O Agente de Atendimento responde dúvidas, qualifica leads, fornece informações e encaminha para sua equipe quando necessário. Funciona 24/7.</p>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">🎭 Personalidade do Agente</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Nome do Agente</label>
+                        <input type="text" placeholder="Ex: Ana, Carlos, Assistente Virtual">
+                    </div>
+                    <div class="form-group">
+                        <label>Gênero</label>
+                        <select>
+                            <option value="feminino">Feminino</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="neutro">Neutro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tom de voz do atendimento <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="tom_atendimento" value="formal">
+                            <span>Formal e Institucional</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tom_atendimento" value="amigavel">
+                            <span>Amigável e Prestativo</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tom_atendimento" value="descontraido">
+                            <span>Descontraído e Jovem</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="tom_atendimento" value="tecnico">
+                            <span>Técnico e Especializado</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem de boas-vindas <span class="required">*</span></label>
+                    <textarea placeholder="Ex: Olá! 👋 Sou a Ana, assistente virtual da [Empresa]. Estou aqui para ajudar você! Como posso te ajudar hoje?"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">❓ Perguntas Frequentes (FAQ)</h3>
+
+                <div class="form-group">
+                    <label>Liste as perguntas mais frequentes e suas respostas <span class="required">*</span>
+                        <span class="hint">Quanto mais completo, melhor o atendimento</span>
+                    </label>
+                    <textarea style="min-height: 200px;" placeholder="PERGUNTA: Qual o horário de funcionamento?&#10;RESPOSTA: Funcionamos de segunda a sexta, das 9h às 18h. Mas você pode falar comigo a qualquer momento!&#10;&#10;PERGUNTA: Como funciona o serviço?&#10;RESPOSTA: [Explicar detalhadamente o funcionamento]&#10;&#10;PERGUNTA: Qual o preço?&#10;RESPOSTA: Nossos planos começam a partir de R$ X. Quer que eu te explique as opções?&#10;&#10;PERGUNTA: Vocês têm garantia?&#10;RESPOSTA: Sim! Oferecemos garantia de X dias. Se não ficar satisfeito, devolvemos seu dinheiro.&#10;&#10;PERGUNTA: Como faço para contratar?&#10;RESPOSTA: É simples! Posso agendar uma conversa com nosso consultor para entender melhor suas necessidades?"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">🛡️ Políticas e Regras</h3>
+
+                <div class="form-group">
+                    <label>Política de preços
+                        <span class="hint">O agente pode falar preços? Se sim, quais?</span>
+                    </label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="politica_preco" value="nao">
+                            <span>Não informar preços</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="politica_preco" value="faixa">
+                            <span>Informar faixa de preço</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="politica_preco" value="tabela">
+                            <span>Informar tabela completa</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="politica_preco" value="consultor">
+                            <span>Encaminhar para consultor</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Política de descontos</label>
+                    <textarea placeholder="Ex: O agente pode oferecer até 10% de desconto para pagamento à vista. Para descontos maiores, deve encaminhar para um consultor."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>O que o agente NÃO deve fazer?
+                        <span class="hint">Limites e restrições importantes</span>
+                    </label>
+                    <textarea placeholder="Ex:&#10;- Nunca prometer prazos específicos de entrega&#10;- Não falar mal da concorrência&#10;- Não fazer promessas que não podemos cumprir&#10;- Não compartilhar informações de outros clientes"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">🔄 Escalação para Humanos</h3>
+
+                <div class="form-group">
+                    <label>Quando o agente deve transferir para um humano? <span class="required">*</span></label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="reclamacao" checked>
+                            <span>Reclamações ou insatisfação</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="negociacao">
+                            <span>Negociação de preço</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="tecnico">
+                            <span>Problemas técnicos complexos</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="solicitacao" checked>
+                            <span>Cliente solicita atendimento humano</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="fechamento">
+                            <span>Fechamento de venda</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="juridico">
+                            <span>Questões jurídicas/contratuais</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem ao transferir para humano</label>
+                    <textarea placeholder="Ex: Entendi! Vou te conectar com um de nossos especialistas para te ajudar melhor. Aguarde um momento que já já alguém da equipe vai te atender! 😊"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">⏰ Horário de Atendimento</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Horário de atendimento humano</label>
+                        <input type="text" placeholder="Ex: Segunda a Sexta, 9h às 18h">
+                    </div>
+                    <div class="form-group">
+                        <label>Fuso horário</label>
+                        <select>
+                            <option value="brasilia">Brasília (GMT-3)</option>
+                            <option value="manaus">Manaus (GMT-4)</option>
+                            <option value="fernando">Fernando de Noronha (GMT-2)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem fora do horário</label>
+                    <textarea placeholder="Ex: Nosso time está offline no momento, mas não se preocupe! Deixe sua mensagem que responderemos assim que voltarmos. Ou se preferir, posso tentar te ajudar com algumas dúvidas frequentes. 😊"></textarea>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 4: Canais e Integrações -->
+        <div class="form-section" id="section-4">
+            <h2 class="section-title">📱 Canais e Integrações</h2>
+            <p class="section-description">Configure os canais de comunicação e integrações com outras ferramentas.</p>
+
+            <div class="subsection">
+                <h3 class="subsection-title">📲 Canais de Prospecção</h3>
+
+                <div class="form-group">
+                    <label>Quais canais usar para prospecção? <span class="required">*</span></label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="linkedin">
+                            <span>🔗 LinkedIn</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="email">
+                            <span>📧 E-mail</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="whatsapp">
+                            <span>💬 WhatsApp</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="instagram">
+                            <span>📸 Instagram DM</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <span class="icon">ℹ️</span>
+                    <p>Para LinkedIn, você precisará conectar sua conta. Para WhatsApp, usamos integração via API oficial ou Unipile.</p>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">💬 Canais de Atendimento</h3>
+
+                <div class="form-group">
+                    <label>Quais canais usar para atendimento? <span class="required">*</span></label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="whatsapp_atend">
+                            <span>💬 WhatsApp</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="instagram_atend">
+                            <span>📸 Instagram DM</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="messenger">
+                            <span>💙 Messenger</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="telegram">
+                            <span>✈️ Telegram</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="webchat">
+                            <span>🌐 Chat no Site</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="email_atend">
+                            <span>📧 E-mail</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">🔗 Integrações</h3>
+
+                <div class="form-group">
+                    <label>Você já usa algum CRM?</label>
+                    <select>
+                        <option value="nao">Não uso CRM</option>
+                        <option value="pipedrive">Pipedrive</option>
+                        <option value="hubspot">HubSpot</option>
+                        <option value="salesforce">Salesforce</option>
+                        <option value="rdstation">RD Station</option>
+                        <option value="ploomes">Ploomes</option>
+                        <option value="agendor">Agendor</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Ferramenta de agendamento</label>
+                    <select>
+                        <option value="nao">Não uso</option>
+                        <option value="calendly">Calendly</option>
+                        <option value="google">Google Calendar</option>
+                        <option value="outlook">Outlook Calendar</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Outras ferramentas que você usa e gostaria de integrar</label>
+                    <textarea placeholder="Ex: Slack, Trello, Asana, Notion, Google Sheets, etc."></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">👥 Equipe de Atendimento</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Quantas pessoas vão usar o sistema?</label>
+                        <select>
+                            <option value="1">Apenas eu</option>
+                            <option value="2-5">2-5 pessoas</option>
+                            <option value="6-10">6-10 pessoas</option>
+                            <option value="10+">Mais de 10</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Quem são os responsáveis pelo atendimento?</label>
+                        <input type="text" placeholder="Ex: João (vendas), Maria (suporte)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>E-mails dos usuários que terão acesso
+                        <span class="hint">Separe por vírgula</span>
+                    </label>
+                    <textarea placeholder="joao@empresa.com, maria@empresa.com, carlos@empresa.com"></textarea>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 5: Revisão e Finalização -->
+        <div class="form-section" id="section-5">
+            <h2 class="section-title">✅ Revisão e Informações Adicionais</h2>
+            <p class="section-description">Revise as informações e adicione detalhes finais.</p>
+
+            <div class="subsection">
+                <h3 class="subsection-title">🎯 Metas e Expectativas</h3>
+
+                <div class="form-group">
+                    <label>Qual seu principal objetivo com o GetRaze? <span class="required">*</span></label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="mais_leads">
+                            <span>Gerar mais leads</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="automatizar">
+                            <span>Automatizar prospecção</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="atendimento">
+                            <span>Melhorar atendimento</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="escalar">
+                            <span>Escalar vendas</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="tempo">
+                            <span>Economizar tempo</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="custo">
+                            <span>Reduzir custo comercial</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Meta de leads/mês</label>
+                        <input type="text" placeholder="Ex: 100 leads qualificados">
+                    </div>
+                    <div class="form-group">
+                        <label>Meta de reuniões/mês</label>
+                        <input type="text" placeholder="Ex: 20 reuniões agendadas">
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">📄 Materiais de Apoio</h3>
+
+                <div class="form-group">
+                    <label>Links para materiais da empresa
+                        <span class="hint">Apresentações, cases, vídeos, etc.</span>
+                    </label>
+                    <textarea placeholder="Ex:&#10;- Apresentação institucional: https://drive.google.com/...&#10;- Case de sucesso: https://empresa.com/cases&#10;- Vídeo explicativo: https://youtube.com/..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Link do calendário para agendamento</label>
+                    <input type="url" placeholder="Ex: https://calendly.com/sua-empresa">
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">📝 Observações Finais</h3>
+
+                <div class="form-group">
+                    <label>Algo mais que devemos saber?
+                        <span class="hint">Informações adicionais, preferências especiais, etc.</span>
+                    </label>
+                    <textarea placeholder="Ex: Temos um evento importante no próximo mês e gostaríamos de intensificar a prospecção. Também temos alguns clientes que não devem ser contatados (concorrentes)."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Lista de empresas/pessoas que NÃO devem ser contatadas
+                        <span class="hint">Concorrentes, clientes atuais, etc.</span>
+                    </label>
+                    <textarea placeholder="Ex:&#10;- Empresa X (concorrente)&#10;- Empresa Y (já é cliente)&#10;- João Silva (contato pessoal)"></textarea>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">📞 Contato Principal</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Nome do responsável <span class="required">*</span></label>
+                        <input type="text" placeholder="Seu nome completo">
+                    </div>
+                    <div class="form-group">
+                        <label>Cargo</label>
+                        <input type="text" placeholder="Ex: CEO, Diretor Comercial">
+                    </div>
+                </div>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>E-mail <span class="required">*</span></label>
+                        <input type="email" placeholder="seu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp <span class="required">*</span></label>
+                        <input type="tel" placeholder="(11) 99999-9999">
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);">
+                <span class="icon">🚀</span>
+                <div>
+                    <p style="color: #10b981; font-weight: 600; margin-bottom: 5px;">Próximos Passos</p>
+                    <p>Após enviar o formulário, nossa equipe vai:</p>
+                    <ol style="margin-left: 20px; margin-top: 10px; color: #a0a0a0;">
+                        <li>Analisar suas informações (até 24h)</li>
+                        <li>Configurar seus agentes de IA</li>
+                        <li>Agendar uma call de alinhamento</li>
+                        <li>Iniciar a operação!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="submitForm()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    ✓ Enviar Formulário
+                </button>
+            </div>
+        </div>
+
+        <!-- Success Message -->
+        <div class="form-section" id="section-success">
+            <div class="success-message">
+                <div class="success-icon">🎉</div>
+                <h2 class="success-title">Formulário Enviado!</h2>
+                <p class="success-description">
+                    Obrigado por preencher o onboarding! Nossa equipe vai analisar suas informações e entrar em contato em até 24 horas para dar início à configuração dos seus agentes.
+                </p>
+                <button class="btn btn-primary" style="margin-top: 30px;" onclick="window.print()">
+                    🖨️ Imprimir/Salvar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSection = 1;
+        const totalSections = 5;
+
+        function updateProgress() {
+            // Update progress steps
+            document.querySelectorAll('.progress-step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < currentSection) {
+                    step.classList.add('completed');
+                } else if (index + 1 === currentSection) {
+                    step.classList.add('active');
+                }
+            });
+
+            // Update progress labels
+            document.querySelectorAll('.progress-label').forEach((label, index) => {
+                label.classList.remove('active');
+                if (index + 1 === currentSection) {
+                    label.classList.add('active');
+                }
+            });
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.form-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            document.getElementById(`section-${section}`).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function nextSection() {
+            if (currentSection < totalSections) {
+                currentSection++;
+                updateProgress();
+                showSection(currentSection);
+            }
+        }
+
+        function prevSection() {
+            if (currentSection > 1) {
+                currentSection--;
+                updateProgress();
+                showSection(currentSection);
+            }
+        }
+
+        function submitForm() {
+            // Hide all sections
+            document.querySelectorAll('.form-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            // Show success message
+            document.getElementById('section-success').classList.add('active');
+            // Hide progress bar
+            document.querySelector('.progress-container').style.display = 'none';
+        }
+
+        // Handle checkbox/radio item selection styling
+        document.querySelectorAll('.checkbox-item input, .radio-item input').forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.type === 'radio') {
+                    // For radio buttons, remove selected from all in group
+                    document.querySelectorAll(`input[name="${this.name}"]`).forEach(radio => {
+                        radio.closest('.radio-item').classList.remove('selected');
+                    });
+                }
+
+                if (this.checked) {
+                    this.closest('.checkbox-item, .radio-item').classList.add('selected');
+                } else {
+                    this.closest('.checkbox-item, .radio-item').classList.remove('selected');
+                }
+            });
+        });
+
+        // Allow clicking on progress steps to navigate
+        document.querySelectorAll('.progress-step').forEach(step => {
+            step.addEventListener('click', function() {
+                const stepNum = parseInt(this.dataset.step);
+                if (stepNum <= currentSection) {
+                    currentSection = stepNum;
+                    updateProgress();
+                    showSection(currentSection);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

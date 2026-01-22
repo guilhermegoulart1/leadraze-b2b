@@ -47,6 +47,37 @@ const LeadFormModal = ({ isOpen, onClose, onSave, lead = null }) => {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Dynamic sources
+  const [sourceOptions, setSourceOptions] = useState([
+    { value: 'manual', label: 'Manual' }
+  ]);
+  const [loadingSources, setLoadingSources] = useState(false);
+
+  // Load lead sources on mount
+  useEffect(() => {
+    if (isOpen) {
+      loadSources();
+    }
+  }, [isOpen]);
+
+  const loadSources = async () => {
+    try {
+      setLoadingSources(true);
+      const response = await api.getLeadSources({ active_only: 'true' });
+      if (response.success && response.data.sources?.length > 0) {
+        setSourceOptions(response.data.sources.map(s => ({
+          value: s.name,
+          label: s.label
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading sources:', error);
+      // Keep default fallback
+    } finally {
+      setLoadingSources(false);
+    }
+  };
+
   // Load contacts on search (minimum 3 characters)
   useEffect(() => {
     if (isOpen && contactMode === 'existing' && searchQuery.length >= 3) {
@@ -241,16 +272,6 @@ const LeadFormModal = ({ isOpen, onClose, onSave, lead = null }) => {
   };
 
   if (!isOpen) return null;
-
-  const sourceOptions = [
-    { value: 'manual', label: 'Manual' },
-    { value: 'linkedin', label: 'LinkedIn' },
-    { value: 'google_maps', label: 'Google Maps' },
-    { value: 'list', label: 'Lista' },
-    { value: 'paid_traffic', label: 'Tráfego Pago' },
-    { value: 'referral', label: 'Indicação' },
-    { value: 'other', label: 'Outro' },
-  ];
 
   const statusOptions = [
     { value: 'leads', label: t('stages.leads') },

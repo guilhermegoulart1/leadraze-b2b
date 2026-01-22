@@ -149,6 +149,7 @@ const PipelinesPage = () => {
   });
   const [allTags, setAllTags] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [dynamicSources, setDynamicSources] = useState([]);
 
   // Calculate active filters count
   const activeFiltersCount = [
@@ -184,6 +185,21 @@ const PipelinesPage = () => {
   // Load pipelines and projects
   useEffect(() => {
     loadPipelinesAndProjects();
+  }, []);
+
+  // Load dynamic lead sources
+  useEffect(() => {
+    const loadSources = async () => {
+      try {
+        const response = await api.getLeadSources({ active_only: 'true' });
+        if (response.data?.sources) {
+          setDynamicSources(response.data.sources);
+        }
+      } catch (error) {
+        console.error('Error loading lead sources:', error);
+      }
+    };
+    loadSources();
   }, []);
 
   // Load selected pipeline details based on view mode
@@ -1028,6 +1044,29 @@ const PipelinesPage = () => {
               <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 {/* Source */}
                 {source && (() => {
+                  // Check if source exists in dynamic sources first
+                  const dynamicSource = dynamicSources.find(s => s.name === source);
+
+                  if (dynamicSource) {
+                    // Use dynamic source data
+                    return (
+                      <div
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium"
+                        style={{
+                          backgroundColor: `${dynamicSource.color}15`,
+                          color: dynamicSource.color,
+                          borderColor: `${dynamicSource.color}40`
+                        }}
+                      >
+                        <span className="w-2.5 h-2.5 flex items-center justify-center text-[8px] font-bold">
+                          {dynamicSource.icon || '?'}
+                        </span>
+                        <span>{dynamicSource.label}</span>
+                      </div>
+                    );
+                  }
+
+                  // Fallback to hardcoded config for legacy sources
                   const sourceConfig = {
                     linkedin: {
                       icon: Linkedin,

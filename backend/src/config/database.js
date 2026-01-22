@@ -1,5 +1,11 @@
 // backend/src/config/database.js
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// Configure pg to return timestamps as ISO strings (UTC) instead of converting to local timezone
+// Type 1114 = TIMESTAMP WITHOUT TIME ZONE
+// Type 1184 = TIMESTAMP WITH TIME ZONE
+types.setTypeParser(1114, (val) => val); // Return as string
+types.setTypeParser(1184, (val) => val); // Return as string
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -35,6 +41,11 @@ pool.on('connect', (client) => {
     console.log(`   Pool config: max=${pool.options.max}, min=${pool.options.min || 0}`);
     connectionLogged = true;
   }
+
+  // Set timezone to UTC to ensure consistent date handling
+  client.query("SET timezone = 'UTC'").catch(err => {
+    console.warn('Failed to set timezone:', err.message);
+  });
 
   // Set statement timeout for this client
   client.query('SET statement_timeout = 30000').catch(err => {
@@ -116,15 +127,22 @@ const update = async (table, data, where) => {
   const dataValues = Object.values(data);
   const whereKeys = Object.keys(where);
   const whereValues = Object.values(where);
-  
+
   const setClause = dataKeys.map((key, i) => `${key} = $${i + 1}`).join(', ');
   const whereClause = whereKeys.map((key, i) => `${key} = $${i + dataValues.length + 1}`).join(' AND ');
-  
-  const result = await query(
-    `UPDATE ${table} SET ${setClause} WHERE ${whereClause} RETURNING *`,
-    [...dataValues, ...whereValues]
-  );
-  
+
+  const sql = `UPDATE ${table} SET ${setClause} WHERE ${whereClause} RETURNING *`;
+  const params = [...dataValues, ...whereValues];
+
+  // DEBUG: Log the SQL and params
+  console.log('[db.update] SQL:', sql);
+  console.log('[db.update] Params:', JSON.stringify(params));
+
+  const result = await query(sql, params);
+
+  // DEBUG: Log result
+  console.log('[db.update] Result due_date:', result.rows[0]?.due_date);
+
   return result.rows[0];
 };
 

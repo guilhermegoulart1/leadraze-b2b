@@ -32,6 +32,54 @@ async function buildSectorFilter(userId, accountId, paramIndex = 4) {
 }
 
 // ================================
+// HELPER: Check if user has channel permissions configured
+// ================================
+async function hasUserChannelPermissions(userId, accountId) {
+  const result = await db.query(
+    'SELECT COUNT(*) as count FROM user_channel_permissions WHERE user_id = $1 AND account_id = $2',
+    [userId, accountId]
+  );
+  return parseInt(result.rows[0].count) > 0;
+}
+
+// ================================
+// HELPER: Build conversation access filter (user_id + sector)
+// When user has channel permissions, skip user_id filter (channel permissions control access)
+// When user has NO channel permissions, use user_id filter (backward compatibility)
+// ================================
+async function buildConversationAccessFilter(userId, accountId, baseParamIndex = 3) {
+  const hasChannelPerms = await hasUserChannelPermissions(userId, accountId);
+  const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
+
+  let userIdFilter = '';
+  let params = [];
+  let paramIndex = baseParamIndex;
+
+  // Only apply user_id filter when NO channel permissions configured
+  if (!hasChannelPerms) {
+    userIdFilter = `AND conv.user_id = $${paramIndex}`;
+    params.push(userId);
+    paramIndex++;
+  }
+
+  // Build sector filter
+  let sectorFilter = '';
+  if (accessibleSectorIds.length > 0) {
+    sectorFilter = `AND (conv.sector_id = ANY($${paramIndex}) OR conv.sector_id IS NULL)`;
+    params.push(accessibleSectorIds);
+    paramIndex++;
+  } else {
+    sectorFilter = 'AND conv.sector_id IS NULL';
+  }
+
+  return {
+    filter: `${userIdFilter} ${sectorFilter}`,
+    params,
+    hasChannelPermissions: hasChannelPerms
+  };
+}
+
+// ================================
 // HELPER: Build channel permissions filter for queries
 // ================================
 async function buildChannelPermissionsFilter(userId, accountId, paramIndex = 4) {
@@ -44,8 +92,11 @@ async function buildChannelPermissionsFilter(userId, accountId, paramIndex = 4) 
   const checkResult = await db.query(checkQuery, [userId, accountId]);
   const hasAnyPermissions = parseInt(checkResult.rows[0].count) > 0;
 
+  console.log(`🔍 [CHANNEL-PERMS] User ${userId}: hasAnyPermissions=${hasAnyPermissions}`);
+
   // If no permissions configured at all, allow all channels (backward compatibility)
   if (!hasAnyPermissions) {
+    console.log(`🔍 [CHANNEL-PERMS] User ${userId}: No permissions configured, allowing all channels`);
     return {
       filter: '',
       params: [],
@@ -61,8 +112,11 @@ async function buildChannelPermissionsFilter(userId, accountId, paramIndex = 4) 
   `;
   const permResult = await db.query(permQuery, [userId, accountId]);
 
+  console.log(`🔍 [CHANNEL-PERMS] User ${userId}: channels with access (not 'none'):`, permResult.rows);
+
   // User has permissions configured but all are 'none' - block all channels
   if (permResult.rows.length === 0) {
+    console.log(`🔍 [CHANNEL-PERMS] User ${userId}: All permissions are 'none', BLOCKING all channels`);
     return {
       filter: 'AND FALSE',
       params: [],
@@ -100,6 +154,7 @@ async function buildChannelPermissionsFilter(userId, accountId, paramIndex = 4) 
 
   if (conditions.length === 0) {
     // User has no access to any channel
+    console.log(`🔍 [CHANNEL-PERMS] User ${userId}: No conditions built, BLOCKING all channels`);
     return {
       filter: 'AND FALSE',
       params: [],
@@ -107,8 +162,12 @@ async function buildChannelPermissionsFilter(userId, accountId, paramIndex = 4) 
     };
   }
 
+  const finalFilter = `AND (${conditions.join(' OR ')})`;
+  console.log(`🔍 [CHANNEL-PERMS] User ${userId}: Final filter: ${finalFilter}`);
+  console.log(`🔍 [CHANNEL-PERMS] User ${userId}: allAccessChannels=`, allAccessChannels, 'assignedOnlyChannels=', assignedOnlyChannels);
+
   return {
-    filter: `AND (${conditions.join(' OR ')})`,
+    filter: finalFilter,
     params,
     hasPermissions: true
   };
@@ -146,20 +205,21 @@ const getConversations = async (req, res) => {
     // Get accessible sectors for this user
     const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
 
+    console.log(`🔍 [CONVERSATIONS] User ${userId}, Account ${accountId}: accessibleSectorIds=`, accessibleSectorIds);
+
+    // Verificar contas LinkedIn disponíveis para diagnóstico
+    const linkedinAccountsCheck = await db.query(`
+      SELECT id, status, profile_name, provider_type, disconnected_at
+      FROM linkedin_accounts
+      WHERE account_id = $1
+    `, [accountId]);
+    console.log(`🔍 [CONVERSATIONS] LinkedIn accounts for account ${accountId}:`, linkedinAccountsCheck.rows);
+
     // Construir query - MULTI-TENANCY: Filter by account_id AND sector access
     // Usar conv.account_id para suportar conversas orgânicas (sem campaign)
     let whereConditions = ['conv.account_id = $1'];
     let queryParams = [accountId];
     let paramIndex = 2;
-
-    // Only filter by user_id when NOT fetching for a specific opportunity
-    // When opportunity_id is provided, show all conversations for that opportunity within the account
-    // Security is still enforced via account_id, sector access, and channel permissions
-    if (!opportunity_id) {
-      whereConditions.push(`conv.user_id = $${paramIndex}`);
-      queryParams.push(userId);
-      paramIndex++;
-    }
 
     // SECTOR FILTER: User can only see conversations from their accessible sectors
     // Include conversations without sector (NULL) for backward compatibility
@@ -174,11 +234,24 @@ const getConversations = async (req, res) => {
 
     // CHANNEL PERMISSIONS FILTER: User can only see conversations from channels they have access to
     const channelFilter = await buildChannelPermissionsFilter(userId, accountId, paramIndex);
+    console.log(`🔍 [CONVERSATIONS] User ${userId}: channelFilter=`, JSON.stringify(channelFilter));
     if (channelFilter.filter) {
       // Remove the leading 'AND ' since we'll join with AND
       whereConditions.push(channelFilter.filter.replace(/^AND /, ''));
       queryParams.push(...channelFilter.params);
       paramIndex += channelFilter.params.length;
+    }
+
+    // USER_ID FILTER: Only apply when user has NO channel permissions configured (backward compatibility)
+    // When channel permissions exist, they already control access - no need for user_id filter
+    // When fetching for a specific opportunity, also skip user_id filter
+    if (!opportunity_id && !channelFilter.hasPermissions) {
+      whereConditions.push(`conv.user_id = $${paramIndex}`);
+      queryParams.push(userId);
+      paramIndex++;
+      console.log(`🔍 [CONVERSATIONS] User ${userId}: Applying user_id filter (no channel permissions configured)`);
+    } else if (!opportunity_id && channelFilter.hasPermissions) {
+      console.log(`🔍 [CONVERSATIONS] User ${userId}: Skipping user_id filter (channel permissions handle access)`);
     }
 
     // Filtro por status (ai_active ou manual)
@@ -225,6 +298,9 @@ const getConversations = async (req, res) => {
 
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
+
+    console.log(`🔍 [CONVERSATIONS] User ${userId}: Final WHERE clause: ${whereClause}`);
+    console.log(`🔍 [CONVERSATIONS] User ${userId}: Query params (exceto limit/offset):`, queryParams);
 
     // Query principal - com suporte a contact_id (conversas orgânicas) e opportunity_id
     const query = `
@@ -332,6 +408,16 @@ const getConversations = async (req, res) => {
     const countResult = await db.query(countQuery, queryParams.slice(0, -2));
     const total = parseInt(countResult.rows[0].count);
 
+    // Log de diagnóstico: total de conversas no banco para esta conta (sem filtros)
+    const totalConvsInDb = await db.query(`
+      SELECT COUNT(*) as total,
+             COUNT(*) FILTER (WHERE linkedin_account_id IS NOT NULL) as with_linkedin
+      FROM conversations
+      WHERE account_id = $1
+    `, [accountId]);
+    console.log(`🔍 [CONVERSATIONS] User ${userId}: Total convs in DB for account: ${totalConvsInDb.rows[0].total}, with LinkedIn account: ${totalConvsInDb.rows[0].with_linkedin}`);
+    console.log(`🔍 [CONVERSATIONS] User ${userId}: After filters - found ${total} conversations`);
+
     console.log(`✅ Encontradas ${processedConversations.length} conversas`);
 
     sendSuccess(res, {
@@ -358,8 +444,8 @@ const getConversation = async (req, res) => {
     const userId = req.user.id;
     const accountId = req.user.account_id;
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
     // Buscar conversa - MULTI-TENANCY + SECTOR: Filter by account_id and accessible sectors
     const convQuery = `
@@ -427,10 +513,10 @@ const getConversation = async (req, res) => {
       LEFT JOIN ai_agents ai ON conv.ai_agent_id = ai.id
       LEFT JOIN users assigned_user ON conv.assigned_user_id = assigned_user.id
       LEFT JOIN sectors s ON conv.sector_id = s.id
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const convResult = await db.query(convQuery, queryParams);
 
     if (convResult.rows.length === 0) {
@@ -481,8 +567,30 @@ const getMessages = async (req, res) => {
 
     console.log(`📬 Buscando mensagens da conversa ${id} via Unipile API`);
 
+    // Check if user has channel permissions (to decide if user_id filter is needed)
+    const permCheck = await db.query(
+      'SELECT COUNT(*) as count FROM user_channel_permissions WHERE user_id = $1 AND account_id = $2',
+      [userId, accountId]
+    );
+    const hasChannelPermissions = parseInt(permCheck.rows[0].count) > 0;
+
     // Get sector filter
     const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+
+    // Build user_id filter - only apply when no channel permissions (backward compatibility)
+    let userIdFilter = '';
+    let queryParams = [id, accountId];
+    let paramIndex = 3;
+
+    if (!hasChannelPermissions) {
+      userIdFilter = `AND conv.user_id = $${paramIndex}`;
+      queryParams.push(userId);
+      paramIndex++;
+    }
+
+    // Add sector params
+    const sectorFilterWithIndex = sectorFilter.replace(/\$4/g, `$${paramIndex}`);
+    queryParams.push(...sectorParams);
 
     // Buscar conversa, conta LinkedIn e contato
     const convQuery = `
@@ -497,10 +605,8 @@ const getMessages = async (req, res) => {
       LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
       LEFT JOIN contacts ct ON conv.contact_id = ct.id
       LEFT JOIN contacts opp_contact ON opp.contact_id = opp_contact.id
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${userIdFilter} ${sectorFilterWithIndex}
     `;
-
-    const queryParams = [id, accountId, userId, ...sectorParams];
     const convResult = await db.query(convQuery, queryParams);
 
     if (convResult.rows.length === 0) {
@@ -725,19 +831,18 @@ const sendMessage = async (req, res) => {
       throw new ValidationError('Message content or attachment is required');
     }
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
     // Verificar se conversa pertence ao usuário E à conta (MULTI-TENANCY + SECTOR)
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
     const convQuery = `
       SELECT conv.*, la.unipile_account_id
       FROM conversations conv
       LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const convResult = await db.query(convQuery, queryParams);
 
     if (convResult.rows.length === 0) {
@@ -1009,18 +1114,17 @@ const takeControl = async (req, res) => {
 
     console.log(`👤 Assumindo controle manual da conversa ${id}`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership - MULTI-TENANCY + SECTOR
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1057,18 +1161,17 @@ const releaseControl = async (req, res) => {
 
     console.log(`🤖 Liberando conversa ${id} para IA`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership - MULTI-TENANCY + SECTOR
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1111,18 +1214,17 @@ const updateStatus = async (req, res) => {
       throw new ValidationError('Invalid status. Must be "ai_active", "manual", or "closed"');
     }
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership - MULTI-TENANCY + SECTOR
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1175,17 +1277,17 @@ const markAsRead = async (req, res) => {
 
     console.log(`👁️ Marcando conversa ${id} como lida`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1224,12 +1326,31 @@ const getConversationStats = async (req, res) => {
     // Get accessible sectors for this user
     const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
 
-    // Build sector filter for aggregate queries
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
-    let sectorFilter = '';
-    let queryParams = [accountId, userId];
-    let paramIndex = 3;
+    // Check if user has channel permissions configured FIRST (to decide paramIndex)
+    const permCheck = await db.query(
+      'SELECT COUNT(*) as count FROM user_channel_permissions WHERE user_id = $1 AND account_id = $2',
+      [userId, accountId]
+    );
+    const hasChannelPermissions = parseInt(permCheck.rows[0].count) > 0;
 
+    // Build query params - only include userId if no channel permissions configured
+    let queryParams = [accountId];
+    let userIdFilter = '';
+    let paramIndex = 2;
+
+    if (!hasChannelPermissions) {
+      // No channel permissions configured - use user_id filter for backward compatibility
+      queryParams.push(userId);
+      userIdFilter = `AND conv.user_id = $2`;
+      paramIndex = 3;
+      console.log(`🔍 [STATS] User ${userId}: Applying user_id filter (no channel permissions)`);
+    } else {
+      // Channel permissions exist - they control access, no user_id filter needed
+      console.log(`🔍 [STATS] User ${userId}: Skipping user_id filter (channel permissions handle access)`);
+    }
+
+    // Build sector filter
+    let sectorFilter = '';
     if (accessibleSectorIds.length > 0) {
       sectorFilter = `AND (conv.sector_id = ANY($${paramIndex}) OR conv.sector_id IS NULL)`;
       queryParams.push(accessibleSectorIds);
@@ -1238,7 +1359,7 @@ const getConversationStats = async (req, res) => {
       sectorFilter = 'AND conv.sector_id IS NULL';
     }
 
-    // Build channel permissions filter
+    // Build channel permissions filter with correct paramIndex
     const channelFilter = await buildChannelPermissionsFilter(userId, accountId, paramIndex);
     let channelFilterSQL = '';
     if (channelFilter.filter) {
@@ -1247,33 +1368,35 @@ const getConversationStats = async (req, res) => {
       paramIndex += channelFilter.params.length;
     }
 
-    // Total de conversas (usando conv.account_id e conv.user_id diretamente)
+    // Total de conversas
     const totalQuery = `
       SELECT COUNT(*) as total
       FROM conversations conv
-      WHERE conv.account_id = $1 AND conv.user_id = $2 ${sectorFilter} ${channelFilterSQL}
+      WHERE conv.account_id = $1 ${userIdFilter} ${sectorFilter} ${channelFilterSQL}
     `;
     const totalResult = await db.query(totalQuery, queryParams);
 
     // Conversas atribuídas ao usuário atual (não fechadas)
+    // Para "mine" sempre filtramos por assigned_user_id = userId
+    const mineQueryParams = [...queryParams, userId];
     const mineQuery = `
       SELECT COUNT(*) as count
       FROM conversations conv
       WHERE conv.account_id = $1
-        AND conv.user_id = $2
-        AND conv.assigned_user_id = $2
+        ${userIdFilter}
+        AND conv.assigned_user_id = $${mineQueryParams.length}
         AND conv.status != 'closed'
         ${sectorFilter}
         ${channelFilterSQL}
     `;
-    const mineResult = await db.query(mineQuery, queryParams);
+    const mineResult = await db.query(mineQuery, mineQueryParams);
 
     // Conversas não atribuídas (não fechadas)
     const unassignedQuery = `
       SELECT COUNT(*) as count
       FROM conversations conv
       WHERE conv.account_id = $1
-        AND conv.user_id = $2
+        ${userIdFilter}
         AND conv.assigned_user_id IS NULL
         AND conv.status != 'closed'
         ${sectorFilter}
@@ -1286,7 +1409,7 @@ const getConversationStats = async (req, res) => {
       SELECT COUNT(*) as count
       FROM conversations conv
       WHERE conv.account_id = $1
-        AND conv.user_id = $2
+        ${userIdFilter}
         AND conv.status = 'closed'
         ${sectorFilter}
         ${channelFilterSQL}
@@ -1297,7 +1420,7 @@ const getConversationStats = async (req, res) => {
     const unreadQuery = `
       SELECT COUNT(*) as unread_conversations
       FROM conversations conv
-      WHERE conv.account_id = $1 AND conv.user_id = $2 AND conv.unread_count > 0 ${sectorFilter} ${channelFilterSQL}
+      WHERE conv.account_id = $1 ${userIdFilter} AND conv.unread_count > 0 ${sectorFilter} ${channelFilterSQL}
     `;
     const unreadResult = await db.query(unreadQuery, queryParams);
 
@@ -1331,18 +1454,17 @@ const closeConversation = async (req, res) => {
 
     console.log(`🔒 Fechando conversa ${id}`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership - MULTI-TENANCY + SECTOR
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1385,18 +1507,17 @@ const reopenConversation = async (req, res) => {
       throw new ValidationError('Invalid status. Must be "ai_active" or "manual"');
     }
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership - MULTI-TENANCY + SECTOR
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1436,18 +1557,17 @@ const deleteConversation = async (req, res) => {
 
     console.log(`🗑️ Deletando conversa ${id}`);
 
-    // Get sector filter
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(userId, accountId);
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Verificar ownership - MULTI-TENANCY + SECTOR: Filter by account_id and sectors
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership - MULTI-TENANCY + SECTOR
     const checkQuery = `
       SELECT conv.id
       FROM conversations conv
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3 ${sectorFilter}
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
 
-    const queryParams = [id, accountId, userId, ...sectorParams];
+    const queryParams = [id, accountId, ...accessParams];
     const checkResult = await db.query(checkQuery, queryParams);
 
     if (checkResult.rows.length === 0) {
@@ -1482,23 +1602,18 @@ const assignConversation = async (req, res) => {
 
     console.log(`📌 Atribuindo conversa ${id} ao usuário ${user_id}`);
 
-    // Verify conversation exists and user has access to it
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
-      requestingUserId,
-      accountId,
-      4
-    );
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(requestingUserId, accountId);
 
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
       WHERE conv.id = $1
         AND conv.account_id = $2
-        AND conv.user_id = $3
-        ${sectorFilter}
+        ${accessFilter}
     `;
-    const convResult = await db.query(convQuery, [id, accountId, requestingUserId, ...sectorParams]);
+    const convResult = await db.query(convQuery, [id, accountId, ...accessParams]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversa não encontrada');
@@ -1560,23 +1675,18 @@ const unassignConversation = async (req, res) => {
 
     console.log(`📌 Desatribuindo conversa ${id}`);
 
-    // Verify conversation exists and user has access to it
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
-      userId,
-      accountId,
-      4
-    );
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
       WHERE conv.id = $1
         AND conv.account_id = $2
-        AND conv.user_id = $3
-        ${sectorFilter}
+        ${accessFilter}
     `;
-    const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
+    const convResult = await db.query(convQuery, [id, accountId, ...accessParams]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversa não encontrada');
@@ -1629,23 +1739,18 @@ const assignSectorToConversation = async (req, res) => {
       throw new NotFoundError('Setor não encontrado');
     }
 
-    // Verify conversation exists and user has access to it
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
-      userId,
-      accountId,
-      4
-    );
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
       WHERE conv.id = $1
         AND conv.account_id = $2
-        AND conv.user_id = $3
-        ${sectorFilter}
+        ${accessFilter}
     `;
-    const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
+    const convResult = await db.query(convQuery, [id, accountId, ...accessParams]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversa não encontrada');
@@ -1680,23 +1785,18 @@ const unassignSectorFromConversation = async (req, res) => {
 
     console.log(`📌 Desatribuindo setor da conversa ${id}`);
 
-    // Verify conversation exists and user has access to it
-    const { filter: sectorFilter, params: sectorParams } = await buildSectorFilter(
-      userId,
-      accountId,
-      4
-    );
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
 
-    // Usar conv.account_id e conv.user_id diretamente (suporta conversas orgânicas sem campanha)
+    // Verificar ownership
     const convQuery = `
       SELECT conv.*
       FROM conversations conv
       WHERE conv.id = $1
         AND conv.account_id = $2
-        AND conv.user_id = $3
-        ${sectorFilter}
+        ${accessFilter}
     `;
-    const convResult = await db.query(convQuery, [id, accountId, userId, ...sectorParams]);
+    const convResult = await db.query(convQuery, [id, accountId, ...accessParams]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversa não encontrada');
@@ -1742,6 +1842,54 @@ const getAssignableUsers = async (req, res) => {
     console.log(`✅ Encontrados ${usersResult.rows.length} usuários atribuíveis`);
 
     sendSuccess(res, { users: usersResult.rows });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+// ================================
+// GET ASSIGNABLE SECTORS (for conversation assignment)
+// Returns list of sectors accessible to the user (no sectors:view permission required)
+// ================================
+const getAssignableSectors = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    console.log(`🏷️ Buscando setores atribuíveis para usuário ${userId}`);
+
+    // Get user's accessible sectors
+    const accessibleSectorIds = await getAccessibleSectorIds(userId, accountId);
+
+    let sectorsQuery;
+    let queryParams;
+
+    if (accessibleSectorIds.length > 0) {
+      // User has specific sectors assigned - return only those
+      sectorsQuery = `
+        SELECT id, name, color, description
+        FROM sectors
+        WHERE account_id = $1 AND id = ANY($2)
+        ORDER BY name ASC
+      `;
+      queryParams = [accountId, accessibleSectorIds];
+    } else {
+      // User has no sectors assigned - return all sectors for the account
+      sectorsQuery = `
+        SELECT id, name, color, description
+        FROM sectors
+        WHERE account_id = $1
+        ORDER BY name ASC
+      `;
+      queryParams = [accountId];
+    }
+
+    const sectorsResult = await db.query(sectorsQuery, queryParams);
+
+    console.log(`✅ Encontrados ${sectorsResult.rows.length} setores atribuíveis`);
+
+    sendSuccess(res, { sectors: sectorsResult.rows });
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -1921,6 +2069,9 @@ const updateContactName = async (req, res) => {
       throw new ValidationError('Nome é obrigatório');
     }
 
+    // Get access filter (handles user_id + sector based on channel permissions)
+    const { filter: accessFilter, params: accessParams } = await buildConversationAccessFilter(userId, accountId);
+
     // Buscar conversa com contact_id (direto ou via opportunity)
     const convQuery = `
       SELECT
@@ -1928,9 +2079,9 @@ const updateContactName = async (req, res) => {
         COALESCE(conv.contact_id, opp.contact_id) as effective_contact_id
       FROM conversations conv
       LEFT JOIN opportunities opp ON conv.opportunity_id = opp.id
-      WHERE conv.id = $1 AND conv.account_id = $2 AND conv.user_id = $3
+      WHERE conv.id = $1 AND conv.account_id = $2 ${accessFilter}
     `;
-    const convResult = await db.query(convQuery, [id, accountId, userId]);
+    const convResult = await db.query(convQuery, [id, accountId, ...accessParams]);
 
     if (convResult.rows.length === 0) {
       throw new NotFoundError('Conversa não encontrada');
@@ -2117,8 +2268,9 @@ module.exports = {
   unassignConversation,
   assignSectorToConversation,
   unassignSectorFromConversation,
-  // Assignable users (no users:view required)
+  // Assignable users/sectors (no permission required)
   getAssignableUsers,
+  getAssignableSectors,
   // Summary endpoints
   getSummaryStats,
   generateSummary,

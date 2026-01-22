@@ -5,6 +5,7 @@
   "unread": "Unread",
   "archived": "Archived",
   "filters": {
+    "title": "Filters",
     "all": "All",
     "mine": "My Conversations",
     "unassigned": "Unassigned",
@@ -109,7 +110,8 @@
     "group": "Group",
     "notAssigned": "Not assigned",
     "closeConversation": "Close conversation",
-    "deleteConversation": "Delete conversation"
+    "deleteConversation": "Delete conversation",
+    "createOpportunity": "Create opportunity"
   },
   "chatArea": {
     "selectConversation": "Select a conversation",
@@ -170,7 +172,9 @@
     "microphoneError": "Error accessing microphone. Check permissions.",
     "quickReplies": "Quick Replies",
     "useArrowKeys": "Use ↑↓ to navigate, Enter to select",
-    "noQuickRepliesFound": "No quick replies found",
+    "noQuickRepliesFound": "No quick reply found for",
+    "noQuickRepliesConfigured": "You don't have any quick replies configured yet",
+    "configureQuickReplies": "Configure quick replies →",
     "secretAgent": "Secret Agent",
     "audioNotAvailable": "Audio not available",
     "downloading": "Downloading...",

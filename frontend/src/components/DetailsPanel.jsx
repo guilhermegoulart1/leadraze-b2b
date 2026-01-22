@@ -253,7 +253,8 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
 
   const loadSectors = async () => {
     try {
-      const response = await api.getSectors();
+      // Use conversation-specific endpoint that doesn't require sectors:view permission
+      const response = await api.getConversationAssignableSectors();
       if (response.success) {
         const sectorsList = Array.isArray(response.data) ? response.data : (response.data?.sectors || []);
         setSectors(sectorsList);

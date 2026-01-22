@@ -74,18 +74,23 @@ const PortalDropdown = ({ isOpen, anchorRef, children, align = 'left', width = 1
   );
 };
 
-// Parse date string as local date (avoiding timezone issues)
+// Parse date string as local date/time (avoiding timezone issues)
 const parseLocalDate = (dateStr) => {
   if (!dateStr) return null;
   // If it's already a Date object, return it
   if (dateStr instanceof Date) return dateStr;
-  // Parse YYYY-MM-DD as local date
-  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+  // Parse YYYY-MM-DD or YYYY-MM-DDTHH:mm as local date
+  const [datePart, timePart] = dateStr.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (timePart) {
+    const [hours, minutes] = timePart.split(':').map(Number);
+    return new Date(year, month - 1, day, hours, minutes);
+  }
   return new Date(year, month - 1, day);
 };
 
-// Format date for display
-const formatDate = (date) => {
+// Format date for display (with optional time)
+const formatDate = (date, showTime = true) => {
   if (!date) return null;
   const d = parseLocalDate(date);
   if (!d) return null;
@@ -95,12 +100,15 @@ const formatDate = (date) => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const itemDate = new Date(d);
+  const hasTime = date.includes && date.includes('T') && d.getHours() !== 0;
   itemDate.setHours(0, 0, 0, 0);
 
-  if (itemDate.getTime() === today.getTime()) return 'Hoje';
-  if (itemDate.getTime() === tomorrow.getTime()) return 'Amanhã';
-  if (itemDate < today) return `Atrasado (${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })})`;
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  const timeStr = hasTime && showTime ? ` ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` : '';
+
+  if (itemDate.getTime() === today.getTime()) return `Hoje${timeStr}`;
+  if (itemDate.getTime() === tomorrow.getTime()) return `Amanhã${timeStr}`;
+  if (itemDate < today) return `Atrasado (${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}${timeStr})`;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + timeStr;
 };
 
 // Get due date color class
@@ -300,14 +308,21 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     const form = getNewItemForm(checklistId);
     if (!form.title.trim()) return;
 
+    // DEBUG: Log what we're sending
+    console.log('[Frontend] handleAddItem - form.dueDate:', form.dueDate);
+    console.log('[Frontend] handleAddItem - form.dueDate type:', typeof form.dueDate);
+
     try {
       setSavingItem(checklistId);
-      const response = await api.createChecklistItem(checklistId, {
+      const payload = {
         title: form.title.trim(),
         task_type: form.taskType,
         assignees: form.assignees.map(a => a.id),
         due_date: form.dueDate
-      });
+      };
+      console.log('[Frontend] handleAddItem - payload:', JSON.stringify(payload, null, 2));
+      const response = await api.createChecklistItem(checklistId, payload);
+      console.log('[Frontend] handleAddItem - response:', JSON.stringify(response, null, 2));
       if (response.success) {
         setChecklists(prev => prev.map(c => {
           if (c.id === checklistId) {
@@ -402,8 +417,13 @@ const LeadChecklists = ({ leadId, sectorId }) => {
   };
 
   const handleUpdateItemDueDate = async (itemId, dueDate, checklistId) => {
+    // DEBUG: Log what we're sending
+    console.log('[Frontend] handleUpdateItemDueDate - itemId:', itemId);
+    console.log('[Frontend] handleUpdateItemDueDate - dueDate:', dueDate);
+    console.log('[Frontend] handleUpdateItemDueDate - dueDate type:', typeof dueDate);
     try {
       const response = await api.updateChecklistItem(itemId, { due_date: dueDate });
+      console.log('[Frontend] handleUpdateItemDueDate - response:', JSON.stringify(response, null, 2));
       if (response.success) {
         setChecklists(prev => prev.map(c => {
           if (c.id === checklistId) {
@@ -472,15 +492,17 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     );
   };
 
-  // Format date to local YYYY-MM-DD (avoiding timezone issues)
-  const toLocalDateString = (date) => {
+  // Format date to local YYYY-MM-DDTHH:mm (for datetime-local input)
+  const toLocalDateTimeString = (date, hours = 18, minutes = 0) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const h = String(hours).padStart(2, '0');
+    const m = String(minutes).padStart(2, '0');
+    return `${year}-${month}-${day}T${h}:${m}`;
   };
 
-  // Quick date options
+  // Quick date options (with default time 18:00)
   const getQuickDates = () => {
     const today = new Date();
     const tomorrow = new Date(today);
@@ -489,9 +511,9 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     nextWeek.setDate(nextWeek.getDate() + 7);
 
     return [
-      { label: 'Hoje', value: toLocalDateString(today) },
-      { label: 'Amanhã', value: toLocalDateString(tomorrow) },
-      { label: 'Em 1 semana', value: toLocalDateString(nextWeek) }
+      { label: 'Hoje 18:00', value: toLocalDateTimeString(today, 18, 0) },
+      { label: 'Amanhã 09:00', value: toLocalDateTimeString(tomorrow, 9, 0) },
+      { label: 'Em 1 semana', value: toLocalDateTimeString(nextWeek, 9, 0) }
     ];
   };
 
@@ -667,7 +689,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                                   ))}
                                   <div className="border-t my-1" />
                                   <input
-                                    type="date"
+                                    type="datetime-local"
                                     className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                     onChange={(e) => handleUpdateItemDueDate(item.id, e.target.value, checklist.id)}
                                     onClick={e => e.stopPropagation()}
@@ -895,7 +917,7 @@ const LeadChecklists = ({ leadId, sectorId }) => {
                               ))}
                               <div className="border-t my-1" />
                               <input
-                                type="date"
+                                type="datetime-local"
                                 className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 value={form.dueDate || ''}
                                 onChange={(e) => {

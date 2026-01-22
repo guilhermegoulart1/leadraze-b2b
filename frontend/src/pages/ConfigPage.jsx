@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Key, Link2, CheckSquare, Mail, Package, XCircle, Tag } from 'lucide-react';
+import { Key, Link2, CheckSquare, Mail, Package, XCircle, Tag, Share2, MessageSquare } from 'lucide-react';
 import ApiKeysPage from './ApiKeysPage';
 import ChannelsPage from './ChannelsPage';
 import ChecklistTemplatesPage from './ChecklistTemplatesPage';
@@ -9,6 +9,8 @@ import EmailSettingsPage from './EmailSettingsPage';
 import TagsPage from './TagsPage';
 import ProductsTab from '../components/settings/ProductsTab';
 import DiscardReasonsTab from '../components/settings/DiscardReasonsTab';
+import LeadSourcesTab from '../components/settings/LeadSourcesTab';
+import QuickRepliesTab from '../components/settings/QuickRepliesTab';
 
 const ConfigPage = () => {
   const { t } = useTranslation('settings');
@@ -28,11 +30,13 @@ const ConfigPage = () => {
   const tabs = [
     { id: 'products', label: t('configTabs.products'), icon: Package },
     { id: 'discard-reasons', label: t('configTabs.discardReasons'), icon: XCircle },
+    { id: 'lead-sources', label: t('configTabs.leadSources'), icon: Share2 },
     { id: 'tags', label: t('configTabs.tags'), icon: Tag },
     { id: 'api-keys', label: t('configTabs.apiKeys'), icon: Key },
     { id: 'channels', label: t('configTabs.channels'), icon: Link2 },
     { id: 'checklists', label: t('configTabs.checklists'), icon: CheckSquare },
     { id: 'emails', label: t('configTabs.emails'), icon: Mail },
+    { id: 'quick-replies', label: t('configTabs.quickReplies'), icon: MessageSquare },
   ];
 
   const renderContent = () => {
@@ -41,6 +45,8 @@ const ConfigPage = () => {
         return <ProductsTab />;
       case 'discard-reasons':
         return <DiscardReasonsTab />;
+      case 'lead-sources':
+        return <LeadSourcesTab />;
       case 'tags':
         return <TagsPage />;
       case 'api-keys':
@@ -51,6 +57,8 @@ const ConfigPage = () => {
         return <ChecklistTemplatesPage />;
       case 'emails':
         return <EmailSettingsPage />;
+      case 'quick-replies':
+        return <QuickRepliesTab />;
       default:
         return <ProductsTab />;
     }

@@ -40,15 +40,28 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [contactErrors, setContactErrors] = useState({});
 
-  // Opções de origem
-  const SOURCE_OPTIONS = [
-    { value: 'linkedin', label: 'LinkedIn' },
-    { value: 'google_maps', label: 'Google Maps' },
-    { value: 'list', label: 'Lista' },
-    { value: 'paid_traffic', label: 'Tráfego Pago' },
-    { value: 'manual', label: 'Manual' },
-    { value: 'other', label: 'Outro' }
-  ];
+  // Dynamic source options
+  const [sourceOptions, setSourceOptions] = useState([
+    { value: 'manual', label: 'Manual' }
+  ]);
+
+  // Load dynamic sources
+  useEffect(() => {
+    const loadSources = async () => {
+      try {
+        const response = await api.getLeadSources({ active_only: 'true' });
+        if (response.success && response.data.sources?.length > 0) {
+          setSourceOptions(response.data.sources.map(s => ({
+            value: s.name,
+            label: s.label
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading sources:', error);
+      }
+    };
+    loadSources();
+  }, []);
 
   // Validação de email (opcional, mas se fornecido deve ser válido)
   const validateEmail = (email) => {
@@ -408,7 +421,7 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
                     onChange={(e) => setNewContactData({ ...newContactData, source: e.target.value })}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
                   >
-                    {SOURCE_OPTIONS.map(option => (
+                    {sourceOptions.map(option => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>

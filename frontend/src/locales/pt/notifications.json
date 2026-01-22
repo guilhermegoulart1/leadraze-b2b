@@ -1,0 +1,17 @@
+{
+  "title": "Notificações",
+  "filters": {
+    "all": "Todas",
+    "unread": "Não lidas",
+    "read": "Lidas"
+  },
+  "markAsRead": "Marcar como lido",
+  "markAllAsRead": "Marcar todas como lidas",
+  "noNotifications": "Nenhuma notificação",
+  "noUnread": "Nenhuma notificação não lida",
+  "noRead": "Nenhuma notificação lida",
+  "accept": "Aceitar",
+  "reject": "Rejeitar",
+  "loading": "Carregando...",
+  "loadMore": "Carregar mais notificações"
+}

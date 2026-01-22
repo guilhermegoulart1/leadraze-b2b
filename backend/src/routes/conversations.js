@@ -67,6 +67,9 @@ router.get('/stats', conversationController.getConversationStats);
 // Obter usuários atribuíveis (não requer users:view)
 router.get('/assignable-users', conversationController.getAssignableUsers);
 
+// Obter setores atribuíveis (não requer sectors:view)
+router.get('/assignable-sectors', conversationController.getAssignableSectors);
+
 // Obter conversa específica com mensagens
 router.get('/:id', conversationController.getConversation);
 

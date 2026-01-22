@@ -1,6 +1,7 @@
 // frontend/src/components/pipelines/PipelineFiltersPanel.jsx
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, User, Tag, DollarSign, Calendar, Mail, Phone, Globe } from 'lucide-react';
+import api from '../../services/api';
 
 // Mapa de cores legadas (para compatibilidade)
 const LEGACY_COLOR_MAP = {
@@ -21,13 +22,14 @@ const resolveColor = (color) => {
   return LEGACY_COLOR_MAP[color] || '#6366f1';
 };
 
-const SOURCE_OPTIONS = [
+// Fallback sources in case API fails
+const DEFAULT_SOURCE_OPTIONS = [
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'google_maps', label: 'Google Maps' },
-  { value: 'list', label: 'Lista' },
-  { value: 'paid_traffic', label: 'Tráfego Pago' },
+  { value: 'lista', label: 'Lista' },
+  { value: 'trafego_pago', label: 'Tráfego Pago' },
   { value: 'manual', label: 'Manual' },
-  { value: 'other', label: 'Outro' }
+  { value: 'outro', label: 'Outro' }
 ];
 
 const PipelineFiltersPanel = ({
@@ -39,6 +41,25 @@ const PipelineFiltersPanel = ({
   onClose
 }) => {
   const panelRef = useRef(null);
+  const [sourceOptions, setSourceOptions] = useState(DEFAULT_SOURCE_OPTIONS);
+
+  // Load dynamic sources
+  useEffect(() => {
+    const loadSources = async () => {
+      try {
+        const response = await api.getLeadSources({ active_only: 'true' });
+        if (response.success && response.data.sources?.length > 0) {
+          setSourceOptions(response.data.sources.map(s => ({
+            value: s.name,
+            label: s.label
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading sources:', error);
+      }
+    };
+    loadSources();
+  }, []);
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -247,7 +268,7 @@ const PipelineFiltersPanel = ({
             Origem
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {SOURCE_OPTIONS.map(source => (
+            {sourceOptions.map(source => (
               <button
                 key={source.value}
                 onClick={() => handleSourceToggle(source.value)}

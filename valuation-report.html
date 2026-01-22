@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GetRaze - Relatório de Valuation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-size: 3.5em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.3em;
+            color: #a0a0a0;
+            margin-bottom: 20px;
+        }
+
+        .date {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title .icon {
+            font-size: 1.2em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .card-label {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        .card-sublabel {
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        th {
+            background: rgba(102, 126, 234, 0.2);
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+
+        .highlight-green {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+
+        .valuation-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .valuation-label {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .valuation-value {
+            font-size: 3.5em;
+            font-weight: 800;
+        }
+
+        .valuation-range {
+            font-size: 1.1em;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .feature-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-item .check {
+            color: #4ade80;
+            font-size: 1.2em;
+        }
+
+        .comparable-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .comparable-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .comparable-name {
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .comparable-multiple {
+            background: rgba(102, 126, 234, 0.3);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .comparable-stats {
+            display: flex;
+            gap: 30px;
+            color: #a0a0a0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+
+        .two-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .two-cols {
+                grid-template-columns: 1fr;
+            }
+            .valuation-value {
+                font-size: 2.5em;
+            }
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 2px;
+        }
+
+        .tag-ai {
+            background: rgba(168, 85, 247, 0.3);
+            color: #c084fc;
+        }
+
+        .tag-integration {
+            background: rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .tag-saas {
+            background: rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .metric-label {
+            color: #a0a0a0;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .growth-indicator {
+            color: #4ade80;
+            font-size: 0.9em;
+        }
+
+        .sources {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sources a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .sources a:hover {
+            text-decoration: underline;
+        }
+
+        .callout {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .callout-title {
+            color: #10b981;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scenario-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .scenario-name {
+            font-weight: 600;
+            color: #a0a0a0;
+        }
+
+        .scenario-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">GetRaze</div>
+            <div class="subtitle">AI-Powered Sales Automation Platform</div>
+            <div class="date">Relatório de Valuation - Janeiro 2025</div>
+        </div>
+
+        <!-- Métricas Atuais -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📊</span> Métricas Atuais</h2>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-value">3</div>
+                    <div class="card-label">Clientes Ativos</div>
+                    <div class="card-sublabel">Pagantes</div>
+                </div>
+                <div class="card">
+                    <div class="card-value">R$ 1.500</div>
+                    <div class="card-label">MRR</div>
+                    <div class="card-sublabel">Receita Recorrente Mensal</div>
+                </div>
+                <div class="card">
+                    <div class="card-value">R$ 8.000</div>
+                    <div class="card-label">Setup (1º mês)</div>
+                    <div class="card-sublabel">3 clientes</div>
+                </div>
+                <div class="card">
+                    <div class="card-value">R$ 9.500</div>
+                    <div class="card-label">Receita Total</div>
+                    <div class="card-sublabel">1º mês de operação</div>
+                </div>
+                <div class="card">
+                    <div class="card-value">R$ 3.5k - 30k</div>
+                    <div class="card-label">Range de Setup</div>
+                    <div class="card-sublabel">Por cliente</div>
+                </div>
+            </div>
+
+            <div class="callout">
+                <div class="callout-title">✓ Prova de Mercado Validada</div>
+                <p style="color: #a0a0a0;">3 clientes pagantes no primeiro mês com ticket de setup variável demonstra demanda real e flexibilidade de precificação baseada em valor.</p>
+            </div>
+        </div>
+
+        <!-- Modelo de Receita -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">💰</span> Modelo de Receita Híbrido</h2>
+            <div class="two-cols">
+                <div>
+                    <h3 style="margin-bottom: 15px; color: #667eea;">Receita Recorrente (MRR)</h3>
+                    <div class="metric-row">
+                        <span class="metric-label">Ticket médio/cliente</span>
+                        <span class="metric-value">~R$ 500</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">MRR atual</span>
+                        <span class="metric-value">R$ 1.500</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">ARR projetado</span>
+                        <span class="metric-value">R$ 18.000</span>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 15px; color: #667eea;">Receita de Setup (One-time)</h3>
+                    <div class="metric-row">
+                        <span class="metric-label">Setup mínimo</span>
+                        <span class="metric-value">R$ 3.500</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Setup máximo</span>
+                        <span class="metric-value">R$ 30.000</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Setup médio (atual)</span>
+                        <span class="metric-value">~R$ 2.667</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout">
+                <div class="callout-title">💡 Vantagem do Modelo Híbrido</div>
+                <ul style="color: #a0a0a0; margin-left: 20px;">
+                    <li>Caixa imediato via setup (reduz necessidade de capital)</li>
+                    <li>LTV do cliente maior (setup + recorrência)</li>
+                    <li>Churn menor (cliente investiu no setup)</li>
+                    <li>Flexibilidade de precificação baseada em valor</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Projeção de Receita -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📈</span> Projeção de Receita - Ano 1</h2>
+
+            <div class="scenario-card">
+                <div class="scenario-header">
+                    <span class="scenario-name">Cenário Conservador</span>
+                    <span class="scenario-value">R$ 240.000/ano</span>
+                </div>
+                <p style="color: #666; font-size: 0.9em;">2 clientes/mês • Setup médio R$ 4.000 • MRR crescendo para R$ 12.000</p>
+                <div class="progress-bar"><div class="progress-fill" style="width: 40%"></div></div>
+            </div>
+
+            <div class="scenario-card" style="border: 1px solid rgba(102, 126, 234, 0.5);">
+                <div class="scenario-header">
+                    <span class="scenario-name">Cenário Moderado <span class="highlight">Mais Provável</span></span>
+                    <span class="scenario-value">R$ 396.000/ano</span>
+                </div>
+                <p style="color: #666; font-size: 0.9em;">3 clientes/mês • Setup médio R$ 5.000 • MRR crescendo para R$ 18.000</p>
+                <div class="progress-bar"><div class="progress-fill" style="width: 65%"></div></div>
+            </div>
+
+            <div class="scenario-card">
+                <div class="scenario-header">
+                    <span class="scenario-name">Cenário Otimista</span>
+                    <span class="scenario-value">R$ 672.000/ano</span>
+                </div>
+                <p style="color: #666; font-size: 0.9em;">4 clientes/mês • Setup médio R$ 8.000 • MRR crescendo para R$ 24.000</p>
+                <div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>
+            </div>
+
+            <table style="margin-top: 30px;">
+                <thead>
+                    <tr>
+                        <th>Cenário</th>
+                        <th>Clientes/mês</th>
+                        <th>Setup médio</th>
+                        <th>Setup/ano</th>
+                        <th>MRR final</th>
+                        <th>Receita Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Conservador</td>
+                        <td>2</td>
+                        <td>R$ 4.000</td>
+                        <td>R$ 96.000</td>
+                        <td>R$ 12.000</td>
+                        <td><strong>R$ 240.000</strong></td>
+                    </tr>
+                    <tr style="background: rgba(102, 126, 234, 0.1);">
+                        <td>Moderado</td>
+                        <td>3</td>
+                        <td>R$ 5.000</td>
+                        <td>R$ 180.000</td>
+                        <td>R$ 18.000</td>
+                        <td><strong>R$ 396.000</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Otimista</td>
+                        <td>4</td>
+                        <td>R$ 8.000</td>
+                        <td>R$ 384.000</td>
+                        <td>R$ 24.000</td>
+                        <td><strong>R$ 672.000</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Stack Tecnológico -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🛠️</span> Stack Tecnológico</h2>
+            <div class="two-cols">
+                <div>
+                    <h3 style="margin-bottom: 15px; color: #667eea;">Métricas de Código</h3>
+                    <div class="metric-row">
+                        <span class="metric-label">Linhas de Código (JS/JSX)</span>
+                        <span class="metric-value">~108.000</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Arquivos JS/JSX</span>
+                        <span class="metric-value">772</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Migrations SQL</span>
+                        <span class="metric-value">136</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Linhas SQL</span>
+                        <span class="metric-value">~13.000</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Commits</span>
+                        <span class="metric-value">141</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Idiomas (i18n)</span>
+                        <span class="metric-value">3 (EN, ES, PT)</span>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 15px; color: #667eea;">Arquitetura</h3>
+                    <div class="metric-row">
+                        <span class="metric-label">Controllers (Backend)</span>
+                        <span class="metric-value">62</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Routes (API)</span>
+                        <span class="metric-value">58</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Services</span>
+                        <span class="metric-value">60</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Workers (Background Jobs)</span>
+                        <span class="metric-value">13</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Páginas (Frontend)</span>
+                        <span class="metric-value">54</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Componentes React</span>
+                        <span class="metric-value">~100</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 30px 0 15px; color: #667eea;">Relay SDK (IP Proprietário)</h3>
+            <div class="metric-row">
+                <span class="metric-label">Linhas de Código</span>
+                <span class="metric-value">~4.000</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Pacote NPM</span>
+                <span class="metric-value">@guilhermegoulart1/relay-core</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Canais suportados</span>
+                <span class="metric-value">6 (LinkedIn, WhatsApp, Instagram, Telegram, Messenger, Email)</span>
+            </div>
+            <p style="margin-top: 15px; color: #a0a0a0;">SDK de integração multi-canal que abstrai múltiplos provedores de mensagens através de uma API unificada. Potencial para ser vendido como produto B2B separado.</p>
+        </div>
+
+        <!-- Funcionalidades -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">⚡</span> Funcionalidades Principais</h2>
+            <div class="features-grid">
+                <div class="feature-item"><span class="check">✓</span> CRM Completo</div>
+                <div class="feature-item"><span class="check">✓</span> Pipeline Kanban</div>
+                <div class="feature-item"><span class="check">✓</span> AI Agents</div>
+                <div class="feature-item"><span class="check">✓</span> AI Employees</div>
+                <div class="feature-item"><span class="check">✓</span> Google Maps Agent</div>
+                <div class="feature-item"><span class="check">✓</span> Secret Agent</div>
+                <div class="feature-item"><span class="check">✓</span> LinkedIn Automation</div>
+                <div class="feature-item"><span class="check">✓</span> WhatsApp Integration</div>
+                <div class="feature-item"><span class="check">✓</span> Email Automation</div>
+                <div class="feature-item"><span class="check">✓</span> Multi-channel Messaging</div>
+                <div class="feature-item"><span class="check">✓</span> Stripe Billing</div>
+                <div class="feature-item"><span class="check">✓</span> Sistema de Afiliados</div>
+                <div class="feature-item"><span class="check">✓</span> Gestão de Tarefas</div>
+                <div class="feature-item"><span class="check">✓</span> Checklists</div>
+                <div class="feature-item"><span class="check">✓</span> Analytics Dashboard</div>
+                <div class="feature-item"><span class="check">✓</span> Webhooks</div>
+                <div class="feature-item"><span class="check">✓</span> Permissões/RBAC</div>
+                <div class="feature-item"><span class="check">✓</span> Multi-idiomas</div>
+            </div>
+
+            <div style="margin-top: 25px;">
+                <span class="tag tag-ai">AI Agents</span>
+                <span class="tag tag-ai">OpenAI Integration</span>
+                <span class="tag tag-integration">LinkedIn API</span>
+                <span class="tag tag-integration">Google Maps API</span>
+                <span class="tag tag-integration">Stripe</span>
+                <span class="tag tag-integration">Unipile</span>
+                <span class="tag tag-saas">Multi-tenant</span>
+                <span class="tag tag-saas">SaaS Ready</span>
+            </div>
+        </div>
+
+        <!-- Custo de Reposição -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">💻</span> Custo de Reposição</h2>
+            <p style="color: #a0a0a0; margin-bottom: 20px;">Quanto custaria para reconstruir este produto do zero, considerando desenvolvimento, integrações, estabilização e know-how de mercado.</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Componente</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Desenvolvimento Base</td>
+                        <td>~1.000 horas × R$ 150/hora</td>
+                        <td>R$ 150.000</td>
+                    </tr>
+                    <tr>
+                        <td>Relay SDK</td>
+                        <td>IP proprietário, multi-channel</td>
+                        <td>R$ 80.000</td>
+                    </tr>
+                    <tr>
+                        <td>Integrações Estabilizadas</td>
+                        <td>LinkedIn, Unipile, Stripe, OpenAI</td>
+                        <td>R$ 100.000</td>
+                    </tr>
+                    <tr>
+                        <td>Know-how de Produto</td>
+                        <td>Iterações, feedback de mercado</td>
+                        <td>R$ 50.000</td>
+                    </tr>
+                    <tr>
+                        <td>Time-to-Market</td>
+                        <td>6-12 meses de vantagem competitiva</td>
+                        <td>R$ 70.000</td>
+                    </tr>
+                    <tr style="background: rgba(102, 126, 234, 0.1); font-weight: 600;">
+                        <td colspan="2">TOTAL CUSTO DE REPOSIÇÃO</td>
+                        <td>R$ 450.000</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Comparáveis de Mercado -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🏢</span> Comparáveis de Mercado</h2>
+
+            <div class="comparable-card">
+                <div class="comparable-header">
+                    <span class="comparable-name">Artisan AI</span>
+                    <span class="comparable-multiple">30x ARR</span>
+                </div>
+                <div class="comparable-stats">
+                    <span>ARR: $5M</span>
+                    <span>Valuation: ~$150M</span>
+                    <span>Series A: $46M raised</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>
+            </div>
+
+            <div class="comparable-card">
+                <div class="comparable-header">
+                    <span class="comparable-name">Apollo.io</span>
+                    <span class="comparable-multiple">10.7x ARR</span>
+                </div>
+                <div class="comparable-stats">
+                    <span>ARR: $150M</span>
+                    <span>Valuation: $1.6B</span>
+                    <span>Series D: $251M raised</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 85%"></div></div>
+            </div>
+
+            <div class="comparable-card">
+                <div class="comparable-header">
+                    <span class="comparable-name">Lemlist</span>
+                    <span class="comparable-multiple">3.75x ARR</span>
+                </div>
+                <div class="comparable-stats">
+                    <span>ARR: $40M</span>
+                    <span>Valuation: $150M+</span>
+                    <span>Bootstrapped, 40% EBITDA</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 60%"></div></div>
+            </div>
+
+            <div class="comparable-card">
+                <div class="comparable-header">
+                    <span class="comparable-name">Instantly.ai</span>
+                    <span class="comparable-multiple">3-5x ARR</span>
+                </div>
+                <div class="comparable-stats">
+                    <span>ARR: $20M</span>
+                    <span>Valuation: ~$60-100M (est.)</span>
+                    <span>Bootstrapped</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 50%"></div></div>
+            </div>
+        </div>
+
+        <!-- Múltiplos de Mercado -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📈</span> Múltiplos de Mercado 2025</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th>Múltiplo ARR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SaaS Tradicional</td>
+                        <td>2.5x - 7x</td>
+                    </tr>
+                    <tr>
+                        <td>AI SaaS (mediana)</td>
+                        <td><span class="highlight">25.8x</span></td>
+                    </tr>
+                    <tr>
+                        <td>AI Agents - Seed Stage</td>
+                        <td>22.7x</td>
+                    </tr>
+                    <tr>
+                        <td>AI Agents - Series A</td>
+                        <td>39.1x</td>
+                    </tr>
+                    <tr>
+                        <td>Sales Automation (sem AI)</td>
+                        <td>1.9x - 3x</td>
+                    </tr>
+                    <tr>
+                        <td>Sales Automation (com AI)</td>
+                        <td><span class="highlight">8x - 15x</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Métodos de Valuation -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🎯</span> Métodos de Valuation</h2>
+
+            <h3 style="margin-bottom: 20px; color: #a0a0a0;">Método 1: Múltiplo de Receita Projetada (Ano 1)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Base</th>
+                        <th>Receita Ano 1</th>
+                        <th>Múltiplo</th>
+                        <th>Valuation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Cenário Conservador</td>
+                        <td>R$ 240.000</td>
+                        <td>2x</td>
+                        <td>R$ 480.000</td>
+                    </tr>
+                    <tr style="background: rgba(102, 126, 234, 0.1);">
+                        <td>Cenário Moderado</td>
+                        <td>R$ 396.000</td>
+                        <td>1.5x</td>
+                        <td><strong>R$ 594.000</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Cenário Otimista</td>
+                        <td>R$ 672.000</td>
+                        <td>1.2x</td>
+                        <td>R$ 806.400</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="margin: 30px 0 20px; color: #a0a0a0;">Método 2: Custo de Reposição + Ativos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Componente</th>
+                        <th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Custo de Reposição Total</td>
+                        <td>R$ 450.000</td>
+                    </tr>
+                    <tr>
+                        <td>Relay SDK (IP com potencial de produto)</td>
+                        <td>R$ 100.000</td>
+                    </tr>
+                    <tr>
+                        <td>Base de Clientes + Receita</td>
+                        <td>R$ 50.000</td>
+                    </tr>
+                    <tr style="background: rgba(102, 126, 234, 0.1); font-weight: 600;">
+                        <td>TOTAL</td>
+                        <td>R$ 600.000</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="margin: 30px 0 20px; color: #a0a0a0;">Método 3: Múltiplo de ARR (AI Agent Early-Stage)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Base de ARR</th>
+                        <th>Múltiplo</th>
+                        <th>Valuation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>R$ 18.000 (MRR atual × 12)</td>
+                        <td>22.7x (AI Agent Seed)</td>
+                        <td>R$ 408.600</td>
+                    </tr>
+                    <tr>
+                        <td>R$ 114.000 (MRR + Setup anualizado)</td>
+                        <td>5x</td>
+                        <td>R$ 570.000</td>
+                    </tr>
+                    <tr style="background: rgba(102, 126, 234, 0.1);">
+                        <td>R$ 114.000 (MRR + Setup anualizado)</td>
+                        <td>8x</td>
+                        <td><strong>R$ 912.000</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Valuation Final -->
+        <div class="valuation-box">
+            <div class="valuation-label">VALUATION RECOMENDADO</div>
+            <div class="valuation-value">R$ 500.000 - R$ 700.000</div>
+            <div class="valuation-range">~$85.000 - $120.000 USD</div>
+        </div>
+
+        <!-- Resumo dos Métodos -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📋</span> Resumo de Valuation</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Método</th>
+                        <th>Valor Estimado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Múltiplo Receita Ano 1 (1.5-2x)</td>
+                        <td>R$ 480.000 - R$ 594.000</td>
+                    </tr>
+                    <tr>
+                        <td>Custo de Reposição + Ativos</td>
+                        <td>R$ 600.000</td>
+                    </tr>
+                    <tr>
+                        <td>Múltiplo ARR (AI Agent 5-8x)</td>
+                        <td>R$ 570.000 - R$ 912.000</td>
+                    </tr>
+                    <tr style="background: rgba(102, 126, 234, 0.2); font-weight: 600;">
+                        <td>VALUATION RECOMENDADO</td>
+                        <td>R$ 500.000 - R$ 700.000</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Potencial de Crescimento -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🚀</span> Potencial de Crescimento</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Se atingir...</th>
+                        <th>Múltiplo</th>
+                        <th>Valuation Potencial</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>R$ 10.000 MRR (R$ 120k ARR)</td>
+                        <td>10-15x</td>
+                        <td>R$ 1.2M - R$ 1.8M</td>
+                    </tr>
+                    <tr>
+                        <td>R$ 30.000 MRR (R$ 360k ARR)</td>
+                        <td>10-15x</td>
+                        <td>R$ 3.6M - R$ 5.4M</td>
+                    </tr>
+                    <tr>
+                        <td>R$ 50.000 MRR (R$ 600k ARR)</td>
+                        <td>15-20x</td>
+                        <td>R$ 9M - R$ 12M</td>
+                    </tr>
+                    <tr>
+                        <td>R$ 100.000 MRR (R$ 1.2M ARR)</td>
+                        <td>15-25x</td>
+                        <td>R$ 18M - R$ 30M</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Diferenciais Competitivos -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">💎</span> Diferenciais Competitivos</h2>
+            <div class="two-cols">
+                <div>
+                    <h3 style="color: #4ade80; margin-bottom: 15px;">✓ Pontos Fortes</h3>
+                    <ul style="list-style: none; color: #a0a0a0;">
+                        <li style="padding: 8px 0;">• <strong>3 clientes pagantes</strong> - prova de mercado</li>
+                        <li style="padding: 8px 0;">• <strong>SDK próprio (Relay)</strong> - IP proprietário</li>
+                        <li style="padding: 8px 0;">• <strong>AI Agents integrados</strong> - tendência 2025</li>
+                        <li style="padding: 8px 0;">• <strong>Multi-channel</strong> - LinkedIn, WhatsApp, Email</li>
+                        <li style="padding: 8px 0;">• <strong>Setup até R$ 30k</strong> - ticket alto</li>
+                        <li style="padding: 8px 0;">• <strong>Modelo híbrido</strong> - caixa + recorrência</li>
+                        <li style="padding: 8px 0;">• <strong>Internacionalização</strong> - 3 idiomas</li>
+                        <li style="padding: 8px 0;">• <strong>Integrações premium</strong> - Stripe, OpenAI</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: #f59e0b; margin-bottom: 15px;">⚡ Oportunidades</h3>
+                    <ul style="list-style: none; color: #a0a0a0;">
+                        <li style="padding: 8px 0;">• Expandir para mercado global</li>
+                        <li style="padding: 8px 0;">• Relay como produto SaaS B2B separado</li>
+                        <li style="padding: 8px 0;">• Adicionar mais AI Agents verticais</li>
+                        <li style="padding: 8px 0;">• Programa de afiliados/parceiros</li>
+                        <li style="padding: 8px 0;">• Integrações com mais CRMs</li>
+                        <li style="padding: 8px 0;">• White-label para agências</li>
+                        <li style="padding: 8px 0;">• Aumentar ticket médio de setup</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Por que R$ 500k-700k -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">✅</span> Por que R$ 500.000 - R$ 700.000?</h2>
+
+            <div class="callout">
+                <div class="callout-title">Argumentos para este Valuation</div>
+                <ol style="color: #a0a0a0; margin-left: 20px; line-height: 2;">
+                    <li><strong>Custo de reposição de R$ 450k</strong> - mínimo para reconstruir o produto</li>
+                    <li><strong>Receita projetada Ano 1 de R$ 240k-396k</strong> - modelo validado com clientes</li>
+                    <li><strong>IP proprietário (Relay SDK)</strong> - diferencial técnico único</li>
+                    <li><strong>Mercado de AI Agents em alta</strong> - múltiplos de 15-30x para early-stage</li>
+                    <li><strong>Ticket de setup alto (até R$ 30k)</strong> - margem de contribuição elevada</li>
+                    <li><strong>3 clientes pagantes</strong> - não é apenas uma ideia, é um negócio</li>
+                    <li><strong>Produto completo e funcional</strong> - 137k linhas de código, 18+ funcionalidades</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Relatório preparado em Janeiro 2025</p>
+            <p style="margin-top: 10px;">GetRaze + Relay SDK</p>
+
+            <div class="sources" style="text-align: left; max-width: 800px; margin: 30px auto 0;">
+                <strong>Fontes:</strong><br>
+                <a href="https://techcrunch.com/2025/04/09/artisan-the-stop-hiring-humans-ai-agent-startup-raises-25m-and-is-still-hiring-humans/" target="_blank">TechCrunch - Artisan Series A</a> |
+                <a href="https://sacra.com/c/apollo/" target="_blank">Sacra - Apollo.io</a> |
+                <a href="https://www.growthunhinged.com/p/lessons-from-bootstrapping-lemlist" target="_blank">Growth Unhinged - Lemlist</a> |
+                <a href="https://getlatka.com/companies/instantly-ai" target="_blank">GetLatka - Instantly AI</a> |
+                <a href="https://aventis-advisors.com/ai-valuation-multiples/" target="_blank">Aventis - AI Valuation Multiples</a> |
+                <a href="https://www.finrofca.com/news/ai-agents-multiples-mid-year-2025" target="_blank">Finro - AI Agents Multiples</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

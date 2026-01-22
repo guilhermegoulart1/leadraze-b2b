@@ -135,6 +135,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [currentStatus, setCurrentStatus] = useState(lead?.status || 'leads');
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [currentSource, setCurrentSource] = useState(lead?.source || 'linkedin');
+  const [dynamicSources, setDynamicSources] = useState([]);
   const [showWinDealModal, setShowWinDealModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [reactivating, setReactivating] = useState(false);
@@ -152,6 +153,21 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   useEffect(() => {
     setCurrentSource(lead?.source || 'linkedin');
   }, [lead?.source]);
+
+  // Load dynamic sources from API
+  useEffect(() => {
+    const loadSources = async () => {
+      try {
+        const response = await api.getLeadSources({ active_only: 'true' });
+        if (response.success && response.data.sources?.length > 0) {
+          setDynamicSources(response.data.sources);
+        }
+      } catch (error) {
+        console.error('Error loading sources:', error);
+      }
+    };
+    loadSources();
+  }, []);
 
   // Responsible assignment states
   const [showResponsibleDropdown, setShowResponsibleDropdown] = useState(false);
@@ -1445,20 +1461,20 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                           className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700 px-2.5 py-1.5 rounded-md transition-colors text-xs font-medium text-gray-900 dark:text-gray-100 w-full"
                         >
                           {(() => {
-                            const sourceConfig = {
-                              linkedin: { icon: Linkedin, label: 'LinkedIn' },
-                              google_maps: { icon: MapPin, label: 'Google Maps' },
-                              list: { icon: List, label: 'Lista' },
-                              paid_traffic: { icon: Zap, label: 'Tráfego Pago' },
-                              manual: { icon: UserPlus, label: 'Manual' },
-                              other: { icon: Package, label: 'Outro' }
+                            // Icon mapping for sources
+                            const sourceIcons = {
+                              linkedin: Linkedin, google_maps: MapPin, list: List, lista: List,
+                              paid_traffic: Zap, trafego_pago: Zap, manual: UserPlus,
+                              indicacao: Users, referral: Users, outro: Package, other: Package
                             };
-                            const config = sourceConfig[currentSource] || sourceConfig.other;
-                            const SourceIcon = config.icon;
+                            // Find current source from dynamic sources or use fallback
+                            const currentSourceData = dynamicSources.find(s => s.name === currentSource);
+                            const SourceIcon = sourceIcons[currentSource] || Package;
+                            const label = currentSourceData?.label || currentSource;
                             return (
                               <>
                                 <SourceIcon className="w-4 h-4 flex-shrink-0" />
-                                <span className="flex-1 text-left">{config.label}</span>
+                                <span className="flex-1 text-left">{label}</span>
                                 <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                               </>
                             );
@@ -1467,31 +1483,43 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
                         {showSourceDropdown && (
                           <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 py-1 z-10 min-w-[200px]">
-                            {[
-                              { value: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
-                              { value: 'google_maps', icon: MapPin, label: 'Google Maps' },
-                              { value: 'list', icon: List, label: 'Lista' },
-                              { value: 'paid_traffic', icon: Zap, label: 'Tráfego Pago' },
-                              { value: 'manual', icon: UserPlus, label: 'Manual' },
-                              { value: 'other', icon: Package, label: 'Outro' }
-                            ].map((source) => {
-                              const SourceIcon = source.icon;
-                              return (
-                                <button
-                                  key={source.value}
-                                  onClick={() => handleSourceChange(source.value)}
-                                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                                    currentSource === source.value ? 'bg-gray-50 dark:bg-gray-700' : ''
-                                  }`}
-                                >
-                                  <SourceIcon className="w-4 h-4" />
-                                  <span className="flex-1 text-left">{source.label}</span>
-                                  {currentSource === source.value && (
-                                    <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                                  )}
-                                </button>
-                              );
-                            })}
+                            {(() => {
+                              // Icon mapping for sources
+                              const sourceIcons = {
+                                linkedin: Linkedin, google_maps: MapPin, list: List, lista: List,
+                                paid_traffic: Zap, trafego_pago: Zap, manual: UserPlus,
+                                indicacao: Users, referral: Users, outro: Package, other: Package
+                              };
+                              // Use dynamic sources if available, otherwise fallback to defaults
+                              const sources = dynamicSources.length > 0
+                                ? dynamicSources.map(s => ({ value: s.name, label: s.label, icon: sourceIcons[s.name] || Package }))
+                                : [
+                                    { value: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
+                                    { value: 'google_maps', icon: MapPin, label: 'Google Maps' },
+                                    { value: 'lista', icon: List, label: 'Lista' },
+                                    { value: 'trafego_pago', icon: Zap, label: 'Tráfego Pago' },
+                                    { value: 'manual', icon: UserPlus, label: 'Manual' },
+                                    { value: 'outro', icon: Package, label: 'Outro' }
+                                  ];
+                              return sources.map((source) => {
+                                const SourceIcon = source.icon || Package;
+                                return (
+                                  <button
+                                    key={source.value}
+                                    onClick={() => handleSourceChange(source.value)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                      currentSource === source.value ? 'bg-gray-50 dark:bg-gray-700' : ''
+                                    }`}
+                                  >
+                                    <SourceIcon className="w-4 h-4" />
+                                    <span className="flex-1 text-left">{source.label}</span>
+                                    {currentSource === source.value && (
+                                      <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                    )}
+                                  </button>
+                                );
+                              });
+                            })()}
                           </div>
                         )}
                       </div>

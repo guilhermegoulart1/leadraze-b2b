@@ -291,6 +291,13 @@ try {
 }
 
 try {
+  app.use('/api/lead-sources', require('./routes/leadSources'));
+  console.log('✅ Lead sources routes loaded');
+} catch (error) {
+  console.error('❌ Error loading lead sources routes:', error.message);
+}
+
+try {
   app.use('/api/conversations', require('./routes/conversations'));
   console.log('✅ Conversation routes loaded');
 } catch (error) {
@@ -587,6 +594,14 @@ try {
   console.log('✅ Channel Permissions routes loaded');
 } catch (error) {
   console.error('❌ Error loading Channel Permissions routes:', error.message);
+}
+
+// Onboarding (client onboarding for AI agent setup)
+try {
+  app.use('/api/onboarding', require('./routes/onboarding'));
+  console.log('✅ Onboarding routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Onboarding routes:', error.message);
 }
 
 // ================================

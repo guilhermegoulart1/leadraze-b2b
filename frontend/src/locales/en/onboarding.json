@@ -1,0 +1,220 @@
+{
+  "steps": {
+    "company": "Your Company",
+    "customers": "Your Customers",
+    "support": "Support",
+    "finish": "Finish"
+  },
+  "welcome": {
+    "title": "We're so happy to have you here!",
+    "description": "Fill out this form to tell us about your business. With this information, our team will create your personalized AI agents."
+  },
+  "alert": {
+    "title": "Complete your Onboarding",
+    "description": "Fill in your business information so we can configure your AI agents.",
+    "button": "Complete Now",
+    "dismiss": "Close"
+  },
+  "step1": {
+    "title": "About Your Company",
+    "description": "Tell us about what your company does. This helps us create authentic communication."
+  },
+  "step2": {
+    "title": "About Your Customers",
+    "description": "Help us understand who your ideal customers are so we can find the right people.",
+    "tip": "Think about your best customers - those who are easy to work with, pay on time, and refer you to others. We want to find more people like them!"
+  },
+  "step3": {
+    "title": "Your Support",
+    "description": "Tell us how you serve your customers and what questions they usually have."
+  },
+  "step4": {
+    "title": "Final Information",
+    "description": "Last pieces of information to complete your registration.",
+    "contactInfo": "Your Contact Information",
+    "nextStepsTitle": "What happens next?",
+    "nextStep1": "Our team analyzes your responses",
+    "nextStep2": "We create your personalized AI agents",
+    "nextStep3": "We schedule a call to show everything working",
+    "nextStep4": "We start prospecting and serving!"
+  },
+  "fields": {
+    "companyName": "Company Name",
+    "website": "Your Website",
+    "industry": "What industry is your company in?",
+    "description": "Describe what your company does",
+    "productsServices": "What are your main products or services?",
+    "differentials": "What makes your company different from others?",
+    "successCases": "Do you have any success stories or results to share?",
+    "idealCustomer": "Who are your ideal customers?",
+    "targetRoles": "Who do you usually talk to to close a sale?",
+    "targetLocation": "What cities or regions do you serve?",
+    "targetIndustries": "What sectors or niches do you serve most?",
+    "buyingSignals": "How do you know someone needs your service?",
+    "mainProblem": "What is the main problem you solve?",
+    "faq": "What questions do your customers ask most frequently?",
+    "objections": "What are the most common objections you hear?",
+    "policies": "Are there any important policies that support needs to know?",
+    "businessHours": "What are your business hours?",
+    "escalationTriggers": "When should a conversation be passed to you?",
+    "goals": "What do you hope to achieve with GetRaze?",
+    "leadTarget": "How many new customers do you want per month?",
+    "meetingTarget": "How many meetings do you want to schedule per month?",
+    "materialsLinks": "Do you have any company materials we can use?",
+    "calendarLink": "Link to your calendar for scheduling",
+    "blacklist": "Is there anyone we should NOT contact?",
+    "additionalNotes": "Any important observations?",
+    "contactName": "Your Name",
+    "contactRole": "Your Role",
+    "contactEmail": "Email",
+    "contactPhone": "WhatsApp"
+  },
+  "hints": {
+    "description": "Explain as if you were telling someone who has never heard of your company",
+    "productsServices": "List the main ones, with a brief description and price (or price range)",
+    "differentials": "Why should a customer choose you over the competitor?",
+    "successCases": "Concrete results that your customers have achieved",
+    "idealCustomer": "What type of company or person would you like to serve more?",
+    "targetRoles": "What is the role or function of the decision maker?",
+    "targetIndustries": "List the types of companies you want to prospect",
+    "buyingSignals": "What signs show that a company needs your help?",
+    "mainProblem": "If you had to summarize it in one sentence, what would it be?",
+    "faq": "List the questions you always answer and how you answer them",
+    "objections": "What do people say when they don't want to buy? And how do you respond?",
+    "policies": "Rules about discounts, deadlines, payment methods, warranties, etc.",
+    "escalationTriggers": "At what point should the agent call a human?",
+    "materialsLinks": "Links to presentations, videos, website, etc.",
+    "calendarLink": "If you use Calendly, Google Calendar, or similar",
+    "blacklist": "Competitors, current customers, partners, etc."
+  },
+  "placeholders": {
+    "select": "Select...",
+    "companyName": "Ex: Tech Solutions",
+    "description": "Ex: We are a consultancy that helps small and medium businesses implement management systems...",
+    "productsServices": "Ex:\n\n1. Process Consulting - $1,000 to $3,000\n\n2. System Implementation - $600 to $1,600",
+    "differentials": "Ex:\n- We have 10 years of experience\n- Our team is certified\n- We offer a results guarantee",
+    "successCases": "Ex:\n- Client X increased sales by 40% in 3 months\n- Company Y reduced costs by 25%",
+    "idealCustomer": "Ex: Owners of small retail businesses, with 5 to 50 employees, that are growing...",
+    "targetRoles": "Ex: Business owner, Director, IT Manager",
+    "targetLocation": "Ex: New York area, All of USA",
+    "targetIndustries": "Ex:\n- Clothing and shoe stores\n- Restaurants and bars\n- Medical clinics",
+    "buyingSignals": "Ex:\n- Company complaining about disorganization\n- Growing fast and can't keep up",
+    "mainProblem": "Ex: I help retail companies sell more and have less headaches with operations...",
+    "faq": "Ex:\n\nQUESTION: How much does it cost?\nANSWER: It depends on the size of the project. For small companies, our projects start at $600...",
+    "objections": "Ex:\n\nOBJECTION: 'It's expensive'\nHOW I RESPOND: I understand your concern. Our clients usually recover the investment in 2-3 months...",
+    "policies": "Ex:\n- Maximum 10% discount for cash payment\n- We accept up to 6 installments interest-free",
+    "businessHours": "Ex: Monday to Friday, 9am to 6pm",
+    "leadTarget": "Ex: 10 customers",
+    "meetingTarget": "Ex: 30 meetings",
+    "materialsLinks": "Ex:\n- Presentation: https://drive.google.com/...\n- Corporate video: https://youtube.com/...",
+    "blacklist": "Ex:\n- Company X (is a competitor)\n- Company Y (is already our client)",
+    "additionalNotes": "Any additional information you think is relevant...",
+    "contactName": "Full name",
+    "contactRole": "Ex: Director, Partner, CEO"
+  },
+  "industries": {
+    "technology": "Technology / Software",
+    "marketing": "Marketing / Advertising",
+    "consulting": "Consulting",
+    "financial": "Financial Services",
+    "accounting": "Accounting",
+    "health": "Healthcare",
+    "education": "Education",
+    "retail": "Retail / E-commerce",
+    "manufacturing": "Manufacturing",
+    "realestate": "Real Estate",
+    "legal": "Legal",
+    "hr": "Human Resources",
+    "logistics": "Logistics / Transportation",
+    "construction": "Construction / Architecture",
+    "agribusiness": "Agriculture / Agribusiness",
+    "tourism": "Tourism / Hospitality",
+    "foodservice": "Food Service / Restaurants",
+    "beauty": "Beauty / Aesthetics",
+    "automotive": "Automotive",
+    "insurance": "Insurance",
+    "energy": "Energy",
+    "telecom": "Telecommunications",
+    "events": "Events",
+    "other": "Other"
+  },
+  "goals": {
+    "moreClients": "Get more clients",
+    "moreTime": "Have more free time",
+    "betterSupport": "Improve customer service",
+    "scaleSales": "Scale sales",
+    "reduceCosts": "Reduce costs",
+    "organizeProspecting": "Organize prospecting"
+  },
+  "escalation": {
+    "firstContact": "Right at first contact",
+    "replied": "When they reply to the message",
+    "minimalInterest": "When they show minimal interest",
+    "askedPrice": "When they ask about price",
+    "qualified": "When they are qualified",
+    "wantsMeeting": "When they want to schedule a meeting",
+    "wantsToBuy": "When they want to buy",
+    "wantsNegotiation": "When they want to negotiate price",
+    "hasComplaint": "When there's a complaint",
+    "wantsHuman": "When they ask to speak with a human",
+    "complexQuestion": "Very specific questions"
+  },
+  "buttons": {
+    "back": "Back",
+    "next": "Next",
+    "saving": "Saving...",
+    "submit": "Submit Form",
+    "submitting": "Submitting..."
+  },
+  "success": {
+    "title": "Form Submitted!",
+    "description": "Thank you! We have received your information and our team is already working on creating your agents.",
+    "submitted": "Onboarding submitted successfully!",
+    "nextSteps": "What happens now?",
+    "step1": "Our team analyzes your responses",
+    "step2": "We create your personalized AI agents",
+    "step3": "We schedule a call to show everything working",
+    "step4": "We start prospecting and serving!",
+    "goToDashboard": "Go to Dashboard"
+  },
+  "errors": {
+    "saveFailed": "Error saving. Please try again.",
+    "requiredFields": "Please fill in the required fields"
+  },
+  "admin": {
+    "title": "Onboardings",
+    "subtitle": "View and manage customer onboardings",
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "completed": "Completed",
+      "reviewed": "Reviewed"
+    },
+    "table": {
+      "company": "Company",
+      "contact": "Contact",
+      "status": "Status",
+      "createdAt": "Created at",
+      "actions": "Actions"
+    },
+    "status": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "reviewed": "Reviewed"
+    },
+    "actions": {
+      "view": "View",
+      "markReviewed": "Mark as Reviewed"
+    },
+    "modal": {
+      "title": "Onboarding Details",
+      "section1": "Company Data",
+      "section2": "Customer Data",
+      "section3": "Support",
+      "section4": "Final Information",
+      "contact": "Contact"
+    },
+    "empty": "No onboarding found",
+    "reviewedSuccess": "Onboarding marked as reviewed"
+  }
+}

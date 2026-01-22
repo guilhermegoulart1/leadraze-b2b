@@ -18,6 +18,9 @@ router.get('/stats', taskController.getTaskStats);
 // Get tasks grouped for board view
 router.get('/board', taskController.getTasksBoard);
 
+// Get tasks for calendar view
+router.get('/calendar', taskController.getTasksCalendar);
+
 // List all tasks with filters
 router.get('/', taskController.getTasks);
 

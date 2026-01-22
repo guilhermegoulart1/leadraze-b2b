@@ -99,31 +99,97 @@ const QuickRepliesTab = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader className="w-8 h-8 animate-spin text-purple-600" />
+      <div className="p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-center py-12">
+            <Loader className="w-8 h-8 animate-spin text-purple-600" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {t('quickReplies.title')}
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {t('quickReplies.description')}
-          </p>
+    <div className="p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {t('quickReplies.title')}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {t('quickReplies.description')}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              {t('quickReplies.newReply')}
+            </button>
+          </div>
+
+          {/* Empty State */}
+          {replies.length === 0 && (
+            <div className="text-center py-12 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                {t('quickReplies.noReplies')}
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">
+                {t('quickReplies.createFirst')}
+              </p>
+            </div>
+          )}
+
+          {/* My Replies */}
+          {myReplies.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <User className="w-4 h-4" />
+                {t('quickReplies.myReplies')}
+              </h3>
+              <div className="space-y-3">
+                {myReplies.map(reply => (
+                  <ReplyCard
+                    key={reply.id}
+                    reply={reply}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    t={t}
+                    canEdit={true}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Global Replies */}
+          {globalReplies.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                {t('quickReplies.globalReplies')}
+              </h3>
+              <div className="space-y-3">
+                {globalReplies.map(reply => (
+                  <ReplyCard
+                    key={reply.id}
+                    reply={reply}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    t={t}
+                    canEdit={isAdmin}
+                    showCreator={true}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          {t('quickReplies.newReply')}
-        </button>
       </div>
 
       {/* Form Modal */}
@@ -209,64 +275,6 @@ const QuickRepliesTab = () => {
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {replies.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-          <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            {t('quickReplies.noReplies')}
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            {t('quickReplies.createFirst')}
-          </p>
-        </div>
-      )}
-
-      {/* My Replies */}
-      {myReplies.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-            <User className="w-4 h-4" />
-            {t('quickReplies.myReplies')}
-          </h3>
-          <div className="space-y-3">
-            {myReplies.map(reply => (
-              <ReplyCard
-                key={reply.id}
-                reply={reply}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                t={t}
-                canEdit={true}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Global Replies */}
-      {globalReplies.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            {t('quickReplies.globalReplies')}
-          </h3>
-          <div className="space-y-3">
-            {globalReplies.map(reply => (
-              <ReplyCard
-                key={reply.id}
-                reply={reply}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                t={t}
-                canEdit={isAdmin}
-                showCreator={true}
-              />
-            ))}
           </div>
         </div>
       )}

@@ -54,6 +54,7 @@ const formatTask = (row, assignees = []) => {
     priority: row.priority || 'medium',
     isCompleted: row.is_completed,
     dueDate: row.due_date,
+    endDate: row.end_date || null,
     completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -400,6 +401,142 @@ const getTasksBoard = async (req, res) => {
 };
 
 /**
+ * Get tasks for calendar view
+ * GET /api/tasks/calendar
+ * Returns tasks within a date range, including multi-day tasks
+ */
+const getTasksCalendar = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    const {
+      start_date,
+      end_date,
+      assigned_to,
+      opportunity_id,
+      include_completed = 'false'
+    } = req.query;
+
+    // Default to current month if no dates specified
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    const rangeStart = start_date ? new Date(start_date) : defaultStart;
+    const rangeEnd = end_date ? new Date(end_date) : defaultEnd;
+
+    const params = [accountId, rangeStart, rangeEnd];
+    let paramIndex = 4;
+
+    // Query tasks that:
+    // 1. Have due_date within range
+    // 2. OR have end_date within range
+    // 3. OR span across the range (due_date before range and end_date after range)
+    let whereClause = `
+      WHERE c.account_id = $1
+      AND (
+        (i.due_date >= $2 AND i.due_date <= $3)
+        OR (i.end_date >= $2 AND i.end_date <= $3)
+        OR (i.due_date <= $2 AND i.end_date >= $3)
+        OR (i.due_date IS NULL)
+      )
+    `;
+
+    if (include_completed !== 'true') {
+      whereClause += ` AND i.is_completed = false`;
+    }
+
+    if (assigned_to) {
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM opportunity_checklist_item_assignees cia
+        WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex++}
+      )`;
+      params.push(assigned_to);
+    }
+
+    if (opportunity_id) {
+      whereClause += ` AND c.opportunity_id = $${paramIndex++}`;
+      params.push(opportunity_id);
+    }
+
+    // Role-based visibility
+    if (userRole !== 'admin' && userRole !== 'supervisor') {
+      whereClause += ` AND (
+        o.owner_user_id = $${paramIndex} OR
+        EXISTS (SELECT 1 FROM opportunity_checklist_item_assignees cia WHERE cia.checklist_item_id = i.id AND cia.user_id = $${paramIndex})
+      )`;
+      params.push(userId);
+      paramIndex++;
+    }
+
+    const query = `
+      SELECT
+        i.*,
+        c.name as checklist_name,
+        c.opportunity_id,
+        o.title as opportunity_title,
+        ct.name as contact_name,
+        ct.company as contact_company
+      FROM opportunity_checklist_items i
+      JOIN opportunity_checklists c ON i.checklist_id = c.id
+      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+      LEFT JOIN contacts ct ON o.contact_id = ct.id
+      ${whereClause}
+      ORDER BY
+        CASE WHEN i.due_date IS NULL THEN 1 ELSE 0 END,
+        i.due_date ASC,
+        i.created_at ASC
+    `;
+
+    const result = await db.query(query, params);
+
+    // Get assignees for all items
+    const itemIds = result.rows.map(r => r.id);
+    let assigneesMap = {};
+
+    if (itemIds.length > 0) {
+      const assigneesQuery = `
+        SELECT
+          cia.checklist_item_id,
+          u.id, u.name, u.email, u.avatar_url as "avatarUrl"
+        FROM opportunity_checklist_item_assignees cia
+        JOIN users u ON cia.user_id = u.id
+        WHERE cia.checklist_item_id = ANY($1)
+        ORDER BY cia.assigned_at
+      `;
+      const assigneesResult = await db.query(assigneesQuery, [itemIds]);
+
+      for (const row of assigneesResult.rows) {
+        if (!assigneesMap[row.checklist_item_id]) {
+          assigneesMap[row.checklist_item_id] = [];
+        }
+        assigneesMap[row.checklist_item_id].push({
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          avatarUrl: row.avatarUrl
+        });
+      }
+    }
+
+    const tasks = result.rows.map(row => formatTask(row, assigneesMap[row.id] || []));
+
+    return sendSuccess(res, {
+      tasks,
+      range: {
+        start: rangeStart.toISOString(),
+        end: rangeEnd.toISOString()
+      }
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
  * Get task statistics
  * GET /api/tasks/stats
  */
@@ -517,14 +654,22 @@ const createTask = async (req, res) => {
     const accountId = req.user.account_id;
     const userId = req.user.id;
 
+    // DEBUG: Log incoming request
+    console.log('[createTask] Incoming req.body:', JSON.stringify(req.body, null, 2));
+
     const {
       opportunity_id,
       checklist_id,
       title,
       task_type = 'call',
       due_date,
+      end_date,
       assignees = []
     } = req.body;
+
+    // DEBUG: Log dates
+    console.log('[createTask] due_date raw:', due_date);
+    console.log('[createTask] due_date type:', typeof due_date);
 
     // Validate required fields
     if (!title || title.trim().length === 0) {
@@ -584,18 +729,44 @@ const createTask = async (req, res) => {
     const itemId = uuidv4();
     const validTaskType = VALID_TASK_TYPES.includes(task_type) ? task_type : 'call';
 
-    await db.insert('opportunity_checklist_items', {
+    // Pass ISO string directly to PostgreSQL (not Date object) to avoid timezone conversion
+    const toISOString = (dateStr) => {
+      if (!dateStr) return null;
+      // If already has timezone info, return as-is
+      if (dateStr.includes('Z') || dateStr.includes('+') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+        return dateStr;
+      }
+      // datetime-local format: "2026-01-20T14:00" - add seconds and Z for UTC
+      return dateStr.includes(':') && dateStr.split(':').length === 2
+        ? dateStr + ':00Z'
+        : dateStr + 'Z';
+    };
+
+    const dueDateISO = toISOString(due_date);
+    const endDateISO = toISOString(end_date);
+
+    // DEBUG: Log dates
+    console.log('[createTask] due_date input:', due_date);
+    console.log('[createTask] due_date stored:', dueDateISO);
+
+    const insertData = {
       id: itemId,
       checklist_id: targetChecklistId,
       title: title.trim(),
       content: title.trim(),
       task_type: validTaskType,
       is_completed: false,
-      due_date: due_date || null,
+      due_date: dueDateISO,
+      end_date: endDateISO,
       position,
       created_at: new Date(),
       updated_at: new Date()
-    });
+    };
+
+    // DEBUG: Log final insert data
+    console.log('[createTask] Final insert data:', JSON.stringify(insertData, null, 2));
+
+    await db.insert('opportunity_checklist_items', insertData);
 
     // Set assignees
     const assigneeIds = Array.isArray(assignees) ? assignees : (assignees ? [assignees] : []);
@@ -638,15 +809,24 @@ const updateTask = async (req, res) => {
     const accountId = req.user.account_id;
     const userId = req.user.id;
 
+    // DEBUG: Log incoming request
+    console.log('[updateTask] Task ID:', id);
+    console.log('[updateTask] Incoming req.body:', JSON.stringify(req.body, null, 2));
+
     const {
       title,
       description,
       task_type,
       due_date,
+      end_date,
       assignees,
       status,
       priority
     } = req.body;
+
+    // DEBUG: Log due_date specifically
+    console.log('[updateTask] due_date raw:', due_date);
+    console.log('[updateTask] due_date type:', typeof due_date);
 
     // Get existing item
     const existingQuery = `
@@ -683,7 +863,37 @@ const updateTask = async (req, res) => {
     }
 
     if (due_date !== undefined) {
-      updates.due_date = due_date || null;
+      // Pass ISO string directly to PostgreSQL (not Date object) to avoid timezone conversion
+      const toISOString = (dateStr) => {
+        if (!dateStr) return null;
+        // If already has timezone info, return as-is
+        if (dateStr.includes('Z') || dateStr.includes('+') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+          return dateStr;
+        }
+        // datetime-local format: "2026-01-20T14:00" - add seconds and Z for UTC
+        return dateStr.includes(':') && dateStr.split(':').length === 2
+          ? dateStr + ':00Z'
+          : dateStr + 'Z';
+      };
+
+      updates.due_date = toISOString(due_date);
+      console.log('[updateTask] due_date input:', due_date);
+      console.log('[updateTask] due_date stored:', updates.due_date);
+    }
+
+    if (end_date !== undefined) {
+      const toISOString = (dateStr) => {
+        if (!dateStr) return null;
+        if (dateStr.includes('Z') || dateStr.includes('+') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+          return dateStr;
+        }
+        return dateStr.includes(':') && dateStr.split(':').length === 2
+          ? dateStr + ':00Z'
+          : dateStr + 'Z';
+      };
+
+      updates.end_date = toISOString(end_date);
+      console.log('[updateTask] end_date stored:', updates.end_date);
     }
 
     if (priority !== undefined) {
@@ -703,7 +913,13 @@ const updateTask = async (req, res) => {
       }
     }
 
-    await db.update('opportunity_checklist_items', updates, { id });
+    // DEBUG: Log final updates
+    console.log('[updateTask] Final updates:', JSON.stringify(updates, null, 2));
+
+    const updateResult = await db.update('opportunity_checklist_items', updates, { id });
+
+    // DEBUG: Log what db.update returned
+    console.log('[updateTask] UPDATE RETURNING due_date:', updateResult?.due_date);
 
     // Handle assignees update
     if (assignees !== undefined) {
@@ -729,7 +945,12 @@ const updateTask = async (req, res) => {
     const result = await db.query(query, [id]);
     const assigneesData = await getItemAssignees(id);
 
-    return sendSuccess(res, { task: formatTask(result.rows[0], assigneesData) }, 'Task updated successfully');
+    // DEBUG: Log what's being returned
+    const formattedTask = formatTask(result.rows[0], assigneesData);
+    console.log('[updateTask] Returning task.dueDate:', formattedTask.dueDate);
+    console.log('[updateTask] row.due_date from DB:', result.rows[0].due_date);
+
+    return sendSuccess(res, { task: formattedTask }, 'Task updated successfully');
 
   } catch (error) {
     sendError(res, error, error.statusCode || 500);
@@ -962,6 +1183,7 @@ const getOpportunityTasks = async (req, res) => {
 module.exports = {
   getTasks,
   getTasksBoard,
+  getTasksCalendar,
   getTaskStats,
   getTask,
   createTask,

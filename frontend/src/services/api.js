@@ -536,6 +536,11 @@ class ApiService {
     return this.request('/conversations/assignable-users');
   }
 
+  // Get assignable sectors for conversations (no sectors:view permission required)
+  async getConversationAssignableSectors() {
+    return this.request('/conversations/assignable-sectors');
+  }
+
   async assignConversation(conversationId, userId) {
     return this.request(`/conversations/${conversationId}/assign`, {
       method: 'POST',
@@ -1240,6 +1245,45 @@ class ApiService {
   // Reactivate opportunity
   async reactivateLead(opportunityId) {
     return this.request(`/opportunities/${opportunityId}/reactivate`, {
+      method: 'POST',
+    });
+  }
+
+  // ================================
+  // LEAD SOURCES
+  // ================================
+
+  async getLeadSources(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/lead-sources${query ? '?' + query : ''}`);
+  }
+
+  async getLeadSource(sourceId) {
+    return this.request(`/lead-sources/${sourceId}`);
+  }
+
+  async createLeadSource(sourceData) {
+    return this.request('/lead-sources', {
+      method: 'POST',
+      body: JSON.stringify(sourceData),
+    });
+  }
+
+  async updateLeadSource(sourceId, sourceData) {
+    return this.request(`/lead-sources/${sourceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(sourceData),
+    });
+  }
+
+  async deleteLeadSource(sourceId) {
+    return this.request(`/lead-sources/${sourceId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async seedLeadSources() {
+    return this.request('/lead-sources/seed', {
       method: 'POST',
     });
   }
@@ -2709,6 +2753,11 @@ class ApiService {
     return this.request(`/tasks/board${query ? '?' + query : ''}`);
   }
 
+  async getTasksCalendar(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/tasks/calendar${query ? '?' + query : ''}`);
+  }
+
   async getTaskStats(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/tasks/stats${query ? '?' + query : ''}`);
@@ -3513,6 +3562,43 @@ class ApiService {
   async deleteChannelPermission(permissionId) {
     return this.request(`/channel-permissions/${permissionId}`, {
       method: 'DELETE',
+    });
+  }
+
+  // ===================================
+  // ONBOARDING
+  // ===================================
+
+  async getOnboarding() {
+    return this.request('/onboarding');
+  }
+
+  async createOnboarding(data) {
+    return this.request('/onboarding', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateOnboarding(id, data) {
+    return this.request(`/onboarding/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getOnboardingsAdmin(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/onboarding/admin${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getOnboardingById(id) {
+    return this.request(`/onboarding/admin/${id}`);
+  }
+
+  async markOnboardingReviewed(id) {
+    return this.request(`/onboarding/admin/${id}/review`, {
+      method: 'PUT',
     });
   }
 

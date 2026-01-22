@@ -196,5 +196,32 @@
     "seedDefaults": "Crear Motivos Predeterminados",
     "noReasons": "No hay motivos registrados",
     "createFirst": "Haga clic en 'Agregar Motivo' para crear el primero"
+  },
+  "leadSources": {
+    "title": "Fuentes de Lead",
+    "subtitle": "Gestione las fuentes de origen de los leads",
+    "addSource": "Agregar Fuente",
+    "editSource": "Editar Fuente",
+    "name": "Nombre Interno",
+    "label": "Etiqueta de Visualización",
+    "description": "Descripción",
+    "color": "Color",
+    "icon": "Icono",
+    "namePlaceholder": "ej: linkedin",
+    "labelPlaceholder": "ej: LinkedIn",
+    "descriptionPlaceholder": "Descripción de la fuente (opcional)",
+    "iconPlaceholder": "máx 2 caracteres",
+    "nameHint": "Use letras minúsculas sin espacios",
+    "active": "Activa",
+    "inactive": "Inactiva",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Está seguro de que desea eliminar esta fuente?",
+    "deleteError": "Esta fuente está siendo usada y no puede ser eliminada",
+    "seedDefaults": "Crear Fuentes Predeterminadas",
+    "noSources": "No hay fuentes registradas",
+    "createFirst": "Haga clic en 'Agregar Fuente' para crear la primera",
+    "isDefault": "Predeterminada"
   }
 }

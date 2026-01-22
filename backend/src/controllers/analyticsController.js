@@ -253,18 +253,56 @@ const getDashboard = async (req, res) => {
     `;
     const leadsBySourceData = await db.query(leadsBySourceQuery, [accountId, startDate]);
 
-    // Processar leads por fonte com labels e percentuais
-    const sourceLabels = {
-      'linkedin': 'LinkedIn',
-      'google_maps': 'Google Maps',
-      'list': 'Lista',
-      'paid_traffic': 'Tráfego Pago',
-      'other': 'Outros'
+    // Fetch dynamic source labels, colors and icons from lead_sources table
+    const sourceConfigQuery = `
+      SELECT name, label, color, icon
+      FROM lead_sources
+      WHERE account_id = $1 AND is_active = true
+    `;
+    const sourceConfigResult = await db.query(sourceConfigQuery, [accountId]);
+
+    // Build source config maps
+    const sourceLabels = {};
+    const sourceColors = {};
+    const sourceIcons = {};
+
+    // Fallback defaults for accounts without configured sources
+    const defaultSourceConfig = {
+      'linkedin': { label: 'LinkedIn', color: '#0077b5', icon: 'in' },
+      'google_maps': { label: 'Google Maps', color: '#34a853', icon: 'G' },
+      'lista': { label: 'Lista', color: '#7c3aed', icon: 'L' },
+      'list': { label: 'Lista', color: '#7c3aed', icon: 'L' },
+      'trafego_pago': { label: 'Tráfego Pago', color: '#f59e0b', icon: '$' },
+      'paid_traffic': { label: 'Tráfego Pago', color: '#f59e0b', icon: '$' },
+      'manual': { label: 'Manual', color: '#3b82f6', icon: 'M' },
+      'indicacao': { label: 'Indicação', color: '#10b981', icon: 'R' },
+      'referral': { label: 'Indicação', color: '#10b981', icon: 'R' },
+      'outro': { label: 'Outro', color: '#6b7280', icon: '?' },
+      'other': { label: 'Outro', color: '#6b7280', icon: '?' }
     };
+
+    // Populate from database if available
+    sourceConfigResult.rows.forEach(row => {
+      sourceLabels[row.name] = row.label;
+      sourceColors[row.name] = row.color;
+      sourceIcons[row.name] = row.icon;
+    });
+
+    // Apply fallbacks for sources not in database
+    Object.keys(defaultSourceConfig).forEach(key => {
+      if (!sourceLabels[key]) {
+        sourceLabels[key] = defaultSourceConfig[key].label;
+        sourceColors[key] = defaultSourceConfig[key].color;
+        sourceIcons[key] = defaultSourceConfig[key].icon;
+      }
+    });
+
     const totalLeadsBySource = leadsBySourceData.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
     const leadsBySource = leadsBySourceData.rows.map(row => ({
       source: row.source,
       label: sourceLabels[row.source] || row.source,
+      color: sourceColors[row.source] || '#6b7280',
+      icon: sourceIcons[row.source] || '?',
       count: parseInt(row.count),
       percentage: totalLeadsBySource > 0 ? parseFloat(((parseInt(row.count) / totalLeadsBySource) * 100).toFixed(1)) : 0
     }));

@@ -196,5 +196,32 @@
     "seedDefaults": "Criar Motivos Padrão",
     "noReasons": "Nenhum motivo cadastrado",
     "createFirst": "Clique em 'Adicionar Motivo' para criar o primeiro"
+  },
+  "leadSources": {
+    "title": "Fontes de Lead",
+    "subtitle": "Gerencie as fontes de origem dos leads",
+    "addSource": "Adicionar Fonte",
+    "editSource": "Editar Fonte",
+    "name": "Nome Interno",
+    "label": "Label de Exibição",
+    "description": "Descrição",
+    "color": "Cor",
+    "icon": "Ícone",
+    "namePlaceholder": "ex: linkedin",
+    "labelPlaceholder": "ex: LinkedIn",
+    "descriptionPlaceholder": "Descrição da fonte (opcional)",
+    "iconPlaceholder": "máx 2 caracteres",
+    "nameHint": "Use letras minúsculas sem espaços",
+    "active": "Ativa",
+    "inactive": "Inativa",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "confirmDelete": "Tem certeza que deseja excluir esta fonte?",
+    "deleteError": "Esta fonte está sendo usada e não pode ser excluída",
+    "seedDefaults": "Criar Fontes Padrão",
+    "noSources": "Nenhuma fonte cadastrada",
+    "createFirst": "Clique em 'Adicionar Fonte' para criar a primeira",
+    "isDefault": "Padrão"
   }
 }

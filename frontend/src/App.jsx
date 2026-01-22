@@ -57,6 +57,9 @@ import SecretAgentPage from './pages/SecretAgentPage';
 import AIEmployeesPage from './pages/AIEmployeesPage';
 import SearchPostsPage from './pages/SearchPostsPage';
 import PipelinesPage from './pages/PipelinesPage';
+import OnboardingPage from './pages/OnboardingPage';
+import OnboardingAdminPage from './pages/OnboardingAdminPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 // Partner Pages
 import PartnerLoginPage from './pages/partner/PartnerLoginPage';
@@ -187,6 +190,9 @@ function AppRoutes() {
         <Route path="agents" element={<AgentsPage />} />
         <Route path="aiemployees" element={<AIEmployeesPage />} />
         <Route path="pipelines" element={<PipelinesPage />} />
+        <Route path="onboarding" element={<OnboardingPage />} />
+        <Route path="onboarding/admin" element={<OnboardingAdminPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="api-keys" element={<Navigate to="/config?tab=api-keys" replace />} />
         <Route path="channels" element={<Navigate to="/config?tab=channels" replace />} />

@@ -4,11 +4,36 @@
   "configTabs": {
     "products": "Productos",
     "discardReasons": "Motivos de Descarte",
+    "leadSources": "Fuentes",
     "tags": "Etiquetas",
     "apiKeys": "API Key",
     "channels": "Canales Conectados",
     "checklists": "CRM Checklists",
-    "emails": "Emails"
+    "emails": "Emails",
+    "quickReplies": "Respuestas Rápidas"
+  },
+  "quickReplies": {
+    "title": "Respuestas Rápidas",
+    "description": "Crea respuestas predefinidas para usar rápidamente en las conversaciones. Escribe / en el chat para acceder a ellas.",
+    "newReply": "Nueva Respuesta",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Ej: Saludo inicial",
+    "contentLabel": "Contenido",
+    "contentPlaceholder": "Escribe el texto de la respuesta rápida...",
+    "shortcutLabel": "Atajo (opcional)",
+    "shortcutPlaceholder": "Ej: hola",
+    "globalLabel": "Global",
+    "globalDescription": "Visible para todos los usuarios",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar esta respuesta rápida?",
+    "noReplies": "No hay respuestas rápidas configuradas",
+    "createFirst": "Crea tu primera respuesta rápida para agilizar tus conversaciones",
+    "myReplies": "Mis Respuestas",
+    "globalReplies": "Respuestas Globales",
+    "createdBy": "Creado por"
   },
   "tabs": {
     "profile": "Perfil",

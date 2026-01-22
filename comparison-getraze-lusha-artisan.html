@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparativo: GetRaze vs Lusha vs Artisan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .title {
+            font-size: 2.5em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #a0a0a0;
+            margin-bottom: 20px;
+        }
+
+        .date {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0a0a0;
+        }
+
+        .legend-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .icon-yes {
+            background: rgba(16, 185, 129, 0.3);
+            color: #4ade80;
+        }
+
+        .icon-no {
+            background: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .icon-partial {
+            background: rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+
+        .section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-x: auto;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th, td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        th {
+            background: rgba(102, 126, 234, 0.2);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        th:first-child {
+            width: 35%;
+        }
+
+        th:not(:first-child) {
+            text-align: center;
+            width: 21.67%;
+        }
+
+        td:not(:first-child) {
+            text-align: center;
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .platform-header {
+            font-size: 1.1em;
+        }
+
+        .platform-getraze {
+            color: #667eea;
+        }
+
+        .platform-lusha {
+            color: #10b981;
+        }
+
+        .platform-artisan {
+            color: #f59e0b;
+        }
+
+        .check {
+            color: #4ade80;
+            font-size: 1.3em;
+        }
+
+        .cross {
+            color: #f87171;
+            font-size: 1.3em;
+        }
+
+        .partial {
+            color: #fbbf24;
+            font-size: 1.3em;
+        }
+
+        .feature-name {
+            color: #e0e0e0;
+        }
+
+        .feature-detail {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .category-row {
+            background: rgba(102, 126, 234, 0.1) !important;
+        }
+
+        .category-row td {
+            font-weight: 600;
+            color: #667eea;
+            padding: 12px 20px;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 900px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .summary-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .summary-card.getraze {
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .summary-card.lusha {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .summary-card.artisan {
+            border-color: rgba(245, 158, 11, 0.5);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .card-logo {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .card-description {
+            color: #a0a0a0;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+        }
+
+        .card-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: #ccc;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .highlight-row {
+            background: rgba(102, 126, 234, 0.08) !important;
+        }
+
+        .note {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            color: #a0a0a0;
+        }
+
+        .note-title {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            white-space: nowrap;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="title">Comparativo de Plataformas</div>
+            <div class="subtitle">GetRaze + Relay vs Lusha vs Artisan</div>
+            <div class="date">Analise de Funcionalidades - Janeiro 2025</div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card getraze">
+                <div class="card-header">
+                    <span class="card-logo platform-getraze">GetRaze + Relay</span>
+                </div>
+                <div class="card-description">
+                    Plataforma completa de CRM e automacao de vendas com AI Agents multi-canal. Inclui SDK proprietario (Relay) para integracao de 6 canais de comunicacao.
+                </div>
+                <div class="card-stats">
+                    <span class="stat-badge">CRM Completo</span>
+                    <span class="stat-badge">6 Canais</span>
+                    <span class="stat-badge">AI Agents</span>
+                    <span class="stat-badge">SDK Proprio</span>
+                </div>
+            </div>
+
+            <div class="summary-card lusha">
+                <div class="card-header">
+                    <span class="card-logo platform-lusha">Lusha</span>
+                </div>
+                <div class="card-description">
+                    Plataforma de inteligencia de vendas B2B focada em dados de contatos verificados e sinais de intencao de compra. Base com 280M+ contatos.
+                </div>
+                <div class="card-stats">
+                    <span class="stat-badge">280M+ Contatos</span>
+                    <span class="stat-badge">Intent Data</span>
+                    <span class="stat-badge">Chrome Extension</span>
+                    <span class="stat-badge">ISO 27701</span>
+                </div>
+            </div>
+
+            <div class="summary-card artisan">
+                <div class="card-header">
+                    <span class="card-logo platform-artisan">Artisan</span>
+                </div>
+                <div class="card-description">
+                    Plataforma de AI BDR com agente "Ava" para automacao de outbound. Foco em prospecting automatizado com personalizacao via IA.
+                </div>
+                <div class="card-stats">
+                    <span class="stat-badge">AI BDR (Ava)</span>
+                    <span class="stat-badge">300M+ Contatos</span>
+                    <span class="stat-badge">Email Warmup</span>
+                    <span class="stat-badge">Intent Signals</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-icon icon-yes">&#10003;</div>
+                <span>Possui funcionalidade</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon icon-partial">~</div>
+                <span>Parcialmente / Limitado</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon icon-no">&#10005;</div>
+                <span>Nao possui</span>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="section">
+            <h2 class="section-title">Tabela Comparativa de Funcionalidades</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Funcionalidade</th>
+                        <th class="platform-header platform-getraze">GetRaze + Relay</th>
+                        <th class="platform-header platform-lusha">Lusha</th>
+                        <th class="platform-header platform-artisan">Artisan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- DADOS E PROSPECTING -->
+                    <tr class="category-row">
+                        <td colspan="4">Dados e Prospecting</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Base de Dados B2B</div>
+                            <div class="feature-detail">Acesso a contatos verificados</div>
+                        </td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Quantidade de Contatos</div>
+                            <div class="feature-detail">Tamanho da base de dados</div>
+                        </td>
+                        <td>Via LinkedIn</td>
+                        <td>280M+</td>
+                        <td>300M+</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Enriquecimento de Dados</div>
+                            <div class="feature-detail">Completar informacoes de contatos</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Busca por LinkedIn</div>
+                            <div class="feature-detail">Prospectar via perfis LinkedIn</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Busca por Google Maps</div>
+                            <div class="feature-detail">Prospectar negocios locais</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Chrome Extension</div>
+                            <div class="feature-detail">Extensao para navegador</div>
+                        </td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Intent Data / Sinais de Compra</div>
+                            <div class="feature-detail">Detectar interesse de compra</div>
+                        </td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Filtros Avancados de Busca</div>
+                            <div class="feature-detail">Segmentacao por criterios</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Coleta em Lote (Bulk)</div>
+                            <div class="feature-detail">Importar muitos contatos</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+
+                    <!-- CRM E PIPELINE -->
+                    <tr class="category-row">
+                        <td colspan="4">CRM e Pipeline</td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">CRM Completo</div>
+                            <div class="feature-detail">Gestao de oportunidades</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Pipeline Kanban</div>
+                            <div class="feature-detail">Visualizacao de funil</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Pipelines Customizaveis</div>
+                            <div class="feature-detail">Criar estagios personalizados</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Gestao de Contatos</div>
+                            <div class="feature-detail">Base de contatos propria</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Gestao de Tarefas</div>
+                            <div class="feature-detail">To-do e follow-ups</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Calendario</div>
+                            <div class="feature-detail">Visualizacao de atividades</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Checklists / Templates</div>
+                            <div class="feature-detail">Listas de verificacao</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Tagging de Oportunidades</div>
+                            <div class="feature-detail">Categorizar deals</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+
+                    <!-- AUTOMACAO E AI -->
+                    <tr class="category-row">
+                        <td colspan="4">Automacao e Inteligencia Artificial</td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">AI Agents (Agentes IA)</div>
+                            <div class="feature-detail">Agentes autonomos de vendas</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">AI BDR</div>
+                            <div class="feature-detail">Agente de desenvolvimento</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Builder Visual de Workflows</div>
+                            <div class="feature-detail">Criar automacoes visuais</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Follow-up Automatico</div>
+                            <div class="feature-detail">Sequencias de follow-up</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Campanhas de LinkedIn</div>
+                            <div class="feature-detail">Automacao de convites</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Email Sequences</div>
+                            <div class="feature-detail">Sequencias de email</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Email Warmup</div>
+                            <div class="feature-detail">Aquecimento de dominio</div>
+                        </td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Personalizacao com IA</div>
+                            <div class="feature-detail">Mensagens personalizadas</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Secret Agent (Coaching)</div>
+                            <div class="feature-detail">Inteligencia e coaching de vendas</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Gravacao de Calls</div>
+                            <div class="feature-detail">Gravar e transcrever reunioes</div>
+                        </td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Round-Robin Assignment</div>
+                            <div class="feature-detail">Distribuicao automatica</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+
+                    <!-- COMUNICACAO MULTI-CANAL -->
+                    <tr class="category-row">
+                        <td colspan="4">Comunicacao Multi-canal</td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">SDK Multi-canal (Relay)</div>
+                            <div class="feature-detail">API unificada de canais</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">LinkedIn Messaging</div>
+                            <div class="feature-detail">Envio de mensagens LinkedIn</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">WhatsApp Integration</div>
+                            <div class="feature-detail">Mensagens via WhatsApp</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Email Integration</div>
+                            <div class="feature-detail">Envio de emails</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Instagram DM</div>
+                            <div class="feature-detail">Direct Messages Instagram</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Telegram</div>
+                            <div class="feature-detail">Mensagens via Telegram</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td>
+                            <div class="feature-name">Facebook Messenger</div>
+                            <div class="feature-detail">Mensagens via Messenger</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Inbox Unificado</div>
+                            <div class="feature-detail">Todas conversas em um lugar</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Website Chatbot</div>
+                            <div class="feature-detail">Chat para website</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+
+                    <!-- ANALYTICS -->
+                    <tr class="category-row">
+                        <td colspan="4">Analytics e Relatorios</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Dashboard de Analytics</div>
+                            <div class="feature-detail">Metricas visuais</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Funil de Conversao</div>
+                            <div class="feature-detail">Analise de pipeline</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Metricas de Campanha</div>
+                            <div class="feature-detail">Performance de campanhas</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Rastreamento de Email</div>
+                            <div class="feature-detail">Opens, clicks, replies</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Website Visitor Tracking</div>
+                            <div class="feature-detail">Rastrear visitantes</div>
+                        </td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Relatorios Exportaveis</div>
+                            <div class="feature-detail">Exportar dados</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+
+                    <!-- INTEGRACOES -->
+                    <tr class="category-row">
+                        <td colspan="4">Integracoes</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Integracao CRM (Salesforce)</div>
+                            <div class="feature-detail">Sincronizar com Salesforce</div>
+                        </td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Integracao Stripe</div>
+                            <div class="feature-detail">Pagamentos e billing</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">API Publica</div>
+                            <div class="feature-detail">API para desenvolvedores</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Webhooks</div>
+                            <div class="feature-detail">Eventos em tempo real</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">OpenAI / Gemini</div>
+                            <div class="feature-detail">Integracao com LLMs</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+
+                    <!-- OUTROS -->
+                    <tr class="category-row">
+                        <td colspan="4">Outros Recursos</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Multi-idiomas</div>
+                            <div class="feature-detail">Interface em varios idiomas</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Sistema de Permissoes (RBAC)</div>
+                            <div class="feature-detail">Controle de acesso</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Programa de Afiliados</div>
+                            <div class="feature-detail">Sistema de parceiros</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">White-label</div>
+                            <div class="feature-detail">Personalizacao de marca</div>
+                        </td>
+                        <td><span class="partial">~</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Certificacao ISO</div>
+                            <div class="feature-detail">Compliance de seguranca</div>
+                        </td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Real-time Sync (Ably)</div>
+                            <div class="feature-detail">Sincronizacao em tempo real</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="feature-name">Knowledge Base / RAG</div>
+                            <div class="feature-detail">Base de conhecimento para IA</div>
+                        </td>
+                        <td><span class="check">&#10003;</span></td>
+                        <td><span class="cross">&#10005;</span></td>
+                        <td><span class="partial">~</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Resumo -->
+        <div class="section">
+            <h2 class="section-title">Resumo Comparativo</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th class="platform-header platform-getraze">GetRaze + Relay</th>
+                        <th class="platform-header platform-lusha">Lusha</th>
+                        <th class="platform-header platform-artisan">Artisan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Foco Principal</strong></td>
+                        <td>CRM + Automacao Multi-canal</td>
+                        <td>Dados B2B + Inteligencia</td>
+                        <td>AI BDR + Outbound</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ponto Forte</strong></td>
+                        <td>6 canais integrados + CRM</td>
+                        <td>Base de dados verificados</td>
+                        <td>Automacao com Ava AI</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ideal Para</strong></td>
+                        <td>Vendas multi-canal end-to-end</td>
+                        <td>Equipes que precisam de dados</td>
+                        <td>Automacao de outbound</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CRM Proprio</strong></td>
+                        <td><span class="check">&#10003;</span> Completo</td>
+                        <td><span class="cross">&#10005;</span> Nao</td>
+                        <td><span class="cross">&#10005;</span> Nao</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Canais de Comunicacao</strong></td>
+                        <td>6 canais</td>
+                        <td>1 canal (Email)</td>
+                        <td>2 canais (Email + LinkedIn)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Base de Dados Propria</strong></td>
+                        <td><span class="partial">~</span> Via integracao</td>
+                        <td><span class="check">&#10003;</span> 280M+</td>
+                        <td><span class="check">&#10003;</span> 300M+</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Note -->
+        <div class="note">
+            <div class="note-title">Nota sobre a Comparacao</div>
+            <p>Esta analise compara funcionalidades disponiveis em cada plataforma com base em informacoes publicas e exploracao do codigo-fonte do GetRaze. As plataformas tem focos diferentes:</p>
+            <ul style="margin: 15px 0 0 20px;">
+                <li><strong>GetRaze + Relay</strong>: Plataforma all-in-one de CRM e automacao de vendas com foco em multi-canal</li>
+                <li><strong>Lusha</strong>: Especializada em inteligencia de vendas e dados de contatos B2B</li>
+                <li><strong>Artisan</strong>: Focada em AI BDR para automacao de outbound e prospecting</li>
+            </ul>
+            <p style="margin-top: 15px;">A escolha ideal depende das necessidades especificas: dados (Lusha), automacao outbound (Artisan), ou solucao completa de CRM + multi-canal (GetRaze).</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Comparativo de Funcionalidades - Janeiro 2025</p>
+            <p style="margin-top: 10px;">GetRaze + Relay SDK | Lusha | Artisan</p>
+        </div>
+    </div>
+</body>
+</html>

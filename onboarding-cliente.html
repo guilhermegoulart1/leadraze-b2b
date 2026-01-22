@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GetRaze - Onboarding</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+
+        .welcome-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .welcome-box h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .welcome-box p {
+            color: #a0a0a0;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 40px;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .progress-step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            z-index: 2;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .progress-step.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .progress-step.completed {
+            background: #10b981;
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-label {
+            font-size: 0.75em;
+            color: #666;
+            text-align: center;
+            width: 100px;
+            margin-left: -30px;
+        }
+
+        .progress-label.active {
+            color: #667eea;
+        }
+
+        /* Form Sections */
+        .form-section {
+            display: none;
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-description {
+            color: #a0a0a0;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+
+        .form-group label .required {
+            color: #ef4444;
+            margin-left: 4px;
+        }
+
+        .form-group label .hint {
+            font-weight: 400;
+            color: #888;
+            font-size: 0.9em;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #666;
+        }
+
+        /* Checkbox/Radio Groups */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .checkbox-item.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-item input {
+            width: 20px;
+            height: 20px;
+            accent-color: #667eea;
+        }
+
+        /* Two Column Layout */
+        .two-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .two-cols {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-box .icon {
+            font-size: 1.2em;
+        }
+
+        .info-box p {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        /* Example Box */
+        .example-box {
+            background: rgba(255,255,255,0.02);
+            border-left: 3px solid #667eea;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .example-box .title {
+            color: #667eea;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .example-box .content {
+            color: #888;
+            font-size: 0.9em;
+            white-space: pre-line;
+        }
+
+        /* Buttons */
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Success Message */
+        .success-message {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .success-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 2em;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .success-description {
+            color: #a0a0a0;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .form-section {
+                display: block !important;
+                page-break-inside: avoid;
+                border: 1px solid #ccc;
+                margin-bottom: 20px;
+            }
+            .buttons, .progress-container, .welcome-box {
+                display: none;
+            }
+            .form-group input,
+            .form-group textarea,
+            .form-group select {
+                border: 1px solid #ccc;
+                background: #f9f9f9;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">GetRaze</div>
+            <div class="subtitle">Formulário de Onboarding</div>
+        </div>
+
+        <div class="welcome-box">
+            <h2>👋 Bem-vindo ao GetRaze!</h2>
+            <p>Preencha este formulário para nos contar sobre seu negócio. Com essas informações, nossa equipe vai criar seus agentes de IA personalizados. Leva cerca de 10-15 minutos.</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-step active" data-step="1">1</div>
+                <div class="progress-step" data-step="2">2</div>
+                <div class="progress-step" data-step="3">3</div>
+                <div class="progress-step" data-step="4">4</div>
+            </div>
+            <div class="progress-labels">
+                <span class="progress-label active">Sua Empresa</span>
+                <span class="progress-label">Seus Clientes</span>
+                <span class="progress-label">Seu Atendimento</span>
+                <span class="progress-label">Finalização</span>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- SEÇÃO 1: SOBRE A EMPRESA -->
+        <!-- ======================= -->
+        <div class="form-section active" id="section-1">
+            <h2 class="section-title">🏢 Sobre Sua Empresa</h2>
+            <p class="section-description">Conte-nos sobre o que sua empresa faz. Isso nos ajuda a criar uma comunicação autêntica.</p>
+
+            <div class="two-cols">
+                <div class="form-group">
+                    <label>Nome da Empresa <span class="required">*</span></label>
+                    <input type="text" placeholder="Ex: Tech Solutions">
+                </div>
+                <div class="form-group">
+                    <label>Seu Website</label>
+                    <input type="url" placeholder="https://suaempresa.com.br">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Em qual área sua empresa atua? <span class="required">*</span></label>
+                <select>
+                    <option value="">Selecione...</option>
+                    <option value="tecnologia">Tecnologia / Software</option>
+                    <option value="marketing">Marketing / Publicidade</option>
+                    <option value="consultoria">Consultoria</option>
+                    <option value="financeiro">Serviços Financeiros</option>
+                    <option value="saude">Saúde</option>
+                    <option value="educacao">Educação</option>
+                    <option value="varejo">Varejo / E-commerce</option>
+                    <option value="industria">Indústria</option>
+                    <option value="imobiliario">Imobiliário</option>
+                    <option value="juridico">Jurídico</option>
+                    <option value="outro">Outro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Descreva o que sua empresa faz <span class="required">*</span>
+                    <span class="hint">Explique como se estivesse contando para alguém que nunca ouviu falar da sua empresa</span>
+                </label>
+                <textarea placeholder="Ex: Somos uma consultoria que ajuda pequenas e médias empresas a implementar sistemas de gestão. Trabalhamos principalmente com empresas de varejo e serviços que querem organizar seus processos e vender mais."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Quais são seus principais produtos ou serviços? <span class="required">*</span>
+                    <span class="hint">Liste os principais, com uma breve descrição e o preço (ou faixa de preço)</span>
+                </label>
+                <textarea placeholder="Ex:&#10;&#10;1. Consultoria de Processos - Analisamos e organizamos os processos da empresa - R$ 5.000 a R$ 15.000&#10;&#10;2. Implementação de Sistema - Instalamos e configuramos o sistema de gestão - R$ 3.000 a R$ 8.000&#10;&#10;3. Suporte Mensal - Acompanhamento e suporte contínuo - R$ 800/mês"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>O que faz sua empresa ser diferente das outras? <span class="required">*</span>
+                    <span class="hint">Por que um cliente deveria escolher você e não o concorrente?</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Temos 10 anos de experiência no mercado&#10;- Nossa equipe é certificada&#10;- Oferecemos garantia de resultado&#10;- Atendimento personalizado&#10;- Suporte rápido (respondemos em até 2 horas)"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Você tem algum case de sucesso ou resultado que gosta de compartilhar?
+                    <span class="hint">Resultados concretos que seus clientes alcançaram</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Cliente X aumentou as vendas em 40% em 3 meses&#10;- Empresa Y reduziu custos operacionais em 25%&#10;- Z conseguiu organizar toda a empresa em 60 dias"></textarea>
+            </div>
+
+            <div class="buttons">
+                <div></div>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- SEÇÃO 2: SOBRE OS CLIENTES -->
+        <!-- ======================= -->
+        <div class="form-section" id="section-2">
+            <h2 class="section-title">🎯 Sobre Seus Clientes</h2>
+            <p class="section-description">Nos ajude a entender quem são seus clientes ideais para encontrarmos as pessoas certas.</p>
+
+            <div class="info-box">
+                <span class="icon">💡</span>
+                <p>Pense nos seus melhores clientes - aqueles que dão menos trabalho, pagam em dia e indicam você para outros. Queremos encontrar mais pessoas assim!</p>
+            </div>
+
+            <div class="form-group">
+                <label>Quem são seus clientes ideais? <span class="required">*</span>
+                    <span class="hint">Que tipo de empresa ou pessoa você gostaria de atender mais?</span>
+                </label>
+                <textarea placeholder="Ex: Donos de pequenas empresas de varejo, com 5 a 50 funcionários, que estão crescendo e precisam organizar os processos. Geralmente são empresas com faturamento acima de R$ 500 mil por ano."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Com quem você costuma conversar para fechar uma venda? <span class="required">*</span>
+                    <span class="hint">Qual o cargo ou função da pessoa que decide a compra?</span>
+                </label>
+                <input type="text" placeholder="Ex: Dono da empresa, Diretor, Gerente de TI, Coordenador de Marketing">
+            </div>
+
+            <div class="form-group">
+                <label>Em quais cidades ou regiões você atende?</label>
+                <input type="text" placeholder="Ex: São Paulo e região, Todo o Brasil, Sul do Brasil">
+            </div>
+
+            <div class="form-group">
+                <label>Quais setores ou nichos você mais atende? <span class="required">*</span>
+                    <span class="hint">Liste os tipos de empresa que você quer prospectar</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Lojas de roupas e calçados&#10;- Restaurantes e bares&#10;- Clínicas médicas&#10;- Escritórios de contabilidade&#10;- Agências de marketing"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Como você sabe que alguém precisa do seu serviço?
+                    <span class="hint">Que sinais mostram que uma empresa precisa da sua ajuda?</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Empresa reclamando de desorganização&#10;- Crescendo rápido e não consegue acompanhar&#10;- Perdendo vendas por falta de processo&#10;- Contratou gente nova recentemente&#10;- Postou vaga de gerente/coordenador"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Qual é o principal problema que você resolve para seus clientes? <span class="required">*</span>
+                    <span class="hint">Se você tivesse que resumir em uma frase, qual seria?</span>
+                </label>
+                <textarea rows="3" placeholder="Ex: Ajudo empresas de varejo a vender mais e ter menos dor de cabeça com a operação, organizando processos e implementando sistemas que funcionam de verdade."></textarea>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- SEÇÃO 3: ATENDIMENTO E OBJEÇÕES -->
+        <!-- ======================= -->
+        <div class="form-section" id="section-3">
+            <h2 class="section-title">💬 Seu Atendimento</h2>
+            <p class="section-description">Nos conte como você atende seus clientes e quais dúvidas eles costumam ter.</p>
+
+            <div class="form-group">
+                <label>Quais perguntas seus clientes fazem com mais frequência? <span class="required">*</span>
+                    <span class="hint">Liste as perguntas que você sempre responde e como você responde</span>
+                </label>
+                <textarea style="min-height: 180px;" placeholder="Ex:&#10;&#10;PERGUNTA: Quanto custa?&#10;RESPOSTA: Depende do tamanho do projeto. Para pequenas empresas, nossos projetos começam em R$ 3.000. Posso entender melhor sua necessidade para dar um valor mais preciso?&#10;&#10;PERGUNTA: Quanto tempo demora?&#10;RESPOSTA: Projetos simples ficam prontos em 2 semanas. Projetos maiores podem levar de 1 a 2 meses.&#10;&#10;PERGUNTA: Vocês dão garantia?&#10;RESPOSTA: Sim! Se você não ficar satisfeito nos primeiros 30 dias, devolvemos seu dinheiro."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Quais são as objeções mais comuns que você ouve? <span class="required">*</span>
+                    <span class="hint">O que as pessoas falam quando não querem comprar? E como você responde?</span>
+                </label>
+                <textarea style="min-height: 180px;" placeholder="Ex:&#10;&#10;OBJEÇÃO: 'Está caro'&#10;COMO RESPONDO: Entendo a preocupação. Nossos clientes costumam recuperar o investimento em 2-3 meses. Posso mostrar alguns casos?&#10;&#10;OBJEÇÃO: 'Preciso pensar'&#10;COMO RESPONDO: Claro! O que te deixou em dúvida? Posso te ajudar a esclarecer algum ponto?&#10;&#10;OBJEÇÃO: 'Já tenho um fornecedor'&#10;COMO RESPONDO: Legal! O que você acha que poderia ser melhor no serviço atual?"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Tem alguma política importante que o atendimento precisa saber?
+                    <span class="hint">Regras sobre descontos, prazos, formas de pagamento, garantias, etc.</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Desconto máximo de 10% para pagamento à vista&#10;- Parcelamos em até 6x sem juros&#10;- Garantia de 30 dias&#10;- Não trabalhamos com empresas de jogos de azar"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Qual seu horário de atendimento?</label>
+                <input type="text" placeholder="Ex: Segunda a sexta, das 9h às 18h">
+            </div>
+
+            <div class="form-group">
+                <label>Quando uma conversa deve ser passada para você ou sua equipe? <span class="required">*</span>
+                    <span class="hint">Em que momento o agente deve chamar um humano?</span>
+                </label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="interesse" checked>
+                        <span>Quando o cliente quer comprar</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="reuniao" checked>
+                        <span>Quando quer agendar reunião</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="reclamacao" checked>
+                        <span>Quando tem reclamação</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="humano" checked>
+                        <span>Quando pede para falar com humano</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="negociacao">
+                        <span>Quando quer negociar preço</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="complexo">
+                        <span>Dúvidas muito específicas</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="nextSection()">Próximo →</button>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- SEÇÃO 4: FINALIZAÇÃO -->
+        <!-- ======================= -->
+        <div class="form-section" id="section-4">
+            <h2 class="section-title">✅ Informações Finais</h2>
+            <p class="section-description">Últimas informações para finalizarmos seu cadastro.</p>
+
+            <div class="form-group">
+                <label>O que você espera alcançar com o GetRaze? <span class="required">*</span></label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="mais_clientes">
+                        <span>Conseguir mais clientes</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="tempo">
+                        <span>Ter mais tempo livre</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="atendimento">
+                        <span>Melhorar o atendimento</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="escalar">
+                        <span>Escalar as vendas</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="custo">
+                        <span>Reduzir custos</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="organizar">
+                        <span>Organizar a prospecção</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="two-cols">
+                <div class="form-group">
+                    <label>Quantos clientes novos você quer por mês?</label>
+                    <input type="text" placeholder="Ex: 10 clientes">
+                </div>
+                <div class="form-group">
+                    <label>Quantas reuniões quer agendar por mês?</label>
+                    <input type="text" placeholder="Ex: 30 reuniões">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Tem algum material da empresa que possamos usar?
+                    <span class="hint">Links para apresentações, vídeos, site, etc.</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Apresentação: https://drive.google.com/...&#10;- Vídeo institucional: https://youtube.com/...&#10;- Página de cases: https://meusite.com/cases"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Link do seu calendário para agendamentos
+                    <span class="hint">Se você usa Calendly, Google Calendar, ou similar</span>
+                </label>
+                <input type="url" placeholder="https://calendly.com/sua-empresa">
+            </div>
+
+            <div class="form-group">
+                <label>Tem alguém que NÃO devemos entrar em contato?
+                    <span class="hint">Concorrentes, clientes atuais, parceiros, etc.</span>
+                </label>
+                <textarea placeholder="Ex:&#10;- Empresa X (é concorrente)&#10;- Empresa Y (já é nosso cliente)&#10;- Fulano de Tal (é meu amigo pessoal)"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Alguma observação importante que não perguntamos?</label>
+                <textarea placeholder="Qualquer informação adicional que você ache relevante..."></textarea>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 20px; margin-top: 20px;">
+                <h3 style="margin-bottom: 15px; color: #667eea;">📞 Seus Dados de Contato</h3>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>Seu Nome <span class="required">*</span></label>
+                        <input type="text" placeholder="Nome completo">
+                    </div>
+                    <div class="form-group">
+                        <label>Seu Cargo</label>
+                        <input type="text" placeholder="Ex: Diretor, Sócio, CEO">
+                    </div>
+                </div>
+
+                <div class="two-cols">
+                    <div class="form-group">
+                        <label>E-mail <span class="required">*</span></label>
+                        <input type="email" placeholder="seu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp <span class="required">*</span></label>
+                        <input type="tel" placeholder="(11) 99999-9999">
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); margin-top: 25px;">
+                <span class="icon">🚀</span>
+                <div>
+                    <p style="color: #10b981; font-weight: 600; margin-bottom: 5px;">O que acontece depois?</p>
+                    <ol style="margin-left: 20px; margin-top: 10px; color: #a0a0a0;">
+                        <li>Nossa equipe analisa suas respostas</li>
+                        <li>Criamos seus agentes de IA personalizados</li>
+                        <li>Agendamos uma call para mostrar tudo funcionando</li>
+                        <li>Começamos a prospectar e atender!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-secondary" onclick="prevSection()">← Voltar</button>
+                <button class="btn btn-primary" onclick="submitForm()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    ✓ Enviar Formulário
+                </button>
+            </div>
+        </div>
+
+        <!-- Success Message -->
+        <div class="form-section" id="section-success">
+            <div class="success-message">
+                <div class="success-icon">🎉</div>
+                <h2 class="success-title">Formulário Enviado!</h2>
+                <p class="success-description">
+                    Obrigado! Recebemos suas informações e nossa equipe já está trabalhando na criação dos seus agentes. Entraremos em contato em até 24 horas.
+                </p>
+                <button class="btn btn-primary" style="margin-top: 30px;" onclick="window.print()">
+                    🖨️ Salvar uma cópia (PDF)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSection = 1;
+        const totalSections = 4;
+
+        function updateProgress() {
+            document.querySelectorAll('.progress-step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < currentSection) {
+                    step.classList.add('completed');
+                } else if (index + 1 === currentSection) {
+                    step.classList.add('active');
+                }
+            });
+
+            document.querySelectorAll('.progress-label').forEach((label, index) => {
+                label.classList.remove('active');
+                if (index + 1 === currentSection) {
+                    label.classList.add('active');
+                }
+            });
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.form-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            document.getElementById(`section-${section}`).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function nextSection() {
+            if (currentSection < totalSections) {
+                currentSection++;
+                updateProgress();
+                showSection(currentSection);
+            }
+        }
+
+        function prevSection() {
+            if (currentSection > 1) {
+                currentSection--;
+                updateProgress();
+                showSection(currentSection);
+            }
+        }
+
+        function submitForm() {
+            document.querySelectorAll('.form-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            document.getElementById('section-success').classList.add('active');
+            document.querySelector('.progress-container').style.display = 'none';
+            document.querySelector('.welcome-box').style.display = 'none';
+        }
+
+        document.querySelectorAll('.checkbox-item input').forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.checked) {
+                    this.closest('.checkbox-item').classList.add('selected');
+                } else {
+                    this.closest('.checkbox-item').classList.remove('selected');
+                }
+            });
+        });
+
+        document.querySelectorAll('.progress-step').forEach(step => {
+            step.addEventListener('click', function() {
+                const stepNum = parseInt(this.dataset.step);
+                if (stepNum <= currentSection) {
+                    currentSection = stepNum;
+                    updateProgress();
+                    showSection(currentSection);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

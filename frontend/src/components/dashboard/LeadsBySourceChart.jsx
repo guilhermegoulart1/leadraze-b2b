@@ -5,19 +5,32 @@ import { Share2 } from 'lucide-react';
 const LeadsBySourceChart = ({ data = [] }) => {
   const { t, i18n } = useTranslation('dashboard');
 
-  const sourceColors = {
+  // Fallback colors and icons for legacy data without dynamic config
+  const fallbackColors = {
     'linkedin': '#0077b5',
     'google_maps': '#34a853',
     'list': '#7c3aed',
+    'lista': '#7c3aed',
     'paid_traffic': '#f59e0b',
+    'trafego_pago': '#f59e0b',
+    'manual': '#3b82f6',
+    'indicacao': '#10b981',
+    'referral': '#10b981',
+    'outro': '#6b7280',
     'other': '#6b7280'
   };
 
-  const sourceIcons = {
+  const fallbackIcons = {
     'linkedin': 'in',
     'google_maps': 'G',
     'list': 'L',
+    'lista': 'L',
     'paid_traffic': '$',
+    'trafego_pago': '$',
+    'manual': 'M',
+    'indicacao': 'R',
+    'referral': 'R',
+    'outro': '?',
     'other': '?'
   };
 
@@ -56,7 +69,9 @@ const LeadsBySourceChart = ({ data = [] }) => {
 
       <div className="space-y-4">
         {data.map((item, index) => {
-          const color = sourceColors[item.source] || sourceColors.other;
+          // Use dynamic color/icon from API, fallback to hardcoded values
+          const color = item.color || fallbackColors[item.source] || fallbackColors.other;
+          const icon = item.icon || fallbackIcons[item.source] || '?';
           const barWidth = (item.count / maxCount) * 100;
 
           return (
@@ -67,7 +82,7 @@ const LeadsBySourceChart = ({ data = [] }) => {
                     className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
                     style={{ backgroundColor: color }}
                   >
-                    {sourceIcons[item.source] || '?'}
+                    {icon}
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.label}</span>
                 </div>

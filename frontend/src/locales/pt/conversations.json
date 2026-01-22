@@ -5,6 +5,7 @@
   "unread": "Não Lidas",
   "archived": "Arquivadas",
   "filters": {
+    "title": "Filtros",
     "all": "Todas",
     "mine": "Minhas Conversas",
     "unassigned": "Não Atribuídas",
@@ -109,7 +110,8 @@
     "group": "Grupo",
     "notAssigned": "Não atribuída",
     "closeConversation": "Fechar conversa",
-    "deleteConversation": "Excluir conversa"
+    "deleteConversation": "Excluir conversa",
+    "createOpportunity": "Criar oportunidade"
   },
   "chatArea": {
     "selectConversation": "Selecione uma conversa",
@@ -170,7 +172,9 @@
     "microphoneError": "Erro ao acessar microfone. Verifique as permissões.",
     "quickReplies": "Respostas Rápidas",
     "useArrowKeys": "Use ↑↓ para navegar, Enter para selecionar",
-    "noQuickRepliesFound": "Nenhuma resposta rápida encontrada",
+    "noQuickRepliesFound": "Nenhuma resposta encontrada para",
+    "noQuickRepliesConfigured": "Você ainda não tem respostas rápidas configuradas",
+    "configureQuickReplies": "Configurar respostas rápidas →",
     "secretAgent": "Agente Secreto",
     "audioNotAvailable": "Áudio não disponível",
     "downloading": "Baixando...",

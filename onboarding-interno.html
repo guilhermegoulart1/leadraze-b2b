@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GetRaze - Setup Interno</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f1a;
+            color: #fff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .client-info {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .client-info span {
+            color: #888;
+        }
+
+        .client-info strong {
+            color: #fff;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.03);
+            padding: 5px;
+            border-radius: 12px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Sections */
+        .section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-status {
+            font-size: 0.8em;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .status-done {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        /* Form Elements */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-row.three-cols {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        @media (max-width: 768px) {
+            .form-row, .form-row.three-cols {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 0.95em;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+        }
+
+        /* Checkbox */
+        .checkbox-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .checkbox-item.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-item input {
+            accent-color: #667eea;
+        }
+
+        /* Info from Client */
+        .client-data {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .client-data-title {
+            font-size: 0.8em;
+            color: #667eea;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .client-data-content {
+            color: #ccc;
+            font-size: 0.95em;
+            white-space: pre-line;
+        }
+
+        /* Checklist */
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #10b981;
+        }
+
+        .checklist-item.completed label {
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        /* Notes */
+        .notes-area {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .notes-area textarea {
+            background: transparent;
+            border: none;
+            width: 100%;
+            color: #f59e0b;
+            resize: none;
+        }
+
+        .notes-area textarea:focus {
+            outline: none;
+        }
+
+        .notes-area textarea::placeholder {
+            color: rgba(245, 158, 11, 0.5);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Print */
+        @media print {
+            body { background: white; color: black; }
+            .tabs { display: none; }
+            .tab-content { display: block !important; }
+            .section { border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <span class="logo">GetRaze</span>
+                <span class="badge">INTERNO</span>
+            </div>
+            <div class="client-info">
+                <div>
+                    <span>Cliente:</span>
+                    <strong id="client-name">_____________</strong>
+                </div>
+                <div>
+                    <span>Data:</span>
+                    <strong id="setup-date">__/__/____</strong>
+                </div>
+                <div>
+                    <span>Responsável:</span>
+                    <strong id="responsible">_____________</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="prospeccao">🎯 Agente Prospecção</button>
+            <button class="tab" data-tab="atendimento">💬 Agente Atendimento</button>
+            <button class="tab" data-tab="canais">📱 Canais & Integrações</button>
+            <button class="tab" data-tab="checklist">✅ Checklist Final</button>
+        </div>
+
+        <!-- TAB: AGENTE DE PROSPECÇÃO -->
+        <div class="tab-content active" id="tab-prospeccao">
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">👤 Configuração do Perfil de Prospecção</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="client-data">
+                    <div class="client-data-title">📋 Dados do Cliente (vindos do formulário)</div>
+                    <div class="client-data-content">[Colar aqui as informações sobre cliente ideal, setores, cargos, etc. do formulário do cliente]</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cargos para prospectar</label>
+                        <input type="text" placeholder="Ex: CEO, Diretor Comercial, Head de Marketing">
+                    </div>
+                    <div class="form-group">
+                        <label>Tamanho das empresas</label>
+                        <select>
+                            <option value="">Selecione...</option>
+                            <option value="1-10">1-10 funcionários</option>
+                            <option value="11-50">11-50 funcionários</option>
+                            <option value="51-200">51-200 funcionários</option>
+                            <option value="201-500">201-500 funcionários</option>
+                            <option value="500+">500+ funcionários</option>
+                            <option value="all">Todos os tamanhos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Setores/Indústrias</label>
+                        <textarea placeholder="Liste os setores separados por vírgula"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Localização geográfica</label>
+                        <textarea placeholder="Cidades, estados ou regiões"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Keywords para busca (LinkedIn)</label>
+                    <textarea placeholder="Ex: 'transformação digital', 'gestão de processos', 'ERP'"></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">💬 Tom de Voz e Mensagens</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Tom de voz</label>
+                    <div class="checkbox-row">
+                        <label class="checkbox-item">
+                            <input type="radio" name="tom_prosp" value="formal">
+                            Formal/Corporativo
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="radio" name="tom_prosp" value="profissional" checked>
+                            Profissional/Amigável
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="radio" name="tom_prosp" value="casual">
+                            Casual/Descontraído
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="radio" name="tom_prosp" value="consultivo">
+                            Consultivo/Educativo
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem de conexão (LinkedIn)</label>
+                    <textarea placeholder="Olá {primeiro_nome}, vi que você trabalha com {setor}..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem de follow-up 1 (após aceitar conexão)</label>
+                    <textarea placeholder="Que bom que conectamos! Vi que a {empresa}..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem de follow-up 2 (se não responder)</label>
+                    <textarea placeholder="Oi {primeiro_nome}, não sei se viu minha mensagem anterior..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Proposta de valor (1-2 frases para usar nas abordagens)</label>
+                    <textarea placeholder="Baseado no que o cliente informou, criar versão curta e impactante"></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">🚫 Tratamento de Objeções</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="client-data">
+                    <div class="client-data-title">📋 Objeções informadas pelo cliente</div>
+                    <div class="client-data-content">[Colar aqui as objeções e respostas que o cliente informou]</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Respostas configuradas no agente</label>
+                    <textarea style="min-height: 150px;" placeholder="OBJEÇÃO: Está caro&#10;RESPOSTA: [versão refinada]&#10;&#10;OBJEÇÃO: Já tenho fornecedor&#10;RESPOSTA: [versão refinada]&#10;&#10;OBJEÇÃO: Preciso pensar&#10;RESPOSTA: [versão refinada]"></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">⚙️ Configurações Operacionais</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-row three-cols">
+                    <div class="form-group">
+                        <label>Conexões/dia</label>
+                        <select>
+                            <option value="10">10 (conservador)</option>
+                            <option value="15">15</option>
+                            <option value="20" selected>20 (recomendado)</option>
+                            <option value="25">25</option>
+                            <option value="30">30 (agressivo)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mensagens/dia</label>
+                        <select>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="50" selected>50 (recomendado)</option>
+                            <option value="75">75</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Horário de operação</label>
+                        <select>
+                            <option value="9-12">Manhã (9h-12h)</option>
+                            <option value="9-18" selected>Comercial (9h-18h)</option>
+                            <option value="14-18">Tarde (14h-18h)</option>
+                            <option value="8-20">Estendido (8h-20h)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Quando escalar para humano</label>
+                    <div class="checkbox-row">
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" checked> Demonstrou interesse
+                        </label>
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" checked> Quer agendar reunião
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> Perguntou preço
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> Objeção não mapeada
+                        </label>
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" checked> Pediu humano
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>E-mail/WhatsApp para notificação de escalação</label>
+                    <input type="text" placeholder="email@cliente.com ou (11) 99999-9999">
+                </div>
+            </div>
+
+            <div class="notes-area">
+                <label style="color: #f59e0b; font-size: 0.85em; margin-bottom: 8px; display: block;">📝 Notas internas (não aparece para o cliente)</label>
+                <textarea rows="3" placeholder="Anotações sobre o setup, pendências, observações..."></textarea>
+            </div>
+        </div>
+
+        <!-- TAB: AGENTE DE ATENDIMENTO -->
+        <div class="tab-content" id="tab-atendimento">
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">🤖 Personalidade do Agente</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-row three-cols">
+                    <div class="form-group">
+                        <label>Nome do agente</label>
+                        <input type="text" placeholder="Ex: Ana, Lucas, Assistente">
+                    </div>
+                    <div class="form-group">
+                        <label>Gênero</label>
+                        <select>
+                            <option value="feminino">Feminino</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="neutro">Neutro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tom de voz</label>
+                        <select>
+                            <option value="formal">Formal</option>
+                            <option value="amigavel" selected>Amigável</option>
+                            <option value="descontraido">Descontraído</option>
+                            <option value="tecnico">Técnico</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem de boas-vindas</label>
+                    <textarea placeholder="Olá! 👋 Sou a [Nome], assistente virtual da [Empresa]. Como posso te ajudar?"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem fora do horário</label>
+                    <textarea placeholder="Oi! Nosso time está offline no momento. Deixe sua mensagem que respondemos assim que voltarmos! 😊"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Mensagem ao transferir para humano</label>
+                    <textarea placeholder="Vou te conectar com um de nossos especialistas. Aguarde um momento! 🙂"></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">📚 Base de Conhecimento (FAQ)</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="client-data">
+                    <div class="client-data-title">📋 FAQs informadas pelo cliente</div>
+                    <div class="client-data-content">[Colar aqui as perguntas frequentes e respostas do cliente]</div>
+                </div>
+
+                <div class="form-group">
+                    <label>FAQs configuradas no agente (refinadas)</label>
+                    <textarea style="min-height: 200px;" placeholder="Q: Qual o horário de funcionamento?&#10;A: Funcionamos de segunda a sexta, das 9h às 18h!&#10;&#10;Q: Quanto custa?&#10;A: Nossos projetos começam em R$ X. Quer que eu te explique as opções?&#10;&#10;Q: Como funciona?&#10;A: [explicação detalhada]"></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">🛡️ Políticas e Limites</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Política de preços</label>
+                    <div class="checkbox-row">
+                        <label class="checkbox-item">
+                            <input type="radio" name="pol_preco" value="nao">
+                            Não informar
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="radio" name="pol_preco" value="faixa" checked>
+                            Informar faixa
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="radio" name="pol_preco" value="tabela">
+                            Tabela completa
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="radio" name="pol_preco" value="consultor">
+                            Só consultor
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tabela de preços (se aplicável)</label>
+                    <textarea placeholder="Produto A: R$ X&#10;Produto B: R$ Y&#10;Serviço C: a partir de R$ Z"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Regras de desconto</label>
+                    <textarea placeholder="Ex: Pode oferecer até 10% para pagamento à vista"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>O que o agente NÃO pode fazer</label>
+                    <textarea placeholder="- Não prometer prazos específicos&#10;- Não falar mal da concorrência&#10;- Não fazer promessas impossíveis"></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">🔄 Escalação para Humanos</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Triggers de escalação</label>
+                    <div class="checkbox-row">
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" checked> Reclamação
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> Negociação de preço
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> Problema técnico
+                        </label>
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" checked> Pediu humano
+                        </label>
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" checked> Quer fechar
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> Questão jurídica
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Horário de atendimento humano</label>
+                        <input type="text" placeholder="Ex: Seg-Sex, 9h-18h">
+                    </div>
+                    <div class="form-group">
+                        <label>Responsável pelo atendimento</label>
+                        <input type="text" placeholder="Nome e contato">
+                    </div>
+                </div>
+            </div>
+
+            <div class="notes-area">
+                <label style="color: #f59e0b; font-size: 0.85em; margin-bottom: 8px; display: block;">📝 Notas internas</label>
+                <textarea rows="3" placeholder="Anotações sobre o setup do agente de atendimento..."></textarea>
+            </div>
+        </div>
+
+        <!-- TAB: CANAIS E INTEGRAÇÕES -->
+        <div class="tab-content" id="tab-canais">
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">📲 Canais de Prospecção</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Canais ativos</label>
+                    <div class="checkbox-row">
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 🔗 LinkedIn
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 📧 E-mail
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 💬 WhatsApp
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 📸 Instagram
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Conta LinkedIn conectada</label>
+                        <input type="text" placeholder="URL do perfil ou status">
+                    </div>
+                    <div class="form-group">
+                        <label>E-mail de envio</label>
+                        <input type="email" placeholder="prospeccao@cliente.com">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">💬 Canais de Atendimento</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Canais ativos</label>
+                    <div class="checkbox-row">
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 💬 WhatsApp
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 📸 Instagram
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 💙 Messenger
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> ✈️ Telegram
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox"> 🌐 Webchat
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>WhatsApp conectado</label>
+                        <input type="text" placeholder="Número ou status da conexão">
+                    </div>
+                    <div class="form-group">
+                        <label>Instagram conectado</label>
+                        <input type="text" placeholder="@perfil ou status">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">🔗 Integrações</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>CRM</label>
+                        <select>
+                            <option value="">Nenhum</option>
+                            <option value="getraze">GetRaze (interno)</option>
+                            <option value="pipedrive">Pipedrive</option>
+                            <option value="hubspot">HubSpot</option>
+                            <option value="rdstation">RD Station</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Calendário/Agendamento</label>
+                        <input type="url" placeholder="Link do Calendly ou similar">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Outras integrações configuradas</label>
+                    <textarea placeholder="Slack, webhooks, APIs, etc."></textarea>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">👥 Usuários</h3>
+                    <span class="section-status status-pending">Pendente</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Usuários cadastrados</label>
+                    <textarea placeholder="nome@email.com - Cargo - Permissões&#10;nome2@email.com - Cargo - Permissões"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CHECKLIST FINAL -->
+        <div class="tab-content" id="tab-checklist">
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">✅ Checklist de Setup</h3>
+                </div>
+
+                <h4 style="color: #667eea; margin-bottom: 15px;">📋 Dados do Cliente</h4>
+                <ul class="checklist">
+                    <li class="checklist-item"><input type="checkbox"><label>Formulário do cliente recebido e revisado</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Dados da empresa preenchidos no sistema</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Produtos/serviços cadastrados</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Contato do responsável confirmado</label></li>
+                </ul>
+
+                <h4 style="color: #667eea; margin: 25px 0 15px;">🎯 Agente de Prospecção</h4>
+                <ul class="checklist">
+                    <li class="checklist-item"><input type="checkbox"><label>ICP configurado (cargos, setores, tamanho)</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Mensagens de abordagem criadas</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Objeções mapeadas e respostas configuradas</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Limites diários definidos</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Regras de escalação configuradas</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Conta LinkedIn conectada (se aplicável)</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Testado com mensagem de teste</label></li>
+                </ul>
+
+                <h4 style="color: #667eea; margin: 25px 0 15px;">💬 Agente de Atendimento</h4>
+                <ul class="checklist">
+                    <li class="checklist-item"><input type="checkbox"><label>Personalidade definida (nome, tom)</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Mensagens padrão configuradas</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>FAQ cadastrada e revisada</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Políticas de preço configuradas</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Regras de escalação definidas</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Testado com conversa simulada</label></li>
+                </ul>
+
+                <h4 style="color: #667eea; margin: 25px 0 15px;">📱 Canais e Integrações</h4>
+                <ul class="checklist">
+                    <li class="checklist-item"><input type="checkbox"><label>WhatsApp conectado e funcionando</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Outros canais configurados</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>CRM integrado (se aplicável)</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Calendário configurado</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Usuários cadastrados</label></li>
+                </ul>
+
+                <h4 style="color: #667eea; margin: 25px 0 15px;">🚀 Go-Live</h4>
+                <ul class="checklist">
+                    <li class="checklist-item"><input type="checkbox"><label>Call de alinhamento realizada</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Cliente aprovou as mensagens</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Treinamento básico feito</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Blacklist configurada</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Agentes ativados</label></li>
+                    <li class="checklist-item"><input type="checkbox"><label>Monitoramento inicial (primeiras 24h)</label></li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h3 class="section-title">📝 Observações Finais</h3>
+                </div>
+
+                <div class="form-group">
+                    <label>Notas importantes sobre este cliente</label>
+                    <textarea style="min-height: 120px;" placeholder="Qualquer informação relevante para o acompanhamento..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Data do Go-Live</label>
+                        <input type="date">
+                    </div>
+                    <div class="form-group">
+                        <label>Próximo follow-up</label>
+                        <input type="date">
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-outline" onclick="window.print()">🖨️ Imprimir</button>
+                <button class="btn btn-success">✓ Marcar Setup como Concluído</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Checkbox styling
+        document.querySelectorAll('.checkbox-item input').forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.type === 'radio') {
+                    document.querySelectorAll(`input[name="${this.name}"]`).forEach(r => {
+                        r.closest('.checkbox-item').classList.remove('selected');
+                    });
+                }
+                if (this.checked) {
+                    this.closest('.checkbox-item').classList.add('selected');
+                } else {
+                    this.closest('.checkbox-item').classList.remove('selected');
+                }
+            });
+        });
+
+        // Checklist completion
+        document.querySelectorAll('.checklist-item input').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    this.closest('.checklist-item').classList.add('completed');
+                } else {
+                    this.closest('.checklist-item').classList.remove('completed');
+                }
+            });
+        });
+
+        // Set today's date
+        document.getElementById('setup-date').textContent = new Date().toLocaleDateString('pt-BR');
+    </script>
+</body>
+</html>

@@ -4,6 +4,7 @@
   "configTabs": {
     "products": "Produtos",
     "discardReasons": "Motivos de Descarte",
+    "leadSources": "Fontes",
     "tags": "Etiquetas",
     "apiKeys": "API Key",
     "channels": "Canais Conectados",

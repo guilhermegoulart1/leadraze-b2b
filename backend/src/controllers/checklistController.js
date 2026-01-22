@@ -236,6 +236,11 @@ const createChecklistItem = async (req, res) => {
     const accountId = req.user.account_id;
     const userId = req.user.id;
 
+    // DEBUG: Log incoming due_date
+    console.log('[createChecklistItem] Incoming req.body:', JSON.stringify(req.body, null, 2));
+    console.log('[createChecklistItem] due_date raw:', due_date);
+    console.log('[createChecklistItem] due_date type:', typeof due_date);
+
     if (!title || title.trim().length === 0) {
       throw new ValidationError('Item title is required');
     }
@@ -257,6 +262,24 @@ const createChecklistItem = async (req, res) => {
     const position = posResult.rows[0].next_pos;
 
     const itemId = uuidv4();
+
+    // Pass ISO string directly to PostgreSQL (not Date object) to avoid timezone conversion
+    const toISOString = (dateStr) => {
+      if (!dateStr) return null;
+      if (dateStr.includes('Z') || dateStr.includes('+') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+        return dateStr;
+      }
+      return dateStr.includes(':') && dateStr.split(':').length === 2
+        ? dateStr + ':00Z'
+        : dateStr + 'Z';
+    };
+
+    const dueDateISO = toISOString(due_date);
+
+    // DEBUG: Log date
+    console.log('[createChecklistItem] due_date input:', due_date);
+    console.log('[createChecklistItem] due_date stored:', dueDateISO);
+
     const item = {
       id: itemId,
       checklist_id: checklistId,
@@ -264,11 +287,14 @@ const createChecklistItem = async (req, res) => {
       content: title.trim(),
       task_type: validTaskType,
       is_completed: false,
-      due_date: due_date ? new Date(due_date) : null,
+      due_date: dueDateISO,
       position,
       created_at: new Date(),
       updated_at: new Date()
     };
+
+    // DEBUG: Log final item
+    console.log('[createChecklistItem] Final item to insert:', JSON.stringify(item, null, 2));
 
     await db.insert('opportunity_checklist_items', item);
 
@@ -310,6 +336,12 @@ const updateChecklistItem = async (req, res) => {
     const accountId = req.user.account_id;
     const userId = req.user.id;
 
+    // DEBUG: Log incoming data
+    console.log('[updateChecklistItem] Item ID:', id);
+    console.log('[updateChecklistItem] Incoming req.body:', JSON.stringify(req.body, null, 2));
+    console.log('[updateChecklistItem] due_date raw:', due_date);
+    console.log('[updateChecklistItem] due_date type:', typeof due_date);
+
     // Get item with checklist to verify ownership
     const itemQuery = `
       SELECT i.*, c.account_id
@@ -346,8 +378,24 @@ const updateChecklistItem = async (req, res) => {
     }
 
     if (due_date !== undefined) {
-      updates.due_date = due_date ? new Date(due_date) : null;
+      // Pass ISO string directly to PostgreSQL (not Date object) to avoid timezone conversion
+      const toISOString = (dateStr) => {
+        if (!dateStr) return null;
+        if (dateStr.includes('Z') || dateStr.includes('+') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+          return dateStr;
+        }
+        return dateStr.includes(':') && dateStr.split(':').length === 2
+          ? dateStr + ':00Z'
+          : dateStr + 'Z';
+      };
+
+      updates.due_date = toISOString(due_date);
+      console.log('[updateChecklistItem] due_date input:', due_date);
+      console.log('[updateChecklistItem] due_date stored:', updates.due_date);
     }
+
+    // DEBUG: Log final updates object
+    console.log('[updateChecklistItem] Final updates:', JSON.stringify(updates, null, 2));
 
     await db.update('opportunity_checklist_items', updates, { id });
 

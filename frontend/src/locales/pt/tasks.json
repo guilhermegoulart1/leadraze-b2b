@@ -50,7 +50,16 @@
   },
   "viewMode": {
     "list": "Lista",
-    "board": "Kanban"
+    "board": "Kanban",
+    "calendar": "Calendário"
+  },
+  "calendar": {
+    "today": "Hoje",
+    "week": "Semana",
+    "month": "Mês",
+    "allDay": "Dia inteiro",
+    "noTasks": "Nenhuma tarefa agendada",
+    "clickToCreate": "Clique para criar tarefa"
   },
   "buttons": {
     "newTask": "Nova Tarefa",
