@@ -1,4 +1,6 @@
 const db = require('../config/database');
+const notificationService = require('../services/notificationService');
+const emailService = require('../services/emailService');
 
 /**
  * Get onboarding for the current account
@@ -225,10 +227,35 @@ exports.updateOnboarding = async (req, res) => {
       id, accountId
     ]);
 
+    const updatedOnboarding = result.rows[0];
+
+    // Send notifications when onboarding is completed
+    if (status === 'completed' && updatedOnboarding.completed_at) {
+      setImmediate(async () => {
+        try {
+          // 1. In-app notification for admins
+          await notificationService.notifyOnboardingCompleted({
+            onboardingId: updatedOnboarding.id,
+            companyName: updatedOnboarding.company_name,
+            contactName: updatedOnboarding.contact_name,
+            contactEmail: updatedOnboarding.contact_email,
+            accountId: accountId
+          });
+
+          // 2. Email notification to admins
+          await emailService.sendOnboardingCompletedNotification(updatedOnboarding);
+
+          console.log(`✅ Onboarding completion notifications sent for ${updatedOnboarding.company_name}`);
+        } catch (notifError) {
+          console.error('Error sending onboarding notifications:', notifError);
+        }
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        onboarding: result.rows[0]
+        onboarding: updatedOnboarding
       },
       message: 'Onboarding atualizado com sucesso'
     });
@@ -389,6 +416,135 @@ exports.markAsReviewed = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao marcar onboarding como revisado',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Export onboarding to CSV (admin)
+ */
+exports.exportOnboardingCSV = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT
+        o.*,
+        a.name as account_name,
+        u.name as user_name,
+        u.email as user_email,
+        rv.name as reviewer_name
+      FROM onboarding_responses o
+      JOIN accounts a ON o.account_id = a.id
+      JOIN users u ON o.user_id = u.id
+      LEFT JOIN users rv ON o.reviewed_by = rv.id
+      WHERE o.id = $1
+    `;
+
+    const result = await db.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Onboarding não encontrado'
+      });
+    }
+
+    const o = result.rows[0];
+
+    // Helper function for CSV escaping
+    const escapeCsvField = (field) => {
+      if (field === null || field === undefined) return '';
+      const str = String(field);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    // Format array/JSON fields
+    const formatFAQ = (faq) => {
+      if (!Array.isArray(faq) || faq.length === 0) return '';
+      return faq.map((item, i) => `Q${i + 1}: ${item.question} | A${i + 1}: ${item.answer}`).join(' || ');
+    };
+
+    const formatObjections = (objections) => {
+      if (!Array.isArray(objections) || objections.length === 0) return '';
+      return objections.map((item, i) => `O${i + 1}: ${item.objection} | R${i + 1}: ${item.response}`).join(' || ');
+    };
+
+    const formatArray = (arr) => {
+      if (!Array.isArray(arr) || arr.length === 0) return '';
+      return arr.join(', ');
+    };
+
+    // Build CSV
+    const csvRows = [];
+
+    // Header
+    csvRows.push([
+      'ID', 'Account Name', 'Status', 'Created At', 'Completed At', 'Reviewed At', 'Reviewer',
+      'Company Name', 'Website', 'Industry', 'Company Size', 'Description', 'Products/Services', 'Differentials', 'Success Cases',
+      'Ideal Customer', 'Target Roles', 'Target Location', 'Target Industries', 'Buying Signals', 'Main Problem',
+      'FAQ', 'Objections', 'Policies', 'Business Hours', 'Escalation Triggers',
+      'Goals', 'Lead Target', 'Meeting Target', 'Materials Links', 'Calendar Link', 'Blacklist', 'Additional Notes',
+      'Contact Name', 'Contact Role', 'Contact Email', 'Contact Phone'
+    ].join(','));
+
+    // Data row
+    csvRows.push([
+      escapeCsvField(o.id),
+      escapeCsvField(o.account_name),
+      escapeCsvField(o.status),
+      o.created_at ? new Date(o.created_at).toISOString() : '',
+      o.completed_at ? new Date(o.completed_at).toISOString() : '',
+      o.reviewed_at ? new Date(o.reviewed_at).toISOString() : '',
+      escapeCsvField(o.reviewer_name || ''),
+      escapeCsvField(o.company_name),
+      escapeCsvField(o.website),
+      escapeCsvField(o.industry),
+      escapeCsvField(o.company_size),
+      escapeCsvField(o.description),
+      escapeCsvField(o.products_services),
+      escapeCsvField(o.differentials),
+      escapeCsvField(o.success_cases),
+      escapeCsvField(o.ideal_customer),
+      escapeCsvField(o.target_roles),
+      escapeCsvField(o.target_location),
+      escapeCsvField(o.target_industries),
+      escapeCsvField(o.buying_signals),
+      escapeCsvField(o.main_problem),
+      escapeCsvField(formatFAQ(o.faq)),
+      escapeCsvField(formatObjections(o.objections)),
+      escapeCsvField(o.policies),
+      escapeCsvField(o.business_hours),
+      escapeCsvField(formatArray(o.escalation_triggers)),
+      escapeCsvField(formatArray(o.goals)),
+      escapeCsvField(o.lead_target),
+      escapeCsvField(o.meeting_target),
+      escapeCsvField(o.materials_links),
+      escapeCsvField(o.calendar_link),
+      escapeCsvField(o.blacklist),
+      escapeCsvField(o.additional_notes),
+      escapeCsvField(o.contact_name),
+      escapeCsvField(o.contact_role),
+      escapeCsvField(o.contact_email),
+      escapeCsvField(o.contact_phone)
+    ].join(','));
+
+    const csv = csvRows.join('\n');
+    const filename = `onboarding_${o.company_name ? o.company_name.replace(/[^a-zA-Z0-9]/g, '_') : o.id}_${new Date().toISOString().split('T')[0]}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('\ufeff' + csv); // BOM for Excel
+
+  } catch (error) {
+    console.error('Error exporting onboarding CSV:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao exportar onboarding',
       error: error.message
     });
   }

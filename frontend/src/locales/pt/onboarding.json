@@ -215,6 +215,9 @@
       "contact": "Contato"
     },
     "empty": "Nenhum onboarding encontrado",
-    "reviewedSuccess": "Onboarding marcado como revisado"
+    "reviewedSuccess": "Onboarding marcado como revisado",
+    "exportCSV": "Exportar CSV",
+    "exportPDF": "Exportar PDF",
+    "exportError": "Erro ao exportar. Tente novamente."
   }
 }

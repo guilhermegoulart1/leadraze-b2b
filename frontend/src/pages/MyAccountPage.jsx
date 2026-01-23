@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, CreditCard, Gift, Globe, Users } from 'lucide-react';
+import { User, CreditCard, Gift, Globe, Users, ClipboardList } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ProfilePage from './ProfilePage';
 import BillingPage from './BillingPage';
 import AffiliatePage from './AffiliatePage';
 import WebsiteAgentsPage from './WebsiteAgentsPage';
 import WebsiteLeadsPage from './WebsiteLeadsPage';
+import OnboardingAdminPage from './OnboardingAdminPage';
 
 const MyAccountPage = () => {
   const { t } = useTranslation('settings');
@@ -33,6 +34,7 @@ const MyAccountPage = () => {
     ...(isAdmin ? [
       { id: 'website-agents', label: 'Website Agents', icon: Globe },
       { id: 'website-leads', label: 'Website Leads', icon: Users },
+      { id: 'onboardings', label: 'Onboardings', icon: ClipboardList },
     ] : []),
   ];
 
@@ -48,6 +50,8 @@ const MyAccountPage = () => {
         return <WebsiteAgentsPage />;
       case 'website-leads':
         return <WebsiteLeadsPage />;
+      case 'onboardings':
+        return <OnboardingAdminPage />;
       default:
         return <ProfilePage />;
     }

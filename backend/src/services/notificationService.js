@@ -429,6 +429,74 @@ async function notifyGmapsCampaignComplete({ accountId, userId, agentId, agentNa
   });
 }
 
+// ============================================
+// Onboarding Notifications
+// ============================================
+
+/**
+ * Get system admin users for notifications
+ * Uses ADMIN_NOTIFICATION_EMAIL env var
+ * @returns {Promise<Array<{id: string, email: string, name: string}>>}
+ */
+async function getSystemAdmins() {
+  try {
+    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+
+    if (!adminEmail) {
+      console.warn('[NotificationService] ADMIN_NOTIFICATION_EMAIL not configured');
+      return [];
+    }
+
+    const result = await db.query(`
+      SELECT id, email, name
+      FROM users
+      WHERE email = $1 AND is_active = true
+      LIMIT 1
+    `, [adminEmail]);
+
+    return result.rows;
+  } catch (error) {
+    console.error('[NotificationService] Error getting system admins:', error);
+    return [];
+  }
+}
+
+/**
+ * Create notification when client completes onboarding
+ * @param {object} data - Notification data
+ * @returns {Promise<number>} Number of notifications created
+ */
+async function notifyOnboardingCompleted({ onboardingId, companyName, contactName, contactEmail, accountId }) {
+  try {
+    const admins = await getSystemAdmins();
+
+    if (admins.length === 0) {
+      console.warn('[NotificationService] No system admins found for onboarding notification');
+      return 0;
+    }
+
+    const adminUserIds = admins.map(a => a.id);
+
+    return createBulk(adminUserIds, {
+      account_id: null,
+      type: 'onboarding_completed',
+      title: 'Novo onboarding concluído',
+      message: `${companyName} (${contactName}) completou o onboarding`,
+      metadata: {
+        onboarding_id: onboardingId,
+        company_name: companyName,
+        contact_name: contactName,
+        contact_email: contactEmail,
+        account_id: accountId,
+        link: '/onboarding/admin'
+      }
+    });
+  } catch (error) {
+    console.error('[NotificationService] Error notifying onboarding completed:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   create,
   getByUser,
@@ -445,5 +513,8 @@ module.exports = {
   // Google Maps Campaign notifications
   notifyGmapsCampaignStarted,
   notifyGmapsDailyComplete,
-  notifyGmapsCampaignComplete
+  notifyGmapsCampaignComplete,
+  // Onboarding notifications
+  notifyOnboardingCompleted,
+  getSystemAdmins
 };

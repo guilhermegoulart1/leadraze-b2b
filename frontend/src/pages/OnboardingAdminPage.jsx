@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import {
   ClipboardList, Filter, Eye, CheckCircle, Loader2, X,
   Building2, Users, MessageSquare, Phone, Mail, Calendar,
-  Globe, Briefcase, Target, Clock
+  Globe, Briefcase, Target, Clock, Download, FileText
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import api from '../services/api';
 
 const OnboardingAdminPage = () => {
@@ -16,6 +17,7 @@ const OnboardingAdminPage = () => {
   const [selectedOnboarding, setSelectedOnboarding] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [markingReviewed, setMarkingReviewed] = useState(false);
+  const [exporting, setExporting] = useState({ pdf: false, csv: false });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -76,6 +78,201 @@ const OnboardingAdminPage = () => {
       alert(t('errors.saveFailed'));
     } finally {
       setMarkingReviewed(false);
+    }
+  };
+
+  const exportToCSV = async (id) => {
+    try {
+      setExporting(prev => ({ ...prev, csv: true }));
+      await api.exportOnboardingCSV(id);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert(t('admin.exportError', 'Erro ao exportar CSV'));
+    } finally {
+      setExporting(prev => ({ ...prev, csv: false }));
+    }
+  };
+
+  const exportToPDF = () => {
+    if (!selectedOnboarding) return;
+
+    setExporting(prev => ({ ...prev, pdf: true }));
+
+    try {
+      const o = selectedOnboarding;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      let yPos = 20;
+
+      const addWrappedText = (text, x, y, maxWidth, fontSize = 10) => {
+        doc.setFontSize(fontSize);
+        const lines = doc.splitTextToSize(text || '-', maxWidth);
+        doc.text(lines, x, y);
+        return y + (lines.length * fontSize * 0.4) + 2;
+      };
+
+      const checkNewPage = (requiredSpace = 30) => {
+        if (yPos > 270 - requiredSpace) {
+          doc.addPage();
+          yPos = 20;
+        }
+      };
+
+      const addSection = (title) => {
+        checkNewPage(40);
+        doc.setFillColor(147, 51, 234);
+        doc.rect(margin, yPos - 5, pageWidth - 2 * margin, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, margin + 3, yPos);
+        yPos += 10;
+        doc.setTextColor(51, 51, 51);
+        doc.setFont('helvetica', 'normal');
+      };
+
+      const addField = (label, value, fullWidth = false) => {
+        checkNewPage();
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(label, margin, yPos);
+        yPos += 4;
+        doc.setFontSize(10);
+        doc.setTextColor(51, 51, 51);
+        yPos = addWrappedText(value || '-', margin, yPos, fullWidth ? pageWidth - 2 * margin : (pageWidth - 2 * margin) / 2 - 5);
+        yPos += 3;
+      };
+
+      // Header
+      doc.setFillColor(147, 51, 234);
+      doc.rect(0, 0, pageWidth, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Onboarding Report', margin, 18);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(o.company_name || o.account_name || 'N/A', margin, 26);
+      yPos = 40;
+
+      // Status badge
+      const statusColors = {
+        pending: [234, 179, 8],
+        completed: [59, 130, 246],
+        reviewed: [34, 197, 94]
+      };
+      const statusColor = statusColors[o.status] || [128, 128, 128];
+      doc.setFillColor(...statusColor);
+      doc.roundedRect(pageWidth - margin - 25, 35, 25, 7, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.text(t(`admin.status.${o.status}`), pageWidth - margin - 23, 40);
+      doc.setTextColor(51, 51, 51);
+
+      // Section 1: Company Data
+      addSection(t('admin.modal.section1'));
+      addField(t('fields.companyName'), o.company_name);
+      addField(t('fields.website'), o.website);
+      addField(t('fields.industry'), o.industry);
+      addField(t('fields.description'), o.description, true);
+      addField(t('fields.productsServices'), o.products_services, true);
+      addField(t('fields.differentials'), o.differentials, true);
+      addField(t('fields.successCases'), o.success_cases, true);
+
+      // Section 2: Customer Data
+      addSection(t('admin.modal.section2'));
+      addField(t('fields.idealCustomer'), o.ideal_customer, true);
+      addField(t('fields.targetRoles'), o.target_roles);
+      addField(t('fields.targetLocation'), o.target_location);
+      addField(t('fields.targetIndustries'), o.target_industries, true);
+      addField(t('fields.buyingSignals'), o.buying_signals, true);
+      addField(t('fields.mainProblem'), o.main_problem, true);
+
+      // Section 3: Support
+      addSection(t('admin.modal.section3'));
+
+      // FAQ
+      if (Array.isArray(o.faq) && o.faq.length > 0) {
+        checkNewPage();
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(t('fields.faq'), margin, yPos);
+        yPos += 4;
+        o.faq.forEach((item, idx) => {
+          checkNewPage();
+          doc.setFontSize(9);
+          doc.setTextColor(147, 51, 234);
+          yPos = addWrappedText(`Q${idx + 1}: ${item.question}`, margin + 2, yPos, pageWidth - 2 * margin - 4, 9);
+          doc.setTextColor(51, 51, 51);
+          yPos = addWrappedText(`A: ${item.answer}`, margin + 2, yPos, pageWidth - 2 * margin - 4, 9);
+          yPos += 2;
+        });
+      }
+
+      // Objections
+      if (Array.isArray(o.objections) && o.objections.length > 0) {
+        checkNewPage();
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(t('fields.objections'), margin, yPos);
+        yPos += 4;
+        o.objections.forEach((item, idx) => {
+          checkNewPage();
+          doc.setFontSize(9);
+          doc.setTextColor(220, 38, 38);
+          yPos = addWrappedText(`O${idx + 1}: ${item.objection}`, margin + 2, yPos, pageWidth - 2 * margin - 4, 9);
+          doc.setTextColor(51, 51, 51);
+          yPos = addWrappedText(`R: ${item.response}`, margin + 2, yPos, pageWidth - 2 * margin - 4, 9);
+          yPos += 2;
+        });
+      }
+
+      addField(t('fields.policies'), o.policies, true);
+      addField(t('fields.businessHours'), o.business_hours);
+      addField(t('fields.escalationTriggers'), Array.isArray(o.escalation_triggers) ? o.escalation_triggers.join(', ') : o.escalation_triggers, true);
+
+      // Section 4: Final Setup
+      addSection(t('admin.modal.section4'));
+      addField(t('fields.goals'), Array.isArray(o.goals) ? o.goals.join(', ') : o.goals);
+      addField(t('fields.leadTarget'), o.lead_target);
+      addField(t('fields.meetingTarget'), o.meeting_target);
+      addField(t('fields.calendarLink'), o.calendar_link);
+      addField(t('fields.materialsLinks'), o.materials_links, true);
+      addField(t('fields.blacklist'), o.blacklist, true);
+      addField(t('fields.additionalNotes'), o.additional_notes, true);
+
+      // Section 5: Contact
+      addSection(t('admin.modal.contact'));
+      addField(t('fields.contactName'), o.contact_name);
+      addField(t('fields.contactRole'), o.contact_role);
+      addField(t('fields.contactEmail'), o.contact_email);
+      addField(t('fields.contactPhone'), o.contact_phone);
+
+      // Footer on all pages
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const footerY = doc.internal.pageSize.getHeight() - 10;
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `GetRaze Onboarding Report | Generated: ${new Date().toLocaleDateString()} | Page ${i} of ${pageCount}`,
+          pageWidth / 2,
+          footerY,
+          { align: 'center' }
+        );
+      }
+
+      // Save
+      const filename = `onboarding_${(o.company_name || o.account_name || 'report').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert(t('admin.exportError', 'Erro ao gerar PDF'));
+    } finally {
+      setExporting(prev => ({ ...prev, pdf: false }));
     }
   };
 
@@ -514,6 +711,32 @@ const OnboardingAdminPage = () => {
                 {selectedOnboarding.reviewed_at && <p>Revisado: {formatDate(selectedOnboarding.reviewed_at)} por {selectedOnboarding.reviewer_name}</p>}
               </div>
               <div className="flex gap-3">
+                <button
+                  onClick={() => exportToCSV(selectedOnboarding.id)}
+                  disabled={exporting.csv}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 disabled:opacity-50"
+                  title={t('admin.exportCSV', 'Exportar CSV')}
+                >
+                  {exporting.csv ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  CSV
+                </button>
+                <button
+                  onClick={exportToPDF}
+                  disabled={exporting.pdf}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 disabled:opacity-50"
+                  title={t('admin.exportPDF', 'Exportar PDF')}
+                >
+                  {exporting.pdf ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  PDF
+                </button>
                 <button
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"

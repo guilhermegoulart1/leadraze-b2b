@@ -562,6 +562,75 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
+
+  /**
+   * Send admin notification when client completes onboarding
+   */
+  async sendOnboardingCompletedNotification(onboarding) {
+    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://app.getraze.co';
+
+    if (!adminEmail) {
+      console.warn('ADMIN_NOTIFICATION_EMAIL not configured, skipping onboarding notification');
+      return null;
+    }
+
+    if (!this.isReady()) {
+      console.warn('Email service not configured, skipping onboarding completion notification');
+      return null;
+    }
+
+    const viewOnboardingUrl = `${frontendUrl}/onboarding/admin`;
+
+    const mailOptions = {
+      from: `"GetRaze" <${emailConfig.defaults.from.email}>`,
+      to: adminEmail,
+      subject: `[GetRaze] Novo Onboarding Concluído: ${onboarding.company_name || 'Cliente'}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #10B981; margin-bottom: 20px;">Novo Onboarding Concluído</h2>
+
+          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #166534; font-size: 16px;">
+              <strong>${onboarding.company_name || 'Cliente'}</strong> completou o formulário de onboarding e está pronto para revisão.
+            </p>
+          </div>
+
+          <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #333;">Dados do Contato:</h3>
+            <p style="margin: 5px 0;"><strong>Empresa:</strong> ${onboarding.company_name || 'Não informado'}</p>
+            <p style="margin: 5px 0;"><strong>Contato:</strong> ${onboarding.contact_name || 'Não informado'}</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${onboarding.contact_email || 'Não informado'}</p>
+            <p style="margin: 5px 0;"><strong>Telefone:</strong> ${onboarding.contact_phone || 'Não informado'}</p>
+            <p style="margin: 5px 0;"><strong>Setor:</strong> ${onboarding.industry || 'Não informado'}</p>
+            <p style="margin: 5px 0;"><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+          </div>
+
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${viewOnboardingUrl}"
+               style="display: inline-block; background-color: #6366F1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              Ver Detalhes do Onboarding
+            </a>
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            Esta é uma notificação automática do sistema GetRaze.
+          </p>
+        </div>
+      `,
+      text: `Novo Onboarding Concluído\n\nEmpresa: ${onboarding.company_name || 'Não informado'}\nContato: ${onboarding.contact_name || 'Não informado'}\nEmail: ${onboarding.contact_email || 'Não informado'}\nTelefone: ${onboarding.contact_phone || 'Não informado'}\n\nVer detalhes: ${viewOnboardingUrl}`
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Onboarding completion notification sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error sending onboarding completion notification:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 module.exports = new EmailService();

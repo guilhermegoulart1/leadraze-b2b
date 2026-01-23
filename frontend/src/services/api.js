@@ -3602,6 +3602,41 @@ class ApiService {
     });
   }
 
+  async exportOnboardingCSV(id) {
+    const token = this.getToken();
+    const url = `${this.baseURL}/onboarding/admin/${id}/export/csv`;
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export CSV');
+    }
+
+    // Get filename from Content-Disposition header
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = 'onboarding.csv';
+    if (disposition) {
+      const matches = /filename="(.+)"/.exec(disposition);
+      if (matches) filename = matches[1];
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    return { success: true };
+  }
+
 }
 
 export default new ApiService();
