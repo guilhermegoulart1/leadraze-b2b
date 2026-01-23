@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Key, Link2, CheckSquare, Mail, Package, XCircle, Tag, Share2, MessageSquare } from 'lucide-react';
+import { Key, Link2, Mail, Package, XCircle, Tag, Share2, MessageSquare, Map } from 'lucide-react';
 import ApiKeysPage from './ApiKeysPage';
 import ChannelsPage from './ChannelsPage';
-import ChecklistTemplatesPage from './ChecklistTemplatesPage';
 import EmailSettingsPage from './EmailSettingsPage';
 import TagsPage from './TagsPage';
 import ProductsTab from '../components/settings/ProductsTab';
 import DiscardReasonsTab from '../components/settings/DiscardReasonsTab';
 import LeadSourcesTab from '../components/settings/LeadSourcesTab';
 import QuickRepliesTab from '../components/settings/QuickRepliesTab';
+import RoadmapsTab from '../components/settings/RoadmapsTab';
 
 const ConfigPage = () => {
   const { t } = useTranslation('settings');
@@ -34,9 +34,9 @@ const ConfigPage = () => {
     { id: 'tags', label: t('configTabs.tags'), icon: Tag },
     { id: 'api-keys', label: t('configTabs.apiKeys'), icon: Key },
     { id: 'channels', label: t('configTabs.channels'), icon: Link2 },
-    { id: 'checklists', label: t('configTabs.checklists'), icon: CheckSquare },
     { id: 'emails', label: t('configTabs.emails'), icon: Mail },
     { id: 'quick-replies', label: t('configTabs.quickReplies'), icon: MessageSquare },
+    { id: 'roadmaps', label: t('configTabs.roadmaps', 'Roadmaps'), icon: Map },
   ];
 
   const renderContent = () => {
@@ -53,12 +53,12 @@ const ConfigPage = () => {
         return <ApiKeysPage />;
       case 'channels':
         return <ChannelsPage />;
-      case 'checklists':
-        return <ChecklistTemplatesPage />;
       case 'emails':
         return <EmailSettingsPage />;
       case 'quick-replies':
         return <QuickRepliesTab />;
+      case 'roadmaps':
+        return <RoadmapsTab />;
       default:
         return <ProductsTab />;
     }

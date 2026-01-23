@@ -178,7 +178,20 @@
     "secretAgent": "Agente Secreto",
     "audioNotAvailable": "Áudio não disponível",
     "downloading": "Baixando...",
-    "download": "Baixar"
+    "download": "Baixar",
+    "quickRepliesTab": "Respostas",
+    "roadmapsTab": "Roadmaps",
+    "useTabAndArrows": "↑↓ navegar • Tab trocar aba • Enter selecionar",
+    "noQuickReplies": "Nenhuma resposta rápida configurada",
+    "noRoadmaps": "Nenhum roadmap configurado",
+    "quickRepliesAndRoadmaps": "Respostas Rápidas & Roadmaps",
+    "noItemsFound": "Nenhum item encontrado para",
+    "noItemsConfigured": "Você ainda não tem respostas rápidas ou roadmaps configurados",
+    "configureRoadmaps": "Configurar roadmaps →",
+    "tasks": "tarefas",
+    "quickRepliesSection": "RESPOSTAS RÁPIDAS",
+    "roadmapsSection": "ROADMAPS",
+    "slackStyleHint": "↑↓ navegar • Enter ou Tab selecionar • Esc fechar"
   },
   "details": {
     "selectConversation": "Selecione uma conversa",

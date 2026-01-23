@@ -100,4 +100,10 @@ router.get('/:opportunityId/tasks', taskController.getOpportunityTasks);
 router.get('/:opportunityId/checklists', checklistController.getOpportunityChecklists);
 router.post('/:opportunityId/checklists', checklistController.createChecklist);
 
+// ================================
+// ROADMAP EXECUTIONS DA OPORTUNIDADE
+// ================================
+const roadmapController = require('../controllers/roadmapController');
+router.get('/:opportunityId/roadmap-executions', roadmapController.getExecutionsByOpportunity);
+
 module.exports = router;

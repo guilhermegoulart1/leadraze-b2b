@@ -605,6 +605,21 @@ const createOpportunity = async (req, res) => {
         [opportunity.id, userId, targetStageId, value || 0]
       );
 
+      // Vincular roadmap executions existentes do contato que não têm oportunidade
+      const linkedRoadmaps = await client.query(
+        `UPDATE roadmap_executions
+         SET opportunity_id = $1, updated_at = NOW()
+         WHERE contact_id = $2
+           AND opportunity_id IS NULL
+           AND account_id = $3
+         RETURNING id`,
+        [opportunity.id, contact.id, accountId]
+      );
+
+      if (linkedRoadmaps.rows.length > 0) {
+        console.log(`🔗 ${linkedRoadmaps.rows.length} roadmap(s) vinculado(s) à oportunidade ${opportunity.id}`);
+      }
+
       await client.query('COMMIT');
 
       console.log(`✅ Oportunidade "${oppTitle}" criada na pipeline ${pipelineId}`);
@@ -1538,6 +1553,23 @@ const createManualOpportunity = async (req, res) => {
     );
 
     const opportunity = oppResult.rows[0];
+
+    // Vincular roadmap executions existentes do contato que não têm oportunidade
+    if (contactId) {
+      const linkedRoadmaps = await db.query(
+        `UPDATE roadmap_executions
+         SET opportunity_id = $1, updated_at = NOW()
+         WHERE contact_id = $2
+           AND opportunity_id IS NULL
+           AND account_id = $3
+         RETURNING id`,
+        [opportunity.id, contactId, accountId]
+      );
+
+      if (linkedRoadmaps.rows.length > 0) {
+        console.log(`🔗 ${linkedRoadmaps.rows.length} roadmap(s) vinculado(s) à oportunidade ${opportunity.id}`);
+      }
+    }
 
     // Get contact info for response
     if (contactId) {

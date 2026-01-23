@@ -117,4 +117,11 @@ router.post('/import',
   contactController.importContacts
 );
 
+// Roadmap executions by contact
+const roadmapController = require('../controllers/roadmapController');
+router.get('/:contactId/roadmap-executions',
+  checkPermission('contacts:view:own'),
+  roadmapController.getExecutionsByContact
+);
+
 module.exports = router;

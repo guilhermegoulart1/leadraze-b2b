@@ -590,6 +590,30 @@ try {
   console.error('❌ Error loading Onboarding routes:', error.message);
 }
 
+// Roadmaps (reusable task sequences)
+try {
+  app.use('/api/roadmaps', require('./routes/roadmaps'));
+  console.log('✅ Roadmaps routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Roadmaps routes:', error.message);
+}
+
+// Roadmap Executions
+try {
+  app.use('/api/roadmap-executions', require('./routes/roadmapExecutions'));
+  console.log('✅ Roadmap Executions routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Roadmap Executions routes:', error.message);
+}
+
+// Roadmap Execution Tasks
+try {
+  app.use('/api/roadmap-execution-tasks', require('./routes/roadmapExecutionTasks'));
+  console.log('✅ Roadmap Execution Tasks routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Roadmap Execution Tasks routes:', error.message);
+}
+
 // ================================
 // EXTERNAL API ROUTES (API Key Authentication)
 // ================================

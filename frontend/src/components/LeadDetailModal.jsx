@@ -45,7 +45,8 @@ import {
   Sparkles,
   Building2,
   Lightbulb,
-  TrendingUp
+  TrendingUp,
+  Map
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -61,6 +62,7 @@ import { ProfileBadges } from './ProfileEnrichmentSection';
 import CompanyDataTab from './CompanyDataTab';
 import PhoneEmailList from './PhoneEmailList';
 import StartWhatsAppModal from './StartWhatsAppDropdown';
+import RoadmapExecutionCard from './RoadmapExecutionCard';
 
 // Helper functions for dynamic Tailwind classes
 const getStageClasses = (color) => {
@@ -143,6 +145,9 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const messagesEndRef = useRef(null);
   const [linkedinAccounts, setLinkedinAccounts] = useState([]);
   const [selectedLinkedinAccountId, setSelectedLinkedinAccountId] = useState(null);
+  // Roadmap executions state
+  const [roadmapExecutions, setRoadmapExecutions] = useState([]);
+  const [loadingRoadmaps, setLoadingRoadmaps] = useState(false);
 
   // Sync currentStatus when lead prop changes
   useEffect(() => {
@@ -294,8 +299,54 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
       loadAssignableUsers();
       loadFullLeadData();
       loadLinkedinAccounts();
+      loadRoadmapExecutions();
     }
   }, [lead?.id]); // Only reload when lead ID changes, not when lead object reference changes
+
+  // Load roadmap executions
+  const loadRoadmapExecutions = async () => {
+    if (!lead?.contact_id) return;
+    try {
+      setLoadingRoadmaps(true);
+      const response = await api.getContactRoadmapExecutions(lead.contact_id);
+      if (response.success) {
+        setRoadmapExecutions(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading roadmaps:', error);
+      setRoadmapExecutions([]);
+    } finally {
+      setLoadingRoadmaps(false);
+    }
+  };
+
+  // Handle roadmap task toggle
+  const handleRoadmapTaskToggle = (executionId, taskId, updatedTask) => {
+    setRoadmapExecutions(prev => prev.map(exec => {
+      if (exec.id === executionId) {
+        const updatedTasks = exec.tasks.map(t =>
+          t.id === taskId ? { ...t, ...updatedTask } : t
+        );
+        const completedCount = updatedTasks.filter(t => t.is_completed).length;
+        return {
+          ...exec,
+          tasks: updatedTasks,
+          completed_tasks: completedCount,
+          status: completedCount === exec.total_tasks ? 'completed' : exec.status
+        };
+      }
+      return exec;
+    }));
+  };
+
+  // Handle roadmap execution cancel
+  const handleRoadmapCancel = (executionId) => {
+    setRoadmapExecutions(prev => prev.map(exec =>
+      exec.id === executionId
+        ? { ...exec, status: 'cancelled' }
+        : exec
+    ));
+  };
 
   // Load full lead data with IA fields
   const loadFullLeadData = async () => {
@@ -1911,8 +1962,74 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
               {/* Tasks Tab */}
               {activeTab === 'tasks' && (
-                <div className="p-6">
-                  <LeadChecklists leadId={lead?.opportunity_id || lead?.id} sectorId={lead?.sector_id} />
+                <div className="p-6 space-y-6">
+                  {/* Roadmaps Section */}
+                  {lead?.contact_id && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Map className="w-4 h-4 text-blue-500" />
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Roadmaps
+                        </h3>
+                        {roadmapExecutions.filter(e => e.status === 'in_progress').length > 0 && (
+                          <span className="px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
+                            {roadmapExecutions.filter(e => e.status === 'in_progress').length}
+                          </span>
+                        )}
+                      </div>
+
+                      {loadingRoadmaps ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader className="w-5 h-5 animate-spin text-blue-500" />
+                        </div>
+                      ) : roadmapExecutions.length > 0 ? (
+                        <div className="space-y-2 mb-6">
+                          {/* In progress executions first */}
+                          {roadmapExecutions
+                            .filter(exec => exec.status === 'in_progress')
+                            .map(execution => (
+                              <RoadmapExecutionCard
+                                key={execution.id}
+                                execution={execution}
+                                onTaskToggle={handleRoadmapTaskToggle}
+                                onCancel={handleRoadmapCancel}
+                                defaultExpanded={true}
+                              />
+                            ))
+                          }
+                          {/* Completed/cancelled executions collapsed */}
+                          {roadmapExecutions
+                            .filter(exec => exec.status !== 'in_progress')
+                            .map(execution => (
+                              <RoadmapExecutionCard
+                                key={execution.id}
+                                execution={execution}
+                                onTaskToggle={handleRoadmapTaskToggle}
+                                onCancel={handleRoadmapCancel}
+                                defaultExpanded={false}
+                                showCancelButton={false}
+                              />
+                            ))
+                          }
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-6">
+                          Nenhum roadmap em execução. Use "/" no chat para iniciar um roadmap.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Checklists Section */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckSquare className="w-4 h-4 text-purple-500" />
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Checklists
+                      </h3>
+                    </div>
+                    <LeadChecklists leadId={lead?.opportunity_id || lead?.id} sectorId={lead?.sector_id} />
+                  </div>
                 </div>
               )}
 

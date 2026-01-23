@@ -2,16 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  User, Building2, Briefcase, MapPin, Linkedin,
+  User, Building2, Briefcase, MapPin,
   Mail, Phone, Calendar, Tag,
   ChevronDown, ChevronUp, ExternalLink, Edit2, X, Plus,
-  Target, AlertTriangle
+  Target, AlertTriangle, Map, Loader
 } from 'lucide-react';
 import api from '../services/api';
 import SecretAgentPanel from './SecretAgentPanel';
 import SecretAgentModal from './SecretAgentModal';
 import QuickCreateOpportunityModal from './QuickCreateOpportunityModal';
 import LeadDetailModal from './LeadDetailModal';
+import RoadmapExecutionCard from './RoadmapExecutionCard';
+import RoadmapExecutionModal from './RoadmapExecutionModal';
 import { useAuth } from '../contexts/AuthContext';
 
 const LEAD_STATUS_OPTIONS = [
@@ -82,6 +84,13 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
   const [showLeadDetailModal, setShowLeadDetailModal] = useState(false);
   const [leadDataForModal, setLeadDataForModal] = useState(null);
   const [loadingOpportunity, setLoadingOpportunity] = useState(false);
+
+  // Roadmap executions state
+  const [roadmapExecutions, setRoadmapExecutions] = useState([]);
+  const [loadingRoadmaps, setLoadingRoadmaps] = useState(false);
+  const [roadmapsExpanded, setRoadmapsExpanded] = useState(true);
+  const [selectedExecution, setSelectedExecution] = useState(null);
+  const [showExecutionModal, setShowExecutionModal] = useState(false);
 
   // Função para gerar estilos de tag (funciona bem em light e dark mode)
   const getTagStyles = (colorName) => {
@@ -166,6 +175,20 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
     }
   }, [showSectorMenu]);
 
+  // Listen for roadmap-executed event to reload roadmaps
+  useEffect(() => {
+    const handleRoadmapExecuted = (event) => {
+      const { contactId } = event.detail || {};
+      // Reload if the event is for the current contact
+      if (contactId && conversation?.contact_id === contactId) {
+        loadRoadmapExecutions(contactId);
+      }
+    };
+
+    window.addEventListener('roadmap-executed', handleRoadmapExecuted);
+    return () => window.removeEventListener('roadmap-executed', handleRoadmapExecuted);
+  }, [conversation?.contact_id]);
+
   const loadConversation = async () => {
     try {
       setLoading(true);
@@ -185,12 +208,74 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
         setSelectedStatus(response.data.lead_status || '');
         // Tags herdadas do contato (vêm do backend)
         setTags(response.data.tags || []);
+
+        // Load roadmap executions if contact_id exists
+        if (response.data.contact_id) {
+          loadRoadmapExecutions(response.data.contact_id);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar detalhes:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load roadmap executions for contact (exclude cancelled)
+  const loadRoadmapExecutions = async (contactId) => {
+    try {
+      setLoadingRoadmaps(true);
+      const response = await api.getContactRoadmapExecutions(contactId);
+      if (response.success) {
+        // Filter out cancelled roadmaps - they shouldn't appear in the list
+        const activeRoadmaps = (response.data || []).filter(exec => exec.status !== 'cancelled');
+        setRoadmapExecutions(activeRoadmaps);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar roadmaps:', error);
+      setRoadmapExecutions([]);
+    } finally {
+      setLoadingRoadmaps(false);
+    }
+  };
+
+  // Handle roadmap task toggle
+  const handleRoadmapTaskToggle = (executionId, taskId, updatedTask) => {
+    const updateExecution = (exec) => {
+      if (exec.id === executionId) {
+        const updatedTasks = exec.tasks.map(t =>
+          t.id === taskId ? { ...t, ...updatedTask } : t
+        );
+        const completedCount = updatedTasks.filter(t => t.is_completed).length;
+        return {
+          ...exec,
+          tasks: updatedTasks,
+          completed_tasks: completedCount,
+          status: completedCount === exec.total_tasks ? 'completed' : exec.status
+        };
+      }
+      return exec;
+    };
+
+    setRoadmapExecutions(prev => prev.map(updateExecution));
+
+    // Also update selectedExecution if modal is open
+    if (selectedExecution?.id === executionId) {
+      setSelectedExecution(prev => updateExecution(prev));
+    }
+  };
+
+  // Handle roadmap execution cancel - remove from list
+  const handleRoadmapCancel = (executionId) => {
+    setRoadmapExecutions(prev => prev.filter(exec => exec.id !== executionId));
+    setShowExecutionModal(false);
+    setSelectedExecution(null);
+  };
+
+  // Handle view execution details
+  const handleViewExecutionDetails = (execution) => {
+    setSelectedExecution(execution);
+    setShowExecutionModal(true);
   };
 
   const loadUsers = async () => {
@@ -645,17 +730,6 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
 
             {/* Info Grid */}
             <div className="space-y-2 mb-3">
-              {/* Campanha */}
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.campaign')}</p>
-                <div className="flex items-center gap-2">
-                  <Briefcase className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                  <span className="text-sm text-gray-900 dark:text-gray-100">
-                    {conversation?.campaign_name || t('details.notAssigned')}
-                  </span>
-                </div>
-              </div>
-
               {/* Atribuição */}
               <div className="relative">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('details.assignedTo')}</p>
@@ -801,22 +875,6 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               )}
             </div>
 
-            {/* LinkedIn */}
-            {conversation?.lead_profile_url && (
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('details.linkedInProfile')}</p>
-                <a
-                  href={conversation.lead_profile_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
-                >
-                  <Linkedin className="w-3.5 h-3.5" />
-                  <span>{t('details.viewProfile')}</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            )}
           </div>
 
           {/* Oportunidade */}
@@ -958,6 +1016,76 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
                       }
                     })()}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Roadmaps Section - Moved above Tags */}
+          {conversation?.contact_id && (
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setRoadmapsExpanded(!roadmapsExpanded)}
+                className="w-full flex items-center justify-between mb-2 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <Map className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    {t('details.roadmaps', 'Roadmaps')}
+                  </span>
+                  {roadmapExecutions.filter(e => e.status === 'in_progress').length > 0 && (
+                    <span className="px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
+                      {roadmapExecutions.filter(e => e.status === 'in_progress').length}
+                    </span>
+                  )}
+                </div>
+                {roadmapsExpanded ? (
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+
+              {roadmapsExpanded && (
+                <div className="space-y-2">
+                  {loadingRoadmaps ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader className="w-5 h-5 animate-spin text-blue-500" />
+                    </div>
+                  ) : roadmapExecutions.length > 0 ? (
+                    <>
+                      {/* In progress executions first */}
+                      {roadmapExecutions
+                        .filter(exec => exec.status === 'in_progress')
+                        .map(execution => (
+                          <RoadmapExecutionCard
+                            key={execution.id}
+                            execution={execution}
+                            onTaskToggle={handleRoadmapTaskToggle}
+                            onViewDetails={handleViewExecutionDetails}
+                            defaultExpanded={true}
+                          />
+                        ))
+                      }
+                      {/* Completed executions collapsed */}
+                      {roadmapExecutions
+                        .filter(exec => exec.status === 'completed')
+                        .map(execution => (
+                          <RoadmapExecutionCard
+                            key={execution.id}
+                            execution={execution}
+                            onTaskToggle={handleRoadmapTaskToggle}
+                            onViewDetails={handleViewExecutionDetails}
+                            defaultExpanded={false}
+                          />
+                        ))
+                      }
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
+                      {t('details.noRoadmaps', 'Nenhum roadmap em execução')}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -1176,6 +1304,18 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
           }}
         />
       )}
+
+      {/* Roadmap Execution Detail Modal */}
+      <RoadmapExecutionModal
+        execution={selectedExecution}
+        isOpen={showExecutionModal}
+        onClose={() => {
+          setShowExecutionModal(false);
+          setSelectedExecution(null);
+        }}
+        onTaskToggle={handleRoadmapTaskToggle}
+        onCancel={handleRoadmapCancel}
+      />
     </div>
   );
 };

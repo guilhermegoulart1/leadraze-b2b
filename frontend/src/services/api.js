@@ -3534,6 +3534,121 @@ class ApiService {
   }
 
   // ===================================
+  // ROADMAPS
+  // ===================================
+
+  async getRoadmaps(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/roadmaps${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getRoadmap(id) {
+    return this.request(`/roadmaps/${id}`);
+  }
+
+  async createRoadmap(data) {
+    return this.request('/roadmaps', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRoadmap(id, data) {
+    return this.request(`/roadmaps/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRoadmap(id) {
+    return this.request(`/roadmaps/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async searchRoadmaps(query) {
+    return this.request(`/roadmaps/search?q=${encodeURIComponent(query || '')}`);
+  }
+
+  // Roadmap Tasks
+  async getRoadmapTasks(roadmapId) {
+    return this.request(`/roadmaps/${roadmapId}/tasks`);
+  }
+
+  async addRoadmapTask(roadmapId, data) {
+    return this.request(`/roadmaps/${roadmapId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRoadmapTask(roadmapId, taskId, data) {
+    return this.request(`/roadmaps/${roadmapId}/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRoadmapTask(roadmapId, taskId) {
+    return this.request(`/roadmaps/${roadmapId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderRoadmapTasks(roadmapId, data) {
+    return this.request(`/roadmaps/${roadmapId}/tasks/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Roadmap Execution
+  async executeRoadmap(roadmapId, data) {
+    return this.request(`/roadmaps/${roadmapId}/execute`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getRoadmapExecution(executionId) {
+    return this.request(`/roadmap-executions/${executionId}`);
+  }
+
+  async cancelRoadmapExecution(executionId, reason) {
+    return this.request(`/roadmap-executions/${executionId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async toggleRoadmapExecutionTask(taskId) {
+    return this.request(`/roadmap-execution-tasks/${taskId}/toggle`, {
+      method: 'PATCH',
+    });
+  }
+
+  async getContactRoadmapExecutions(contactId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/contacts/${contactId}/roadmap-executions${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getOpportunityRoadmapExecutions(opportunityId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/opportunities/${opportunityId}/roadmap-executions${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Roadmap Analytics
+  async getRoadmapsAnalytics(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/roadmaps/analytics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getRoadmapAnalytics(roadmapId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/roadmaps/${roadmapId}/analytics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // ===================================
   // CHANNEL PERMISSIONS
   // ===================================
 

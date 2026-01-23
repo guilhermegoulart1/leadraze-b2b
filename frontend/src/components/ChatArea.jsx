@@ -6,7 +6,7 @@ import {
   Send, Bot, User, Loader, AlertCircle, Linkedin, Mail,
   ToggleLeft, ToggleRight, SidebarOpen, SidebarClose, CheckCircle, RotateCcw,
   Paperclip, X, FileText, Image, Film, Music, File, Download, Pencil, Check,
-  Play, Pause, Sparkles, Copy, Forward, Mic, Square, Trash2
+  Play, Pause, Sparkles, Copy, Forward, Mic, Square, Trash2, Map, MessageSquare
 } from 'lucide-react';
 import api from '../services/api';
 import { joinConversation, leaveConversation, onNewMessage } from '../services/ably';
@@ -16,6 +16,7 @@ import SecretAgentModal from './SecretAgentModal';
 import ConversationInviteModal from './ConversationInviteModal';
 import { UserPlus, Hourglass, Eye } from 'lucide-react';
 import UnifiedContactModal from './UnifiedContactModal';
+import RoadmapSelector from './RoadmapSelector';
 
 const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConversationRead, onConversationClosed, onConversationUpdated }) => {
   const { t, i18n } = useTranslation('conversations');
@@ -61,6 +62,10 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [quickReplyFilter, setQuickReplyFilter] = useState('');
   const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
   const quickRepliesRef = useRef(null);
+  // Roadmaps state
+  const [roadmaps, setRoadmaps] = useState([]);
+  const [showRoadmapSelector, setShowRoadmapSelector] = useState(false);
+  const [selectedRoadmapForExecution, setSelectedRoadmapForExecution] = useState(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -187,6 +192,22 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     };
     loadQuickReplies();
+  }, []);
+
+  // Load roadmaps on mount
+  useEffect(() => {
+    const loadRoadmaps = async () => {
+      try {
+        const response = await api.getRoadmaps();
+        if (response.success) {
+          // Filter only active roadmaps
+          setRoadmaps((response.data || []).filter(r => r.is_active));
+        }
+      } catch (error) {
+        console.error('Error loading roadmaps:', error);
+      }
+    };
+    loadRoadmaps();
   }, []);
 
   const scrollToBottom = () => {
@@ -740,9 +761,47 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     );
   });
 
-  // Insert quick reply content into textarea
-  const insertQuickReply = (reply) => {
-    setNewMessage(reply.content);
+  // Filter roadmaps based on search
+  const filteredRoadmaps = roadmaps.filter(roadmap => {
+    if (!quickReplyFilter) return true;
+    const searchTerm = quickReplyFilter.toLowerCase();
+    return (
+      roadmap.name.toLowerCase().includes(searchTerm) ||
+      (roadmap.description && roadmap.description.toLowerCase().includes(searchTerm)) ||
+      (roadmap.shortcut && roadmap.shortcut.toLowerCase().includes(searchTerm))
+    );
+  });
+
+  // Combined list with section headers (Slack-style)
+  const dropdownSections = [
+    {
+      id: 'quickReplies',
+      title: t('chatArea.quickRepliesSection', 'RESPOSTAS RÁPIDAS'),
+      items: filteredQuickReplies.map(r => ({ ...r, _type: 'quickReply' }))
+    },
+    {
+      id: 'roadmaps',
+      title: t('chatArea.roadmapsSection', 'ROADMAPS'),
+      items: filteredRoadmaps.map(r => ({ ...r, _type: 'roadmap' }))
+    }
+  ].filter(section => section.items.length > 0);
+
+  // Flat list of all items for keyboard navigation
+  const allDropdownItems = dropdownSections.flatMap(section => section.items);
+
+  // Insert quick reply content into textarea or open roadmap selector
+  const insertQuickReply = (item) => {
+    if (item._type === 'roadmap') {
+      // Open roadmap selector modal
+      setSelectedRoadmapForExecution(item);
+      setShowRoadmapSelector(true);
+      setShowQuickReplies(false);
+      setQuickReplyFilter('');
+      setNewMessage('');
+      return;
+    }
+    // Quick reply: insert content
+    setNewMessage(item.content);
     setShowQuickReplies(false);
     setQuickReplyFilter('');
     // Focus back on textarea
@@ -754,30 +813,38 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   };
 
   const handleKeyDown = (e) => {
-    // Handle quick replies navigation
-    if (showQuickReplies && filteredQuickReplies.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedQuickReplyIndex(prev =>
-          prev < filteredQuickReplies.length - 1 ? prev + 1 : 0
-        );
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedQuickReplyIndex(prev =>
-          prev > 0 ? prev - 1 : filteredQuickReplies.length - 1
-        );
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        insertQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
-        return;
+    // Handle quick replies/roadmaps navigation (Slack-style unified list)
+    if (showQuickReplies) {
+      if (allDropdownItems.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedQuickReplyIndex(prev =>
+            prev < allDropdownItems.length - 1 ? prev + 1 : 0
+          );
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedQuickReplyIndex(prev =>
+            prev > 0 ? prev - 1 : allDropdownItems.length - 1
+          );
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          insertQuickReply(allDropdownItems[selectedQuickReplyIndex]);
+          return;
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          setShowQuickReplies(false);
+          setNewMessage('');
+          return;
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          // Tab also selects (like Slack)
+          insertQuickReply(allDropdownItems[selectedQuickReplyIndex]);
+          return;
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         setShowQuickReplies(false);
         setNewMessage('');
-        return;
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        insertQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
         return;
       }
     }
@@ -1794,78 +1861,129 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                 </button>
 
                 <div className="flex-1 relative">
-                  {/* Quick Replies Dropdown */}
-                  {showQuickReplies && filteredQuickReplies.length > 0 && (
+                  {/* Quick Replies + Roadmaps Dropdown (Slack-style with sections) */}
+                  {showQuickReplies && (quickReplies.length > 0 || roadmaps.length > 0) && (
                     <div
                       ref={quickRepliesRef}
-                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-72 overflow-y-auto z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 max-h-80 overflow-hidden flex flex-col"
                     >
-                      <div className="sticky top-0 p-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/90 backdrop-blur-sm rounded-t-xl">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                          {t('chatArea.quickReplies', 'Respostas Rápidas')} • <span className="text-gray-400 dark:text-gray-500">{t('chatArea.useArrowKeys', 'Use ↑↓ para navegar, Enter para selecionar')}</span>
+                      {/* Search hint header */}
+                      <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/90 rounded-t-xl flex-shrink-0">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {t('chatArea.slackStyleHint', '↑↓ navegar • Enter ou Tab selecionar • Esc fechar')}
                         </p>
                       </div>
-                      {filteredQuickReplies.map((reply, index) => (
-                        <button
-                          key={reply.id}
-                          type="button"
-                          onClick={() => insertQuickReply(reply)}
-                          className={`w-full text-left px-3 py-2.5 transition-all duration-150 border-l-2 ${
-                            index === selectedQuickReplyIndex
-                              ? 'bg-purple-50 dark:bg-purple-900/30 border-l-purple-500'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                              {reply.title}
-                            </span>
-                            {reply.shortcut && (
-                              <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded font-mono">
-                                /{reply.shortcut}
-                              </span>
-                            )}
-                            {reply.is_global && (
-                              <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs rounded">
-                                Global
-                              </span>
-                            )}
+
+                      {/* Scrollable sections list */}
+                      <div className="overflow-y-auto flex-1">
+                        {allDropdownItems.length > 0 ? (
+                          <>
+                            {dropdownSections.map((section, sectionIndex) => {
+                              // Calculate the starting index for this section's items in the flat list
+                              const startIndex = dropdownSections
+                                .slice(0, sectionIndex)
+                                .reduce((sum, s) => sum + s.items.length, 0);
+
+                              return (
+                                <div key={section.id}>
+                                  {/* Section Header */}
+                                  <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                                    <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                      {section.title}
+                                    </span>
+                                  </div>
+
+                                  {/* Section Items */}
+                                  {section.items.map((item, itemIndex) => {
+                                    const globalIndex = startIndex + itemIndex;
+                                    const isSelected = globalIndex === selectedQuickReplyIndex;
+
+                                    return (
+                                      <button
+                                        key={`${item._type}-${item.id}`}
+                                        type="button"
+                                        onClick={() => insertQuickReply(item)}
+                                        className={`w-full text-left px-3 py-2 transition-all duration-100 ${
+                                          isSelected
+                                            ? 'bg-purple-50 dark:bg-purple-900/20'
+                                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {/* Icon */}
+                                          {item._type === 'roadmap' ? (
+                                            <Map className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                                          ) : (
+                                            <MessageSquare className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                                          )}
+
+                                          {/* Title */}
+                                          <span className={`font-medium text-sm flex-1 truncate ${
+                                            isSelected ? 'text-purple-700 dark:text-purple-300' : 'text-gray-900 dark:text-gray-100'
+                                          }`}>
+                                            {item._type === 'roadmap' ? item.name : item.title}
+                                          </span>
+
+                                          {/* Shortcut badge */}
+                                          {item.shortcut && (
+                                            <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded font-mono flex-shrink-0">
+                                              /{item.shortcut}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Description - only show if exists and item is selected */}
+                                        {(item._type === 'roadmap' ? item.description : item.content) && (
+                                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-6 truncate">
+                                            {item._type === 'roadmap'
+                                              ? (item.description || `${item.task_count || 0} ${t('chatArea.tasks', 'tarefas')}`)
+                                              : item.content
+                                            }
+                                          </p>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
+                          </>
+                        ) : (
+                          <div className="p-4 text-center">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {t('chatArea.noItemsFound', 'Nenhum item encontrado para')} "<span className="font-medium text-gray-700 dark:text-gray-300">{quickReplyFilter}</span>"
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                            {reply.content}
-                          </p>
-                        </button>
-                      ))}
+                        )}
+                      </div>
                     </div>
                   )}
-                  {/* Empty state when no quick replies match filter */}
-                  {showQuickReplies && filteredQuickReplies.length === 0 && quickReplies.length > 0 && (
-                    <div
-                      ref={quickRepliesRef}
-                      className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
-                    >
-                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                        {t('chatArea.noQuickRepliesFound', 'Nenhuma resposta encontrada para')} "<span className="font-medium text-gray-700 dark:text-gray-300">{quickReplyFilter}</span>"
-                      </p>
-                    </div>
-                  )}
-                  {/* Empty state when no quick replies configured */}
-                  {showQuickReplies && quickReplies.length === 0 && (
+                  {/* Empty state when no quick replies AND no roadmaps configured */}
+                  {showQuickReplies && quickReplies.length === 0 && roadmaps.length === 0 && (
                     <div
                       ref={quickRepliesRef}
                       className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
                     >
                       <div className="text-center">
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                          {t('chatArea.noQuickRepliesConfigured', 'Você ainda não tem respostas rápidas configuradas')}
+                          {t('chatArea.noItemsConfigured', 'Você ainda não tem respostas rápidas ou roadmaps configurados')}
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => navigate('/config?tab=quick-replies')}
-                          className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium hover:underline"
-                        >
-                          {t('chatArea.configureQuickReplies', 'Configurar respostas rápidas →')}
-                        </button>
+                        <div className="flex justify-center gap-4">
+                          <button
+                            type="button"
+                            onClick={() => navigate('/config?tab=quick-replies')}
+                            className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium hover:underline"
+                          >
+                            {t('chatArea.configureQuickReplies', 'Configurar respostas rápidas →')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/config?tab=roadmaps')}
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline"
+                          >
+                            {t('chatArea.configureRoadmaps', 'Configurar roadmaps →')}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1972,6 +2090,26 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
         contactId={conversation?.contact_id}
+      />
+
+      {/* Roadmap Selector Modal */}
+      <RoadmapSelector
+        isOpen={showRoadmapSelector}
+        onClose={() => {
+          setShowRoadmapSelector(false);
+          setSelectedRoadmapForExecution(null);
+        }}
+        roadmap={selectedRoadmapForExecution}
+        contactId={conversation?.contact_id}
+        conversationId={conversationId}
+        onSuccess={() => {
+          setShowRoadmapSelector(false);
+          setSelectedRoadmapForExecution(null);
+          // Dispatch event to notify DetailsPanel to reload roadmaps
+          window.dispatchEvent(new CustomEvent('roadmap-executed', {
+            detail: { contactId: conversation?.contact_id }
+          }));
+        }}
       />
 
       {/* Message Context Menu */}
