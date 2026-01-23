@@ -2971,7 +2971,13 @@ class ApiService {
   // SECRET AGENT COACHING - Sales Coaching AI
   // ==========================================
 
+  // Get available coaching agents
+  async getCoachingAgents() {
+    return this.request('/conversations/coaching-agents');
+  }
+
   // Generate new coaching for a conversation
+  // data: { objective, agent_type }
   async generateSecretAgentCoaching(conversationId, data) {
     return this.request(`/conversations/${conversationId}/secret-agent`, {
       method: 'POST',

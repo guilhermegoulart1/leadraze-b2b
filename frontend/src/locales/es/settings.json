@@ -130,7 +130,9 @@
       "inDays": "En {{count}} días",
       "overdueToday": "Atrasado",
       "overdueDays": "Atrasado {{count}}d",
-      "untitledTask": "Tarea sin título"
+      "untitledTask": "Tarea sin título",
+      "done": "hechas",
+      "viewDetails": "Ver Detalles"
     },
     "progress": {
       "completed": "completado",

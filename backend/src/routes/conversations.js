@@ -70,6 +70,14 @@ router.get('/assignable-users', conversationController.getAssignableUsers);
 // Obter setores atribuíveis (não requer sectors:view)
 router.get('/assignable-sectors', conversationController.getAssignableSectors);
 
+// ================================
+// AGENTE SECRETO - COACHING DE VENDAS (rotas estáticas ANTES de /:id)
+// ================================
+const secretAgentCoachingController = require('../controllers/secretAgentCoachingController');
+
+// Obter lista de agentes de coaching disponíveis
+router.get('/coaching-agents', secretAgentCoachingController.getAgents);
+
 // Obter conversa específica com mensagens
 router.get('/:id', conversationController.getConversation);
 
@@ -167,9 +175,8 @@ router.post('/:id/summary/update', conversationController.updateSummary);
 router.patch('/:id/contact-name', conversationController.updateContactName);
 
 // ================================
-// AGENTE SECRETO (COACHING DE VENDAS)
+// AGENTE SECRETO - ROTAS COM :conversationId
 // ================================
-const secretAgentCoachingController = require('../controllers/secretAgentCoachingController');
 
 // Gerar nova orientação de coaching
 router.post('/:conversationId/secret-agent', secretAgentCoachingController.generateCoaching);

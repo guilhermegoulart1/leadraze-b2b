@@ -2072,7 +2072,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         onClose={() => setShowSecretAgentModal(false)}
         conversationId={conversationId}
         onSuccess={() => {
-          setShowSecretAgentModal(false);
+          // Modal permanece aberto para mostrar resultado
+          // Usuário fecha manualmente quando quiser
         }}
       />
 

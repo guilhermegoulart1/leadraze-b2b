@@ -9,6 +9,20 @@ const { sendSuccess, sendError } = require('../utils/responses');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 
 /**
+ * Get all available agents
+ * GET /api/secret-agent/agents
+ */
+const getAgents = async (req, res) => {
+  try {
+    const agents = secretAgentCoachingService.getAgents();
+    sendSuccess(res, { agents }, 'Agents retrieved successfully');
+  } catch (error) {
+    console.error(`❌ Error getting agents:`, error);
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
+/**
  * Generate new coaching for a conversation
  * POST /api/conversations/:conversationId/secret-agent
  */
@@ -17,9 +31,9 @@ const generateCoaching = async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.user.id;
     const accountId = req.user.account_id;
-    const { objective, product_id, difficulties } = req.body;
+    const { objective, product_id, difficulties, agent_type, language } = req.body;
 
-    console.log(`🕵️ Generating coaching for conversation ${conversationId}`);
+    console.log(`🕵️ Generating coaching for conversation ${conversationId} with agent ${agent_type || 'default'} (lang: ${language || 'pt'})`);
 
     if (!objective || objective.trim().length === 0) {
       throw new ValidationError('Objetivo é obrigatório');
@@ -31,7 +45,9 @@ const generateCoaching = async (req, res) => {
       userId,
       objective,
       productId: product_id,
-      difficulties
+      difficulties,
+      agentType: agent_type,
+      language: language || 'pt'
     });
 
     console.log(`✅ Coaching generated: ${result.id}`);
@@ -97,6 +113,7 @@ const getLatestCoaching = async (req, res) => {
 };
 
 module.exports = {
+  getAgents,
   generateCoaching,
   getCoachingHistory,
   getLatestCoaching

@@ -1047,26 +1047,26 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
               </button>
 
               {roadmapsExpanded && (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {loadingRoadmaps ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader className="w-5 h-5 animate-spin text-blue-500" />
                     </div>
                   ) : roadmapExecutions.length > 0 ? (
                     <>
-                      {/* In progress executions first */}
-                      {roadmapExecutions
-                        .filter(exec => exec.status === 'in_progress')
-                        .map(execution => (
+                      {/* In progress executions - only expand the last one */}
+                      {(() => {
+                        const inProgressExecs = roadmapExecutions.filter(exec => exec.status === 'in_progress');
+                        return inProgressExecs.map((execution, index) => (
                           <RoadmapExecutionCard
                             key={execution.id}
                             execution={execution}
                             onTaskToggle={handleRoadmapTaskToggle}
                             onViewDetails={handleViewExecutionDetails}
-                            defaultExpanded={true}
+                            defaultExpanded={index === inProgressExecs.length - 1}
                           />
-                        ))
-                      }
+                        ));
+                      })()}
                       {/* Completed executions collapsed */}
                       {roadmapExecutions
                         .filter(exec => exec.status === 'completed')
@@ -1195,59 +1195,10 @@ const DetailsPanel = ({ conversationId, isVisible, onTagsUpdated, onConversation
             )}
           </div>
 
-          {/* Linha do Tempo - Collapsible */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => toggleSection('timeline')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                  {t('details.timeline')}
-                </span>
-              </div>
-              {expandedSections.timeline ? (
-                <ChevronUp className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-              )}
-            </button>
-
-            {expandedSections.timeline && (
-              <div className="px-4 pb-4 space-y-2">
-                {conversation?.created_at && (
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5" />
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('details.conversationStarted')}</p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(conversation.created_at).toLocaleString(getLocale())}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {conversation?.last_message_at && (
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5" />
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('details.lastMessage')}</p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(conversation.last_message_at).toLocaleString(getLocale())}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Secret Agent Panel */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Agente de Insights</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('secretAgentCoaching:team.title')}</p>
             <SecretAgentPanel
-              conversationId={conversationId}
               onCallAgent={() => setShowSecretAgentModal(true)}
             />
           </div>

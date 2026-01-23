@@ -112,7 +112,9 @@
       "error": "Erro ao executar roadmap",
       "missingData": "Dados incompletos para executar o roadmap",
       "success": "Roadmap iniciado com sucesso!",
-      "untitledTask": "Tarefa sem título"
+      "untitledTask": "Tarefa sem título",
+      "done": "feitas",
+      "viewDetails": "Ver Detalhes"
     },
     "progress": {
       "inProgress": "Em Andamento",

@@ -130,7 +130,9 @@
       "inDays": "In {{count}} days",
       "overdueToday": "Overdue",
       "overdueDays": "Overdue {{count}}d",
-      "untitledTask": "Untitled task"
+      "untitledTask": "Untitled task",
+      "done": "done",
+      "viewDetails": "View Details"
     },
     "progress": {
       "completed": "completed",
