@@ -1457,9 +1457,17 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
                           if (messageText) {
                             return (
-                              <p className="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a:hover]:text-blue-800 dark:[&_a:hover]:text-blue-300">
-                                {linkifyText(messageText)}
-                              </p>
+                              <div className={`inline-block max-w-[85%] px-3 py-2 rounded-2xl ${
+                                isUser
+                                  ? 'bg-purple-600/20 dark:bg-purple-500/20'
+                                  : isAI
+                                  ? 'bg-green-600/10 dark:bg-green-500/15'
+                                  : 'bg-gray-200 dark:bg-gray-700/50'
+                              }`}>
+                                <p className="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a:hover]:text-blue-800 dark:[&_a:hover]:text-blue-300">
+                                  {linkifyText(messageText)}
+                                </p>
+                              </div>
                             );
                           }
                           return null;
