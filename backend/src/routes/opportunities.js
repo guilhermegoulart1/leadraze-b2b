@@ -53,6 +53,9 @@ router.patch('/:id/status', opportunityController.updateOpportunity);
 // Mover oportunidade (mudar stage)
 router.patch('/:id/move', opportunityController.moveOpportunity);
 
+// Transferir oportunidade para outra pipeline
+router.patch('/:id/transfer', checkPermission('opportunities:edit'), opportunityController.transferOpportunity);
+
 // Atribuir oportunidade a um usuário
 router.patch('/:id/assign', opportunityController.assignOpportunity);
 

@@ -3440,6 +3440,16 @@ class ApiService {
     });
   }
 
+  async transferOpportunity(id, pipelineId, stageId) {
+    return this.request(`/opportunities/${id}/transfer`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        pipeline_id: pipelineId,
+        stage_id: stageId || undefined
+      }),
+    });
+  }
+
   async deleteOpportunity(id) {
     return this.request(`/opportunities/${id}`, {
       method: 'DELETE',

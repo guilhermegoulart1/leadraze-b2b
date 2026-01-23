@@ -1844,6 +1844,111 @@ const reactivateOpportunity = async (req, res) => {
   }
 };
 
+// ================================
+// TRANSFERIR OPORTUNIDADE ENTRE PIPELINES
+// ================================
+const transferOpportunity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+    const { id } = req.params;
+    const { pipeline_id, stage_id } = req.body;
+
+    if (!pipeline_id) {
+      throw new ValidationError('ID da pipeline de destino é obrigatório');
+    }
+
+    // Verificar acesso à oportunidade
+    const { opportunity } = await checkOpportunityAccess(userId, id, accountId);
+
+    // Verificar se é a mesma pipeline
+    if (pipeline_id === opportunity.pipeline_id) {
+      throw new ValidationError('A oportunidade já está nesta pipeline. Use a função de mover etapa.');
+    }
+
+    // Validar que nova pipeline existe e pertence à conta
+    const pipelineCheck = await db.query(
+      'SELECT id, name FROM pipelines WHERE id = $1 AND account_id = $2',
+      [pipeline_id, accountId]
+    );
+
+    if (pipelineCheck.rows.length === 0) {
+      throw new NotFoundError('Pipeline de destino não encontrada');
+    }
+
+    const targetPipeline = pipelineCheck.rows[0];
+
+    // Se stage_id fornecido, validar que pertence à nova pipeline
+    // Se não fornecido, usar primeira etapa da nova pipeline
+    let targetStageId = stage_id;
+
+    if (!targetStageId) {
+      const firstStage = await db.query(
+        'SELECT id FROM pipeline_stages WHERE pipeline_id = $1 ORDER BY position ASC LIMIT 1',
+        [pipeline_id]
+      );
+
+      if (firstStage.rows.length === 0) {
+        throw new ValidationError('Pipeline de destino não possui etapas');
+      }
+
+      targetStageId = firstStage.rows[0].id;
+    } else {
+      const stageCheck = await db.query(
+        'SELECT id FROM pipeline_stages WHERE id = $1 AND pipeline_id = $2',
+        [stage_id, pipeline_id]
+      );
+
+      if (stageCheck.rows.length === 0) {
+        throw new ValidationError('Etapa não pertence à pipeline de destino');
+      }
+    }
+
+    // Atualizar oportunidade
+    const result = await db.query(
+      `UPDATE opportunities
+       SET pipeline_id = $1, stage_id = $2, won_at = NULL, lost_at = NULL, updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [pipeline_id, targetStageId, id]
+    );
+
+    // Registrar histórico
+    await db.query(
+      `INSERT INTO opportunity_history (id, opportunity_id, user_id, action, notes, created_at)
+       VALUES (gen_random_uuid(), $1, $2, 'transferred', $3, NOW())`,
+      [id, userId, JSON.stringify({
+        from_pipeline_id: opportunity.pipeline_id,
+        to_pipeline_id: pipeline_id,
+        to_pipeline_name: targetPipeline.name
+      })]
+    );
+
+    console.log(`🔀 Oportunidade ${id} transferida para pipeline ${targetPipeline.name}`);
+
+    // Retornar oportunidade atualizada com dados completos
+    const updatedOpp = await db.query(
+      `SELECT o.*,
+              ps.name as stage_name, ps.color as stage_color,
+              p.name as pipeline_name
+       FROM opportunities o
+       LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+       LEFT JOIN pipelines p ON o.pipeline_id = p.id
+       WHERE o.id = $1`,
+      [id]
+    );
+
+    sendSuccess(res, {
+      opportunity: updatedOpp.rows[0],
+      message: 'Oportunidade transferida com sucesso'
+    });
+
+  } catch (error) {
+    console.error('Erro ao transferir oportunidade:', error);
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getOpportunities,
   getOpportunitiesKanban,
@@ -1860,5 +1965,6 @@ module.exports = {
   autoAssignOpportunity,
   createOpportunitiesBulk,
   createManualOpportunity,
-  reactivateOpportunity
+  reactivateOpportunity,
+  transferOpportunity
 };

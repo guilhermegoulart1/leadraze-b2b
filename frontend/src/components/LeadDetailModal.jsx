@@ -46,7 +46,9 @@ import {
   Building2,
   Lightbulb,
   TrendingUp,
-  Map
+  Map,
+  Trash2,
+  ArrowRightLeft
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -115,7 +117,7 @@ const parseAIAnalysis = (value) => {
   return null;
 };
 
-const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdated, onViewContact }) => {
+const LeadDetailModal = ({ lead, pipeline, onClose, onNavigateToConversation, onLeadUpdated, onViewContact, onOpportunityDeleted }) => {
   const { t } = useTranslation(['leads', 'contacts']);
   const [activeTab, setActiveTab] = useState('details'); // details | intelligence | comments | company
   const [activeChannel, setActiveChannel] = useState(null);
@@ -135,6 +137,7 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [selectedTask, setSelectedTask] = useState(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(lead?.status || 'leads');
+  const [currentStageId, setCurrentStageId] = useState(lead?.stage_id || null);
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [currentSource, setCurrentSource] = useState(lead?.source || 'linkedin');
   const [dynamicSources, setDynamicSources] = useState([]);
@@ -149,6 +152,25 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   const [roadmapExecutions, setRoadmapExecutions] = useState([]);
   const [loadingRoadmaps, setLoadingRoadmaps] = useState(false);
 
+  // Pipeline stages state
+  const [pipelineStages, setPipelineStages] = useState([]);
+  const [loadingStages, setLoadingStages] = useState(false);
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Transfer modal state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [allProjects, setAllProjects] = useState([]);
+  const [allPipelines, setAllPipelines] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedPipelineId, setSelectedPipelineId] = useState('');
+  const [selectedStageId, setSelectedStageId] = useState('');
+  const [filteredPipelines, setFilteredPipelines] = useState([]);
+  const [targetStages, setTargetStages] = useState([]);
+  const [transferring, setTransferring] = useState(false);
+
   // Sync currentStatus when lead prop changes
   useEffect(() => {
     setCurrentStatus(lead?.status || 'leads');
@@ -158,6 +180,67 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
   useEffect(() => {
     setCurrentSource(lead?.source || 'linkedin');
   }, [lead?.source]);
+
+  // Sync currentStageId when lead prop changes
+  useEffect(() => {
+    setCurrentStageId(lead?.stage_id || null);
+  }, [lead?.stage_id]);
+
+  // Load pipeline stages
+  useEffect(() => {
+    const loadStages = async () => {
+      // If pipeline prop is passed, use its stages
+      if (pipeline?.stages) {
+        setPipelineStages(pipeline.stages);
+        return;
+      }
+
+      // Otherwise, load from API if we have a pipeline_id
+      const pipelineId = lead?.pipeline_id;
+      if (!pipelineId) return;
+
+      try {
+        setLoadingStages(true);
+        const response = await api.getPipeline(pipelineId);
+        if (response.success && response.data.pipeline?.stages) {
+          setPipelineStages(response.data.pipeline.stages);
+        }
+      } catch (error) {
+        console.error('Error loading pipeline stages:', error);
+      } finally {
+        setLoadingStages(false);
+      }
+    };
+
+    loadStages();
+  }, [lead?.pipeline_id, pipeline]);
+
+  // Filter pipelines when selectedProjectId changes (for transfer modal)
+  useEffect(() => {
+    if (allPipelines.length > 0) {
+      if (selectedProjectId === '') {
+        // Show pipelines without project
+        setFilteredPipelines(allPipelines.filter(p => !p.project_id && p.id !== lead?.pipeline_id));
+      } else {
+        // Show pipelines from selected project
+        setFilteredPipelines(allPipelines.filter(p => p.project_id === selectedProjectId && p.id !== lead?.pipeline_id));
+      }
+      setSelectedPipelineId(''); // Reset pipeline selection
+      setSelectedStageId(''); // Reset stage selection
+      setTargetStages([]);
+    }
+  }, [selectedProjectId, allPipelines, lead?.pipeline_id]);
+
+  // Update targetStages when selectedPipelineId changes (for transfer modal)
+  useEffect(() => {
+    if (selectedPipelineId && allPipelines.length > 0) {
+      const targetPipeline = allPipelines.find(p => p.id === selectedPipelineId);
+      setTargetStages(targetPipeline?.stages || []);
+      setSelectedStageId(''); // Reset stage selection
+    } else {
+      setTargetStages([]);
+    }
+  }, [selectedPipelineId, allPipelines]);
 
   // Load dynamic sources from API
   useEffect(() => {
@@ -258,14 +341,33 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
     }
   }, [showTagsDropdown]);
 
-  // Pipeline stages
-  const pipelineStages = {
-    leads: { label: 'Prospecção', color: 'slate' },
-    invite_sent: { label: 'Convite', color: 'blue' },
-    qualifying: { label: 'Qualificação', color: 'amber' },
-    accepted: { label: 'Em Andamento', color: 'purple' },
-    qualified: { label: 'Ganho', color: 'emerald' },
-    discarded: { label: 'Descartado', color: 'red' }
+  // Get current stage from pipelineStages array
+  const getCurrentStage = () => {
+    if (pipelineStages.length > 0 && currentStageId) {
+      return pipelineStages.find(s => s.id === currentStageId);
+    }
+    return null;
+  };
+
+  // Fallback stage colors
+  const getStageColor = (stage) => {
+    if (stage?.is_win_stage) return 'emerald';
+    if (stage?.is_loss_stage) return 'red';
+    if (stage?.color) {
+      // Convert hex to color name or use as-is
+      const hexToColorMap = {
+        '#ef4444': 'red',
+        '#f97316': 'amber',
+        '#f59e0b': 'amber',
+        '#10b981': 'emerald',
+        '#3b82f6': 'blue',
+        '#8b5cf6': 'purple',
+        '#6366f1': 'purple',
+        '#64748b': 'slate'
+      };
+      return hexToColorMap[stage.color.toLowerCase()] || 'slate';
+    }
+    return 'slate';
   };
 
   // Available channels - matching conversation colors
@@ -736,34 +838,103 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
     }
   };
 
-  const handleStatusChange = async (newStatus) => {
+  const handleStatusChange = async (newStageId) => {
     setShowStatusDropdown(false);
-
-    // If moving to 'qualified' (won), show Win Deal modal
-    if (newStatus === 'qualified' && currentStatus !== 'qualified') {
-      setShowWinDealModal(true);
-      return;
-    }
-
-    // If moving to 'discarded', show Discard modal
-    if (newStatus === 'discarded' && currentStatus !== 'discarded') {
-      setShowDiscardModal(true);
-      return;
-    }
 
     const opportunityId = lead.opportunity_id || lead.id;
     if (!opportunityId) return;
 
-    setCurrentStatus(newStatus);
+    // Find the new stage
+    const newStage = pipelineStages.find(s => s.id === newStageId);
+    if (!newStage) return;
+
+    // If moving to win stage, show Win Deal modal
+    if (newStage.is_win_stage && currentStageId !== newStageId) {
+      setShowWinDealModal(true);
+      return;
+    }
+
+    // If moving to loss stage, show Discard modal
+    if (newStage.is_loss_stage && currentStageId !== newStageId) {
+      setShowDiscardModal(true);
+      return;
+    }
+
+    const previousStageId = currentStageId;
+    setCurrentStageId(newStageId);
 
     try {
-      await api.updateLeadStatus(opportunityId, newStatus);
+      await api.moveOpportunity(opportunityId, { stage_id: newStageId });
       if (onLeadUpdated) {
-        onLeadUpdated({ ...lead, status: newStatus });
+        onLeadUpdated({ ...lead, stage_id: newStageId, stage_name: newStage.name });
       }
     } catch (error) {
-      console.error('Error updating status:', error);
-      setCurrentStatus(lead.status);
+      console.error('Error changing stage:', error);
+      setCurrentStageId(previousStageId);
+    }
+  };
+
+  // Handle delete opportunity
+  const handleDelete = async () => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId) return;
+
+    try {
+      setDeleting(true);
+      const response = await api.deleteOpportunity(opportunityId);
+      if (response.success) {
+        setShowDeleteModal(false);
+        onOpportunityDeleted?.();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error deleting opportunity:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Load all pipelines and projects for transfer modal
+  const loadPipelinesAndProjects = async () => {
+    try {
+      const [pipelinesRes, projectsRes] = await Promise.all([
+        api.getPipelines(),
+        api.getCrmProjects()
+      ]);
+
+      if (pipelinesRes.success) {
+        setAllPipelines(pipelinesRes.data.pipelines || []);
+      }
+
+      if (projectsRes.success) {
+        setAllProjects(projectsRes.data.projects || []);
+      }
+    } catch (error) {
+      console.error('Error loading pipelines/projects:', error);
+    }
+  };
+
+  // Handle transfer opportunity
+  const handleTransfer = async () => {
+    const opportunityId = lead.opportunity_id || lead.id;
+    if (!opportunityId || !selectedPipelineId) return;
+
+    try {
+      setTransferring(true);
+      const response = await api.transferOpportunity(
+        opportunityId,
+        selectedPipelineId,
+        selectedStageId || undefined
+      );
+      if (response.success) {
+        setShowTransferModal(false);
+        onOpportunityDeleted?.(); // Reuse callback to refresh the list
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error transferring opportunity:', error);
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -1066,7 +1237,10 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
   if (!lead) return null;
 
-  const stage = pipelineStages[currentStatus] || pipelineStages.leads;
+  // Get current stage info
+  const currentStage = getCurrentStage();
+  const stageLabel = currentStage?.name || lead?.stage_name || 'Sem etapa';
+  const stageColor = getStageColor(currentStage);
 
   return (
     <div
@@ -1171,6 +1345,29 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
 
               {/* Action Buttons - align to bottom */}
               <div className="flex items-center gap-2 self-end">
+                {/* Transfer Button */}
+                {lead.opportunity_id && (
+                  <button
+                    onClick={() => {
+                      loadPipelinesAndProjects();
+                      setShowTransferModal(true);
+                    }}
+                    className="p-2 text-white/70 hover:text-blue-300 hover:bg-white/10 rounded-lg transition-colors"
+                    title="Transferir para outra pipeline"
+                  >
+                    <ArrowRightLeft className="w-4 h-4" />
+                  </button>
+                )}
+                {/* Delete Button */}
+                {lead.opportunity_id && (
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="p-2 text-white/70 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
+                    title="Excluir oportunidade"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
                 {/* Ver detalhes - Opens full contact modal */}
                 {lead.contact_id && onViewContact && (
                   <button
@@ -1308,37 +1505,42 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
                       <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Informações</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                    {/* Status */}
+                    {/* Status/Etapa */}
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Status</span>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">Etapa</span>
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${getStageClasses(stage.color)}`}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${getStageClasses(stageColor)}`}
                         >
-                          {stage.label}
+                          {stageLabel}
                           <ChevronDown className="w-3 h-3" />
                         </button>
 
-                        {showStatusDropdown && (
+                        {showStatusDropdown && pipelineStages.length > 0 && (
                           <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 py-1 z-10 min-w-[180px]">
-                            {Object.entries(pipelineStages).map(([key, value]) => (
+                            {pipelineStages.map((stage) => (
                               <button
-                                key={key}
-                                onClick={() => handleStatusChange(key)}
+                                key={stage.id}
+                                onClick={() => handleStatusChange(stage.id)}
                                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                                  currentStatus === key ? 'bg-gray-50 dark:bg-gray-700' : ''
+                                  currentStageId === stage.id ? 'bg-gray-50 dark:bg-gray-700' : ''
                                 }`}
                               >
-                                <span className={getStatusDotClasses(value.color)} />
-                                {value.label}
+                                <span
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: stage.color || '#64748b' }}
+                                />
+                                {stage.name}
+                                {stage.is_win_stage && <span className="ml-auto text-emerald-500 text-xs">Ganho</span>}
+                                {stage.is_loss_stage && <span className="ml-auto text-red-500 text-xs">Perda</span>}
                               </button>
                             ))}
                           </div>
                         )}
 
-                        {/* Botão Reativar quando status é discarded */}
-                        {currentStatus === 'discarded' && (
+                        {/* Botão Reativar quando está em etapa de perda */}
+                        {currentStage?.is_loss_stage && (
                           <button
                             onClick={handleReactivate}
                             disabled={reactivating}
@@ -2252,6 +2454,156 @@ const LeadDetailModal = ({ lead, onClose, onNavigateToConversation, onLeadUpdate
           }
         }}
       />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Excluir Oportunidade
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Tem certeza que deseja excluir esta oportunidade? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+          onClick={() => setShowTransferModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <ArrowRightLeft className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Transferir Oportunidade
+              </h3>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              {/* Project Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Projeto
+                </label>
+                <select
+                  value={selectedProjectId}
+                  onChange={e => setSelectedProjectId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sem projeto</option>
+                  {allProjects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pipeline Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Pipeline de destino *
+                </label>
+                <select
+                  value={selectedPipelineId}
+                  onChange={e => setSelectedPipelineId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                  disabled={filteredPipelines.length === 0}
+                >
+                  <option value="">
+                    {filteredPipelines.length === 0
+                      ? 'Nenhuma pipeline disponível'
+                      : 'Selecione uma pipeline...'}
+                  </option>
+                  {filteredPipelines.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                {filteredPipelines.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {selectedProjectId
+                      ? 'Este projeto não possui outras pipelines'
+                      : 'Não há pipelines sem projeto disponíveis'}
+                  </p>
+                )}
+              </div>
+
+              {/* Stage Selection */}
+              {selectedPipelineId && targetStages.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Etapa de destino
+                  </label>
+                  <select
+                    value={selectedStageId}
+                    onChange={e => setSelectedStageId(e.target.value)}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Primeira etapa (padrão)</option>
+                    {targetStages.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowTransferModal(false);
+                  setSelectedProjectId('');
+                  setSelectedPipelineId('');
+                  setSelectedStageId('');
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleTransfer}
+                disabled={!selectedPipelineId || transferring}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {transferring ? 'Transferindo...' : 'Transferir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

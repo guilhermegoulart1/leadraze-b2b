@@ -869,6 +869,7 @@ const PipelinesPage = () => {
       setSelectedLead({
         id: opportunity.id,
         opportunity_id: opportunity.id,
+        contact_id: opportunity.contact_id,
         name: opportunity.contact_name,
         title: opportunity.contact_title,
         company: opportunity.contact_company,
@@ -883,7 +884,11 @@ const PipelinesPage = () => {
         tags: opportunity.tags || [],
         responsible_id: opportunity.owner_user_id,
         responsible_name: opportunity.owner_name,
-        responsible_avatar: opportunity.owner_avatar
+        responsible_avatar: opportunity.owner_avatar,
+        // Pipeline info from opportunity (from kanban)
+        pipeline_id: selectedPipelineId,
+        stage_id: opportunity.stage_id,
+        stage_name: opportunity.stage_name
       });
     } finally {
       setLoadingLeadModal(false);
@@ -2030,9 +2035,19 @@ const PipelinesPage = () => {
       {selectedLead && (
         <LeadDetailModal
           lead={selectedLead}
+          pipeline={selectedPipeline}
           onClose={() => setSelectedLead(null)}
           onLeadUpdated={() => {
             // Refresh opportunities after lead update
+            if (viewMode === 'kanban') {
+              loadOpportunitiesKanban(false);
+            } else {
+              loadOpportunitiesList();
+            }
+          }}
+          onOpportunityDeleted={() => {
+            // Refresh list after opportunity is deleted or transferred
+            setSelectedLead(null);
             if (viewMode === 'kanban') {
               loadOpportunitiesKanban(false);
             } else {

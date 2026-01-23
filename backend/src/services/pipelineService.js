@@ -149,7 +149,21 @@ const pipelineService = {
     `;
 
     const result = await db.query(query, queryParams);
-    return result.rows;
+    const pipelines = result.rows;
+
+    // Load stages for each pipeline
+    for (const pipeline of pipelines) {
+      const stagesResult = await db.query(
+        `SELECT id, name, color, position, is_win_stage, is_loss_stage
+         FROM pipeline_stages
+         WHERE pipeline_id = $1
+         ORDER BY position ASC`,
+        [pipeline.id]
+      );
+      pipeline.stages = stagesResult.rows;
+    }
+
+    return pipelines;
   },
 
   /**
