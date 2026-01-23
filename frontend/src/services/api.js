@@ -3637,6 +3637,31 @@ class ApiService {
     return this.request(`/opportunities/${opportunityId}/roadmap-executions${queryString ? `?${queryString}` : ''}`);
   }
 
+  // Stage Roadmaps (Automations)
+  async getStageRoadmaps(pipelineId) {
+    return this.request(`/pipelines/${pipelineId}/stage-roadmaps`);
+  }
+
+  async addStageRoadmap(pipelineId, stageId, roadmapId) {
+    return this.request(`/pipelines/${pipelineId}/stages/${stageId}/roadmaps`, {
+      method: 'POST',
+      body: JSON.stringify({ roadmap_id: roadmapId }),
+    });
+  }
+
+  async removeStageRoadmap(pipelineId, stageId, roadmapId) {
+    return this.request(`/pipelines/${pipelineId}/stages/${stageId}/roadmaps/${roadmapId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderStageRoadmaps(pipelineId, stageId, roadmaps) {
+    return this.request(`/pipelines/${pipelineId}/stages/${stageId}/roadmaps/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ roadmaps }),
+    });
+  }
+
   // Roadmap Analytics
   async getRoadmapsAnalytics(params = {}) {
     const queryString = new URLSearchParams(params).toString();
@@ -3646,6 +3671,15 @@ class ApiService {
   async getRoadmapAnalytics(roadmapId, params = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/roadmaps/${roadmapId}/analytics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Roadmap Dashboard
+  async getRoadmapsDashboard(params = {}) {
+    const filteredParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const queryString = new URLSearchParams(filteredParams).toString();
+    return this.request(`/roadmaps/dashboard${queryString ? `?${queryString}` : ''}`);
   }
 
   // ===================================

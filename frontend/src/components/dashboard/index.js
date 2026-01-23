@@ -6,3 +6,4 @@ export { default as SalesFunnel } from './SalesFunnel';
 export { default as UserTasks } from './UserTasks';
 export { default as CampaignRanking } from './CampaignRanking';
 export { default as AIAgentInteractions } from './AIAgentInteractions';
+export { default as RoadmapsDashboard } from './RoadmapsDashboard';

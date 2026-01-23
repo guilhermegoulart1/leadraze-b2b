@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BarChart3, Map } from 'lucide-react';
 import {
   DashboardFilters,
   RevenueChart,
@@ -7,12 +8,14 @@ import {
   LeadsBySourceChart,
   SalesFunnel,
   UserTasks,
-  AIAgentInteractions
+  AIAgentInteractions,
+  RoadmapsDashboard
 } from '../components/dashboard';
 import api from '../services/api';
 
 const Dashboard = () => {
   const { t } = useTranslation('dashboard');
+  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(30);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
@@ -68,42 +71,77 @@ const Dashboard = () => {
 
   const data = dashboardData || {};
 
+  const tabs = [
+    { id: 'overview', label: t('tabs.overview', 'Visão Geral'), icon: BarChart3 },
+    { id: 'tasks', label: t('tabs.tasks', 'Tarefas'), icon: Map }
+  ];
+
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      {/* Filters */}
-      <DashboardFilters
-        period={period}
-        onPeriodChange={setPeriod}
-        campaigns={campaigns}
-        selectedCampaign={selectedCampaign}
-        onCampaignChange={setSelectedCampaign}
-        onRefresh={loadDashboard}
-        loading={loading}
-      />
-
-      {/* Section 1: Leads by Source + Leads per Day */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <LeadsBySourceChart data={data.leads_by_source || []} />
-        <LeadsChart
-          data={data.leads_per_day || []}
-          total={data.leads_total || 0}
-        />
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-6 bg-white dark:bg-gray-800 rounded-xl p-1.5 shadow-sm border border-gray-200 dark:border-gray-700 w-fit">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Section 2: Sales Funnel + Revenue */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <SalesFunnel pipelines={pipelines} />
-        <RevenueChart
-          data={data.revenue_per_day || []}
-          total={data.revenue_total || 0}
-        />
-      </div>
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Filters */}
+          <DashboardFilters
+            period={period}
+            onPeriodChange={setPeriod}
+            campaigns={campaigns}
+            selectedCampaign={selectedCampaign}
+            onCampaignChange={setSelectedCampaign}
+            onRefresh={loadDashboard}
+            loading={loading}
+          />
 
-      {/* Section 3: User Tasks + AI Agent Interactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UserTasks tasks={data.user_tasks || {}} />
-        <AIAgentInteractions agents={data.ai_agent_interactions || []} />
-      </div>
+          {/* Section 1: Leads by Source + Leads per Day */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <LeadsBySourceChart data={data.leads_by_source || []} />
+            <LeadsChart
+              data={data.leads_per_day || []}
+              total={data.leads_total || 0}
+            />
+          </div>
+
+          {/* Section 2: Sales Funnel + Revenue */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <SalesFunnel pipelines={pipelines} />
+            <RevenueChart
+              data={data.revenue_per_day || []}
+              total={data.revenue_total || 0}
+            />
+          </div>
+
+          {/* Section 3: User Tasks + AI Agent Interactions */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <UserTasks tasks={data.user_tasks || {}} />
+            <AIAgentInteractions agents={data.ai_agent_interactions || []} />
+          </div>
+        </>
+      )}
+
+      {/* Tasks Tab */}
+      {activeTab === 'tasks' && <RoadmapsDashboard />}
     </div>
   );
 };

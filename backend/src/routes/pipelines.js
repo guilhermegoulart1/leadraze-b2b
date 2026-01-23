@@ -58,6 +58,23 @@ router.delete('/:pipelineId/stages/:stageId', checkPermission('pipelines:edit'),
 router.put('/:pipelineId/stages/reorder', checkPermission('pipelines:edit'), pipelineStageController.reorderStages);
 
 // ================================
+// STAGE ROADMAPS (Automations)
+// ================================
+const stageRoadmapController = require('../controllers/stageRoadmapController');
+
+// Listar roadmaps associados às etapas da pipeline
+router.get('/:pipelineId/stage-roadmaps', stageRoadmapController.getStageRoadmaps);
+
+// Adicionar roadmap a uma etapa
+router.post('/:pipelineId/stages/:stageId/roadmaps', checkPermission('pipelines:edit'), stageRoadmapController.addStageRoadmap);
+
+// Remover roadmap de uma etapa
+router.delete('/:pipelineId/stages/:stageId/roadmaps/:roadmapId', checkPermission('pipelines:edit'), stageRoadmapController.removeStageRoadmap);
+
+// Reordenar roadmaps em uma etapa
+router.patch('/:pipelineId/stages/:stageId/roadmaps/reorder', checkPermission('pipelines:edit'), stageRoadmapController.reorderStageRoadmaps);
+
+// ================================
 // OPPORTUNITIES (OPORTUNIDADES) - via Pipeline
 // ================================
 

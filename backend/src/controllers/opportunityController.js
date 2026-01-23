@@ -10,6 +10,148 @@ const pipelineService = require('../services/pipelineService');
 const roundRobinService = require('../services/roundRobinService');
 
 // ================================
+// Helper: Auto-executar roadmaps associados à etapa
+// ================================
+async function executeStageRoadmaps(opportunityId, contactId, stageId, accountId, userId) {
+  console.log(`🔍 Verificando roadmaps para etapa ${stageId}, oportunidade ${opportunityId}`);
+
+  try {
+    // Buscar roadmaps associados à etapa
+    const stageRoadmaps = await db.query(`
+      SELECT psr.roadmap_id, r.name as roadmap_name, r.default_assignees
+      FROM pipeline_stage_roadmaps psr
+      JOIN roadmaps r ON psr.roadmap_id = r.id
+      WHERE psr.stage_id = $1
+        AND psr.is_active = true
+        AND r.is_active = true
+        AND r.account_id = $2
+      ORDER BY psr.position ASC
+    `, [stageId, accountId]);
+
+    console.log(`📋 Encontrados ${stageRoadmaps.rows.length} roadmap(s) associados à etapa`);
+
+    if (stageRoadmaps.rows.length === 0) {
+      return;
+    }
+
+    console.log(`🚀 Auto-executando ${stageRoadmaps.rows.length} roadmap(s) para oportunidade ${opportunityId}`);
+
+    for (const sr of stageRoadmaps.rows) {
+      try {
+        // Buscar tarefas do roadmap
+        const tasksResult = await db.query(
+          `SELECT * FROM roadmap_tasks WHERE roadmap_id = $1 ORDER BY position ASC`,
+          [sr.roadmap_id]
+        );
+
+        if (tasksResult.rows.length === 0) {
+          console.log(`⚠️ Roadmap "${sr.roadmap_name}" não possui tarefas, pulando...`);
+          continue;
+        }
+
+        const tasks = tasksResult.rows;
+        const startDate = new Date();
+
+        // Criar execução
+        const executionResult = await db.query(
+          `INSERT INTO roadmap_executions (
+            roadmap_id, account_id, contact_id, opportunity_id,
+            started_by, roadmap_name, roadmap_snapshot, total_tasks, started_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *`,
+          [
+            sr.roadmap_id,
+            accountId,
+            contactId,
+            opportunityId,
+            userId,
+            sr.roadmap_name,
+            JSON.stringify({ tasks }),
+            tasks.length,
+            startDate
+          ]
+        );
+
+        const execution = executionResult.rows[0];
+
+        // Criar checklist para este roadmap
+        const checklistResult = await db.query(
+          `INSERT INTO opportunity_checklists (account_id, opportunity_id, name, position, created_by)
+           VALUES ($1, $2, $3, 0, $4)
+           RETURNING *`,
+          [accountId, opportunityId, `Roadmap: ${sr.roadmap_name}`, userId]
+        );
+
+        const checklist = checklistResult.rows[0];
+
+        // Criar tarefas
+        let previousDueDate = startDate;
+        for (let i = 0; i < tasks.length; i++) {
+          const task = tasks[i];
+          let dueDate;
+
+          if (task.relative_due_from === 'roadmap_start') {
+            dueDate = new Date(startDate.getTime() + task.relative_due_hours * 60 * 60 * 1000);
+          } else {
+            dueDate = new Date(previousDueDate.getTime() + task.relative_due_hours * 60 * 60 * 1000);
+          }
+
+          const taskResult = await db.query(
+            `INSERT INTO opportunity_checklist_items (
+              checklist_id, title, content, task_type, priority, position, due_date,
+              is_completed, status, roadmap_execution_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'pending', $8)
+            RETURNING *`,
+            [
+              checklist.id,
+              task.title,
+              task.description || task.title,
+              task.task_type,
+              task.priority,
+              i,
+              dueDate,
+              execution.id
+            ]
+          );
+
+          const createdTask = taskResult.rows[0];
+
+          // Determinar responsáveis
+          let taskAssignees = [];
+          if (task.default_assignee_id) {
+            taskAssignees = [task.default_assignee_id];
+          } else if (sr.default_assignees && sr.default_assignees.length > 0) {
+            taskAssignees = sr.default_assignees;
+          }
+
+          // Criar assignees
+          for (const assigneeId of taskAssignees) {
+            await db.query(
+              `INSERT INTO opportunity_checklist_item_assignees (checklist_item_id, user_id, assigned_by, assigned_at)
+               VALUES ($1, $2, $3, NOW())
+               ON CONFLICT (checklist_item_id, user_id) DO NOTHING`,
+              [createdTask.id, assigneeId, userId]
+            );
+          }
+
+          previousDueDate = dueDate;
+        }
+
+        console.log(`✅ Roadmap "${sr.roadmap_name}" executado automaticamente (${tasks.length} tarefas)`);
+      } catch (execError) {
+        console.error(`❌ Erro ao executar roadmap "${sr.roadmap_name}":`, execError);
+        // Continua com os próximos roadmaps
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao verificar roadmaps da etapa:', error);
+    // Não propaga o erro - a oportunidade já foi criada com sucesso
+  }
+}
+
+// ================================
 // Helper: Verificar acesso à oportunidade
 // ================================
 async function checkOpportunityAccess(userId, opportunityId, accountId) {
@@ -622,6 +764,11 @@ const createOpportunity = async (req, res) => {
 
       await client.query('COMMIT');
 
+      // Auto-executar roadmaps associados à etapa (async, não bloqueia a resposta)
+      executeStageRoadmaps(opportunity.id, contact.id, targetStageId, accountId, userId).catch(err => {
+        console.error('Erro na execução automática de roadmaps:', err);
+      });
+
       console.log(`✅ Oportunidade "${oppTitle}" criada na pipeline ${pipelineId}`);
 
       sendSuccess(res, {
@@ -910,6 +1057,11 @@ const moveOpportunity = async (req, res) => {
       await client.query('COMMIT');
 
       console.log(`➡️ Oportunidade ${id} movida para etapa ${newStage.name}`);
+
+      // Auto-executar roadmaps associados à nova etapa (async, não bloqueia a resposta)
+      executeStageRoadmaps(id, opportunity.contact_id, stage_id, accountId, userId).catch(err => {
+        console.error('Erro na execução automática de roadmaps:', err);
+      });
 
       sendSuccess(res, {
         opportunity: result.rows[0],

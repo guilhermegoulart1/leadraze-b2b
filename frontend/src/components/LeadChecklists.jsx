@@ -148,6 +148,13 @@ const LeadChecklists = ({ leadId, sectorId }) => {
   const [showNewItemUserDropdown, setShowNewItemUserDropdown] = useState(null);
   const [showNewItemDateDropdown, setShowNewItemDateDropdown] = useState(null);
 
+  // Quick add form (without needing a checklist first)
+  const [quickAddForm, setQuickAddForm] = useState({ title: '', taskType: 'call', assignees: [], dueDate: null });
+  const [showQuickTypeDropdown, setShowQuickTypeDropdown] = useState(false);
+  const [showQuickUserDropdown, setShowQuickUserDropdown] = useState(false);
+  const [showQuickDateDropdown, setShowQuickDateDropdown] = useState(false);
+  const [savingQuickAdd, setSavingQuickAdd] = useState(false);
+
   const newChecklistInputRef = useRef(null);
   const newItemInputRefs = useRef({});
   const editChecklistInputRef = useRef(null);
@@ -158,6 +165,10 @@ const LeadChecklists = ({ leadId, sectorId }) => {
   const dateButtonRefs = useRef({});
   const assignButtonRefs = useRef({});
   const itemDateButtonRefs = useRef({});
+  const quickTypeButtonRef = useRef(null);
+  const quickUserButtonRef = useRef(null);
+  const quickDateButtonRef = useRef(null);
+  const quickAddInputRef = useRef(null);
 
   useEffect(() => {
     if (leadId) {
@@ -186,6 +197,9 @@ const LeadChecklists = ({ leadId, sectorId }) => {
     setActiveAssignDropdown(null);
     setShowNewItemDateDropdown(null);
     setActiveDateDropdown(null);
+    setShowQuickTypeDropdown(false);
+    setShowQuickUserDropdown(false);
+    setShowQuickDateDropdown(false);
   };
 
   const loadChecklists = async () => {
@@ -193,7 +207,8 @@ const LeadChecklists = ({ leadId, sectorId }) => {
       setLoading(true);
       const response = await api.getLeadChecklists(leadId);
       if (response.success) {
-        const lists = response.data.checklists || [];
+        // Filtrar checklists de roadmaps (já aparecem na seção Roadmaps)
+        const lists = (response.data.checklists || []).filter(c => !c.name?.startsWith('Roadmap:'));
         setChecklists(lists);
         const expanded = {};
         lists.forEach(c => { expanded[c.id] = true; });
@@ -340,6 +355,60 @@ const LeadChecklists = ({ leadId, sectorId }) => {
       console.error('Error adding item:', error);
     } finally {
       setSavingItem(null);
+    }
+  };
+
+  // Quick add task without needing to create a checklist first
+  const handleQuickAdd = async () => {
+    if (!quickAddForm.title.trim()) return;
+
+    try {
+      setSavingQuickAdd(true);
+
+      // Find or create default checklist
+      let targetChecklist = checklists.find(c => c.name === 'Tarefas');
+
+      if (!targetChecklist) {
+        // Create default checklist
+        const createResponse = await api.createLeadChecklist(leadId, { name: 'Tarefas' });
+        if (createResponse.success) {
+          targetChecklist = createResponse.data.checklist;
+          setChecklists(prev => [...prev, targetChecklist]);
+          setExpandedChecklists(prev => ({ ...prev, [targetChecklist.id]: true }));
+        } else {
+          throw new Error('Failed to create checklist');
+        }
+      }
+
+      // Add item to checklist
+      const payload = {
+        title: quickAddForm.title.trim(),
+        task_type: quickAddForm.taskType,
+        assignees: quickAddForm.assignees.map(a => a.id),
+        due_date: quickAddForm.dueDate
+      };
+
+      const response = await api.createChecklistItem(targetChecklist.id, payload);
+      if (response.success) {
+        setChecklists(prev => prev.map(c => {
+          if (c.id === targetChecklist.id) {
+            return {
+              ...c,
+              items: [...(c.items || []), response.data.item],
+              totalCount: (c.totalCount || 0) + 1
+            };
+          }
+          return c;
+        }));
+        setQuickAddForm({ title: '', taskType: 'call', assignees: [], dueDate: null });
+        if (quickAddInputRef.current) {
+          quickAddInputRef.current.focus();
+        }
+      }
+    } catch (error) {
+      console.error('Error quick adding item:', error);
+    } finally {
+      setSavingQuickAdd(false);
     }
   };
 
@@ -539,6 +608,248 @@ const LeadChecklists = ({ leadId, sectorId }) => {
             </span>
           )}
         </div>
+      </div>
+
+      {/* Quick Add Task Form */}
+      <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        {/* Task Type Selector */}
+        <div className="relative">
+          {(() => {
+            const selectedType = getTaskTypeInfo(quickAddForm.taskType);
+            const SelectedIcon = selectedType.icon;
+            return (
+              <>
+                <button
+                  ref={quickTypeButtonRef}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQuickTypeDropdown(!showQuickTypeDropdown);
+                  }}
+                  className={`type-trigger p-1.5 rounded ${selectedType.color} hover:opacity-80 transition-opacity`}
+                  title={selectedType.label}
+                >
+                  <SelectedIcon className="w-4 h-4" />
+                </button>
+
+                <PortalDropdown
+                  isOpen={showQuickTypeDropdown}
+                  anchorRef={quickTypeButtonRef}
+                  width={150}
+                  onClose={() => setShowQuickTypeDropdown(false)}
+                >
+                  {TASK_TYPES.map(type => {
+                    const Icon = type.icon;
+                    return (
+                      <button
+                        key={type.value}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickAddForm(prev => ({ ...prev, taskType: type.value }));
+                          setShowQuickTypeDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                          quickAddForm.taskType === type.value ? 'bg-gray-50 dark:bg-gray-700' : ''
+                        }`}
+                      >
+                        <div className={`p-1 rounded ${type.color}`}>
+                          <Icon className="w-3 h-3" />
+                        </div>
+                        <span className="text-gray-700 dark:text-gray-200">{type.label}</span>
+                      </button>
+                    );
+                  })}
+                </PortalDropdown>
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Title Input */}
+        <input
+          ref={quickAddInputRef}
+          type="text"
+          value={quickAddForm.title}
+          onChange={(e) => setQuickAddForm(prev => ({ ...prev, title: e.target.value }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && quickAddForm.title.trim()) {
+              e.preventDefault();
+              handleQuickAdd();
+            }
+          }}
+          placeholder="Adicionar nova tarefa..."
+          className="flex-1 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          disabled={savingQuickAdd}
+        />
+
+        {/* Due Date Selector */}
+        <div className="relative">
+          {(() => {
+            return (
+              <>
+                <button
+                  ref={quickDateButtonRef}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQuickDateDropdown(!showQuickDateDropdown);
+                  }}
+                  className={`date-trigger px-2 py-1.5 rounded transition-all flex items-center gap-1 text-xs ${
+                    quickAddForm.dueDate
+                      ? getDueDateColor(quickAddForm.dueDate)
+                      : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                  }`}
+                  title={quickAddForm.dueDate ? formatDate(quickAddForm.dueDate) : 'Definir prazo'}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  {quickAddForm.dueDate && <span>{formatDate(quickAddForm.dueDate)}</span>}
+                </button>
+
+                <PortalDropdown
+                  isOpen={showQuickDateDropdown}
+                  anchorRef={quickDateButtonRef}
+                  align="right"
+                  width={200}
+                  onClose={() => setShowQuickDateDropdown(false)}
+                >
+                  <div className="p-2">
+                    {getQuickDates().map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickAddForm(prev => ({ ...prev, dueDate: opt.value }));
+                          setShowQuickDateDropdown(false);
+                        }}
+                        className="w-full text-left px-2 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    <div className="border-t my-1" />
+                    <input
+                      type="datetime-local"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      value={quickAddForm.dueDate || ''}
+                      onChange={(e) => {
+                        setQuickAddForm(prev => ({ ...prev, dueDate: e.target.value }));
+                        setShowQuickDateDropdown(false);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    {quickAddForm.dueDate && (
+                      <>
+                        <div className="border-t my-1" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickAddForm(prev => ({ ...prev, dueDate: null }));
+                            setShowQuickDateDropdown(false);
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded"
+                        >
+                          Remover prazo
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </PortalDropdown>
+              </>
+            );
+          })()}
+        </div>
+
+        {/* User Selector (Multiple) */}
+        <div className="relative">
+          {(() => {
+            const assignees = quickAddForm.assignees || [];
+            return (
+              <>
+                <button
+                  ref={quickUserButtonRef}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQuickUserDropdown(!showQuickUserDropdown);
+                  }}
+                  className={`user-trigger flex items-center transition-all ${
+                    assignees.length > 0
+                      ? ''
+                      : 'w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-purple-400 hover:text-purple-500 justify-center'
+                  }`}
+                  title={assignees.length > 0 ? assignees.map(a => a.name).join(', ') : 'Atribuir responsáveis'}
+                >
+                  {assignees.length > 0 ? (
+                    renderAssigneesAvatars(assignees, 2)
+                  ) : (
+                    <Users className="w-4 h-4" />
+                  )}
+                </button>
+
+                <PortalDropdown
+                  isOpen={showQuickUserDropdown}
+                  anchorRef={quickUserButtonRef}
+                  align="right"
+                  width={220}
+                  onClose={() => setShowQuickUserDropdown(false)}
+                >
+                  <div className="max-h-[250px] overflow-y-auto">
+                    <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
+                      Selecione os responsáveis
+                    </div>
+                    {assignableUsers.map(user => {
+                      const isSelected = assignees.some(a => a.id === user.id);
+                      return (
+                        <button
+                          key={user.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSelected) {
+                              setQuickAddForm(prev => ({
+                                ...prev,
+                                assignees: prev.assignees.filter(a => a.id !== user.id)
+                              }));
+                            } else {
+                              setQuickAddForm(prev => ({
+                                ...prev,
+                                assignees: [...prev.assignees, user]
+                              }));
+                            }
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            isSelected ? 'bg-purple-50 dark:bg-purple-900/30' : ''
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                            isSelected ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-300'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3" />}
+                          </div>
+                          {renderUserAvatar(user)}
+                          <span className="text-gray-700 dark:text-gray-200 flex-1 text-left">{user.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PortalDropdown>
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Add Button */}
+        <button
+          type="button"
+          onClick={handleQuickAdd}
+          disabled={!quickAddForm.title.trim() || savingQuickAdd}
+          className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {savingQuickAdd ? (
+            <Loader className="w-4 h-4 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4" />
+          )}
+        </button>
       </div>
 
       {/* Checklists */}
@@ -1040,69 +1351,63 @@ const LeadChecklists = ({ leadId, sectorId }) => {
         ))}
       </div>
 
-      {/* Add New Checklist */}
-      {showNewChecklist ? (
-        <form onSubmit={handleCreateChecklist} className="flex items-center gap-2">
-          <input
-            ref={newChecklistInputRef}
-            type="text"
-            value={newChecklistName}
-            onChange={(e) => setNewChecklistName(e.target.value)}
-            placeholder="Nome da checklist..."
-            className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            onBlur={() => {
-              if (!newChecklistName.trim()) {
-                setShowNewChecklist(false);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
+      {/* Add New Group (secondary option) */}
+      {checklists.length > 0 && (
+        showNewChecklist ? (
+          <form onSubmit={handleCreateChecklist} className="flex items-center gap-2">
+            <input
+              ref={newChecklistInputRef}
+              type="text"
+              value={newChecklistName}
+              onChange={(e) => setNewChecklistName(e.target.value)}
+              placeholder="Nome do grupo..."
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              onBlur={() => {
+                if (!newChecklistName.trim()) {
+                  setShowNewChecklist(false);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setShowNewChecklist(false);
+                  setNewChecklistName('');
+                }
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!newChecklistName.trim()}
+              className="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              Criar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setShowNewChecklist(false);
                 setNewChecklistName('');
-              }
-            }}
-          />
+              }}
+              className="px-3 py-2 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            >
+              Cancelar
+            </button>
+          </form>
+        ) : (
           <button
-            type="submit"
-            disabled={!newChecklistName.trim()}
-            className="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            onClick={() => setShowNewChecklist(true)}
+            className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors py-1"
           >
-            Criar
+            <Plus className="w-3 h-3" />
+            Criar grupo de tarefas
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowNewChecklist(false);
-              setNewChecklistName('');
-            }}
-            className="px-3 py-2 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-          >
-            Cancelar
-          </button>
-        </form>
-      ) : (
-        <button
-          onClick={() => setShowNewChecklist(true)}
-          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors py-2"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar checklist
-        </button>
+        )
       )}
 
       {/* Empty State */}
-      {checklists.length === 0 && !showNewChecklist && (
-        <div className="text-center py-8 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50/50 dark:bg-gray-800/30">
-          <CheckSquare className="w-10 h-10 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Nenhuma checklist ainda</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 mb-4">Crie checklists para organizar as atividades</p>
-          <button
-            onClick={() => setShowNewChecklist(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-md transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Criar checklist
-          </button>
+      {checklists.length === 0 && (
+        <div className="text-center py-6 text-gray-400 dark:text-gray-500">
+          <p className="text-sm">Nenhuma tarefa ainda</p>
+          <p className="text-xs mt-1">Use o campo acima para adicionar tarefas</p>
         </div>
       )}
     </div>

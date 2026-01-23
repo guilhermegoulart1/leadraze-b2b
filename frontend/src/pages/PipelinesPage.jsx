@@ -41,7 +41,8 @@ import {
   Loader,
   FolderPlus,
   X,
-  Tag
+  Tag,
+  Map
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useSearchParams } from 'react-router-dom';
@@ -56,6 +57,7 @@ import LoseOpportunityModal from '../components/pipelines/LoseOpportunityModal';
 import LeadDetailModal from '../components/LeadDetailModal';
 import PipelineFiltersPanel from '../components/pipelines/PipelineFiltersPanel';
 import UnifiedContactModal from '../components/UnifiedContactModal';
+import StageRoadmapsModal from '../components/pipelines/StageRoadmapsModal';
 
 // Mapa de cores legadas (para compatibilidade com dados antigos)
 const LEGACY_COLOR_MAP = {
@@ -112,6 +114,8 @@ const PipelinesPage = () => {
   const [selectedLead, setSelectedLead] = useState(null);
   const [loadingLeadModal, setLoadingLeadModal] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState(null);
+  const [initialStageId, setInitialStageId] = useState(null);
+  const [showStageRoadmapsModal, setShowStageRoadmapsModal] = useState(false);
 
   // Win/Lose modals
   const [showWinModal, setShowWinModal] = useState(false);
@@ -771,8 +775,9 @@ const PipelinesPage = () => {
     }
   };
 
-  const handleCreateOpportunity = () => {
+  const handleCreateOpportunity = (stageId = null) => {
     setEditingOpportunity(null);
+    setInitialStageId(stageId);
     setShowOpportunityModal(true);
   };
 
@@ -1224,7 +1229,11 @@ const PipelinesPage = () => {
               {realTotal}
             </span>
           </div>
-          <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded transition-colors">
+          <button
+            onClick={() => handleCreateOpportunity(stageId)}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded transition-colors"
+            title="Adicionar oportunidade"
+          >
             <Plus className="w-4 h-4 text-gray-400" />
           </button>
         </div>
@@ -1802,9 +1811,14 @@ const PipelinesPage = () => {
               )}
 
               {selectedPipeline && hasPermission('pipelines:edit') && (
-                <button onClick={() => { setEditingPipeline(selectedPipeline); setShowPipelineSettings(true); }} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title={t('pipelineSettings')}>
-                  <Settings className="w-5 h-5" />
-                </button>
+                <>
+                  <button onClick={() => setShowStageRoadmapsModal(true)} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title="Roadmaps Automaticos">
+                    <Map className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => { setEditingPipeline(selectedPipeline); setShowPipelineSettings(true); }} className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title={t('pipelineSettings')}>
+                    <Settings className="w-5 h-5" />
+                  </button>
+                </>
               )}
             </div>
 
@@ -1946,7 +1960,8 @@ const PipelinesPage = () => {
         <OpportunityModal
           opportunity={editingOpportunity}
           pipeline={selectedPipeline}
-          onClose={() => { setShowOpportunityModal(false); setEditingOpportunity(null); }}
+          initialStageId={initialStageId}
+          onClose={() => { setShowOpportunityModal(false); setEditingOpportunity(null); setInitialStageId(null); }}
           onSave={handleOpportunitySaved}
         />
       )}
@@ -1967,6 +1982,13 @@ const PipelinesPage = () => {
               else loadOpportunitiesList();
             }
           }}
+        />
+      )}
+
+      {showStageRoadmapsModal && selectedPipeline && (
+        <StageRoadmapsModal
+          pipeline={selectedPipeline}
+          onClose={() => setShowStageRoadmapsModal(false)}
         />
       )}
 

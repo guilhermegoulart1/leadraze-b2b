@@ -1507,6 +1507,210 @@ const getRoadmapAnalytics = async (req, res) => {
   }
 };
 
+// Get dashboard data for Tasks tab (includes both roadmap and non-roadmap tasks)
+const getDashboard = async (req, res) => {
+  try {
+    const { account_id } = req.user;
+    const { period = 30, user_id } = req.query;
+
+    // Calculate date range based on period
+    const periodDays = parseInt(period) || 30;
+    const periodInterval = `${periodDays} days`;
+
+    // Base filter for user assignee (if user_id provided)
+    const userFilterJoin = user_id
+      ? `JOIN opportunity_checklist_item_assignees ocia_filter ON ocia_filter.checklist_item_id = oci.id AND ocia_filter.user_id = '${user_id}'`
+      : '';
+
+    // Get ALL tasks metrics (both roadmap and non-roadmap)
+    // Join through opportunity_checklists to get to opportunities/contacts
+    const metricsQuery = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE oci.is_completed = false) as pending_tasks,
+        COUNT(*) FILTER (WHERE oci.is_completed = true) as tasks_completed,
+        COUNT(*) as total_tasks,
+        COUNT(*) FILTER (WHERE oci.is_completed = false AND oci.due_date < NOW()) as overdue_tasks,
+        COUNT(*) FILTER (WHERE oci.is_completed = false AND oci.due_date >= NOW() AND oci.due_date < NOW() + INTERVAL '7 days') as due_this_week
+      FROM opportunity_checklist_items oci
+      JOIN opportunity_checklists oc ON oci.checklist_id = oc.id
+      LEFT JOIN opportunities o ON oc.opportunity_id = o.id
+      LEFT JOIN contacts ct ON oc.contact_id = ct.id
+      ${userFilterJoin}
+      WHERE COALESCE(o.account_id, ct.account_id) = $1
+        AND oci.created_at >= NOW() - INTERVAL '${periodInterval}'
+    `, [account_id]);
+
+    // Get roadmap executions metrics separately
+    const roadmapMetricsQuery = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE re.status = 'in_progress') as active_executions,
+        COUNT(*) FILTER (WHERE re.status = 'completed') as completed_executions
+      FROM roadmap_executions re
+      WHERE re.account_id = $1
+        AND re.created_at >= NOW() - INTERVAL '${periodInterval}'
+    `, [account_id]);
+
+    const metrics = metricsQuery.rows[0];
+    const roadmapMetrics = roadmapMetricsQuery.rows[0];
+    const completionRate = parseInt(metrics.total_tasks) > 0
+      ? Math.round((parseInt(metrics.tasks_completed) / parseInt(metrics.total_tasks)) * 100)
+      : 0;
+
+    // Get active roadmap executions with progress
+    const activeExecutionsQuery = await db.query(`
+      SELECT
+        re.id,
+        re.roadmap_name,
+        re.status,
+        re.completed_tasks,
+        re.total_tasks,
+        re.created_at,
+        c.name as contact_name,
+        c.company as company_name,
+        (
+          SELECT COUNT(*)
+          FROM opportunity_checklist_items oci
+          WHERE oci.roadmap_execution_id = re.id
+            AND oci.is_completed = false
+            AND oci.due_date < NOW()
+        ) as overdue_tasks
+      FROM roadmap_executions re
+      LEFT JOIN contacts c ON re.contact_id = c.id
+      WHERE re.account_id = $1
+        AND re.status = 'in_progress'
+      ORDER BY re.created_at DESC
+      LIMIT 6
+    `, [account_id]);
+
+    // Get ALL overdue tasks (both roadmap and non-roadmap) - filtered by user if specified
+    const overdueTasksQuery = await db.query(`
+      SELECT DISTINCT ON (oci.id)
+        oci.id,
+        COALESCE(oci.title, oci.content) as title,
+        oci.due_date,
+        oci.roadmap_execution_id,
+        re.roadmap_name,
+        COALESCE(c.name, ct.name) as contact_name,
+        o.title as opportunity_title,
+        u.name as assignee_name,
+        u.avatar_url as assignee_avatar
+      FROM opportunity_checklist_items oci
+      JOIN opportunity_checklists oc ON oci.checklist_id = oc.id
+      LEFT JOIN opportunities o ON oc.opportunity_id = o.id
+      LEFT JOIN contacts c ON o.contact_id = c.id
+      LEFT JOIN contacts ct ON oc.contact_id = ct.id
+      LEFT JOIN roadmap_executions re ON oci.roadmap_execution_id = re.id
+      LEFT JOIN opportunity_checklist_item_assignees ocia ON ocia.checklist_item_id = oci.id
+      LEFT JOIN users u ON ocia.user_id = u.id
+      ${userFilterJoin}
+      WHERE COALESCE(o.account_id, ct.account_id) = $1
+        AND oci.is_completed = false
+        AND oci.due_date < NOW()
+        AND oci.created_at >= NOW() - INTERVAL '${periodInterval}'
+      ORDER BY oci.id, oci.due_date ASC
+      LIMIT 15
+    `, [account_id]);
+
+    // Get upcoming tasks (due this week, not overdue) - filtered by user if specified
+    const upcomingTasksQuery = await db.query(`
+      SELECT DISTINCT ON (oci.id)
+        oci.id,
+        COALESCE(oci.title, oci.content) as title,
+        oci.due_date,
+        oci.roadmap_execution_id,
+        re.roadmap_name,
+        COALESCE(c.name, ct.name) as contact_name,
+        o.title as opportunity_title,
+        u.name as assignee_name,
+        u.avatar_url as assignee_avatar
+      FROM opportunity_checklist_items oci
+      JOIN opportunity_checklists oc ON oci.checklist_id = oc.id
+      LEFT JOIN opportunities o ON oc.opportunity_id = o.id
+      LEFT JOIN contacts c ON o.contact_id = c.id
+      LEFT JOIN contacts ct ON oc.contact_id = ct.id
+      LEFT JOIN roadmap_executions re ON oci.roadmap_execution_id = re.id
+      LEFT JOIN opportunity_checklist_item_assignees ocia ON ocia.checklist_item_id = oci.id
+      LEFT JOIN users u ON ocia.user_id = u.id
+      ${userFilterJoin}
+      WHERE COALESCE(o.account_id, ct.account_id) = $1
+        AND oci.is_completed = false
+        AND oci.due_date >= NOW()
+        AND oci.due_date < NOW() + INTERVAL '7 days'
+      ORDER BY oci.id, oci.due_date ASC
+      LIMIT 10
+    `, [account_id]);
+
+    // Get completed tasks per day based on the period
+    const chartDays = Math.min(periodDays, 30); // Max 30 days for chart
+    const completedPerDayQuery = await db.query(`
+      WITH days AS (
+        SELECT generate_series(
+          CURRENT_DATE - INTERVAL '${chartDays - 1} days',
+          CURRENT_DATE,
+          INTERVAL '1 day'
+        )::date as day
+      ),
+      completed_tasks AS (
+        SELECT DATE(oci.completed_at) as completed_date, COUNT(*) as count
+        FROM opportunity_checklist_items oci
+        JOIN opportunity_checklists oc ON oci.checklist_id = oc.id
+        LEFT JOIN opportunities o ON oc.opportunity_id = o.id
+        LEFT JOIN contacts ct ON oc.contact_id = ct.id
+        ${userFilterJoin}
+        WHERE oci.is_completed = true
+          AND oci.completed_at >= CURRENT_DATE - INTERVAL '${chartDays - 1} days'
+          AND COALESCE(o.account_id, ct.account_id) = $1
+        GROUP BY DATE(oci.completed_at)
+      )
+      SELECT
+        d.day::text as date,
+        COALESCE(ct.count, 0) as completed
+      FROM days d
+      LEFT JOIN completed_tasks ct ON ct.completed_date = d.day
+      ORDER BY d.day ASC
+    `, [account_id]);
+
+    // Get users for filter dropdown (users who have tasks assigned)
+    const usersQuery = await db.query(`
+      SELECT DISTINCT u.id, u.name, u.avatar_url
+      FROM users u
+      JOIN opportunity_checklist_item_assignees ocia ON ocia.user_id = u.id
+      JOIN opportunity_checklist_items oci ON oci.id = ocia.checklist_item_id
+      JOIN opportunity_checklists oc ON oci.checklist_id = oc.id
+      LEFT JOIN opportunities o ON oc.opportunity_id = o.id
+      LEFT JOIN contacts ct ON oc.contact_id = ct.id
+      WHERE COALESCE(o.account_id, ct.account_id) = $1
+      ORDER BY u.name ASC
+    `, [account_id]);
+
+    res.json({
+      success: true,
+      data: {
+        metrics: {
+          pending_tasks: parseInt(metrics.pending_tasks) || 0,
+          tasks_completed: parseInt(metrics.tasks_completed) || 0,
+          total_tasks: parseInt(metrics.total_tasks) || 0,
+          overdue_tasks: parseInt(metrics.overdue_tasks) || 0,
+          due_this_week: parseInt(metrics.due_this_week) || 0,
+          completion_rate: completionRate,
+          active_executions: parseInt(roadmapMetrics.active_executions) || 0
+        },
+        active_executions: activeExecutionsQuery.rows,
+        overdue_tasks: overdueTasksQuery.rows,
+        upcoming_tasks: upcomingTasksQuery.rows,
+        completed_per_day: completedPerDayQuery.rows,
+        users: usersQuery.rows
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching tasks dashboard:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar dashboard de tarefas'
+    });
+  }
+};
+
 module.exports = {
   // Roadmaps CRUD
   getRoadmaps,
@@ -1535,5 +1739,8 @@ module.exports = {
 
   // Analytics
   getAnalytics,
-  getRoadmapAnalytics
+  getRoadmapAnalytics,
+
+  // Dashboard
+  getDashboard
 };

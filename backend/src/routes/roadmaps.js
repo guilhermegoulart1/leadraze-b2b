@@ -20,6 +20,9 @@ router.get('/search', roadmapController.searchRoadmaps);
 // GET /api/roadmaps/analytics - Get analytics for all roadmaps
 router.get('/analytics', roadmapController.getAnalytics);
 
+// GET /api/roadmaps/dashboard - Get dashboard data for Roadmaps tab
+router.get('/dashboard', roadmapController.getDashboard);
+
 // GET /api/roadmaps/:id - Get single roadmap with tasks
 router.get('/:id', roadmapController.getRoadmap);
 

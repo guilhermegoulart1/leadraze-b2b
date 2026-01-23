@@ -11,7 +11,7 @@ import {
 import api from '../../services/api';
 import PhoneInput, { validatePhone } from '../PhoneInput';
 
-const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
+const OpportunityModal = ({ opportunity, pipeline, initialStageId, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     contact_id: '',
     stage_id: '',
@@ -91,15 +91,16 @@ const OpportunityModal = ({ opportunity, pipeline, onClose, onSave }) => {
         picture: opportunity.contact_picture
       });
     } else {
-      // Nova oportunidade - selecionar primeira etapa
+      // Nova oportunidade - usar initialStageId se fornecido, senão primeira etapa
       if (pipeline?.stages?.length > 0) {
+        const targetStageId = initialStageId || pipeline.stages[0].id;
         setFormData(prev => ({
           ...prev,
-          stage_id: pipeline.stages[0].id
+          stage_id: targetStageId
         }));
       }
     }
-  }, [opportunity, pipeline]);
+  }, [opportunity, pipeline, initialStageId]);
 
   const loadUsers = async () => {
     try {
