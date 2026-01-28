@@ -2,12 +2,58 @@
 const { verifyToken } = require('../utils/helpers');
 const { UnauthorizedError } = require('../utils/errors');
 const db = require('../config/database');
+const supportAccessService = require('../services/supportAccessService');
 
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     // Aceitar token via header OU via query param (para imagens inline em <img src>)
     const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
+
+    // Verificar se é um token de sessão de suporte (impersonação)
+    const supportSessionHeader = req.headers['x-support-session'];
+    if (supportSessionHeader || (token && token.startsWith('eyJ') && req.headers['x-impersonation-mode'] === 'true')) {
+      const sessionToken = supportSessionHeader || token;
+      const session = await supportAccessService.validateSupportSession(sessionToken);
+
+      if (session) {
+        // Modo impersonação - operador acessando conta do cliente
+        req.supportSession = {
+          sessionId: session.id,
+          tokenId: session.token_id,
+          accountId: session.account_id,
+          accountName: session.account_name,
+          operatorName: session.operator_name,
+          operatorEmail: session.operator_email,
+          scope: session.scope,
+          startedAt: session.started_at,
+          isImpersonating: true
+        };
+
+        req.user = {
+          id: null,
+          userId: null,
+          email: session.operator_email || `support-${session.id}@getraze.co`,
+          name: session.operator_name,
+          role: 'support',
+          account_id: session.account_id,
+          accountId: session.account_id,
+          must_change_password: false,
+          sectors: [],
+          // Flags de impersonação
+          isImpersonating: true,
+          impersonationSessionId: session.id,
+          impersonationTokenId: session.token_id,
+          impersonationScope: session.scope,
+          originalOperator: {
+            name: session.operator_name,
+            email: session.operator_email
+          }
+        };
+
+        return next();
+      }
+    }
 
     if (!token) {
       throw new UnauthorizedError('No token provided');
@@ -45,7 +91,8 @@ const authenticateToken = async (req, res, next) => {
       account_id: user.account_id,
       accountId: user.account_id,  // Add accountId for consistency
       must_change_password: user.must_change_password || false,
-      sectors: sectorsResult.rows || []
+      sectors: sectorsResult.rows || [],
+      isImpersonating: false
     };
 
     next();

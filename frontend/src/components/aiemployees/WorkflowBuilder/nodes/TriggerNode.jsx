@@ -6,7 +6,7 @@ import { Handle, Position } from 'reactflow';
 import {
   Zap, MessageSquare, UserCheck, UserX, Eye, Heart,
   Mail, Clock, Send, UserPlus, Image, MousePointer,
-  List, Globe, LogOut, Reply, XCircle, Trash2, Copy, X, AlertTriangle
+  List, Globe, LogOut, Reply, XCircle, Trash2, Copy, X, AlertTriangle, Filter
 } from 'lucide-react';
 
 // All event icons by channel
@@ -148,6 +148,9 @@ const TriggerNode = ({ id, data, selected }) => {
     setShowDeleteModal(false);
   };
 
+  // Check if filters are configured
+  const hasFilters = data.filtersEnabled && data.filters && data.filters.length > 0;
+
   return (
     <>
       <div
@@ -159,6 +162,16 @@ const TriggerNode = ({ id, data, selected }) => {
           transition-all duration-200
         `}
       >
+        {/* Filter indicator badge */}
+        {hasFilters && (
+          <div
+            className="absolute -top-2 -left-2 z-20 p-1.5 bg-cyan-500 rounded-full shadow-lg"
+            title={`${data.filters.length} filtro(s) ativo(s)`}
+          >
+            <Filter className="w-3.5 h-3.5 text-white" />
+          </div>
+        )}
+
         {/* Action buttons - appears on hover */}
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
           <button
@@ -198,6 +211,18 @@ const TriggerNode = ({ id, data, selected }) => {
           {data.event === 'invite_sent' && data.withNote && (
             <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded line-clamp-2">
               "{data.inviteNote || '...'}"
+            </div>
+          )}
+
+          {/* Filter summary */}
+          {hasFilters && (
+            <div className="mt-3 p-2 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+              <div className="flex items-center gap-1.5 text-xs text-cyan-700 dark:text-cyan-300">
+                <Filter className="w-3 h-3" />
+                <span className="font-medium">
+                  {data.filters.length} filtro{data.filters.length > 1 ? 's' : ''} ({data.filtersLogic || 'AND'})
+                </span>
+              </div>
             </div>
           )}
         </div>

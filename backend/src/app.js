@@ -233,6 +233,13 @@ try {
 }
 
 try {
+  app.use('/api/admin/pricing', require('./routes/adminPricing'));
+  console.log('✅ Admin Pricing routes loaded');
+} catch (error) {
+  console.error('❌ Error loading admin pricing routes:', error.message);
+}
+
+try {
   app.use('/api/affiliate', require('./routes/affiliates'));
   console.log('✅ Affiliate routes loaded');
 } catch (error) {
@@ -301,6 +308,13 @@ try {
   console.log('✅ AI Agent routes loaded');
 } catch (error) {
   console.error('❌ Error loading AI Agent routes:', error.message);
+}
+
+try {
+  app.use('/api/variables', require('./routes/variables'));
+  console.log('✅ Variables routes loaded');
+} catch (error) {
+  console.error('❌ Error loading variables routes:', error.message);
 }
 
 try {
@@ -449,6 +463,17 @@ try {
   console.log('✅ API Keys management routes loaded');
 } catch (error) {
   console.error('❌ Error loading API Keys routes:', error.message);
+}
+
+// ================================
+// SUPPORT ACCESS (Impersonation)
+// ================================
+
+try {
+  app.use('/api/support-access', require('./routes/supportAccess'));
+  console.log('✅ Support Access routes loaded (impersonation/compliance)');
+} catch (error) {
+  console.error('❌ Error loading Support Access routes:', error.message);
 }
 
 // ================================

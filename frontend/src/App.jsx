@@ -66,6 +66,10 @@ import PartnerLoginPage from './pages/partner/PartnerLoginPage';
 import PartnerDashboard from './pages/partner/PartnerDashboard';
 import PartnerSetPasswordPage from './pages/partner/PartnerSetPasswordPage';
 
+// Support Access
+import SupportAccessPage from './pages/SupportAccessPage';
+import ImpersonationBanner from './components/ImpersonationBanner';
+
 // Layout
 import Layout from './components/Layout';
 import SubscriptionBlockOverlay from './components/SubscriptionBlockOverlay';
@@ -125,6 +129,9 @@ function AppRoutes() {
 
       {/* Magic Login - para sub-usuários convidados via email */}
       <Route path="/magic-login" element={<MagicLoginPage />} />
+
+      {/* Support Access - para operadores acessarem contas de clientes */}
+      <Route path="/support-access" element={<SupportAccessPage />} />
 
       {/* Force Change Password - para usuários que entraram via magic link */}
       <Route
@@ -232,6 +239,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <BillingProvider>
+            <ImpersonationBanner />
             <AppRoutes />
           </BillingProvider>
         </ThemeProvider>

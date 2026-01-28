@@ -296,7 +296,7 @@ async function notifyInviteAccepted({ accountId, userId, opportunityName, opport
  * @param {object} data - Notification data
  * @returns {Promise<object>}
  */
-async function notifyInvitationReceived({ accountId, userId, inviterName, inviterId, invitationId, headline = null, profilePicture = null, message = null, linkedinAccountId = null }) {
+async function notifyInvitationReceived({ accountId, userId, inviterName, inviterId, invitationId, headline = null, profilePicture = null, message = null, linkedinAccountId = null, linkedinProfileName = null, sharedSecret = null }) {
   return create({
     account_id: accountId,
     user_id: userId,
@@ -313,6 +313,8 @@ async function notifyInvitationReceived({ accountId, userId, inviterName, invite
       profile_picture: profilePicture,
       invitation_message: message,
       linkedin_account_id: linkedinAccountId,
+      linkedin_profile_name: linkedinProfileName,
+      shared_secret: sharedSecret,
       handled: false // Will be set to true after accept/reject
     }
   });

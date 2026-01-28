@@ -54,7 +54,8 @@ const ACTION_CONFIGS = {
   pause: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
   wait: { hasOutput: true, endsBranch: false, pausesWorkflow: true },
   create_opportunity: { hasOutput: true, endsBranch: false },
-  move_stage: { hasOutput: true, endsBranch: false }
+  move_stage: { hasOutput: true, endsBranch: false },
+  http_request: { hasOutput: true, endsBranch: false, hasBranching: true }
 };
 
 /**
@@ -303,9 +304,8 @@ const executors = {
       throw new Error('Scheduling link not configured');
     }
 
-    // Process variables in the link
-    const leadData = TemplateProcessor.extractLeadData(lead || {});
-    const processedLink = TemplateProcessor.processTemplate(schedulingLink, leadData);
+    // Process variables in the link using full context
+    const processedLink = TemplateProcessor.processAllVariables(schedulingLink, context);
 
     // Build scheduling message
     const message = `Para facilitar, você pode agendar diretamente aqui: ${processedLink}`;
@@ -343,10 +343,8 @@ const executors = {
       throw new Error('Message content is required');
     }
 
-    // Process variables in message
-    const leadData = TemplateProcessor.extractLeadData(lead || {});
-    const allVariables = { ...leadData, ...variables };
-    const processedMessage = TemplateProcessor.processTemplate(message, allVariables);
+    // Process variables in message using full context
+    const processedMessage = TemplateProcessor.processAllVariables(message, context);
 
     if (isTestMode) {
       return {
@@ -599,10 +597,9 @@ const executors = {
       throw new Error('Lead has no email address');
     }
 
-    // Process variables in subject and body
-    const leadData = TemplateProcessor.extractLeadData(lead);
-    const processedSubject = TemplateProcessor.processTemplate(subject || '', leadData);
-    const processedBody = TemplateProcessor.processTemplate(body || '', leadData);
+    // Process variables in subject and body using full context
+    const processedSubject = TemplateProcessor.processAllVariables(subject || '', context);
+    const processedBody = TemplateProcessor.processAllVariables(body || '', context);
 
     if (isTestMode) {
       return {
@@ -832,11 +829,9 @@ const executors = {
       throw new Error('Stage ID is required');
     }
 
-    // Process variables in title
-    const leadData = TemplateProcessor.extractLeadData(lead || {});
-    const allVariables = { ...leadData, ...variables };
+    // Process variables in title using full context
     const processedTitle = title
-      ? TemplateProcessor.processTemplate(title, allVariables)
+      ? TemplateProcessor.processAllVariables(title, context)
       : `${lead?.name || 'Lead'}${lead?.company ? ` - ${lead.company}` : ''}`;
 
     if (isTestMode) {
@@ -1123,8 +1118,166 @@ const executors = {
       isWinStage: newStage.is_win_stage,
       isLossStage: newStage.is_loss_stage
     };
+  },
+
+  /**
+   * HTTP Request action
+   * Makes HTTP requests to external APIs with variable extraction and success/error routing
+   */
+  http_request: async (params, context) => {
+    const {
+      method = 'GET',
+      url,
+      headers = [],
+      queryParams = [],
+      bodyType = 'none',
+      body = '',
+      timeout = 30000,
+      responseVariables = []
+    } = params;
+
+    const { variables = {}, lead, isTestMode } = context;
+
+    if (!url) {
+      throw new Error('URL is required');
+    }
+
+    // Process variables in URL using full context
+    const processedUrl = TemplateProcessor.processAllVariables(url, context);
+
+    // Build headers
+    const requestHeaders = {};
+
+    // Add custom headers
+    headers.filter(h => h.enabled !== false && h.key).forEach(h => {
+      requestHeaders[h.key] = TemplateProcessor.processAllVariables(h.value, context);
+    });
+
+    // Build query params
+    let urlObj;
+    try {
+      urlObj = new URL(processedUrl);
+    } catch (e) {
+      throw new Error(`Invalid URL: ${processedUrl}`);
+    }
+
+    queryParams.filter(p => p.enabled !== false && p.key).forEach(p => {
+      urlObj.searchParams.append(p.key, TemplateProcessor.processAllVariables(p.value, context));
+    });
+
+    // Build body
+    let requestBody = null;
+    if (['POST', 'PUT', 'PATCH'].includes(method) && bodyType !== 'none' && body) {
+      if (bodyType === 'json') {
+        requestHeaders['Content-Type'] = 'application/json';
+        requestBody = TemplateProcessor.processAllVariables(body, context);
+      } else if (bodyType === 'form-data') {
+        requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+        requestBody = TemplateProcessor.processAllVariables(body, context);
+      } else {
+        requestBody = TemplateProcessor.processAllVariables(body, context);
+      }
+    }
+
+    const startTime = Date.now();
+
+    if (isTestMode) {
+      console.log(`🧪 [http_request] SIMULATED: ${method} ${urlObj.toString()}`);
+      return {
+        simulated: true,
+        method,
+        url: urlObj.toString(),
+        headers: requestHeaders,
+        body: requestBody,
+        path: 'success'
+      };
+    }
+
+    try {
+      const response = await axios({
+        method,
+        url: urlObj.toString(),
+        headers: requestHeaders,
+        data: requestBody,
+        timeout,
+        validateStatus: () => true // Accept any status
+      });
+
+      const duration = Date.now() - startTime;
+
+      // Extract variables from response
+      const extractedVariables = {};
+      for (const varConfig of responseVariables) {
+        if (varConfig.path && varConfig.variableName) {
+          const value = getValueByPath(response.data, varConfig.path);
+          if (value !== undefined) {
+            extractedVariables[varConfig.variableName] = value;
+          }
+        }
+      }
+
+      // Merge extracted variables into context
+      Object.assign(context.variables || {}, extractedVariables);
+
+      const isSuccess = response.status >= 200 && response.status < 400;
+
+      console.log(`${isSuccess ? '✅' : '❌'} [http_request] ${method} ${processedUrl} -> ${response.status} (${duration}ms)`);
+
+      return {
+        success: isSuccess,
+        path: isSuccess ? 'success' : 'error',
+        status: response.status,
+        statusText: response.statusText,
+        body: response.data,
+        headers: response.headers,
+        duration,
+        extractedVariables
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ [http_request] ${method} ${processedUrl} -> Error: ${error.message}`);
+
+      return {
+        success: false,
+        path: 'error',
+        status: 0,
+        statusText: error.message,
+        body: null,
+        duration,
+        error: error.message
+      };
+    }
   }
 };
+
+/**
+ * Helper: Get value from object by dot-notation path
+ */
+function getValueByPath(obj, path) {
+  if (!obj || !path) return undefined;
+
+  const parts = path.split('.');
+  let current = obj;
+
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined;
+
+    // Handle array notation like 'data[0].name'
+    const arrayMatch = part.match(/^(\w+)\[(\d+)\]$/);
+    if (arrayMatch) {
+      current = current[arrayMatch[1]];
+      if (Array.isArray(current)) {
+        current = current[parseInt(arrayMatch[2])];
+      } else {
+        return undefined;
+      }
+    } else {
+      current = current[part];
+    }
+  }
+
+  return current;
+}
 
 /**
  * Helper: Send message via Unipile

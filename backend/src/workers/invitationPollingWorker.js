@@ -165,6 +165,16 @@ async function processAccountInvitations(account) {
       || invitation.public_identifier
       || null;
 
+    // Extract shared_secret (required by Unipile API to accept/decline invitations)
+    const sharedSecret = invitation.shared_secret
+      || invitation.sharedSecret
+      || inviter.shared_secret
+      || null;
+
+    if (!sharedSecret) {
+      log.warn(`  No shared_secret found for invitation from ${inviterName}`);
+    }
+
     // 1. Save to snapshot
     try {
       await db.query(`
@@ -187,21 +197,40 @@ async function processAccountInvitations(account) {
       log.error(`  Error saving snapshot: ${snapshotError.message}`);
     }
 
-    // 2. Create notification
+    // 2. Create notification for users with permission on this channel
     try {
-      await notificationService.notifyInvitationReceived({
-        accountId,
-        userId,
-        inviterName,
-        inviterId,
-        invitationId,
-        headline,
-        profilePicture,
-        message: invitationMessage,
-        linkedinAccountId
-      });
+      // Get all users with permission on this channel
+      const usersWithAccess = await db.query(`
+        SELECT DISTINCT user_id
+        FROM user_channel_permissions
+        WHERE linkedin_account_id = $1
+        AND account_id = $2
+        AND access_type IN ('all', 'assigned_only')
+      `, [linkedinAccountId, accountId]);
 
-      log.success(`  Notification created for: ${inviterName}`);
+      // If no permissions configured, create only for the owner (backward compatibility)
+      const targetUserIds = usersWithAccess.rows.length > 0
+        ? usersWithAccess.rows.map(r => r.user_id)
+        : [userId];
+
+      // Create notification for each user with access
+      for (const targetUserId of targetUserIds) {
+        await notificationService.notifyInvitationReceived({
+          accountId,
+          userId: targetUserId,
+          inviterName,
+          inviterId,
+          invitationId,
+          headline,
+          profilePicture,
+          message: invitationMessage,
+          linkedinAccountId,
+          linkedinProfileName: profile_name,
+          sharedSecret
+        });
+      }
+
+      log.success(`  Notification created for ${targetUserIds.length} user(s): ${inviterName}`);
       newCount++;
     } catch (notifError) {
       log.error(`  Error creating notification: ${notifError.message}`);

@@ -361,9 +361,16 @@ const NotificationsPage = () => {
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                              {formatRelativeTime(notification.created_at)}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-gray-400 dark:text-gray-500">
+                                {formatRelativeTime(notification.created_at)}
+                              </p>
+                              {metadata?.linkedin_profile_name && (
+                                <span className="text-xs text-purple-500 dark:text-purple-400">
+                                  • via {metadata.linkedin_profile_name}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Mark as read button */}

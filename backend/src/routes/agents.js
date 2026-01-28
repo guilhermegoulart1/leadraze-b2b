@@ -251,4 +251,22 @@ router.get('/:id/assignments', agentController.getAgentAssignmentHistory);
  */
 router.get('/:id/assignments/stats', agentController.getAgentAssignmentStats);
 
+// ==========================================
+// HTTP REQUEST TESTING ROUTES
+// ==========================================
+
+/**
+ * POST /api/agents/test-http-request
+ * Test an HTTP request configuration (for HTTP Request node)
+ * Body:
+ *   - method: GET|POST|PUT|DELETE|PATCH (default: GET)
+ *   - url: string (required)
+ *   - headers: [{ key, value, enabled }] (optional)
+ *   - queryParams: [{ key, value, enabled }] (optional)
+ *   - bodyType: none|json|form-data|raw (default: none)
+ *   - body: string (optional)
+ *   - timeout: number in ms (default: 30000)
+ */
+router.post('/test-http-request', agentController.testHTTPRequest);
+
 module.exports = router;

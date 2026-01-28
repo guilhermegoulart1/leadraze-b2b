@@ -158,6 +158,18 @@ const baseCategories = [
         color: 'teal'
       }
     ]
+  },
+  {
+    title: 'Integracao',
+    nodes: [
+      {
+        type: 'httpRequest',
+        label: 'HTTP Request',
+        description: 'Requisicao API',
+        icon: Globe,
+        color: 'indigo'
+      }
+    ]
   }
 ];
 

@@ -3,10 +3,14 @@
  *
  * SDK initialization and plan/addon configuration
  *
- * Pricing model (USD):
- * - Base Plan: $45/month (1 channel, 2 users, 200 gmaps credits/month, 5000 AI credits/month)
- * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
- * - One-time credits: never expire
+ * IMPORTANT: Price IDs are now managed dynamically via pricing_tables in the database.
+ * This allows different prices per account and currency (BRL, USD, EUR).
+ *
+ * The LEGACY_* constants below are kept for backwards compatibility during migration.
+ * New code should use pricingService for all price lookups.
+ *
+ * @see migration 139_create_pricing_tables.sql
+ * @see services/pricingService.js
  */
 
 const Stripe = require('stripe');
@@ -17,8 +21,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   typescript: false
 });
 
+// Lazy-load pricingService to avoid circular dependency
+let _pricingService = null;
+const getPricingService = () => {
+  if (!_pricingService) {
+    _pricingService = require('../services/pricingService');
+  }
+  return _pricingService;
+};
+
 /**
- * Plan configuration
+ * LEGACY Plan configuration
+ * @deprecated Use pricingService.getPricingTableForAccount() instead
+ * Kept for backwards compatibility during migration
  */
 const PLANS = {
   admin: {
@@ -68,7 +83,9 @@ const PLANS = {
 };
 
 /**
- * Add-on configurations (recurring)
+ * LEGACY Add-on configurations (recurring)
+ * @deprecated Use pricingService.getProductPriceId() instead
+ * Kept for backwards compatibility during migration
  */
 const ADDONS = {
   channel: {
@@ -90,7 +107,9 @@ const ADDONS = {
 };
 
 /**
- * Credit package configurations (one-time, never expire)
+ * LEGACY Credit package configurations (one-time, never expire)
+ * @deprecated Use pricingService.getCreditPackagesForAccount() instead
+ * Kept for backwards compatibility during migration
  */
 const CREDIT_PACKAGES = {
   gmaps_500: {
@@ -137,8 +156,8 @@ const CREDIT_PACKAGES = {
   ai_5000: {
     name: '5,000 AI Agent Credits',
     slug: 'ai-credits-5000',
-    priceId: 'price_1SYHvUFYqwizUuNOXMaREDaD', // $20
-    price: 2000, // $20.00
+    priceId: 'price_1SYHvUFYqwizUuNOXMaREDaD', // $35
+    price: 3500, // $35.00
     credits: 5000,
     creditType: 'ai',
     expires: false,
@@ -147,8 +166,8 @@ const CREDIT_PACKAGES = {
   ai_10000: {
     name: '10,000 AI Agent Credits',
     slug: 'ai-credits-10000',
-    priceId: 'price_1SYHxYFYqwizUuNO8XWLrlan', // $30
-    price: 3000, // $30.00
+    priceId: 'price_1SYHxYFYqwizUuNO8XWLrlan', // $59
+    price: 5900, // $59.00
     credits: 10000,
     creditType: 'ai',
     expires: false,
@@ -212,8 +231,32 @@ function getPlan(planSlug) {
 
 /**
  * Get plan by Stripe price ID
+ * First tries pricingService (database), then falls back to LEGACY constants
  */
-function getPlanByPriceId(priceId) {
+async function getPlanByPriceId(priceId) {
+  // Try pricingService first (database lookup)
+  try {
+    const pricingService = getPricingService();
+    const plan = await pricingService.getPlanByPriceId(priceId);
+    if (plan) return plan;
+  } catch (error) {
+    console.warn('getPlanByPriceId: pricingService lookup failed, using legacy', error.message);
+  }
+
+  // Fallback to legacy constants
+  for (const [slug, plan] of Object.entries(PLANS)) {
+    if (plan.priceIdMonthly === priceId) {
+      return { slug, ...plan };
+    }
+  }
+  return null;
+}
+
+/**
+ * Sync version for backwards compatibility
+ * @deprecated Use async getPlanByPriceId instead
+ */
+function getPlanByPriceIdSync(priceId) {
   for (const [slug, plan] of Object.entries(PLANS)) {
     if (plan.priceIdMonthly === priceId) {
       return { slug, ...plan };
@@ -255,8 +298,32 @@ function getCreditPackages() {
 
 /**
  * Get addon by price ID
+ * First tries pricingService (database), then falls back to LEGACY constants
  */
-function getAddonByPriceId(priceId) {
+async function getAddonByPriceId(priceId) {
+  // Try pricingService first (database lookup)
+  try {
+    const pricingService = getPricingService();
+    const addon = await pricingService.getAddonByPriceId(priceId);
+    if (addon) return addon;
+  } catch (error) {
+    console.warn('getAddonByPriceId: pricingService lookup failed, using legacy', error.message);
+  }
+
+  // Fallback to legacy constants
+  for (const [key, addon] of Object.entries(ADDONS)) {
+    if (addon.priceId === priceId) {
+      return { key, ...addon };
+    }
+  }
+  return null;
+}
+
+/**
+ * Sync version for backwards compatibility
+ * @deprecated Use async getAddonByPriceId instead
+ */
+function getAddonByPriceIdSync(priceId) {
   for (const [key, addon] of Object.entries(ADDONS)) {
     if (addon.priceId === priceId) {
       return { key, ...addon };
@@ -267,8 +334,32 @@ function getAddonByPriceId(priceId) {
 
 /**
  * Get credit package by price ID
+ * First tries pricingService (database), then falls back to LEGACY constants
  */
-function getCreditPackageByPriceId(priceId) {
+async function getCreditPackageByPriceId(priceId) {
+  // Try pricingService first (database lookup)
+  try {
+    const pricingService = getPricingService();
+    const pkg = await pricingService.getCreditPackageByPriceId(priceId);
+    if (pkg) return pkg;
+  } catch (error) {
+    console.warn('getCreditPackageByPriceId: pricingService lookup failed, using legacy', error.message);
+  }
+
+  // Fallback to legacy constants
+  for (const [key, pkg] of Object.entries(CREDIT_PACKAGES)) {
+    if (pkg.priceId === priceId) {
+      return { key, ...pkg };
+    }
+  }
+  return null;
+}
+
+/**
+ * Sync version for backwards compatibility
+ * @deprecated Use async getCreditPackageByPriceId instead
+ */
+function getCreditPackageByPriceIdSync(priceId) {
   for (const [key, pkg] of Object.entries(CREDIT_PACKAGES)) {
     if (pkg.priceId === priceId) {
       return { key, ...pkg };
@@ -286,19 +377,29 @@ function planExists(planSlug) {
 
 module.exports = {
   stripe,
+  // Legacy constants (kept for backwards compatibility)
   PLANS,
   ADDONS,
   CREDIT_PACKAGES,
+  // Config constants
   TRIAL_CONFIG,
   TRIAL_LIMITS,
   WEBHOOK_EVENTS,
+  // Utility functions
   getPlan,
-  getPlanByPriceId,
   getPlanLimits,
   getPublicPlans,
   getAddons,
   getCreditPackages,
+  planExists,
+  // Async lookup functions (use pricingService)
+  getPlanByPriceId,
   getAddonByPriceId,
   getCreditPackageByPriceId,
-  planExists
+  // Sync lookup functions (legacy fallback only)
+  getPlanByPriceIdSync,
+  getAddonByPriceIdSync,
+  getCreditPackageByPriceIdSync,
+  // PricingService accessor
+  getPricingService
 };

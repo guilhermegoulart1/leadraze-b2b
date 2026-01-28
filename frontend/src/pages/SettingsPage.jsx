@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Bell, CreditCard, Database, Shield, Mail, Users, X, Trash2, RefreshCw, UserPlus, Package, Plus, Edit2, ToggleLeft, ToggleRight, XCircle, Loader, MessageSquare } from 'lucide-react';
+import { User, Lock, Bell, CreditCard, Database, Shield, Mail, Users, X, Trash2, RefreshCw, UserPlus, Package, Plus, Edit2, ToggleLeft, ToggleRight, XCircle, Loader, MessageSquare, Key } from 'lucide-react';
 import QuickRepliesTab from '../components/settings/QuickRepliesTab';
+import SupportAccessTab from '../components/settings/SupportAccessTab';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { EmailSettingsTab } from '../components/email-settings';
@@ -828,6 +829,7 @@ const SettingsPage = () => {
     { id: 'integrations', label: t('tabs.integrations'), icon: Database },
     { id: 'privacy', label: t('tabs.privacy'), icon: Shield },
     { id: 'partners', label: 'Acesso de Partners', icon: Users },
+    { id: 'supportAccess', label: 'Acesso de Suporte', icon: Key, adminOnly: true },
   ];
 
   return (
@@ -844,7 +846,9 @@ const SettingsPage = () => {
         {/* Sidebar */}
         <div className="w-64 flex-shrink-0">
           <div className="bg-white rounded-xl border border-gray-200 p-2">
-            {tabs.map((tab) => {
+            {tabs
+              .filter(tab => !tab.adminOnly || user?.role === 'admin')
+              .map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -852,8 +856,8 @@ const SettingsPage = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`
                     w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors
-                    ${activeTab === tab.id 
-                      ? 'bg-purple-50 text-purple-600' 
+                    ${activeTab === tab.id
+                      ? 'bg-purple-50 text-purple-600'
                       : 'text-gray-700 hover:bg-gray-50'
                     }
                   `}
@@ -1078,6 +1082,11 @@ const SettingsPage = () => {
           {/* Partners Tab */}
           {activeTab === 'partners' && (
             <PartnersAccessTab />
+          )}
+
+          {/* Support Access Tab */}
+          {activeTab === 'supportAccess' && user?.role === 'admin' && (
+            <SupportAccessTab />
           )}
 
           {/* Other tabs placeholder */}

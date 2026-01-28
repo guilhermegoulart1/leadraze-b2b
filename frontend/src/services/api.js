@@ -2168,6 +2168,13 @@ class ApiService {
     });
   }
 
+  async testHTTPRequest(config) {
+    return this.request('/agents/test-http-request', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  }
+
   // ================================
   // BILLING & SUBSCRIPTION
   // ================================
@@ -3800,6 +3807,50 @@ class ApiService {
     window.URL.revokeObjectURL(downloadUrl);
 
     return { success: true };
+  }
+
+  // =====================
+  // Variables API
+  // =====================
+
+  /**
+   * Get variable definitions for template picker
+   * @param {object} context - Optional context for filtering categories
+   */
+  async getVariableDefinitions(context = {}) {
+    const params = context ? `?context=${encodeURIComponent(JSON.stringify(context))}` : '';
+    return this.get(`/variables/definitions${params}`);
+  }
+
+  /**
+   * Get real values for variables
+   * @param {string} contactId - Contact ID
+   * @param {string} opportunityId - Opportunity ID
+   */
+  async getVariableValues(contactId, opportunityId) {
+    const params = new URLSearchParams();
+    if (contactId) params.append('contactId', contactId);
+    if (opportunityId) params.append('opportunityId', opportunityId);
+    return this.get(`/variables/values?${params.toString()}`);
+  }
+
+  /**
+   * Validate a template string
+   * @param {string} template - Template to validate
+   * @param {array} customVariables - Custom variables to consider
+   */
+  async validateTemplate(template, customVariables = []) {
+    return this.post('/variables/validate', { template, customVariables });
+  }
+
+  /**
+   * Generate preview of a template
+   * @param {string} template - Template to preview
+   * @param {string} contactId - Optional contact ID for real data
+   * @param {array} customVariables - Custom variables
+   */
+  async previewTemplate(template, contactId = null, customVariables = []) {
+    return this.post('/variables/preview', { template, contactId, customVariables });
   }
 
 }

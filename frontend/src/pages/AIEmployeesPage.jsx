@@ -576,11 +576,15 @@ const AIEmployeesPage = () => {
         baseInstructions: newConfig.baseInstructions?.substring(0, 50) || '(empty)'
       });
 
+      // Update config with new category/niche
+      newConfig.category = agentType;
+      newConfig.niche = agentType;
+
       // Ensure required fields exist based on agent type
-      if ((existingAgentType === 'whatsapp' || existingAgentType === 'email') && !newConfig.initial_message) {
+      if ((channel === 'whatsapp' || channel === 'email') && !newConfig.initial_message) {
         newConfig.initial_message = existingConfig.initial_message || 'Olá! Como posso ajudar?';
       }
-      if (existingAgentType === 'linkedin' && !newConfig.behavioral_profile) {
+      if (channel === 'linkedin' && !newConfig.behavioral_profile) {
         newConfig.behavioral_profile = existingConfig.behavioral_profile || 'professional';
       }
 
@@ -590,7 +594,10 @@ const AIEmployeesPage = () => {
         avatar_url: profile?.avatarUrl,
         response_length: profile?.responseLength || 'medium',
         config: newConfig,
-        is_active: editingAgent?.is_active ?? editingAgentWorkflow?.is_active ?? true
+        is_active: editingAgent?.is_active ?? editingAgentWorkflow?.is_active ?? true,
+        // Include channel and category updates
+        agent_type: channel,
+        category: agentType
       };
 
       await api.updateAgent(existingAgentId, updateData);
@@ -1018,16 +1025,11 @@ const AIEmployeesPage = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2 py-1 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
-                  BETA
-                </span>
-              </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                AI Employees
+                Minha equipe de IA
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Crie e gerencie seus funcionarios IA com fluxos visuais personalizados
+                Crie e gerencie seu time de IA com fluxos visuais personalizados
               </p>
             </div>
             {activeTab === TABS.AGENTS ? (
@@ -1035,8 +1037,8 @@ const AIEmployeesPage = () => {
                 onClick={() => setShowCreator(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
-                <Sparkles className="w-5 h-5" />
-                Criar AI Employee
+                <Plus className="w-5 h-5" />
+                Adicionar novo membro
               </button>
             ) : (
               <button
@@ -1060,7 +1062,7 @@ const AIEmployeesPage = () => {
               }`}
             >
               <Bot className="w-4 h-4" />
-              Meus Vendedores IA
+              Minha equipe
             </button>
             <button
               onClick={() => setActiveTab(TABS.FOLLOWUP)}
@@ -1091,17 +1093,17 @@ const AIEmployeesPage = () => {
                 <div className="text-center py-12">
                   <Bot className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    {selectedAgentFolder ? 'Nenhum agente nesta pasta' : 'Nenhum AI Employee criado ainda'}
+                    {selectedAgentFolder ? 'Nenhum membro nesta pasta' : 'Nenhum membro na equipe ainda'}
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400 mb-4">
-                    {selectedAgentFolder ? 'Mova agentes para esta pasta ou crie um novo.' : 'Crie seu primeiro funcionario IA para automatizar suas vendas e atendimento.'}
+                    {selectedAgentFolder ? 'Mova membros para esta pasta ou adicione um novo.' : 'Adicione seu primeiro membro de IA para automatizar suas vendas e atendimento.'}
                   </p>
                   <button
                     onClick={() => setShowCreator(true)}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    Criar AI Employee
+                    Adicionar novo membro
                   </button>
                 </div>
               ) : (
@@ -1117,12 +1119,6 @@ const AIEmployeesPage = () => {
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Categoria
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Interacoes
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Acoes
@@ -1184,11 +1180,27 @@ const AIEmployeesPage = () => {
                                 )}
                                 <div>
                                   <div className="font-medium text-gray-900 dark:text-gray-100">{employee.name}</div>
-                                  {employee.description && (
-                                    <div className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 max-w-xs">
-                                      {employee.description}
-                                    </div>
-                                  )}
+                                  <div className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 max-w-xs">
+                                    {(() => {
+                                      const toneLabels = {
+                                        casual: 'Casual',
+                                        consultivo: 'Consultivo',
+                                        profissional: 'Profissional',
+                                        tecnico: 'Tecnico'
+                                      };
+                                      const objectiveLabels = {
+                                        qualify: 'Qualificar',
+                                        schedule: 'Agendar',
+                                        sell: 'Vender',
+                                        support: 'Suporte',
+                                        inform: 'Informar',
+                                        custom: 'Personalizado'
+                                      };
+                                      const tone = employee.config?.tone || 'consultivo';
+                                      const objective = employee.config?.objective || 'qualify';
+                                      return `${toneLabels[tone] || tone} • ${objectiveLabels[objective] || objective}`;
+                                    })()}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -1199,31 +1211,23 @@ const AIEmployeesPage = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                                employee.category === 'prospeccao' || employee.agent_type === 'linkedin'
-                                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                                  : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                              }`}>
-                                {employee.category === 'prospeccao' || employee.agent_type === 'linkedin' ? (
-                                  <><Target className="w-3 h-3" /> Prospeccao</>
-                                ) : (
-                                  <><Headphones className="w-3 h-3" /> Atendimento</>
-                                )}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                employee.is_active
-                                  ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                              }`}>
-                                {employee.is_active ? 'Ativo' : 'Inativo'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {employee.total_interactions || 0}
-                              </div>
+                              {(() => {
+                                const category = employee.config?.category || employee.config?.niche;
+                                const isProspeccao = category === 'prospeccao';
+                                return (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                                    isProspeccao
+                                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                      : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                                  }`}>
+                                    {isProspeccao ? (
+                                      <><Target className="w-3 h-3" /> Prospeccao</>
+                                    ) : (
+                                      <><Headphones className="w-3 h-3" /> Atendimento</>
+                                    )}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center justify-end gap-1">
@@ -1241,7 +1245,7 @@ const AIEmployeesPage = () => {
                                   onClick={() => {
                                     // Open agent config editor (profile, knowledge base, rules)
                                     setEditingAgent(employee);
-                                    setAgentType(employee.category || (employee.agent_type === 'linkedin' ? 'prospeccao' : 'atendimento'));
+                                    setAgentType(employee.config?.category || employee.config?.niche || (employee.agent_type === 'linkedin' ? 'prospeccao' : 'atendimento'));
                                     setChannel(employee.agent_type);
                                     // Build profile from employee data - use avatarUrl (camelCase)
                                     const config = employee.config || {};
@@ -1292,7 +1296,7 @@ const AIEmployeesPage = () => {
                                     setEditingAgentWorkflow(employee);
                                     setWorkflowDefinition(employee.config?.workflow || { nodes: [], edges: [] });
                                     const config = employee.config || {};
-                                    setAgentType(employee.category || (employee.agent_type === 'linkedin' ? 'prospeccao' : 'atendimento'));
+                                    setAgentType(config.category || config.niche || (employee.agent_type === 'linkedin' ? 'prospeccao' : 'atendimento'));
                                     setChannel(employee.agent_type);
                                     setAgentProfile({
                                       // Identity
@@ -1854,7 +1858,7 @@ const AIEmployeesPage = () => {
                   <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Excluir AI Employee
+                  Excluir membro
                 </h3>
               </div>
 
@@ -2018,7 +2022,7 @@ const AIEmployeesPage = () => {
             </button>
             <div>
               <h1 className="text-base font-semibold text-gray-900 dark:text-white">
-                {(editingAgent || editingAgentWorkflow) ? 'Editar AI Employee' : 'Criar AI Employee'}
+                {(editingAgent || editingAgentWorkflow) ? 'Editar membro' : 'Novo membro'}
               </h1>
               {!(editingAgent || editingAgentWorkflow) && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -2106,6 +2110,8 @@ const AIEmployeesPage = () => {
             onSave={handleProfileSave}
             onBack={handleBack}
             isEditing={!!(editingAgent || editingAgentWorkflow)}
+            onTypeChange={(newType) => setAgentType(newType)}
+            onChannelChange={(newChannel) => setChannel(newChannel)}
           />
         )}
 
@@ -2130,7 +2136,7 @@ const AIEmployeesPage = () => {
         {currentStep === STEPS.REVIEW && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-              {(editingAgent || editingAgentWorkflow) ? 'Atualizar AI Employee' : 'Revisao do AI Employee'}
+              {(editingAgent || editingAgentWorkflow) ? 'Atualizar membro' : 'Revisao do novo membro'}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -2250,12 +2256,12 @@ const AIEmployeesPage = () => {
                 {loading ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    {(editingAgent || editingAgentWorkflow) ? 'Atualizando...' : 'Criando...'}
+                    {(editingAgent || editingAgentWorkflow) ? 'Salvando...' : 'Adicionando...'}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    {(editingAgent || editingAgentWorkflow) ? 'Atualizar AI Employee' : 'Criar AI Employee'}
+                    {(editingAgent || editingAgentWorkflow) ? 'Salvar alteracoes' : 'Adicionar membro'}
                   </>
                 )}
               </button>

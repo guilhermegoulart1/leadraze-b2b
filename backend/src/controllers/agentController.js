@@ -468,6 +468,7 @@ const updateAgent = async (req, res) => {
       name,
       description,
       avatar_url,
+      agent_type,
       response_length,
       config,
       is_active,
@@ -494,7 +495,14 @@ const updateAgent = async (req, res) => {
 
     // Validate config if provided
     if (config) {
-      validateAgentConfig(existingAgent.agent_type, config);
+      validateAgentConfig(agent_type || existingAgent.agent_type, config);
+    }
+
+    // Validate agent_type if provided
+    if (agent_type !== undefined) {
+      if (!['linkedin', 'email', 'whatsapp', 'webchat', 'facilitador'].includes(agent_type)) {
+        throw new ValidationError('Invalid agent type');
+      }
     }
 
     // Build update query dynamically
@@ -517,6 +525,12 @@ const updateAgent = async (req, res) => {
     if (avatar_url !== undefined) {
       updates.push(`avatar_url = $${paramIndex}`);
       params.push(avatar_url);
+      paramIndex++;
+    }
+
+    if (agent_type !== undefined) {
+      updates.push(`agent_type = $${paramIndex}`);
+      params.push(agent_type);
       paramIndex++;
     }
 
@@ -1759,6 +1773,92 @@ const deleteAgentDocument = async (req, res) => {
   }
 };
 
+/**
+ * Test an HTTP request configuration
+ * Used by the HTTP Request node to test requests and see responses
+ */
+const testHTTPRequest = async (req, res) => {
+  try {
+    const { method, url, headers, queryParams, bodyType, body, timeout } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required' });
+    }
+
+    const axios = require('axios');
+
+    // Build headers
+    const requestHeaders = {};
+    if (headers && Array.isArray(headers)) {
+      headers.filter(h => h.enabled !== false && h.key).forEach(h => {
+        requestHeaders[h.key] = h.value;
+      });
+    }
+
+    // Build URL with query params
+    let urlObj;
+    try {
+      urlObj = new URL(url);
+    } catch (e) {
+      return res.status(400).json({ success: false, error: `Invalid URL: ${url}` });
+    }
+
+    if (queryParams && Array.isArray(queryParams)) {
+      queryParams.filter(p => p.enabled !== false && p.key).forEach(p => {
+        urlObj.searchParams.append(p.key, p.value);
+      });
+    }
+
+    // Build body
+    let requestBody = null;
+    if (['POST', 'PUT', 'PATCH'].includes(method) && bodyType !== 'none' && body) {
+      if (bodyType === 'json') {
+        requestHeaders['Content-Type'] = 'application/json';
+      }
+      requestBody = body;
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const response = await axios({
+        method: method || 'GET',
+        url: urlObj.toString(),
+        headers: requestHeaders,
+        data: requestBody,
+        timeout: timeout || 30000,
+        validateStatus: () => true
+      });
+
+      res.json({
+        success: true,
+        data: {
+          status: response.status,
+          statusText: response.statusText,
+          body: response.data,
+          headers: response.headers,
+          duration: Date.now() - startTime,
+          testedAt: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      res.json({
+        success: false,
+        data: {
+          status: 0,
+          statusText: error.message,
+          body: null,
+          duration: Date.now() - startTime,
+          testedAt: new Date().toISOString()
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error in testHTTPRequest:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   getAgents,
   getAgent,
@@ -1788,5 +1888,7 @@ module.exports = {
   // Document endpoints
   uploadDocument,
   getAgentDocuments,
-  deleteAgentDocument
+  deleteAgentDocument,
+  // HTTP Request testing
+  testHTTPRequest
 };

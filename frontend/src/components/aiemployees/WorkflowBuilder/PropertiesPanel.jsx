@@ -1,9 +1,11 @@
 // frontend/src/components/aiemployees/WorkflowBuilder/PropertiesPanel.jsx
 // Panel for editing node properties
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw, DollarSign, ArrowRightCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Trash2, Plus, MessageCircle, Target, Clock, Zap, GitBranch, PhoneCall, Send, Mail, User, Users, Building2, RefreshCw, Tag, MinusCircle, RotateCcw, DollarSign, ArrowRightCircle, Filter, Globe, Play, Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import api from '../../../services/api';
+import VariableTextarea from './inputs/VariableTextarea';
+import VariableInput from './inputs/VariableInput';
 
 // Cores pré-definidas para tags (mesmo do TagsPage)
 const PRESET_COLORS = [
@@ -44,15 +46,8 @@ const getTagStyles = (hexColor) => {
   };
 };
 
-// Available template variables for messages (must match backend replaceVariables)
-const MESSAGE_VARIABLES = [
-  { key: 'first_name', label: 'Primeiro Nome', description: 'Primeiro nome do lead' },
-  { key: 'name', label: 'Nome Completo', description: 'Nome completo do lead' },
-  { key: 'company', label: 'Empresa', description: 'Nome da empresa' },
-  { key: 'title', label: 'Cargo', description: 'Cargo/titulo do lead' },
-  { key: 'location', label: 'Localizacao', description: 'Cidade/regiao do lead' },
-  { key: 'industry', label: 'Industria', description: 'Setor da empresa' }
-];
+// Variables are now handled by VariablePicker component
+// See: frontend/src/constants/workflowVariables.js for definitions
 
 // All possible trigger events grouped by channel
 const TRIGGER_EVENTS = {
@@ -83,10 +78,8 @@ const TRIGGER_EVENTS = {
   exit_intent: { label: 'Intencao de Saida', channel: 'webchat' }
 };
 
-const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
+const PropertiesPanel = ({ node, onUpdate, onDelete, onClose, onOpenHttpModal }) => {
   const [localData, setLocalData] = useState(node.data);
-  const inviteNoteRef = useRef(null);
-  const actionMessageRef = useRef(null);
 
   // State for transfer configuration
   const [users, setUsers] = useState([]);
@@ -379,29 +372,6 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
     onUpdate(node.id, newData);
   };
 
-  // Insert variable at cursor position in textarea
-  const insertVariable = (variableKey, fieldName, textareaRef, maxLength = null) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const variable = `{{${variableKey}}}`;
-    const currentValue = localData[fieldName] || '';
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-
-    const newValue = currentValue.substring(0, start) + variable + currentValue.substring(end);
-
-    // Respect max length if specified
-    if (maxLength && newValue.length > maxLength) return;
-
-    handleChange(fieldName, newValue);
-    // Set cursor position after inserted variable
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + variable.length, start + variable.length);
-    }, 0);
-  };
-
   const handleExampleAdd = () => {
     const examples = localData.examples || [];
     handleChange('examples', [...examples, '']);
@@ -502,39 +472,18 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
             </button>
           </div>
 
-          {/* Invite Note Text with Variable Badges */}
+          {/* Invite Note Text with Variable Picker */}
           {localData.withNote && (
             <div className="space-y-1.5">
-              {/* Variable Badges */}
-              <div className="flex flex-wrap gap-1">
-                {MESSAGE_VARIABLES.map((v) => (
-                  <button
-                    key={v.key}
-                    type="button"
-                    onClick={() => insertVariable(v.key, 'inviteNote', inviteNoteRef, 300)}
-                    className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors cursor-pointer"
-                    title={`${v.label} - ${v.description}`}
-                  >
-                    {`{{${v.key}}}`}
-                  </button>
-                ))}
-              </div>
-
-              {/* Textarea */}
-              <textarea
-                ref={inviteNoteRef}
+              <VariableTextarea
                 value={localData.inviteNote || ''}
-                onChange={(e) => handleChange('inviteNote', e.target.value.slice(0, 300))}
+                onChange={(value) => handleChange('inviteNote', value.slice(0, 300))}
                 rows={3}
                 maxLength={300}
-                className="w-full px-2 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white resize-none text-[11px]"
-                placeholder="Ola {{first_name}}, vi que voce trabalha na {{company}}..."
+                showCharCount={true}
+                className="text-[11px] bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:text-white"
+                placeholder="Ola {{first_name}}, vi que voce trabalha na {{company}}... (digite {{ para variaveis)"
               />
-
-              {/* Character count */}
-              <div className="text-[10px] text-gray-400 dark:text-gray-500 text-right">
-                {(localData.inviteNote || '').length}/300
-              </div>
             </div>
           )}
         </div>
@@ -571,6 +520,175 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           placeholder="Quando convite for aceito..."
         />
       </div>
+
+      {/* WhatsApp/Message Trigger Filters */}
+      {['message_received', 'first_contact', 'media_received', 'button_clicked', 'list_selected', 'chat_started'].includes(localData.event) && (
+        <div className="space-y-3 p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+          {/* Header with toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-cyan-700 dark:text-cyan-400">
+              <Filter className="w-3 h-3" />
+              Filtros de Ativacao
+            </div>
+            <button
+              type="button"
+              onClick={() => handleChange('filtersEnabled', !localData.filtersEnabled)}
+              className={`relative w-9 h-5 rounded-full transition-colors ${
+                localData.filtersEnabled ? 'bg-cyan-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                localData.filtersEnabled ? 'translate-x-4' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">
+            Defina condicoes para ativar o agente. Se nenhuma condicao for atendida, o agente nao sera ativado.
+          </p>
+
+          {localData.filtersEnabled && (
+            <>
+              {/* Logic selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-600 dark:text-gray-400">Combinar com:</span>
+                <div className="flex gap-1">
+                  {['AND', 'OR'].map((logic) => (
+                    <button
+                      key={logic}
+                      type="button"
+                      onClick={() => handleChange('filtersLogic', logic)}
+                      className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                        (localData.filtersLogic || 'AND') === logic
+                          ? 'bg-cyan-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {logic === 'AND' ? 'Todos (AND)' : 'Qualquer (OR)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter list */}
+              <div className="space-y-2">
+                {(localData.filters || []).map((filter, idx) => (
+                  <div key={filter.id || idx} className="flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600">
+                    <div className="flex-1 space-y-1.5">
+                      {/* Filter type */}
+                      <select
+                        value={filter.type || 'contains'}
+                        onChange={(e) => {
+                          const filters = [...(localData.filters || [])];
+                          filters[idx] = { ...filter, type: e.target.value };
+                          handleChange('filters', filters);
+                        }}
+                        className="w-full px-2 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white"
+                      >
+                        <option value="contains">Contem</option>
+                        <option value="exactly">Exatamente</option>
+                        <option value="starts_with">Comeca com</option>
+                        <option value="ends_with">Termina com</option>
+                        <option value="regex">Regex</option>
+                        <option value="keyword_list">Lista de palavras</option>
+                      </select>
+
+                      {/* Value input */}
+                      {filter.type === 'keyword_list' ? (
+                        <textarea
+                          value={filter.value || ''}
+                          onChange={(e) => {
+                            const filters = [...(localData.filters || [])];
+                            filters[idx] = { ...filter, value: e.target.value };
+                            handleChange('filters', filters);
+                          }}
+                          placeholder="palavra1, palavra2, palavra3..."
+                          rows={2}
+                          className="w-full px-2 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded resize-none dark:text-white"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={filter.value || ''}
+                          onChange={(e) => {
+                            const filters = [...(localData.filters || [])];
+                            filters[idx] = { ...filter, value: e.target.value };
+                            handleChange('filters', filters);
+                          }}
+                          placeholder={filter.type === 'regex' ? '^pattern.*$' : 'Texto para buscar...'}
+                          className="w-full px-2 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded dark:text-white"
+                        />
+                      )}
+
+                      {/* Options */}
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1 text-[10px] text-gray-600 dark:text-gray-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filter.negate || false}
+                            onChange={(e) => {
+                              const filters = [...(localData.filters || [])];
+                              filters[idx] = { ...filter, negate: e.target.checked };
+                              handleChange('filters', filters);
+                            }}
+                            className="w-3 h-3 rounded"
+                          />
+                          NAO deve conter
+                        </label>
+                        <label className="flex items-center gap-1 text-[10px] text-gray-600 dark:text-gray-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filter.caseSensitive || false}
+                            onChange={(e) => {
+                              const filters = [...(localData.filters || [])];
+                              filters[idx] = { ...filter, caseSensitive: e.target.checked };
+                              handleChange('filters', filters);
+                            }}
+                            className="w-3 h-3 rounded"
+                          />
+                          Case sensitive
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const filters = (localData.filters || []).filter((_, i) => i !== idx);
+                        handleChange('filters', filters);
+                      }}
+                      className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add filter button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const filters = [...(localData.filters || [])];
+                  filters.push({
+                    id: `filter-${Date.now()}`,
+                    type: 'contains',
+                    value: '',
+                    caseSensitive: false,
+                    negate: false
+                  });
+                  handleChange('filters', filters);
+                }}
+                className="flex items-center gap-1 text-[11px] text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
+              >
+                <Plus className="w-3 h-3" />
+                Adicionar filtro
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 
@@ -1183,30 +1301,11 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
             <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
               Título da Reunião
             </label>
-            <div className="flex flex-wrap gap-1 mb-1">
-              {MESSAGE_VARIABLES.slice(0, 4).map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => {
-                    const currentTitle = localData.params?.meetingTitle || '';
-                    handleChange('params', {
-                      ...localData.params,
-                      meetingTitle: currentTitle + `{{${v.key}}}`
-                    });
-                  }}
-                  className="inline-flex items-center px-1 py-0.5 text-[9px] font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded hover:bg-indigo-200 transition-colors cursor-pointer"
-                >
-                  {`{{${v.key}}}`}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
+            <VariableInput
               value={localData.params?.meetingTitle || ''}
-              onChange={(e) => handleChange('params', { ...localData.params, meetingTitle: e.target.value })}
-              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:text-white text-[11px]"
-              placeholder="Reunião com {{company}}"
+              onChange={(value) => handleChange('params', { ...localData.params, meetingTitle: value })}
+              className="text-[11px] bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:text-white"
+              placeholder="Reunião com {{company}} (digite {{ para variaveis)"
             />
           </div>
 
@@ -1256,29 +1355,14 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
           <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
             Mensagem {localData.actionType === 'transfer' ? '(opcional)' : ''}
           </label>
-          {/* Variable Badges */}
-          <div className="flex flex-wrap gap-1">
-            {MESSAGE_VARIABLES.map((v) => (
-              <button
-                key={v.key}
-                type="button"
-                onClick={() => insertVariable(v.key, 'message', actionMessageRef)}
-                className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors cursor-pointer"
-                title={`${v.label} - ${v.description}`}
-              >
-                {`{{${v.key}}}`}
-              </button>
-            ))}
-          </div>
-          <textarea
-            ref={actionMessageRef}
+          <VariableTextarea
             value={localData.message || ''}
-            onChange={(e) => handleChange('message', e.target.value)}
+            onChange={(value) => handleChange('message', value)}
             rows={2}
-            className="w-full px-2 py-1.5 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white resize-none"
+            className="text-[11px] bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:text-white"
             placeholder={localData.actionType === 'transfer'
-              ? "Mensagem antes de transferir..."
-              : "Ola {{first_name}}..."}
+              ? "Mensagem antes de transferir... (digite {{ para variaveis)"
+              : "Ola {{first_name}}... (digite {{ para variaveis)"}
           />
         </div>
       )}
@@ -1769,30 +1853,11 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
             <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
               Titulo da Oportunidade
             </label>
-            <div className="flex flex-wrap gap-1 mb-1">
-              {MESSAGE_VARIABLES.slice(0, 4).map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => {
-                    const currentTitle = localData.params?.title || '';
-                    handleChange('params', {
-                      ...localData.params,
-                      title: currentTitle + `{{${v.key}}}`
-                    });
-                  }}
-                  className="inline-flex items-center px-1 py-0.5 text-[9px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 transition-colors cursor-pointer"
-                >
-                  {`{{${v.key}}}`}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
+            <VariableInput
               value={localData.params?.title || ''}
-              onChange={(e) => handleChange('params', { ...localData.params, title: e.target.value })}
-              className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
-              placeholder="{{name}} - {{company}}"
+              onChange={(value) => handleChange('params', { ...localData.params, title: value })}
+              className="text-[11px] bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:text-white"
+              placeholder="{{name}} - {{company}} (digite {{ para variaveis)"
             />
             <p className="text-[9px] text-gray-400 dark:text-gray-500">
               Deixe vazio para usar nome do lead
@@ -1942,6 +2007,79 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
     </>
   );
 
+  const renderHTTPRequestProperties = () => {
+    const methodColors = {
+      GET: 'bg-green-500',
+      POST: 'bg-blue-500',
+      PUT: 'bg-amber-500',
+      DELETE: 'bg-red-500',
+      PATCH: 'bg-purple-500'
+    };
+
+    const method = localData.method || 'GET';
+    const hasUrl = !!localData.url;
+    const hasVariables = localData.extractVariables?.length > 0;
+    const hasHeaders = localData.headers?.length > 0;
+
+    return (
+    <>
+      {/* Summary Card */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 text-[10px] font-bold text-white rounded ${methodColors[method]}`}>
+            {method}
+          </span>
+          <span className="text-xs text-gray-600 dark:text-gray-300 truncate flex-1 font-mono">
+            {localData.url || 'URL nao configurada'}
+          </span>
+        </div>
+
+        {/* Quick stats */}
+        <div className="flex gap-3 text-[10px] text-gray-500 dark:text-gray-400">
+          {hasHeaders && (
+            <span>{localData.headers.length} header(s)</span>
+          )}
+          {hasVariables && (
+            <span>{localData.extractVariables.length} variavel(is)</span>
+          )}
+        </div>
+
+        {/* Last test result */}
+        {localData.lastTestResult && (
+          <div className={`flex items-center gap-2 text-xs ${
+            localData.lastTestResult.status >= 200 && localData.lastTestResult.status < 400
+              ? 'text-green-600 dark:text-green-400'
+              : 'text-red-600 dark:text-red-400'
+          }`}>
+            {localData.lastTestResult.status >= 200 && localData.lastTestResult.status < 400 ? (
+              <CheckCircle className="w-3 h-3" />
+            ) : (
+              <XCircle className="w-3 h-3" />
+            )}
+            <span>Ultimo teste: {localData.lastTestResult.status} ({localData.lastTestResult.duration}ms)</span>
+          </div>
+        )}
+      </div>
+
+      {/* Open Modal Button */}
+      <button
+        type="button"
+        onClick={() => onOpenHttpModal && onOpenHttpModal(node.id)}
+        className="w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-all flex items-center justify-center gap-2 font-medium text-sm shadow-lg shadow-indigo-500/25"
+      >
+        <Globe className="w-4 h-4" />
+        Configurar HTTP Request
+      </button>
+
+      <p className="text-[10px] text-center text-gray-500 dark:text-gray-400">
+        Clique para abrir o editor completo ou de duplo clique no no
+      </p>
+    </>
+  );
+  };
+
+  // Old inline HTTP config code removed - now uses modal
+
   const renderProperties = () => {
     switch (node.type) {
       case 'trigger':
@@ -1952,8 +2090,10 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
         return renderConditionProperties();
       case 'action':
         return renderActionProperties();
+      case 'httpRequest':
+        return renderHTTPRequestProperties();
       default:
-        return <p className="text-gray-500">Tipo de no desconhecido</p>;
+        return null;
     }
   };
 
@@ -1963,6 +2103,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
       case 'conversationStep': return <MessageCircle className="w-4 h-4 text-purple-500" />;
       case 'condition': return <GitBranch className="w-4 h-4 text-amber-500" />;
       case 'action': return <PhoneCall className="w-4 h-4 text-blue-500" />;
+      case 'httpRequest': return <Globe className="w-4 h-4 text-indigo-500" />;
       default: return null;
     }
   };
@@ -1973,6 +2114,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose }) => {
       case 'conversationStep': return 'Etapa de Conversa';
       case 'condition': return 'Condicao';
       case 'action': return 'Acao';
+      case 'httpRequest': return 'HTTP Request';
       default: return 'No';
     }
   };

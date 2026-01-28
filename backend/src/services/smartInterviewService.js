@@ -165,13 +165,15 @@ async function generateAgentConfig(options) {
   const transferTriggers = determineTransferTriggers(agentType, answers);
 
   // Build the agent data
+  // Note: agentType is the CHANNEL (linkedin, whatsapp, email, webchat)
+  // niche is the CATEGORY (prospeccao, atendimento)
   const agentData = {
     account_id: accountId,
     user_id: userId,
     name: agentName,
     avatar_url: answers.avatar_url || null,
-    description: `AI Employee - ${agentType === 'prospeccao' ? 'Prospecção' : 'Atendimento'}${niche ? ` - ${niche}` : ''}`,
-    agent_type: agentType === 'prospeccao' ? 'linkedin' : 'whatsapp',
+    description: `AI Employee - ${niche === 'prospeccao' ? 'Prospecção' : 'Atendimento'} - ${agentType}`,
+    agent_type: agentType, // The channel selected by user
     products_services: productsServices,
     behavioral_profile: behavioralProfile,
     target_audience: JSON.stringify(targetAudience),
@@ -187,6 +189,7 @@ async function generateAgentConfig(options) {
       source: 'ai_employees_v2',
       template_id: templateId,
       niche: niche,
+      category: niche, // Category: prospeccao or atendimento
       interview_answers: answers,
       workflow: workflowDefinition || null,
       // Profile fields - saved directly for easy access on edit

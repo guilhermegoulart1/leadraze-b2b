@@ -2,7 +2,7 @@
 // Container principal com header estilo Artisan + tabs
 
 import React, { useState, useRef } from 'react';
-import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield, Loader2 } from 'lucide-react';
+import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield, Loader2, ChevronDown, Target, Headphones, MessageSquare, Linkedin, Mail, Globe } from 'lucide-react';
 import IdentityTab from './IdentityTab';
 import KnowledgeTab from './KnowledgeTab';
 import RulesTab from './RulesTab';
@@ -116,8 +116,10 @@ const typeLabels = {
   atendimento: 'Atendimento'
 };
 
-const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, initialData = null, isEditing = false, agentId = null }) => {
+const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, initialData = null, isEditing = false, agentId = null, onTypeChange, onChannelChange }) => {
   const [activeTab, setActiveTab] = useState('identity');
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [saving, setSaving] = useState(false);
   const initializedRef = React.useRef(false);
   const [profile, setProfile] = useState(() => {
@@ -260,9 +262,120 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, init
                 {isEditing ? 'Editando' : 'Configurando'}
               </span>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {agentType === 'prospeccao' ? 'SDR' : 'Atendente'} {channelLabels[channel]} • {typeLabels[agentType]}
-            </p>
+            {isEditing && onTypeChange && onChannelChange ? (
+              <div className="flex items-center gap-2 mt-1">
+                {/* Type Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowTypeDropdown(!showTypeDropdown);
+                      setShowChannelDropdown(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1 text-sm rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    {agentType === 'prospeccao' ? (
+                      <Target className="w-3.5 h-3.5 text-blue-500" />
+                    ) : (
+                      <Headphones className="w-3.5 h-3.5 text-green-500" />
+                    )}
+                    <span className="text-gray-700 dark:text-gray-300">{typeLabels[agentType]}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                  {showTypeDropdown && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                      <button
+                        onClick={() => {
+                          onTypeChange('prospeccao');
+                          setShowTypeDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${agentType === 'prospeccao' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                      >
+                        <Target className="w-4 h-4 text-blue-500" />
+                        <span className="text-gray-700 dark:text-gray-300">Prospeccao B2B</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onTypeChange('atendimento');
+                          setShowTypeDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${agentType === 'atendimento' ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+                      >
+                        <Headphones className="w-4 h-4 text-green-500" />
+                        <span className="text-gray-700 dark:text-gray-300">Atendimento</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-gray-400">•</span>
+
+                {/* Channel Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowChannelDropdown(!showChannelDropdown);
+                      setShowTypeDropdown(false);
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1 text-sm rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    {channel === 'whatsapp' && <MessageSquare className="w-3.5 h-3.5 text-green-500" />}
+                    {channel === 'linkedin' && <Linkedin className="w-3.5 h-3.5 text-blue-500" />}
+                    {channel === 'email' && <Mail className="w-3.5 h-3.5 text-purple-500" />}
+                    {channel === 'webchat' && <Globe className="w-3.5 h-3.5 text-cyan-500" />}
+                    <span className="text-gray-700 dark:text-gray-300">{channelLabels[channel]}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                  {showChannelDropdown && (
+                    <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                      <button
+                        onClick={() => {
+                          onChannelChange('whatsapp');
+                          setShowChannelDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${channel === 'whatsapp' ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+                      >
+                        <MessageSquare className="w-4 h-4 text-green-500" />
+                        <span className="text-gray-700 dark:text-gray-300">WhatsApp</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onChannelChange('linkedin');
+                          setShowChannelDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${channel === 'linkedin' ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                      >
+                        <Linkedin className="w-4 h-4 text-blue-500" />
+                        <span className="text-gray-700 dark:text-gray-300">LinkedIn</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onChannelChange('email');
+                          setShowChannelDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${channel === 'email' ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}
+                      >
+                        <Mail className="w-4 h-4 text-purple-500" />
+                        <span className="text-gray-700 dark:text-gray-300">Email</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onChannelChange('webchat');
+                          setShowChannelDropdown(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${channel === 'webchat' ? 'bg-cyan-50 dark:bg-cyan-900/20' : ''}`}
+                      >
+                        <Globe className="w-4 h-4 text-cyan-500" />
+                        <span className="text-gray-700 dark:text-gray-300">WebChat</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {agentType === 'prospeccao' ? 'SDR' : 'Atendente'} {channelLabels[channel]} • {typeLabels[agentType]}
+              </p>
+            )}
           </div>
 
           {/* Progress indicator - hide when editing */}

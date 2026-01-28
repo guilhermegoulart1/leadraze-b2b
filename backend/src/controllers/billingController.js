@@ -3,15 +3,17 @@
  *
  * Handles billing-related API requests
  *
- * Pricing model (USD):
- * - Base Plan: $45/month (1 channel, 2 users, 200 gmaps credits/month, 5000 AI credits/month)
- * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
- * - One-time credits: never expire
+ * Pricing is now dynamic via pricingService.
+ * Supports multiple currencies (BRL, USD, EUR) and custom pricing per account.
+ *
+ * @see migration 139_create_pricing_tables.sql
+ * @see services/pricingService.js
  */
 
 const stripeService = require('../services/stripeService');
 const billingService = require('../services/billingService');
 const subscriptionService = require('../services/subscriptionService');
+const pricingService = require('../services/pricingService');
 const {
   PLANS,
   ADDONS,
@@ -117,6 +119,94 @@ exports.getPlans = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get plans'
+    });
+  }
+};
+
+/**
+ * Get pricing by currency (public endpoint)
+ * Uses dynamic pricing tables from database
+ * Query: ?currency=BRL|USD|EUR
+ */
+exports.getPricing = async (req, res) => {
+  try {
+    const { currency = 'BRL' } = req.query;
+
+    // Validate currency
+    const validCurrencies = ['BRL', 'USD', 'EUR'];
+    const selectedCurrency = validCurrencies.includes(currency?.toUpperCase()) ? currency.toUpperCase() : 'BRL';
+
+    // Get pricing table for currency
+    const pricingTable = await pricingService.getDefaultPricingTable(selectedCurrency);
+
+    // Format response
+    const basePlan = pricingTable.items.find(i => i.product_type === 'base_plan');
+    const extraChannel = pricingTable.items.find(i => i.product_type === 'extra_channel');
+    const extraUser = pricingTable.items.find(i => i.product_type === 'extra_user');
+    const gmapsPackages = pricingTable.items.filter(i => i.product_type === 'credits_gmaps');
+    const aiPackages = pricingTable.items.filter(i => i.product_type === 'credits_ai');
+
+    // Currency symbol helper
+    const currencySymbols = { BRL: 'R$', USD: '$', EUR: '€' };
+    const symbol = currencySymbols[selectedCurrency] || '$';
+
+    const formatPrice = (cents) => `${symbol}${(cents / 100).toFixed(2)}`;
+
+    res.json({
+      success: true,
+      data: {
+        currency: selectedCurrency,
+        currencySymbol: symbol,
+        pricingTableId: pricingTable.id,
+        basePlan: basePlan ? {
+          name: basePlan.name,
+          description: basePlan.description,
+          price: basePlan.price_cents,
+          priceFormatted: formatPrice(basePlan.price_cents),
+          features: [
+            '1 communication channel',
+            '2 users',
+            '200 Google Maps credits/month',
+            '5,000 AI agent interactions/month',
+            'Unlimited AI agents',
+            'Priority support'
+          ]
+        } : null,
+        addons: {
+          channel: extraChannel ? {
+            name: extraChannel.name,
+            price: extraChannel.price_cents,
+            priceFormatted: formatPrice(extraChannel.price_cents)
+          } : null,
+          user: extraUser ? {
+            name: extraUser.name,
+            price: extraUser.price_cents,
+            priceFormatted: formatPrice(extraUser.price_cents)
+          } : null
+        },
+        creditPackages: {
+          gmaps: gmapsPackages.map(pkg => ({
+            key: `gmaps_${pkg.credits_amount}`,
+            name: pkg.name,
+            credits: pkg.credits_amount,
+            price: pkg.price_cents,
+            priceFormatted: formatPrice(pkg.price_cents)
+          })),
+          ai: aiPackages.map(pkg => ({
+            key: `ai_${pkg.credits_amount}`,
+            name: pkg.name,
+            credits: pkg.credits_amount,
+            price: pkg.price_cents,
+            priceFormatted: formatPrice(pkg.price_cents)
+          }))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting pricing:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pricing'
     });
   }
 };
@@ -599,24 +689,19 @@ exports.addExtraChannel = async (req, res) => {
 /**
  * Create checkout session for GUEST (no auth required)
  * Account will be created after successful payment via webhook
- * Body: { extraChannels?: number, extraUsers?: number }
+ * Body: { extraChannels?: number, extraUsers?: number, currency?: 'BRL'|'USD'|'EUR' }
  */
 exports.createGuestCheckoutSession = async (req, res) => {
   try {
-    const { extraChannels = 0, extraUsers = 0, successUrl, cancelUrl, affiliateCode, customerEmail } = req.body;
+    const { extraChannels = 0, extraUsers = 0, successUrl, cancelUrl, affiliateCode, customerEmail, currency = 'BRL' } = req.body;
 
     // Validate inputs
     const channels = Math.max(0, Math.min(10, parseInt(extraChannels) || 0));
     const users = Math.max(0, Math.min(50, parseInt(extraUsers) || 0));
 
-    // Get base plan
-    const plan = PLANS.base;
-    if (!plan || !plan.priceIdMonthly) {
-      return res.status(400).json({
-        success: false,
-        message: 'Plan not configured. Contact support.'
-      });
-    }
+    // Validate currency
+    const validCurrencies = ['BRL', 'USD', 'EUR'];
+    const selectedCurrency = validCurrencies.includes(currency?.toUpperCase()) ? currency.toUpperCase() : 'BRL';
 
     // Use provided URLs or fall back to defaults
     const finalSuccessUrl = successUrl || `${process.env.FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
@@ -627,7 +712,8 @@ exports.createGuestCheckoutSession = async (req, res) => {
       is_guest: 'true',
       plan_type: 'base',
       extra_channels: channels.toString(),
-      extra_users: users.toString()
+      extra_users: users.toString(),
+      currency: selectedCurrency
     };
 
     // Add affiliate code if provided
@@ -636,14 +722,15 @@ exports.createGuestCheckoutSession = async (req, res) => {
     }
 
     // Create checkout session WITHOUT customer (Stripe will collect email)
+    // stripeService will fetch the correct Price IDs from pricingService based on currency
     const session = await stripeService.createGuestCheckoutSession({
-      priceId: plan.priceIdMonthly,
       extraChannels: channels,
       extraUsers: users,
       successUrl: finalSuccessUrl,
       cancelUrl: finalCancelUrl,
       metadata,
-      customerEmail: customerEmail || undefined
+      customerEmail: customerEmail || undefined,
+      currency: selectedCurrency
     });
 
     res.json({

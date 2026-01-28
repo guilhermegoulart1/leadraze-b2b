@@ -156,10 +156,15 @@ const handleInvitationAction = async (req, res) => {
       return sendError(res, { message: 'This invitation has already been handled' }, 400);
     }
 
-    const { invitation_id: invitationId, linkedin_account_id: linkedinAccountId } = metadata;
+    const { invitation_id: invitationId, linkedin_account_id: linkedinAccountId, shared_secret: sharedSecret } = metadata;
 
     if (!invitationId || !linkedinAccountId) {
       return sendError(res, { message: 'Missing invitation data' }, 400);
+    }
+
+    if (!sharedSecret) {
+      console.error(`❌ [Invitation] Missing shared_secret for invitation ${invitationId}`);
+      return sendError(res, { message: 'Dados do convite incompletos. Shared secret não encontrado.' }, 400);
     }
 
     // Get the LinkedIn account
@@ -175,27 +180,55 @@ const handleInvitationAction = async (req, res) => {
     const unipileAccountId = accountResult.rows[0].unipile_account_id;
 
     // Perform the action via Unipile API
-    console.log(`📬 [Invitation] Handling invitation action: ${action} for ${invitationId}`);
+    // API requires: provider, shared_secret, account_id, action (accept/decline)
+    const unipileAction = action === 'accept' ? 'accept' : 'decline';
+
+    console.log(`📬 [Invitation] Handling invitation action: ${unipileAction} for ${invitationId}`);
+    console.log(`📬 [Invitation] unipile_account_id: ${unipileAccountId}`);
+    console.log(`📬 [Invitation] shared_secret: ${sharedSecret ? 'present' : 'missing'}`);
 
     try {
-      if (action === 'accept') {
-        await unipileClient.users.handleReceivedInvitation({
-          account_id: unipileAccountId,
-          invitation_id: invitationId,
-          action: 'accept'
-        });
-        console.log(`✅ [Invitation] Invitation accepted: ${invitationId}`);
-      } else {
-        await unipileClient.users.handleReceivedInvitation({
-          account_id: unipileAccountId,
-          invitation_id: invitationId,
-          action: 'reject'
-        });
-        console.log(`✅ [Invitation] Invitation rejected: ${invitationId}`);
-      }
+      await unipileClient.users.handleReceivedInvitation({
+        provider: 'LINKEDIN',
+        account_id: unipileAccountId,
+        shared_secret: sharedSecret,
+        action: unipileAction
+      });
+      console.log(`✅ [Invitation] Invitation ${unipileAction}ed: ${invitationId}`);
     } catch (apiError) {
-      console.error(`❌ [Invitation] API error: ${apiError.message}`);
-      return sendError(res, { message: `Failed to ${action} invitation: ${apiError.message}` }, 500);
+      console.error(`❌ [Invitation] API error:`, apiError.response?.data || apiError.message);
+
+      // Check if invitation no longer exists (already processed or expired)
+      const statusCode = apiError.response?.status || apiError.status;
+      if (statusCode === 400 || statusCode === 404) {
+        // Mark as handled to prevent future attempts
+        const updatedMetadata = {
+          ...metadata,
+          handled: true,
+          action_taken: 'expired',
+          action_at: new Date().toISOString(),
+          error: 'Convite não disponível'
+        };
+        await db.query(
+          `UPDATE notifications SET metadata = $1, is_read = true, read_at = NOW() WHERE id = $2`,
+          [JSON.stringify(updatedMetadata), notificationId]
+        );
+
+        // Clean up from snapshots
+        await db.query(
+          `DELETE FROM invitation_snapshots
+           WHERE linkedin_account_id = $1
+           AND invitation_id = $2
+           AND invitation_type = 'received'`,
+          [linkedinAccountId, invitationId]
+        );
+
+        return sendError(res, {
+          message: 'Este convite não está mais disponível. Pode ter sido processado diretamente no LinkedIn ou expirado.'
+        }, 400);
+      }
+
+      return sendError(res, { message: `Falha ao ${action === 'accept' ? 'aceitar' : 'recusar'} convite` }, 500);
     }
 
     // Update notification metadata to mark as handled
@@ -217,7 +250,7 @@ const handleInvitationAction = async (req, res) => {
     sendSuccess(res, {
       success: true,
       action,
-      message: action === 'accept' ? 'Convite aceito com sucesso' : 'Convite rejeitado com sucesso'
+      message: action === 'accept' ? 'Convite aceito com sucesso' : 'Convite recusado com sucesso'
     });
   } catch (error) {
     console.error('[NotificationController] Error handling invitation action:', error);

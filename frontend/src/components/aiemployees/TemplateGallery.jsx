@@ -35,17 +35,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-situation',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Situacao (S)',
               stepNumber: 1,
@@ -58,7 +71,7 @@ const TEMPLATES = {
           {
             id: 'step-problem',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Problema (P)',
               stepNumber: 2,
@@ -71,7 +84,7 @@ const TEMPLATES = {
           {
             id: 'step-implication',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Implicacao (I)',
               stepNumber: 3,
@@ -84,7 +97,7 @@ const TEMPLATES = {
           {
             id: 'step-need',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Necessidade (N)',
               stepNumber: 4,
@@ -97,16 +110,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Agendar Demo',
               actionType: 'transfer',
               message: 'Pelo que voce me contou, acredito que podemos ajudar bastante. Que tal agendarmos uma demonstracao rapida para eu te mostrar como resolvemos exatamente esses pontos?'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-situation', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-situation', source: 'condition-accepted', target: 'step-situation', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-situation', target: 'step-problem', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-problem', target: 'step-implication', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-implication', target: 'step-need', sourceHandle: 'right', targetHandle: 'left' },
@@ -129,17 +154,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-rapport',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Rapport',
               stepNumber: 1,
@@ -152,7 +190,7 @@ const TEMPLATES = {
           {
             id: 'step-need',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Need (Necessidade)',
               stepNumber: 2,
@@ -165,7 +203,7 @@ const TEMPLATES = {
           {
             id: 'step-timeline',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Timeline (Prazo)',
               stepNumber: 3,
@@ -178,7 +216,7 @@ const TEMPLATES = {
           {
             id: 'step-authority',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Authority (Autoridade)',
               stepNumber: 4,
@@ -191,7 +229,7 @@ const TEMPLATES = {
           {
             id: 'step-budget',
             type: 'conversationStep',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Budget (Orcamento)',
               stepNumber: 5,
@@ -204,16 +242,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 2080, y: 100 },
+            position: { x: 2700, y: 40 },
             data: {
               label: 'Agendar Reuniao',
               actionType: 'transfer',
               message: 'Perfeito! Pelo que conversamos, faz total sentido continuarmos. Posso agendar uma conversa com nosso especialista para aprofundarmos?'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-rapport', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-rapport', source: 'condition-accepted', target: 'step-rapport', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-rapport', target: 'step-need', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-need', target: 'step-timeline', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-timeline', target: 'step-authority', sourceHandle: 'right', targetHandle: 'left' },
@@ -237,17 +287,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-warmer',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Aquecimento',
               stepNumber: 1,
@@ -260,7 +323,7 @@ const TEMPLATES = {
           {
             id: 'step-teach',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Ensinar (Teach)',
               stepNumber: 2,
@@ -273,7 +336,7 @@ const TEMPLATES = {
           {
             id: 'step-tailor',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Personalizar (Tailor)',
               stepNumber: 3,
@@ -286,7 +349,7 @@ const TEMPLATES = {
           {
             id: 'step-control',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Controlar (Take Control)',
               stepNumber: 4,
@@ -299,16 +362,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Fechar Reuniao',
               actionType: 'transfer',
               message: 'Vou passar voce para meu colega que vai agendar o melhor horario. Ele ja tem o contexto da nossa conversa.'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-warmer', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-warmer', source: 'condition-accepted', target: 'step-warmer', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-warmer', target: 'step-teach', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-teach', target: 'step-tailor', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-tailor', target: 'step-control', sourceHandle: 'right', targetHandle: 'left' },
@@ -331,17 +406,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-bonding',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Rapport & Contrato',
               stepNumber: 1,
@@ -354,7 +442,7 @@ const TEMPLATES = {
           {
             id: 'step-pain',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Dor (Pain)',
               stepNumber: 2,
@@ -367,7 +455,7 @@ const TEMPLATES = {
           {
             id: 'step-budget',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Orcamento (Budget)',
               stepNumber: 3,
@@ -380,7 +468,7 @@ const TEMPLATES = {
           {
             id: 'step-decision',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Decisao (Decision)',
               stepNumber: 4,
@@ -393,7 +481,7 @@ const TEMPLATES = {
           {
             id: 'step-fulfillment',
             type: 'conversationStep',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Apresentacao',
               stepNumber: 5,
@@ -406,16 +494,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 2080, y: 100 },
+            position: { x: 2700, y: 40 },
             data: {
               label: 'Proximo Passo',
               actionType: 'transfer',
               message: 'Faz sentido para voce? Se sim, o proximo passo e uma demonstracao com nosso especialista. Posso agendar?'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-bonding', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-bonding', source: 'condition-accepted', target: 'step-bonding', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-bonding', target: 'step-pain', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-pain', target: 'step-budget', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-budget', target: 'step-decision', sourceHandle: 'right', targetHandle: 'left' },
@@ -439,17 +539,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-diagnose',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Diagnosticar',
               stepNumber: 1,
@@ -462,7 +575,7 @@ const TEMPLATES = {
           {
             id: 'step-design',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Desenhar Solucao',
               stepNumber: 2,
@@ -475,7 +588,7 @@ const TEMPLATES = {
           {
             id: 'step-demonstrate',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Demonstrar Valor',
               stepNumber: 3,
@@ -488,7 +601,7 @@ const TEMPLATES = {
           {
             id: 'step-defend',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Defender ROI',
               stepNumber: 4,
@@ -501,16 +614,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Avancar',
               actionType: 'transfer',
               message: 'Os numeros fazem sentido para voce? Vamos agendar uma sessao para desenhar como ficaria a implementacao no seu caso?'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-diagnose', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-diagnose', source: 'condition-accepted', target: 'step-diagnose', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-diagnose', target: 'step-design', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-design', target: 'step-demonstrate', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-demonstrate', target: 'step-defend', sourceHandle: 'right', targetHandle: 'left' },
@@ -533,17 +658,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-research',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Pesquisa & Contexto',
               stepNumber: 1,
@@ -556,7 +694,7 @@ const TEMPLATES = {
           {
             id: 'step-listen',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Escuta Ativa',
               stepNumber: 2,
@@ -569,7 +707,7 @@ const TEMPLATES = {
           {
             id: 'step-advise',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Aconselhar',
               stepNumber: 3,
@@ -582,7 +720,7 @@ const TEMPLATES = {
           {
             id: 'step-align',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Alinhar Solucao',
               stepNumber: 4,
@@ -595,16 +733,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Proximo Passo',
               actionType: 'transfer',
               message: 'Faz sentido explorarmos isso mais a fundo? Posso conectar voce com nosso especialista para uma conversa mais tecnica.'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-research', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-research', source: 'condition-accepted', target: 'step-research', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-research', target: 'step-listen', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-listen', target: 'step-advise', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-advise', target: 'step-align', sourceHandle: 'right', targetHandle: 'left' },
@@ -627,17 +777,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-discover',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Descobrir Objetivos',
               stepNumber: 1,
@@ -650,7 +813,7 @@ const TEMPLATES = {
           {
             id: 'step-gap',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Identificar Gap',
               stepNumber: 2,
@@ -663,7 +826,7 @@ const TEMPLATES = {
           {
             id: 'step-quantify',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Quantificar Valor',
               stepNumber: 3,
@@ -676,7 +839,7 @@ const TEMPLATES = {
           {
             id: 'step-differentiate',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Diferenciar',
               stepNumber: 4,
@@ -689,16 +852,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Business Case',
               actionType: 'transfer',
               message: 'Posso montar um business case personalizado mostrando o ROI para o seu caso? Agenda uma call de 30min para apresentar?'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-discover', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-discover', source: 'condition-accepted', target: 'step-discover', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-discover', target: 'step-gap', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-gap', target: 'step-quantify', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-quantify', target: 'step-differentiate', sourceHandle: 'right', targetHandle: 'left' },
@@ -721,17 +896,30 @@ const TEMPLATES = {
           {
             id: 'trigger-1',
             type: 'trigger',
-            position: { x: 40, y: 100 },
+            position: { x: 40, y: 120 },
             data: {
               label: 'Inicio',
-              event: 'invite_accepted',
-              description: 'Quando convite for aceito'
+              event: 'invite_sent',
+              description: 'Enviar convite de conexao',
+              withNote: true,
+              inviteNote: 'Ola {{first_name}}, tudo bem?'
+            }
+          },
+          {
+            id: 'condition-accepted',
+            type: 'condition',
+            position: { x: 420, y: 100 },
+            data: {
+              label: 'Convite Aceito?',
+              conditionType: 'invite_accepted',
+              waitTime: 7,
+              waitUnit: 'days'
             }
           },
           {
             id: 'step-current',
             type: 'conversationStep',
-            position: { x: 380, y: 100 },
+            position: { x: 800, y: 40 },
             data: {
               label: 'Estado Atual',
               stepNumber: 1,
@@ -744,7 +932,7 @@ const TEMPLATES = {
           {
             id: 'step-future',
             type: 'conversationStep',
-            position: { x: 720, y: 100 },
+            position: { x: 1180, y: 40 },
             data: {
               label: 'Estado Futuro',
               stepNumber: 2,
@@ -757,7 +945,7 @@ const TEMPLATES = {
           {
             id: 'step-gap',
             type: 'conversationStep',
-            position: { x: 1060, y: 100 },
+            position: { x: 1560, y: 40 },
             data: {
               label: 'Definir o Gap',
               stepNumber: 3,
@@ -770,7 +958,7 @@ const TEMPLATES = {
           {
             id: 'step-impact',
             type: 'conversationStep',
-            position: { x: 1400, y: 100 },
+            position: { x: 1940, y: 40 },
             data: {
               label: 'Impacto do Gap',
               stepNumber: 4,
@@ -783,16 +971,28 @@ const TEMPLATES = {
           {
             id: 'action-transfer',
             type: 'action',
-            position: { x: 1740, y: 100 },
+            position: { x: 2320, y: 40 },
             data: {
               label: 'Fechar o Gap',
               actionType: 'transfer',
               message: 'Nos ajudamos empresas a fechar exatamente esse tipo de gap. Quer ver como funcionaria no seu caso?'
             }
+          },
+          {
+            id: 'action-end',
+            type: 'action',
+            position: { x: 420, y: 280 },
+            data: {
+              label: 'Encerrar',
+              actionType: 'close_negative',
+              message: ''
+            }
           }
         ],
         edges: [
-          { id: 'e1', source: 'trigger-1', target: 'step-current', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-trigger-condition', source: 'trigger-1', target: 'condition-accepted', sourceHandle: 'right', targetHandle: 'left' },
+          { id: 'e-accepted-current', source: 'condition-accepted', target: 'step-current', sourceHandle: 'yes', targetHandle: 'left', label: 'Sim' },
+          { id: 'e-not-accepted-end', source: 'condition-accepted', target: 'action-end', sourceHandle: 'no', targetHandle: 'left', label: 'Nao' },
           { id: 'e2', source: 'step-current', target: 'step-future', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e3', source: 'step-future', target: 'step-gap', sourceHandle: 'right', targetHandle: 'left' },
           { id: 'e4', source: 'step-gap', target: 'step-impact', sourceHandle: 'right', targetHandle: 'left' },

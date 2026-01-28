@@ -4,10 +4,11 @@
  * Wrapper for Stripe SDK operations
  * Handles customer creation, subscriptions, checkout sessions, and webhooks
  *
- * Pricing model (USD):
- * - Base Plan: $55/month (1 channel, 2 users, 200 credits/month)
- * - Recurring add-ons: Channel (+$27/month), User (+$3/month)
- * - One-time credits: never expire
+ * IMPORTANT: Pricing is now dynamic via pricingService.
+ * Supports multiple currencies (BRL, USD, EUR) and custom pricing per account.
+ *
+ * @see migration 139_create_pricing_tables.sql
+ * @see services/pricingService.js
  */
 
 const {
@@ -21,6 +22,7 @@ const {
   getCreditPackageByPriceId
 } = require('../config/stripe');
 const db = require('../config/database');
+const pricingService = require('./pricingService');
 
 // Helper to check if Stripe is in test mode
 const isTestMode = () => {
@@ -78,13 +80,13 @@ class StripeService {
 
   /**
    * Create checkout session for subscription (Base plan + add-ons)
-   * Supports configuring extra channels and users upfront
+   * Uses dynamic pricing from pricingService based on account's pricing table
    */
   async createCheckoutSession(options) {
     const {
       accountId,
       customerId,
-      priceId,
+      priceId, // Optional: if provided, uses this; otherwise fetches from pricingService
       extraChannels = 0,
       extraUsers = 0,
       successUrl,
@@ -94,26 +96,51 @@ class StripeService {
       metadata = {}
     } = options;
 
+    // Get pricing from pricingService if priceId not provided
+    let basePlanPriceId = priceId;
+    let channelPriceId = ADDONS.channel?.priceId;
+    let userPriceId = ADDONS.user?.priceId;
+    let currency = 'USD';
+
+    if (accountId) {
+      try {
+        const pricing = await pricingService.getBillingPricing(accountId);
+        currency = pricing.currency;
+
+        if (!priceId && pricing.basePlan) {
+          basePlanPriceId = pricing.basePlan.priceId;
+        }
+        if (pricing.addons.channel) {
+          channelPriceId = pricing.addons.channel.priceId;
+        }
+        if (pricing.addons.user) {
+          userPriceId = pricing.addons.user.priceId;
+        }
+      } catch (error) {
+        console.warn('createCheckoutSession: pricingService lookup failed, using provided priceId', error.message);
+      }
+    }
+
     // Build line items array
     const lineItems = [
       {
-        price: priceId,
+        price: basePlanPriceId,
         quantity: 1
       }
     ];
 
     // Add extra channels if requested
-    if (extraChannels > 0 && ADDONS.channel.priceId) {
+    if (extraChannels > 0 && channelPriceId) {
       lineItems.push({
-        price: ADDONS.channel.priceId,
+        price: channelPriceId,
         quantity: extraChannels
       });
     }
 
     // Add extra users if requested
-    if (extraUsers > 0 && ADDONS.user.priceId) {
+    if (extraUsers > 0 && userPriceId) {
       lineItems.push({
-        price: ADDONS.user.priceId,
+        price: userPriceId,
         quantity: extraUsers
       });
     }
@@ -129,21 +156,22 @@ class StripeService {
         account_id: accountId,
         extra_channels: extraChannels.toString(),
         extra_users: extraUsers.toString(),
+        currency,
         ...metadata
       },
       // Billing address collection
       billing_address_collection: 'auto'
-      // Note: currency is determined by the Stripe price IDs (USD)
     };
 
-    // Add subscription metadata with 7-day trial
+    // Add subscription metadata with trial
     if (mode === 'subscription') {
       sessionConfig.subscription_data = {
         trial_period_days: trialDays,
         metadata: {
           account_id: accountId,
           extra_channels: extraChannels.toString(),
-          extra_users: extraUsers.toString()
+          extra_users: extraUsers.toString(),
+          currency
         }
       };
     }
@@ -156,6 +184,7 @@ class StripeService {
    * Create checkout session for GUEST (no account yet)
    * Stripe will collect customer email
    * Account will be created after successful payment via webhook
+   * Uses dynamic pricing based on currency parameter
    */
   async createGuestCheckoutSession(options) {
     const {
@@ -165,34 +194,56 @@ class StripeService {
       successUrl,
       cancelUrl,
       metadata = {},
-      customerEmail
+      customerEmail,
+      currency = 'BRL' // Default to BRL for new accounts
     } = options;
 
+    // Get pricing from pricingService based on currency
+    let basePlanPriceId = priceId;
+    let channelPriceId = ADDONS.channel?.priceId;
+    let userPriceId = ADDONS.user?.priceId;
+
+    if (!priceId) {
+      try {
+        const basePlan = await pricingService.getProductPriceIdForGuest(currency, 'base_plan');
+        basePlanPriceId = basePlan.priceId;
+
+        const extraChannel = await pricingService.getProductPriceIdForGuest(currency, 'extra_channel');
+        channelPriceId = extraChannel.priceId;
+
+        const extraUser = await pricingService.getProductPriceIdForGuest(currency, 'extra_user');
+        userPriceId = extraUser.priceId;
+      } catch (error) {
+        console.warn('createGuestCheckoutSession: pricingService lookup failed', error.message);
+        throw new Error(`No pricing available for currency: ${currency}`);
+      }
+    }
+
     // Log mode for debugging
-    validatePriceIdMode(priceId, 'base plan');
+    validatePriceIdMode(basePlanPriceId, 'base plan');
 
     // Build line items array
     const lineItems = [
       {
-        price: priceId,
+        price: basePlanPriceId,
         quantity: 1
       }
     ];
 
     // Add extra channels if requested
-    if (extraChannels > 0 && ADDONS.channel.priceId) {
-      validatePriceIdMode(ADDONS.channel.priceId, 'extra channel');
+    if (extraChannels > 0 && channelPriceId) {
+      validatePriceIdMode(channelPriceId, 'extra channel');
       lineItems.push({
-        price: ADDONS.channel.priceId,
+        price: channelPriceId,
         quantity: extraChannels
       });
     }
 
     // Add extra users if requested
-    if (extraUsers > 0 && ADDONS.user.priceId) {
-      validatePriceIdMode(ADDONS.user.priceId, 'extra user');
+    if (extraUsers > 0 && userPriceId) {
+      validatePriceIdMode(userPriceId, 'extra user');
       lineItems.push({
-        price: ADDONS.user.priceId,
+        price: userPriceId,
         quantity: extraUsers
       });
     }
@@ -206,20 +257,18 @@ class StripeService {
       cancel_url: cancelUrl,
       // Pre-fill email if captured from Hero form
       ...(customerEmail && { customer_email: customerEmail }),
-      // Note: customer_creation is only for payment mode
-      // For subscription mode, Stripe auto-creates customer when not provided
       // Collect phone number (required)
       phone_number_collection: {
         enabled: true
       },
       // Billing address collection (required - includes name)
       billing_address_collection: 'required',
-      // Note: currency is determined by the Stripe price IDs (USD)
       // Store metadata for webhook processing
       metadata: {
         is_guest: 'true',
         extra_channels: extraChannels.toString(),
         extra_users: extraUsers.toString(),
+        currency,
         ...metadata
       },
       subscription_data: {
@@ -228,6 +277,7 @@ class StripeService {
           is_guest: 'true',
           extra_channels: extraChannels.toString(),
           extra_users: extraUsers.toString(),
+          currency,
           ...metadata
         }
       }
@@ -241,8 +291,8 @@ class StripeService {
       if (error.code === 'resource_missing' && error.message?.includes('exists in live mode')) {
         const mode = isTestMode() ? 'TEST' : 'LIVE';
         console.error(`❌ Stripe Mode Mismatch: Using ${mode} mode key but price ID exists in the other mode.`);
-        console.error(`   Price ID: ${priceId}`);
-        console.error(`   Solution: Update STRIPE_PRICE_* env vars to match your STRIPE_SECRET_KEY mode.`);
+        console.error(`   Price ID: ${basePlanPriceId}`);
+        console.error(`   Solution: Check pricing_tables in database or STRIPE_* env vars.`);
         error.userMessage = `Stripe configuration error: Price IDs don't match the API key mode (${mode}). Please contact support.`;
       }
       throw error;
@@ -252,19 +302,42 @@ class StripeService {
   /**
    * Create checkout session for one-time credit purchase
    * Credits purchased this way NEVER expire
+   * Uses dynamic pricing from pricingService based on account's pricing table
    */
   async createCreditsCheckoutSession(options) {
     const {
       accountId,
       customerId,
-      packageKey,
+      packageKey, // Format: 'gmaps_500', 'gmaps_1000', 'ai_5000', etc.
       successUrl,
       cancelUrl
     } = options;
 
-    const creditPackage = CREDIT_PACKAGES[packageKey];
-    if (!creditPackage) {
-      throw new Error(`Invalid credit package: ${packageKey}`);
+    // Parse packageKey to get creditType and amount
+    const [creditType, creditsAmount] = packageKey.split('_');
+    const productType = creditType === 'ai' ? 'credits_ai' : 'credits_gmaps';
+
+    // Try to get pricing from pricingService
+    let priceId;
+    let credits;
+    let currency = 'BRL';
+
+    try {
+      const priceInfo = await pricingService.getProductPriceId(accountId, productType, {
+        creditsAmount: parseInt(creditsAmount)
+      });
+      priceId = priceInfo.priceId;
+      credits = priceInfo.creditsAmount;
+      currency = priceInfo.currency;
+    } catch (error) {
+      // Fallback to legacy CREDIT_PACKAGES
+      console.warn('createCreditsCheckoutSession: pricingService lookup failed, using legacy', error.message);
+      const creditPackage = CREDIT_PACKAGES[packageKey];
+      if (!creditPackage) {
+        throw new Error(`Invalid credit package: ${packageKey}`);
+      }
+      priceId = creditPackage.priceId;
+      credits = creditPackage.credits;
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -272,18 +345,19 @@ class StripeService {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: creditPackage.priceId,
+          price: priceId,
           quantity: 1
         }
       ],
       mode: 'payment',
       success_url: successUrl,
       cancel_url: cancelUrl,
-      // Note: currency is determined by the Stripe price IDs (USD)
       metadata: {
         account_id: accountId,
         credit_package: packageKey,
-        credits: creditPackage.credits.toString(),
+        credits: credits.toString(),
+        credit_type: creditType,
+        currency,
         never_expires: 'true'  // One-time purchases never expire
       }
     });
@@ -687,32 +761,57 @@ class StripeService {
   /**
    * Create subscription using existing payment method (for resubscription)
    * This allows users who canceled to resubscribe without entering card again
+   * Uses dynamic pricing from pricingService based on account's pricing table
    */
   async createSubscriptionWithPaymentMethod(options) {
     const {
+      accountId,
       customerId,
       paymentMethodId,
-      priceId,
+      priceId, // Optional: if provided, uses this; otherwise fetches from pricingService
       extraChannels = 0,
       extraUsers = 0,
       metadata = {}
     } = options;
 
+    // Get pricing from pricingService if priceId not provided
+    let basePlanPriceId = priceId;
+    let channelPriceId = ADDONS.channel?.priceId;
+    let userPriceId = ADDONS.user?.priceId;
+    let currency = 'BRL';
+
+    if (accountId && !priceId) {
+      try {
+        const pricing = await pricingService.getBillingPricing(accountId);
+        currency = pricing.currency;
+        basePlanPriceId = pricing.basePlan.priceId;
+        if (pricing.addons.channel) {
+          channelPriceId = pricing.addons.channel.priceId;
+        }
+        if (pricing.addons.user) {
+          userPriceId = pricing.addons.user.priceId;
+        }
+      } catch (error) {
+        console.warn('createSubscriptionWithPaymentMethod: pricingService lookup failed', error.message);
+        throw new Error('Could not determine pricing for account');
+      }
+    }
+
     // Build items array
-    const items = [{ price: priceId }];
+    const items = [{ price: basePlanPriceId }];
 
     // Add extra channels if requested
-    if (extraChannels > 0 && ADDONS.channel.priceId) {
+    if (extraChannels > 0 && channelPriceId) {
       items.push({
-        price: ADDONS.channel.priceId,
+        price: channelPriceId,
         quantity: extraChannels
       });
     }
 
     // Add extra users if requested
-    if (extraUsers > 0 && ADDONS.user.priceId) {
+    if (extraUsers > 0 && userPriceId) {
       items.push({
-        price: ADDONS.user.priceId,
+        price: userPriceId,
         quantity: extraUsers
       });
     }
@@ -732,8 +831,10 @@ class StripeService {
       trial_period_days: TRIAL_CONFIG.days,
       metadata: {
         ...metadata,
+        account_id: accountId,
         extra_channels: extraChannels.toString(),
-        extra_users: extraUsers.toString()
+        extra_users: extraUsers.toString(),
+        currency
       },
       expand: ['latest_invoice.payment_intent']
     });

@@ -21,10 +21,17 @@ const stripeWebhookController = require('../controllers/stripeWebhookController'
 router.get('/plans', billingController.getPlans);
 
 /**
+ * GET /api/billing/pricing
+ * Get pricing by currency (dynamic pricing from database)
+ * Query: ?currency=BRL|USD|EUR
+ */
+router.get('/pricing', billingController.getPricing);
+
+/**
  * POST /api/billing/checkout-guest
  * Create Stripe Checkout session for new customers (no auth required)
  * Account will be created automatically after successful payment via webhook
- * Body: { extraChannels?: number, extraUsers?: number, successUrl?: string, cancelUrl?: string }
+ * Body: { extraChannels?: number, extraUsers?: number, successUrl?: string, cancelUrl?: string, currency?: 'BRL'|'USD'|'EUR' }
  */
 router.post('/checkout-guest', billingController.createGuestCheckoutSession);
 

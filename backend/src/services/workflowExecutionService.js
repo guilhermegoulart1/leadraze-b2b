@@ -15,6 +15,7 @@ const workflowStateService = require('./workflowStateService');
 const workflowLogService = require('./workflowLogService');
 const workflowConditionEvaluator = require('./workflowConditionEvaluator');
 const workflowActionExecutors = require('./workflowActionExecutors');
+const workflowTriggerFilterEvaluator = require('./workflowTriggerFilterEvaluator');
 const aiResponseService = require('./aiResponseService');
 const ragService = require('./ragService');
 
@@ -213,6 +214,20 @@ async function executeFromNode(startNode, workflowDef, context) {
     switch (currentNode.type) {
       case 'trigger':
         nodeResult = await executeTriggerNode(currentNode, context);
+        // If trigger was filtered, stop workflow execution
+        if (nodeResult.filtered) {
+          console.log(`🚫 [Workflow] Trigger filtered - stopping execution: ${nodeResult.reason}`);
+          return {
+            executedNodes: [{ nodeId: currentNode.id, nodeType: 'trigger', result: nodeResult }],
+            response: null,
+            allResponses: [],
+            paused: false,
+            completed: false,
+            filtered: true,
+            filterReason: nodeResult.reason,
+            filterResults: nodeResult.filterResults
+          };
+        }
         break;
 
       case 'conversationStep':
@@ -310,6 +325,10 @@ async function executeFromNode(startNode, workflowDef, context) {
 
       case 'condition':
         nodeResult = await executeConditionNode(currentNode, context);
+        break;
+
+      case 'httpRequest':
+        nodeResult = await executeHTTPRequestNode(currentNode, context);
         break;
 
       case 'action':
@@ -529,10 +548,47 @@ async function executeFromNode(startNode, workflowDef, context) {
 
 /**
  * Execute trigger node
+ * Evaluates trigger filters if configured before allowing workflow to proceed
  */
 async function executeTriggerNode(node, context) {
   const { data } = node;
 
+  // Check if trigger has filters that should be evaluated
+  if (data.filtersEnabled && data.filters && data.filters.length > 0 && context.message) {
+    const filterResult = workflowTriggerFilterEvaluator.evaluateTriggerFilters(data, context.message);
+
+    if (!filterResult.passes) {
+      // Log that trigger was filtered out
+      await workflowLogService.logEvent({
+        conversationId: context.conversationId,
+        testSessionId: context.testSessionId,
+        agentId: context.agentId,
+        nodeId: node.id,
+        nodeType: 'trigger',
+        nodeLabel: data.label || data.event,
+        eventType: 'trigger_filtered',
+        inputData: { message: context.message, filters: data.filters },
+        outputData: filterResult,
+        decisionReason: filterResult.reason,
+        success: false
+      });
+
+      console.log(`🚫 [Trigger] Filtered out: ${filterResult.reason}`);
+
+      return {
+        success: false,
+        filtered: true,
+        reason: filterResult.reason,
+        filterResults: filterResult.results,
+        event: data.event,
+        matched: false
+      };
+    }
+
+    console.log(`✅ [Trigger] Filters passed: ${filterResult.reason}`);
+  }
+
+  // Log trigger fired
   await workflowLogService.logTriggerFired({
     conversationId: context.conversationId,
     testSessionId: context.testSessionId,
@@ -767,6 +823,66 @@ async function executeActionNode(node, context) {
 }
 
 /**
+ * Execute HTTP Request node
+ */
+async function executeHTTPRequestNode(node, context) {
+  // Log action start
+  await workflowLogService.logActionStarted({
+    conversationId: context.conversationId,
+    testSessionId: context.testSessionId,
+    agentId: context.agentId,
+    nodeId: node.id,
+    nodeType: 'httpRequest',
+    nodeLabel: node.data?.label || 'HTTP Request',
+    inputData: node.data
+  });
+
+  // Create a node object that looks like an action node for the executor
+  const actionNode = {
+    ...node,
+    data: {
+      ...node.data,
+      actionType: 'http_request'
+    }
+  };
+
+  const result = await workflowActionExecutors.executeAction(actionNode, context);
+
+  // Generate description
+  const method = node.data?.method || 'GET';
+  const url = node.data?.url || 'URL nao configurada';
+  const statusText = result.success ? `Status ${result.result?.status || 200}` : 'Falha';
+  const actionDescription = `${method} ${url.substring(0, 50)}${url.length > 50 ? '...' : ''} → ${statusText}`;
+
+  if (result.success) {
+    await workflowLogService.logActionCompleted({
+      conversationId: context.conversationId,
+      testSessionId: context.testSessionId,
+      agentId: context.agentId,
+      nodeId: node.id,
+      nodeType: 'httpRequest',
+      nodeLabel: node.data?.label || 'HTTP Request',
+      outputData: result,
+      decisionReason: actionDescription,
+      durationMs: result.durationMs
+    });
+  } else {
+    await workflowLogService.logActionFailed({
+      conversationId: context.conversationId,
+      testSessionId: context.testSessionId,
+      agentId: context.agentId,
+      nodeId: node.id,
+      nodeType: 'httpRequest',
+      nodeLabel: node.data?.label || 'HTTP Request',
+      errorMessage: result.error || 'HTTP request failed',
+      durationMs: result.durationMs
+    });
+  }
+
+  return result;
+}
+
+/**
  * Generate human-readable description of action result
  */
 function getActionDescription(actionType, result, isTestMode) {
@@ -953,6 +1069,33 @@ function findNextNode(workflowDef, currentNode, nodeResult) {
     return null;
   }
 
+  // For httpRequest nodes with path (success/error), follow the appropriate handle
+  if (currentNode.type === 'httpRequest' && nodeResult?.path) {
+    console.log(`🔍 [findNextNode] HTTPRequest path: ${nodeResult.path}, looking for edge from ${currentNode.id}`);
+
+    const nodeEdges = workflowDef.edges.filter(e => e.source === currentNode.id);
+    console.log(`🔍 [findNextNode] Available edges:`, nodeEdges.map(e => ({
+      sourceHandle: e.sourceHandle,
+      target: e.target
+    })));
+
+    // Try to find edge matching the path (success or error)
+    const edge = workflowDef.edges.find(e =>
+      e.source === currentNode.id &&
+      e.sourceHandle === nodeResult.path
+    );
+
+    if (edge) {
+      console.log(`✅ [findNextNode] Found edge to: ${edge.target}`);
+      return findNodeById(workflowDef, edge.target);
+    }
+
+    // IMPORTANT: For httpRequest nodes, if the specific path edge is not found,
+    // do NOT fall through - return null to stop this branch
+    console.log(`⚠️ [findNextNode] No edge found for httpRequest path '${nodeResult.path}'`);
+    return null;
+  }
+
   // For other nodes, find any outgoing edge
   const edge = workflowDef.edges.find(e => e.source === currentNode.id);
 
@@ -972,18 +1115,44 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     `SELECT
       c.*,
       o.id as opportunity_id,
+      o.title as opportunity_title,
+      o.value as opportunity_value,
+      o.currency as opportunity_currency,
+      o.probability as opportunity_probability,
+      o.score as opportunity_score,
+      o.company_size as opportunity_company_size,
+      o.budget as opportunity_budget,
+      o.timeline as opportunity_timeline,
+      o.expected_close_date as opportunity_expected_close_date,
+      o.source as opportunity_source,
+      o.notes as opportunity_notes,
+      ps.name as opportunity_stage_name,
+      pp.name as opportunity_pipeline_name,
       ct.id as contact_id,
       ct.name as contact_name,
+      ct.first_name as contact_first_name,
+      ct.last_name as contact_last_name,
       ct.email as contact_email,
       ct.phone as contact_phone,
       ct.company as contact_company,
       ct.title as contact_title,
+      ct.location as contact_location,
+      ct.headline as contact_headline,
+      ct.industry as contact_industry,
+      ct.about as contact_about,
+      ct.connections_count as contact_connections_count,
+      ct.profile_url as contact_profile_url,
+      ct.is_premium as contact_is_premium,
+      ct.custom_fields as contact_custom_fields,
       ct.linkedin_profile_id as contact_unipile_id,
       la.unipile_account_id,
       camp.id as campaign_id,
+      camp.name as campaign_name,
       aa.*
      FROM conversations c
      LEFT JOIN opportunities o ON c.opportunity_id = o.id
+     LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
+     LEFT JOIN pipelines pp ON o.pipeline_id = pp.id
      LEFT JOIN contacts ct ON o.contact_id = ct.id
      LEFT JOIN campaigns camp ON c.campaign_id = camp.id
      LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
@@ -1035,6 +1204,52 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
       status: conv.status
     },
 
+    // Full contact data for variable processing
+    contact: {
+      id: conv.contact_id,
+      name: conv.contact_name,
+      first_name: conv.contact_first_name,
+      last_name: conv.contact_last_name,
+      email: conv.contact_email,
+      phone: conv.contact_phone,
+      company: conv.contact_company,
+      title: conv.contact_title,
+      location: conv.contact_location,
+      headline: conv.contact_headline,
+      industry: conv.contact_industry,
+      about: conv.contact_about,
+      connections_count: conv.contact_connections_count,
+      profile_url: conv.contact_profile_url,
+      is_premium: conv.contact_is_premium,
+      custom_fields: conv.contact_custom_fields
+    },
+
+    // Opportunity data for variable processing
+    opportunity: conv.opportunity_id ? {
+      id: conv.opportunity_id,
+      title: conv.opportunity_title,
+      value: conv.opportunity_value,
+      currency: conv.opportunity_currency,
+      probability: conv.opportunity_probability,
+      score: conv.opportunity_score,
+      company_size: conv.opportunity_company_size,
+      budget: conv.opportunity_budget,
+      timeline: conv.opportunity_timeline,
+      expected_close_date: conv.opportunity_expected_close_date,
+      source: conv.opportunity_source,
+      notes: conv.opportunity_notes,
+      stage_name: conv.opportunity_stage_name,
+      stage: conv.opportunity_stage_name,
+      pipeline_name: conv.opportunity_pipeline_name,
+      pipeline: conv.opportunity_pipeline_name
+    } : null,
+
+    // Campaign data
+    campaign: conv.campaign_id ? {
+      id: conv.campaign_id,
+      name: conv.campaign_name
+    } : null,
+
     // Agent data
     agent: {
       id: state.agentId,
@@ -1047,13 +1262,25 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
       schedulingLink: conv.scheduling_link
     },
 
-    // Unipile config
+    // Channel data for variable processing
+    channel: {
+      type: conv.channel || conv.provider_type || 'linkedin',
+      name: conv.channel_name || '',
+      isGroup: conv.is_group || false,
+      groupName: conv.group_name || '',
+      attendeeCount: conv.attendee_count || 0
+    },
+
+    // Unipile config (legacy compatibility)
     unipileAccountId: conv.unipile_account_id,
     leadUnipileId: conv.lead_unipile_id,
-    channel: conv.channel || 'linkedin',
 
-    // Workflow variables
+    // Workflow variables (includes HTTP extracted variables)
     variables: state.variables || {},
+    workflowVariables: state.variables || {},
+
+    // Custom variables defined in workflow
+    customVariables: state.customVariables || [],
 
     // Step history for tracking attempts per node
     stepHistory: state.stepHistory || [],
@@ -1067,6 +1294,13 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
       lastMessageAt: stats.last_message_at,
       exchangeCount: Math.min(parseInt(stats.lead_messages) || 0, parseInt(stats.ai_messages) || 0)
     },
+
+    // Workflow step tracking
+    currentStep: state.currentStep || null,
+    stepNumber: state.stepNumber || 0,
+    attempts: state.attempts || 0,
+    workflowStartedAt: state.startedAt || null,
+    conversationStartedAt: conv.created_at,
 
     // Intent/sentiment from payload
     lastIntent: payload.intent,

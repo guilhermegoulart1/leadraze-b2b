@@ -20,9 +20,11 @@ import TriggerNode from './nodes/TriggerNode';
 import ConversationStepNode from './nodes/ConversationStepNode';
 import ConditionNode from './nodes/ConditionNode';
 import ActionNode from './nodes/ActionNode';
+import HTTPRequestNode from './nodes/HTTPRequestNode';
 import DeletableEdge from './edges/DeletableEdge';
 import Sidebar from './Sidebar';
 import PropertiesPanel from './PropertiesPanel';
+import HTTPRequestModal from './modals/HTTPRequestModal';
 
 import { Play, Save, Eye, Trash2, Check, Loader2, AlertCircle, XCircle } from 'lucide-react';
 
@@ -31,7 +33,8 @@ const nodeTypes = {
   trigger: TriggerNode,
   conversationStep: ConversationStepNode,
   condition: ConditionNode,
-  action: ActionNode
+  action: ActionNode,
+  httpRequest: HTTPRequestNode
 };
 
 // Define custom edge types
@@ -181,28 +184,71 @@ const generateWorkflowFromAnswers = (agentType, interviewAnswers) => {
   return { nodes, edges };
 };
 
-// Empty initial workflow (just trigger)
-const getEmptyWorkflow = (agentType, channel) => ({
-  nodes: [
-    {
-      id: 'trigger-1',
-      type: 'trigger',
-      position: { x: 40, y: 80 },
-      data: {
-        label: 'Inicio',
-        event: channel === 'linkedin' ? 'invite_sent' :
-               channel === 'email' ? 'email_sent' :
-               agentType === 'prospeccao' ? 'first_contact' : 'message_received',
-        description: channel === 'linkedin' ? 'Enviar convite de conexao' :
-                     channel === 'email' ? 'Enviar primeiro email' :
-                     'Quando mensagem for recebida',
-        withNote: channel === 'linkedin' ? true : undefined,
-        inviteNote: channel === 'linkedin' ? 'Ola {{first_name}}, vi que voce trabalha na {{company}}. Adoraria conectar para trocar ideias sobre {{title}}.' : undefined
+// Empty initial workflow (just trigger, or trigger + condition for LinkedIn prospecting)
+const getEmptyWorkflow = (agentType, channel) => {
+  // Para LinkedIn + prospecção: incluir trigger + condição de aceite
+  if (channel === 'linkedin' && agentType === 'prospeccao') {
+    return {
+      nodes: [
+        {
+          id: 'trigger-1',
+          type: 'trigger',
+          position: { x: 40, y: 120 },
+          data: {
+            label: 'Inicio',
+            event: 'invite_sent',
+            description: 'Enviar convite de conexao',
+            withNote: true,
+            inviteNote: 'Ola {{first_name}}, tudo bem?'
+          }
+        },
+        {
+          id: 'condition-accepted',
+          type: 'condition',
+          position: { x: 420, y: 100 },
+          data: {
+            label: 'Convite Aceito?',
+            conditionType: 'invite_accepted',
+            waitTime: 7,
+            waitUnit: 'days'
+          }
+        }
+      ],
+      edges: [
+        {
+          id: 'e-trigger-condition',
+          source: 'trigger-1',
+          target: 'condition-accepted',
+          sourceHandle: 'right',
+          targetHandle: 'left'
+        }
+      ]
+    };
+  }
+
+  // Comportamento padrão para outros canais
+  return {
+    nodes: [
+      {
+        id: 'trigger-1',
+        type: 'trigger',
+        position: { x: 40, y: 80 },
+        data: {
+          label: 'Inicio',
+          event: channel === 'linkedin' ? 'invite_sent' :
+                 channel === 'email' ? 'email_sent' :
+                 agentType === 'prospeccao' ? 'first_contact' : 'message_received',
+          description: channel === 'linkedin' ? 'Enviar convite de conexao' :
+                       channel === 'email' ? 'Enviar primeiro email' :
+                       'Quando mensagem for recebida',
+          withNote: channel === 'linkedin' ? true : undefined,
+          inviteNote: channel === 'linkedin' ? 'Ola {{first_name}}, vi que voce trabalha na {{company}}. Adoraria conectar para trocar ideias sobre {{title}}.' : undefined
+        }
       }
-    }
-  ],
-  edges: []
-});
+    ],
+    edges: []
+  };
+};
 
 // LinkedIn SDR complete workflow template
 const getLinkedInSDRWorkflow = () => ({
@@ -411,6 +457,10 @@ const WorkflowBuilderInner = ({
   // Validation state
   const [validationErrors, setValidationErrors] = useState([]);
   const [showValidationModal, setShowValidationModal] = useState(false);
+
+  // HTTP Request Modal state
+  const [httpRequestModalOpen, setHttpRequestModalOpen] = useState(false);
+  const [httpRequestModalNodeId, setHttpRequestModalNodeId] = useState(null);
 
   // Validate workflow before saving
   const validateWorkflow = useCallback((nodesToValidate, edgesToValidate) => {
@@ -720,6 +770,17 @@ const WorkflowBuilderInner = ({
         label: eventLabels[triggerEvent] || 'Trigger',
         event: triggerEvent || 'message_received',
         description: ''
+      },
+      httpRequest: {
+        label: 'HTTP Request',
+        method: 'GET',
+        url: '',
+        headers: [],
+        queryParams: [],
+        bodyType: 'none',
+        body: '',
+        timeout: 30000,
+        responseVariables: []
       }
     };
 
@@ -791,6 +852,19 @@ const WorkflowBuilderInner = ({
     setEdges([]);
     setSelectedNode(null);
   }, [nodes, setNodes, setEdges]);
+
+  // Open HTTP Request modal
+  const openHttpRequestModal = useCallback((nodeId) => {
+    setHttpRequestModalNodeId(nodeId);
+    setHttpRequestModalOpen(true);
+  }, []);
+
+  // Save HTTP Request modal data
+  const handleHttpRequestModalSave = useCallback((newData) => {
+    if (httpRequestModalNodeId) {
+      updateNodeData(httpRequestModalNodeId, newData);
+    }
+  }, [httpRequestModalNodeId, updateNodeData]);
 
   // Build workflow object for saving
   const buildWorkflow = useCallback(() => {
@@ -944,10 +1018,12 @@ const WorkflowBuilderInner = ({
       data: {
         ...node.data,
         onDelete: deleteNode,
-        onClone: cloneNode
+        onClone: cloneNode,
+        // Add modal opener for HTTP Request nodes
+        ...(node.type === 'httpRequest' ? { onOpenModal: openHttpRequestModal } : {})
       }
     }));
-  }, [nodes, deleteNode, cloneNode]);
+  }, [nodes, deleteNode, cloneNode, openHttpRequestModal]);
 
   // Inject onDelete callback into all edges
   const edgesWithCallbacks = useMemo(() => {
@@ -1085,8 +1161,20 @@ const WorkflowBuilderInner = ({
           onUpdate={updateNodeData}
           onDelete={deleteNode}
           onClose={() => setSelectedNode(null)}
+          onOpenHttpModal={openHttpRequestModal}
         />
       )}
+
+      {/* HTTP Request Modal */}
+      <HTTPRequestModal
+        isOpen={httpRequestModalOpen}
+        onClose={() => {
+          setHttpRequestModalOpen(false);
+          setHttpRequestModalNodeId(null);
+        }}
+        nodeData={nodes.find(n => n.id === httpRequestModalNodeId)?.data || {}}
+        onSave={handleHttpRequestModalSave}
+      />
 
       {/* Validation Modal */}
       {showValidationModal && (
