@@ -4,12 +4,12 @@ import { Users } from 'lucide-react';
 
 // Avatares dos agentes (mesmas URLs do backend)
 const AGENT_AVATARS = [
-  { id: 'diagnostico', name: 'Dr. Victor', image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop&crop=face' },
-  { id: 'closer', name: 'Sofia', image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop&crop=face' },
-  { id: 'objections', name: 'Lucas', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
-  { id: 'relationship', name: 'Marina', image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face' },
-  { id: 'discovery', name: 'Rafael', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face' },
-  { id: 'reengagement', name: 'Camila', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face' },
+  { id: 'diagnostico', image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop&crop=face' },
+  { id: 'closer', image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop&crop=face' },
+  { id: 'objections', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+  { id: 'relationship', image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face' },
+  { id: 'discovery', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face' },
+  { id: 'reengagement', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face' },
 ];
 
 /**
@@ -27,8 +27,8 @@ const SecretAgentPanel = ({ onCallAgent }) => {
           <img
             key={agent.id}
             src={agent.image}
-            alt={agent.name}
-            title={agent.name}
+            alt={t(`agents.${agent.id}.name`)}
+            title={t(`agents.${agent.id}.name`)}
             className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 object-cover hover:scale-110 transition-transform"
             style={{ zIndex: AGENT_AVATARS.length - index }}
           />

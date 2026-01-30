@@ -133,7 +133,7 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
 
     try {
       const response = await api.generateSecretAgentCoaching(conversationId, {
-        objective: objective.trim() || 'Análise automática da conversa',
+        objective: objective.trim() || t('input.autoAnalysis'),
         agent_type: selectedAgent.id,
         language: i18n.language || 'pt'
       });
@@ -192,42 +192,47 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
     if (!result?.parsed) return;
 
     const p = result.parsed;
-    const date = new Date().toLocaleDateString('pt-BR');
-    const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const localeMap = { pt: 'pt-BR', en: 'en-US', es: 'es-ES' };
+    const currentLocale = localeMap[i18n.language] || localeMap.en;
+    const date = new Date().toLocaleDateString(currentLocale);
+    const time = new Date().toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' });
 
-    let content = `ORIENTAÇÃO DE VENDAS - ${selectedAgent?.name?.toUpperCase() || 'AGENTE'}\n`;
+    const agentName = t(`agents.${selectedAgent?.id}.name`, selectedAgent?.name);
+    const agentTitle = t(`agents.${selectedAgent?.id}.title`, selectedAgent?.title);
+
+    let content = `${t('download.title')} - ${agentName?.toUpperCase() || t('download.agent').toUpperCase()}\n`;
     content += `${'='.repeat(50)}\n`;
-    content += `Gerado em: ${date} às ${time}\n`;
-    content += `Agente: ${selectedAgent?.name} - ${selectedAgent?.title}\n`;
-    if (objective) content += `Objetivo: ${objective}\n`;
-    content += `Mensagens analisadas: ${result.messagesAnalyzed}\n\n`;
+    content += `${t('download.generatedAt')}: ${date} ${t('download.at')} ${time}\n`;
+    content += `${t('download.agent')}: ${agentName} - ${agentTitle}\n`;
+    if (objective) content += `${t('download.objective')}: ${objective}\n`;
+    content += `${t('download.messagesAnalyzed')}: ${result.messagesAnalyzed}\n\n`;
 
     if (selectedAgent?.isChief) {
       // Formato de diagnóstico
-      if (p.diagnostico) content += `DIAGNÓSTICO\n${'-'.repeat(30)}\n${p.diagnostico}\n\n`;
-      if (p.estagio_venda) content += `Estágio da Venda: ${p.estagio_venda}\n`;
-      if (p.temperatura_lead) content += `Temperatura do Lead: ${p.temperatura_lead}\n`;
-      if (p.potencial_fechamento) content += `Potencial de Fechamento: ${p.potencial_fechamento}\n\n`;
-      if (p.principal_bloqueio) content += `Principal Bloqueio: ${p.principal_bloqueio}\n\n`;
+      if (p.diagnostico) content += `${t('download.diagnosis')}\n${'-'.repeat(30)}\n${p.diagnostico}\n\n`;
+      if (p.estagio_venda) content += `${t('download.saleStage')}: ${p.estagio_venda}\n`;
+      if (p.temperatura_lead) content += `${t('download.leadTemperature')}: ${p.temperatura_lead}\n`;
+      if (p.potencial_fechamento) content += `${t('download.closingPotential')}: ${p.potencial_fechamento}\n\n`;
+      if (p.principal_bloqueio) content += `${t('download.mainBlock')}: ${p.principal_bloqueio}\n\n`;
       if (p.especialista_recomendado) {
-        content += `ESPECIALISTA RECOMENDADO\n${'-'.repeat(30)}\n`;
+        content += `${t('download.recommendedSpecialist')}\n${'-'.repeat(30)}\n`;
         content += `${p.especialista_recomendado.nome}: ${p.especialista_recomendado.motivo}\n\n`;
       }
-      if (p.acao_imediata) content += `Ação Imediata: ${p.acao_imediata}\n`;
-      if (p.risco_identificado) content += `Risco: ${p.risco_identificado}\n`;
+      if (p.acao_imediata) content += `${t('download.immediateAction')}: ${p.acao_imediata}\n`;
+      if (p.risco_identificado) content += `${t('download.risk')}: ${p.risco_identificado}\n`;
     } else {
       // Formato padrão
-      if (p.tecnica) content += `TÉCNICA RECOMENDADA: ${p.tecnica}\n`;
-      if (p.tecnica_motivo) content += `Motivo: ${p.tecnica_motivo}\n\n`;
-      if (p.situacao) content += `ANÁLISE DA SITUAÇÃO\n${'-'.repeat(30)}\n${p.situacao}\n\n`;
+      if (p.tecnica) content += `${t('download.recommendedTechnique')}: ${p.tecnica}\n`;
+      if (p.tecnica_motivo) content += `${t('download.reason')}: ${p.tecnica_motivo}\n\n`;
+      if (p.situacao) content += `${t('download.situationAnalysis')}\n${'-'.repeat(30)}\n${p.situacao}\n\n`;
       if (p.pontos_atencao?.length > 0) {
-        content += `PONTOS DE ATENÇÃO\n${'-'.repeat(30)}\n`;
+        content += `${t('download.attentionPoints')}\n${'-'.repeat(30)}\n`;
         p.pontos_atencao.forEach((ponto, i) => content += `${i + 1}. ${ponto}\n`);
         content += `\n`;
       }
-      if (p.sugestao_mensagem) content += `SUGESTÃO DE MENSAGEM\n${'-'.repeat(30)}\n${p.sugestao_mensagem}\n\n`;
+      if (p.sugestao_mensagem) content += `${t('download.messageSuggestion')}\n${'-'.repeat(30)}\n${p.sugestao_mensagem}\n\n`;
       if (p.proximos_passos?.length > 0) {
-        content += `PRÓXIMOS PASSOS\n${'-'.repeat(30)}\n`;
+        content += `${t('download.nextSteps')}\n${'-'.repeat(30)}\n`;
         p.proximos_passos.forEach((passo, i) => content += `${i + 1}. ${passo}\n`);
       }
     }
@@ -236,7 +241,7 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `orientacao-${selectedAgent?.id || 'vendas'}-${date.replace(/\//g, '-')}.txt`;
+    a.download = `${t('download.filePrefix')}-${selectedAgent?.id || 'sales'}-${date.replace(/\//g, '-')}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -274,15 +279,15 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
                 <div className="flex items-center gap-3">
                   <img
                     src={selectedAgent.image}
-                    alt={selectedAgent.name}
+                    alt={t(`agents.${selectedAgent.id}.name`, selectedAgent.name)}
                     className={`w-10 h-10 rounded-full object-cover ring-2 ${colors.ring}`}
                   />
                   <div>
                     <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-                      {selectedAgent.name}
+                      {t(`agents.${selectedAgent.id}.name`, selectedAgent.name)}
                     </h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {selectedAgent.title}
+                      {t(`agents.${selectedAgent.id}.title`, selectedAgent.title)}
                     </p>
                   </div>
                 </div>
@@ -348,20 +353,20 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
                     <div className="flex items-center gap-4">
                       <img
                         src={chiefAgent.image}
-                        alt={chiefAgent.name}
+                        alt={t(`agents.${chiefAgent.id}.name`, chiefAgent.name)}
                         className="w-16 h-16 rounded-full object-cover ring-2 ring-indigo-500 group-hover:ring-4 transition-all"
                       />
                       <div className="flex-1 text-left">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {chiefAgent.name}
+                            {t(`agents.${chiefAgent.id}.name`, chiefAgent.name)}
                           </h3>
                           <span className="px-2 py-0.5 text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full">
                             {t('team.chiefConsultant')}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-                          {chiefAgent.description}
+                          {t(`agents.${chiefAgent.id}.description`, chiefAgent.description)}
                         </p>
                         <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 flex items-center gap-1">
                           <Zap className="w-3 h-3" />
@@ -394,18 +399,18 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
                         <div className="flex items-start gap-3">
                           <img
                             src={agent.image}
-                            alt={agent.name}
+                            alt={t(`agents.${agent.id}.name`, agent.name)}
                             className={`w-12 h-12 rounded-full object-cover ring-2 ${agentColors.ring} group-hover:ring-4 transition-all`}
                           />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-gray-900 dark:text-white text-sm">
-                              {agent.name}
+                              {t(`agents.${agent.id}.name`, agent.name)}
                             </h3>
                             <p className={`text-xs ${agentColors.text} font-medium`}>
-                              {agent.title}
+                              {t(`agents.${agent.id}.title`, agent.title)}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                              {agent.focus}
+                              {t(`agents.${agent.id}.focus`, agent.focus)}
                             </p>
                           </div>
                         </div>
@@ -423,7 +428,7 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
               {/* Agent greeting */}
               <div className={`p-4 rounded-lg ${colors.bg} ${colors.border} border`}>
                 <p className={`text-sm ${colors.text} italic`}>
-                  "{selectedAgent.greeting}"
+                  "{t(`agents.${selectedAgent.id}.greeting`, selectedAgent.greeting)}"
                 </p>
               </div>
 
@@ -436,7 +441,7 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
                 <textarea
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
-                  placeholder={selectedAgent.placeholder}
+                  placeholder={t(`agents.${selectedAgent.id}.placeholder`, selectedAgent.placeholder)}
                   rows={4}
                   autoFocus
                   className="w-full px-4 py-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none placeholder-gray-400 dark:placeholder-gray-500"
@@ -448,7 +453,7 @@ const SecretAgentModal = ({ isOpen, onClose, conversationId, onSuccess }) => {
                 <div className="flex flex-col items-center justify-center py-8">
                   <Loader className={`w-8 h-8 ${colors.text} animate-spin mb-4`} />
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {selectedAgent.name} {t('input.analyzing')}
+                    {t(`agents.${selectedAgent.id}.name`, selectedAgent.name)} {t('input.analyzing')}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     {t('input.mayTakeSomeSeconds')}
