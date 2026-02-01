@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
   Mail, Settings, Globe, Link2, Gift, Key, CheckSquare, ListTodo,
-  AlertCircle, Check, X, UserPlus, Loader, ClipboardList
+  AlertCircle, Check, X, UserPlus, Loader, ClipboardList, Camera
 } from 'lucide-react';
 import { onAccountDisconnected } from '../services/ably';
 import { useTranslation } from 'react-i18next';
@@ -250,6 +250,7 @@ const Layout = () => {
     { path: '/aiemployees', labelKey: 'menu.aiAgents', icon: Bot },
     { path: '/campaigns', labelKey: 'menu.linkedin', icon: Linkedin },
     { path: '/google-maps-agents', labelKey: 'menu.googleMaps', icon: MapPin },
+    { path: '/instagram-agents', labelKey: 'menu.instagram', icon: Camera },
     { path: '/activation-campaigns', labelKey: 'menu.lists', icon: Award },
   ];
 

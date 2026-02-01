@@ -20,7 +20,8 @@
     "settings": "Settings",
     "help": "Help",
     "logout": "Logout",
-    "secretAgent": "Secret Agent"
+    "secretAgent": "Secret Agent",
+    "instagram": "Instagram"
   },
   "sections": {
     "work": "WORK",

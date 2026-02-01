@@ -20,7 +20,8 @@
     "settings": "Configuración",
     "help": "Ayuda",
     "logout": "Salir",
-    "secretAgent": "Agente Secreto"
+    "secretAgent": "Agente Secreto",
+    "instagram": "Instagram"
   },
   "sections": {
     "work": "TRABAJO",

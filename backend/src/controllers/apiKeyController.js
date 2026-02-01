@@ -14,7 +14,11 @@ const AVAILABLE_PERMISSIONS = [
   'contacts:delete',
   'opportunities:read',
   'opportunities:write',
-  'opportunities:delete'
+  'opportunities:delete',
+  'campaigns:read',
+  'campaigns:write',
+  'instagram_agents:read',
+  'instagram_agents:write'
 ];
 
 /**

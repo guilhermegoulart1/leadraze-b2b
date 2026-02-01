@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GetRaze</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <div class="logo">GR</div>
+      <h1>GetRaze</h1>
+    </div>
+
+    <!-- Not connected state -->
+    <div id="setup-section" class="section">
+      <p class="description">Conecte sua conta GetRaze para adicionar perfis do LinkedIn e Instagram diretamente às suas campanhas.</p>
+      <div class="input-group">
+        <label for="api-key-input">API Key</label>
+        <input type="password" id="api-key-input" placeholder="lr_live_..." autocomplete="off">
+      </div>
+      <button id="save-btn" class="btn btn-primary">Conectar</button>
+      <div id="error-message" class="error-message" style="display: none;"></div>
+    </div>
+
+    <!-- Connected state -->
+    <div id="connected-section" class="section" style="display: none;">
+      <div class="status-card">
+        <div class="status-indicator connected"></div>
+        <div class="status-text">
+          <span class="status-label">Conectado</span>
+          <span id="connected-since" class="status-detail"></span>
+        </div>
+      </div>
+      <div class="info-box">
+        <p>A extensao esta ativa. Navegue para um perfil no LinkedIn ou Instagram para adiciona-lo a uma campanha.</p>
+      </div>
+      <button id="disconnect-btn" class="btn btn-secondary">Desconectar</button>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading-section" class="section" style="display: none;">
+      <div class="spinner"></div>
+      <p>Validando...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

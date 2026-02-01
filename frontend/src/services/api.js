@@ -1645,6 +1645,81 @@ class ApiService {
   }
 
   // ================================
+  // INSTAGRAM AGENTS
+  // ================================
+
+  async getInstagramAgents(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/instagram-agents${query ? '?' + query : ''}`);
+  }
+
+  async getInstagramAgent(id) {
+    return this.request(`/instagram-agents/${id}`);
+  }
+
+  async createInstagramAgent(data) {
+    return this.request('/instagram-agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInstagramAgent(id, data) {
+    return this.request(`/instagram-agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteInstagramAgent(id) {
+    return this.request(`/instagram-agents/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async executeInstagramAgent(id) {
+    return this.request(`/instagram-agents/${id}/execute`, {
+      method: 'POST',
+    });
+  }
+
+  async pauseInstagramAgent(id) {
+    return this.request(`/instagram-agents/${id}/pause`, {
+      method: 'PUT',
+    });
+  }
+
+  async resumeInstagramAgent(id) {
+    return this.request(`/instagram-agents/${id}/resume`, {
+      method: 'PUT',
+    });
+  }
+
+  async getInstagramAgentProfiles(id, params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/instagram-agents/${id}/profiles${query ? '?' + query : ''}`);
+  }
+
+  async exportInstagramAgentCSV(agentId) {
+    const url = `${this.baseURL}/instagram-agents/${agentId}/export`;
+    const token = this.getToken();
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    if (!response.ok) throw new Error('Erro ao exportar CSV');
+    const text = await response.text();
+    const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `instagram-profiles-${agentId}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  // ================================
   // COMPANIES (LinkedIn via Unipile)
   // ================================
 

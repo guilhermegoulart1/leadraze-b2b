@@ -3,8 +3,7 @@
 const { delayedConversationQueue } = require('../queues');
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
-const aiResponseService = require('../services/aiResponseService');
-const TemplateProcessor = require('../utils/templateProcessor');
+const workflowExecutionService = require('../services/workflowExecutionService');
 
 /**
  * Delayed Conversation Worker
@@ -55,21 +54,9 @@ async function getOpportunityAndCampaign(opportunityId) {
       c.ai_agent_id,
       c.linkedin_account_id,
       ai.name as ai_agent_name,
-      ai.initial_approach,
-      ai.objective,
-      ai.behavioral_profile,
-      ai.tone,
-      ai.language,
-      ai.system_prompt,
-      ai.products_services,
-      ai.response_style_instructions,
-      ai.auto_schedule,
-      ai.scheduling_link,
-      ai.intent_detection_enabled,
-      ai.priority_rules,
-      ai.target_audience,
-      ai.escalation_rules,
-      ai.max_messages_before_transfer,
+      ai.workflow_definition,
+      ai.workflow_enabled,
+      ai.config as ai_config,
       la.unipile_account_id
     FROM opportunities o
     LEFT JOIN contacts ct ON o.contact_id = ct.id
@@ -85,61 +72,6 @@ async function getOpportunityAndCampaign(opportunityId) {
   }
 
   return result.rows[0];
-}
-
-/**
- * Gerar mensagem inicial da IA
- * Usa aiResponseService.generateInitialMessage() para garantir consistencia
- * com o Test Mode e usar todas as configuracoes do agente (Contratar Vendedor)
- * @param {Object} opportunityData - Dados da opportunity, contato e campanha
- * @returns {Promise<string>} Mensagem gerada
- */
-async function generateInitialMessage(opportunityData) {
-  // Montar objeto ai_agent com todos os campos necessarios
-  const ai_agent = {
-    id: opportunityData.ai_agent_id,
-    name: opportunityData.ai_agent_name,
-    initial_approach: opportunityData.initial_approach,
-    objective: opportunityData.objective,
-    behavioral_profile: opportunityData.behavioral_profile,
-    tone: opportunityData.tone,
-    language: opportunityData.language,
-    system_prompt: opportunityData.system_prompt,
-    products_services: opportunityData.products_services,
-    response_style_instructions: opportunityData.response_style_instructions,
-    auto_schedule: opportunityData.auto_schedule,
-    scheduling_link: opportunityData.scheduling_link,
-    intent_detection_enabled: opportunityData.intent_detection_enabled,
-    priority_rules: opportunityData.priority_rules,
-    target_audience: opportunityData.target_audience,
-    escalation_rules: opportunityData.escalation_rules,
-    max_messages_before_transfer: opportunityData.max_messages_before_transfer,
-    agent_type: 'linkedin' // Sempre LinkedIn neste worker
-  };
-
-  // Montar objeto lead_data para o aiResponseService (mantendo nome lead_data por compatibilidade com aiResponseService)
-  const lead_data = {
-    name: opportunityData.contact_name,
-    title: opportunityData.title,
-    company: opportunityData.company,
-    location: opportunityData.location,
-    industry: opportunityData.industry,
-    headline: opportunityData.headline,
-    summary: opportunityData.summary,
-    profile_url: opportunityData.profile_url
-  };
-
-  // Usar aiResponseService.generateInitialMessage para consistencia com Test Mode
-  const message = await aiResponseService.generateInitialMessage({
-    ai_agent,
-    lead_data,
-    campaign: {
-      id: opportunityData.campaign_id,
-      name: opportunityData.campaign_name
-    }
-  });
-
-  return message;
 }
 
 /**
@@ -188,48 +120,108 @@ async function processDelayedConversation(job) {
       throw new Error('LinkedIn account not configured');
     }
 
-    // Gerar mensagem inicial
-    console.log('🤖 Gerando mensagem inicial via IA...');
-    const message = await generateInitialMessage(opportunityData);
+    if (!opportunityData.ai_agent_id) {
+      throw new Error('AI agent not configured for this campaign');
+    }
 
-    console.log(`📤 Mensagem gerada (${message.length} chars):`, message.substring(0, 100) + '...');
+    // Buscar account_id do usuario
+    const userResult = await db.query(
+      'SELECT account_id FROM users WHERE id = (SELECT user_id FROM campaigns WHERE id = $1)',
+      [opportunityData.campaign_id]
+    );
+    const accountId = userResult.rows[0]?.account_id;
 
-    // Enviar mensagem via Unipile
-    const unipileResponse = await unipileClient.messages.send({
-      account_id: opportunityData.unipile_account_id,
-      attendee_id: conversation.unipile_chat_id,
-      text: message,
-      type: 'TEXT'
-    });
+    // Montar lead data para o workflow
+    const leadData = {
+      name: opportunityData.contact_name,
+      title: opportunityData.title,
+      company: opportunityData.company,
+      location: opportunityData.location,
+      industry: opportunityData.industry,
+      headline: opportunityData.headline,
+      summary: opportunityData.summary
+    };
 
-    console.log('✅ Mensagem enviada via Unipile');
-
-    // Salvar mensagem no banco de dados
-    await db.insert('messages', {
-      conversation_id: conversationId,
-      sender_type: 'ai',
-      content: message,
-      unipile_message_id: unipileResponse.object?.id || null,
-      created_at: new Date()
-    });
-
-    // Atualizar last_message_at da conversa
-    await db.update(
-      'conversations',
-      {
-        last_message_at: new Date(),
-        updated_at: new Date()
-      },
-      { id: conversationId }
+    // 1. Inicializar workflow com trigger invite_accepted
+    console.log(`🔄 Inicializando workflow para agente ${opportunityData.ai_agent_id}...`);
+    const initResult = await workflowExecutionService.initializeWorkflow(
+      conversationId,
+      opportunityData.ai_agent_id,
+      'invite_accepted'
     );
 
-    console.log('✅ Conversa iniciada automaticamente com sucesso');
+    if (!initResult.workflowEnabled) {
+      throw new Error('Workflow não está habilitado para este agente');
+    }
+
+    console.log(`✅ Workflow inicializado. Trigger node: ${initResult.triggerNode?.id || 'N/A'}`);
+
+    // 2. Processar evento invite_accepted pelo workflow engine
+    console.log('🤖 Processando evento invite_accepted pelo Workflow Engine...');
+    const workflowResult = await workflowExecutionService.processEvent(
+      conversationId,
+      'invite_accepted',
+      {
+        message: null,
+        conversationContext: { recentMessages: [], summary: null },
+        lead: leadData
+      },
+      {
+        agentId: opportunityData.ai_agent_id,
+        accountId
+      }
+    );
+
+    console.log(`✅ Workflow processado. Nodes executados: ${workflowResult.executedNodes?.length || 0}`);
+
+    // 3. Se workflow gerou response (de conversationStep) que nao foi enviada por action node
+    //    Action nodes (send_message, schedule, etc) enviam via sendMessageViaUnipile internamente
+    //    ConversationStep nodes geram resposta mas NAO enviam - precisamos enviar aqui
+    if (workflowResult.response) {
+      const sentByAction = workflowResult.executedNodes?.some(
+        n => n.nodeType === 'action' && n.result?.result?.sent === true
+      );
+
+      if (!sentByAction) {
+        console.log(`📤 Enviando resposta do workflow via Unipile (${workflowResult.response.length} chars)...`);
+
+        await unipileClient.messaging.send({
+          account_id: opportunityData.unipile_account_id,
+          user_id: conversation.unipile_chat_id,
+          text: workflowResult.response
+        });
+
+        await db.insert('messages', {
+          conversation_id: conversationId,
+          sender_type: 'ai',
+          content: workflowResult.response,
+          message_type: 'text',
+          sent_at: new Date(),
+          created_at: new Date()
+        });
+
+        await db.update('conversations', {
+          last_message_at: new Date(),
+          last_message_preview: workflowResult.response.substring(0, 100),
+          updated_at: new Date()
+        }, { id: conversationId });
+
+        console.log('✅ Resposta do workflow enviada e salva');
+      } else {
+        console.log('✅ Resposta já enviada por action node do workflow');
+      }
+    } else {
+      console.log('ℹ️ Workflow não gerou resposta (pode ser estratégia silenciosa)');
+    }
+
+    console.log('✅ Conversa iniciada automaticamente via Workflow Engine');
 
     return {
       success: true,
+      workflow: true,
       opportunityId,
       conversationId,
-      messageLength: message.length,
+      executedNodes: workflowResult.executedNodes?.length || 0,
       contactName: opportunityData.contact_name
     };
 

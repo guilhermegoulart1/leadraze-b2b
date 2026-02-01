@@ -14,6 +14,8 @@ router.use(authenticateApiKey);
 // Mount sub-routes
 router.use('/contacts', require('./contacts'));
 router.use('/opportunities', require('./opportunities'));
+router.use('/campaigns', require('./campaigns'));
+router.use('/instagram-agents', require('./instagramAgents'));
 
 // API info endpoint
 router.get('/', (req, res) => {
@@ -36,6 +38,14 @@ router.get('/', (req, res) => {
         update: 'PUT /external/v1/opportunities/:id',
         delete: 'DELETE /external/v1/opportunities/:id',
         updateStage: 'PATCH /external/v1/opportunities/:id/stage'
+      },
+      campaigns: {
+        list: 'GET /external/v1/campaigns',
+        addContact: 'POST /external/v1/campaigns/:id/contacts'
+      },
+      instagram_agents: {
+        list: 'GET /external/v1/instagram-agents',
+        addProfile: 'POST /external/v1/instagram-agents/:id/profiles'
       }
     },
     documentation: 'https://docs.getraze.co/api',

@@ -381,6 +381,13 @@ try {
   console.error('❌ Error loading Google Maps agents routes:', error.message);
 }
 
+try {
+  app.use('/api/instagram-agents', require('./routes/instagramAgents'));
+  console.log('✅ Instagram agents routes loaded');
+} catch (error) {
+  console.error('❌ Error loading Instagram agents routes:', error.message);
+}
+
 // ================================
 // LIST ACTIVATION ROUTES
 // ================================
