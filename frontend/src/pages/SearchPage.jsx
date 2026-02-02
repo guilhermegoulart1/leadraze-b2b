@@ -119,10 +119,9 @@ const SearchPage = () => {
         inputValue, 
         searchParams.linkedin_account_id
       );
-      return (response.data || []).map(item => ({
-        value: item,
-        label: item
-      }));
+      return (response.data || []).map(item =>
+        typeof item === 'string' ? { value: item, label: item } : item
+      );
     } catch (error) {
       console.error('Erro ao buscar setores:', error);
       return [];
@@ -136,10 +135,9 @@ const SearchPage = () => {
         inputValue, 
         searchParams.linkedin_account_id
       );
-      return (response.data || []).map(item => ({
-        value: item,
-        label: item
-      }));
+      return (response.data || []).map(item =>
+        typeof item === 'string' ? { value: item, label: item } : item
+      );
     } catch (error) {
       console.error('Erro ao buscar cargos:', error);
       return [];
@@ -153,10 +151,9 @@ const SearchPage = () => {
         inputValue,
         searchParams.linkedin_account_id
       );
-      return (response.data || []).map(item => ({
-        value: item,
-        label: item
-      }));
+      return (response.data || []).map(item =>
+        typeof item === 'string' ? { value: item, label: item } : item
+      );
     } catch (error) {
       console.error('Erro ao buscar empresas:', error);
       return [];
@@ -435,7 +432,7 @@ const SearchPage = () => {
       setSearchResults(prev =>
         prev.map(p =>
           (p.id === inviteProfile?.id || p.provider_id === inviteProfile?.provider_id)
-            ? { ...p, already_lead: true }
+            ? { ...p, already_opportunity: true }
             : p
         )
       );

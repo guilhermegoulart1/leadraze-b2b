@@ -685,6 +685,7 @@ const searchProfiles = async (req, res) => {
 const searchProfilesAdvanced = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accountId = req.user.account_id;
     const {
       keywords,
       api = 'classic',
@@ -793,11 +794,11 @@ const searchProfilesAdvanced = async (req, res) => {
       }
 
       if (industries && Array.isArray(industries) && industries.length > 0) {
-        searchParams.industries = industries;
+        searchParams.industry = industries;
       }
 
       if (job_titles && Array.isArray(job_titles) && job_titles.length > 0) {
-        searchParams.job_titles = job_titles;
+        searchParams.job_title = job_titles;
       }
 
       if (companies && Array.isArray(companies) && companies.length > 0) {
@@ -937,7 +938,7 @@ const searchProfilesAdvanced = async (req, res) => {
           is_premium: profile.premium || profile.is_premium || false,
           verified: profile.verified || false,
           is_private: profile.is_private || false,
-          already_lead: isLead,
+          already_opportunity: isOpportunity,
           can_get_details: true,
           profile_score: calculateProfileScore(profile),
           // Incluir current_positions para debug no frontend

@@ -145,6 +145,17 @@ async function processIncomingMessage(params) {
 
     console.log(`🔄 Processing message through Workflow Engine for conversation ${conversation_id}`);
 
+    // Cancel any pending follow-up jobs since lead responded
+    try {
+      const { cancelScheduledJobs } = require('../workers/followUpWorker');
+      const cancelled = await cancelScheduledJobs(conversation_id);
+      if (cancelled > 0) {
+        console.log(`🛑 Cancelled ${cancelled} follow-up job(s) for conversation ${conversation_id} (lead responded)`);
+      }
+    } catch (cancelErr) {
+      console.error(`⚠️ Error cancelling follow-up jobs:`, cancelErr.message);
+    }
+
     // Process through workflow engine
     const workflowResult = await workflowExecutionService.processEvent(
       conversation_id,

@@ -106,9 +106,9 @@ const ProfileCard = ({ profile, isSelected, onToggleSelect }) => {
                 {profile.industry}
               </span>
             )}
-            {profile.already_lead && (
+            {profile.already_opportunity && (
               <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 text-xs rounded-full">
-                ✓ Já é Lead
+                ✓ Já é Opportunity
               </span>
             )}
             {profile.can_get_details && !profile.hasDetailedData && (

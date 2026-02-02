@@ -65,7 +65,6 @@ const getCampaigns = async (req, res) => {
     const offset = (page - 1) * limit;
     const whereClause = whereConditions.join(' AND ');
 
-    // Query simplificada sem contagens de leads (melhor performance)
     const query = `
       SELECT
         c.*,
@@ -73,7 +72,8 @@ const getCampaigns = async (req, res) => {
         la.profile_name as linkedin_profile_name,
         la.profile_name as linkedin_account_name,
         la.status as linkedin_account_status,
-        aa.name as ai_agent_name
+        aa.name as ai_agent_name,
+        (SELECT COUNT(*) FROM campaign_contacts cc WHERE cc.campaign_id = c.id) as contacts_count
       FROM campaigns c
       LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
@@ -730,6 +730,14 @@ const pauseCampaign = async (req, res) => {
       status: CAMPAIGN_STATUS.PAUSED
     }, { id });
 
+    // Cancel Bull jobs + DB entries
+    try {
+      const canceled = await inviteQueueService.cancelCampaignInvites(id);
+      console.log(`⏸️ ${canceled} convites cancelados na fila`);
+    } catch (cancelError) {
+      console.error('Erro ao cancelar fila de convites:', cancelError.message);
+    }
+
     console.log(`✅ Campanha pausada`);
 
     sendSuccess(res, updatedCampaign, 'Campaign paused successfully');
@@ -788,11 +796,21 @@ const resumeCampaign = async (req, res) => {
       status: CAMPAIGN_STATUS.ACTIVE
     }, { id });
 
+    // Reschedule pending invites as Bull jobs
+    let scheduleResult = null;
+    try {
+      scheduleResult = await inviteQueueService.scheduleInvitesForToday(id, accountId);
+      console.log(`▶️ ${scheduleResult.scheduled} convites reagendados via Bull`);
+    } catch (schedError) {
+      console.error('Erro ao reagendar convites:', schedError.message);
+    }
+
     console.log(`✅ Campanha retomada - ${pendingOpps} opportunities pendentes`);
 
     sendSuccess(res, {
       ...updatedCampaign,
-      pending_opportunities: pendingOpps
+      pending_opportunities: pendingOpps,
+      schedule: scheduleResult
     }, 'Campaign resumed successfully');
 
   } catch (error) {
@@ -1482,8 +1500,8 @@ const cancelCampaign = async (req, res) => {
       try {
         // Se o convite foi enviado e está configurado para retirar, chamar API
         if (invite.status === 'sent' && campaign.withdraw_expired_invites) {
-          const inviteExpirationWorker = require('../workers/inviteExpirationWorker');
-          await inviteExpirationWorker.withdrawInvite(
+          const { withdrawInvite } = require('../workers/linkedinInviteWorker');
+          await withdrawInvite(
             invite.unipile_account_id,
             invite.linkedin_profile_id
           );

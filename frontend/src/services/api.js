@@ -966,6 +966,17 @@ class ApiService {
     });
   }
 
+  async generateFiltersFromICP(description, location, linkedinAccountId) {
+    return this.request('/ai-agents/generate-filters-from-icp', {
+      method: 'POST',
+      body: JSON.stringify({
+        description,
+        location,
+        linkedin_account_id: linkedinAccountId
+      }),
+    });
+  }
+
   async getAIAgents() {
     return this.request('/ai-agents');
   }

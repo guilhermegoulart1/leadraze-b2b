@@ -153,6 +153,8 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose, onOpenHttpModal })
       let flowsData = [];
       if (Array.isArray(response)) {
         flowsData = response;
+      } else if (response?.data?.flows && Array.isArray(response.data.flows)) {
+        flowsData = response.data.flows;
       } else if (response?.data && Array.isArray(response.data)) {
         flowsData = response.data;
       } else if (response?.flows && Array.isArray(response.flows)) {
@@ -160,8 +162,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose, onOpenHttpModal })
       }
       setFollowUpFlows(flowsData);
     } catch (error) {
-      // API may not exist yet - that's ok, just set empty array
-      console.log('Follow-up flows API not available yet');
+      console.error('Error loading follow-up flows:', error);
       setFollowUpFlows([]);
     } finally {
       setLoadingFollowUpFlows(false);

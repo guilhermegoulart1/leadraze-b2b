@@ -168,6 +168,19 @@ async function createCollectionJob(campaignId, userId) {
       return existingJob;
     }
 
+    // 3.5. Verificar se já coletou o suficiente (previne coleta dupla)
+    const collectedCountQuery = await db.query(
+      `SELECT COUNT(*) as total FROM campaign_contacts WHERE campaign_id = $1`,
+      [campaignId]
+    );
+    const alreadyCollected = parseInt(collectedCountQuery.rows[0].total) || 0;
+    const targetCount = campaign.target_profiles_count || 100;
+
+    if (alreadyCollected >= targetCount) {
+      console.log(`⚠️ Campanha já atingiu target: ${alreadyCollected}/${targetCount}. Ignorando nova coleta.`);
+      return { already_collected: true, collected: alreadyCollected, target: targetCount };
+    }
+
     // 4. Processar filtros de busca
     const searchFilters = typeof campaign.search_filters === 'string'
       ? JSON.parse(campaign.search_filters)
@@ -187,7 +200,6 @@ async function createCollectionJob(campaignId, userId) {
     console.log('📍 Localizações (já como IDs):', mappedFilters.location);
 
     // 6. Criar job de coleta
-    const targetCount = campaign.target_profiles_count || 100;
     const jobId = uuidv4();
 
     await db.query(

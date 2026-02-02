@@ -26,6 +26,7 @@ const CampaignsPage = () => {
   const [reviewCampaign, setReviewCampaign] = useState(null);
   const [linkedinAccountId, setLinkedinAccountId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -64,6 +65,7 @@ const CampaignsPage = () => {
         await loadReviewCount();
       } finally {
         setIsLoading(false);
+        setIsFilterLoading(false);
       }
     };
 
@@ -292,9 +294,9 @@ const CampaignsPage = () => {
         return {
           label: t('statusBadges.collecting'),
           color: 'bg-blue-500',
-          textColor: 'text-blue-700',
+          textColor: 'text-blue-700 dark:text-blue-300',
           bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-          borderColor: 'border-blue-200',
+          borderColor: 'border-blue-200 dark:border-blue-700',
           icon: RefreshCw,
           iconClass: 'animate-spin'
         };
@@ -316,9 +318,9 @@ const CampaignsPage = () => {
         return {
           label: t('statusBadges.review'),
           color: 'bg-yellow-500',
-          textColor: 'text-yellow-700',
-          bgColor: 'bg-yellow-50',
-          borderColor: 'border-yellow-200',
+          textColor: 'text-yellow-700 dark:text-yellow-300',
+          bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+          borderColor: 'border-yellow-200 dark:border-yellow-700',
           icon: Clock,
           iconClass: ''
         };
@@ -330,9 +332,9 @@ const CampaignsPage = () => {
         return {
           label: t('status.active'),
           color: 'bg-green-500',
-          textColor: 'text-green-700',
+          textColor: 'text-green-700 dark:text-green-300',
           bgColor: 'bg-green-50 dark:bg-green-900/20',
-          borderColor: 'border-green-200',
+          borderColor: 'border-green-200 dark:border-green-700',
           icon: CheckCircle,
           iconClass: ''
         };
@@ -352,9 +354,9 @@ const CampaignsPage = () => {
         return {
           label: t('status.paused'),
           color: 'bg-orange-500',
-          textColor: 'text-orange-700',
-          bgColor: 'bg-orange-50',
-          borderColor: 'border-orange-200',
+          textColor: 'text-orange-700 dark:text-orange-300',
+          bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+          borderColor: 'border-orange-200 dark:border-orange-700',
           icon: Pause,
           iconClass: ''
         };
@@ -392,6 +394,7 @@ const CampaignsPage = () => {
               <div className="flex gap-2">
               <button
                 onClick={() => {
+                  setIsFilterLoading(true);
                   setStatusFilter('all');
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
@@ -405,6 +408,7 @@ const CampaignsPage = () => {
               </button>
           <button
             onClick={() => {
+              setIsFilterLoading(true);
               setStatusFilter('review');
               setPagination(prev => ({ ...prev, page: 1 }));
             }}
@@ -419,7 +423,7 @@ const CampaignsPage = () => {
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                 statusFilter === 'review'
                   ? 'bg-yellow-700 text-white'
-                  : 'bg-yellow-100 text-yellow-700'
+                  : 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
               }`}>
                 {reviewCount}
               </span>
@@ -427,6 +431,7 @@ const CampaignsPage = () => {
           </button>
           <button
             onClick={() => {
+              setIsFilterLoading(true);
               setStatusFilter('active');
               setPagination(prev => ({ ...prev, page: 1 }));
             }}
@@ -440,6 +445,7 @@ const CampaignsPage = () => {
           </button>
           <button
             onClick={() => {
+              setIsFilterLoading(true);
               setStatusFilter('completed');
               setPagination(prev => ({ ...prev, page: 1 }));
             }}
@@ -463,8 +469,13 @@ const CampaignsPage = () => {
       </div>
 
       {/* Campaigns Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {campaigns.length === 0 ? (
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden relative">
+        {isFilterLoading && (
+          <div className="absolute inset-0 bg-white/60 dark:bg-gray-800/60 z-10 flex items-center justify-center backdrop-blur-[1px]">
+            <Loader className="w-8 h-8 text-purple-600 dark:text-purple-400 animate-spin" />
+          </div>
+        )}
+        {campaigns.length === 0 && !isFilterLoading ? (
           <div className="text-center py-12">
             <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             {pagination.total === 0 && statusFilter === 'all' ? (
@@ -527,7 +538,7 @@ const CampaignsPage = () => {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-gray-900 dark:text-gray-100">{campaign.name}</h3>
                           {campaign.ai_agent_name && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 rounded text-xs font-medium border border-purple-200">
+                            <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded text-xs font-medium border border-purple-200 dark:border-purple-700">
                               <Sparkles className="w-3 h-3" />
                               IA
                             </span>
@@ -557,14 +568,14 @@ const CampaignsPage = () => {
                       {/* Total */}
                       <td className="px-6 py-4 text-center">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {collectionStatus?.collected_count || 0} <span className="text-gray-500 dark:text-gray-400">{t('table.of')} {collectionStatus?.target_count || 0}</span>
+                          {parseInt(campaign.contacts_count) || collectionStatus?.collected_count || 0} <span className="text-gray-500 dark:text-gray-400">{t('table.of')} {campaign.target_profiles_count || collectionStatus?.target_count || 0}</span>
                         </div>
                         {collectionStatus?.status === 'processing' && (
                           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
                             <div
                               className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
                               style={{
-                                width: `${Math.min(100, ((collectionStatus.collected_count || 0) / (collectionStatus.target_count || 1)) * 100)}%`
+                                width: `${Math.min(100, ((parseInt(campaign.contacts_count) || collectionStatus.collected_count || 0) / (campaign.target_profiles_count || collectionStatus.target_count || 1)) * 100)}%`
                               }}
                             />
                           </div>
@@ -574,7 +585,7 @@ const CampaignsPage = () => {
                       {/* Ações */}
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          {campaign.status === 'draft' && !collectionStatus && (
+                          {campaign.status === 'draft' && !collectionStatus && !(parseInt(campaign.contacts_count) > 0) && (
                             <button
                               onClick={() => handleStartBulkCollection(campaign.id)}
                               disabled={isActionLoading === 'starting'}

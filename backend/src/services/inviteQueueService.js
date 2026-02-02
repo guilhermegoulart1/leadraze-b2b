@@ -1,6 +1,7 @@
 // backend/src/services/inviteQueueService.js
 const db = require('../config/database');
 const { DateTime } = require('luxon');
+const { linkedinInviteQueue } = require('../queues');
 
 // ====================================
 // 🔧 LOGGING HELPER
@@ -189,12 +190,35 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
         ? DateTime.fromJSDate(scheduledFor).plus({ days: expiryDays }).toJSDate()
         : null;
 
-      await client.query(
+      const insertResult = await client.query(
         `INSERT INTO campaign_invite_queue
          (account_id, campaign_id, campaign_contact_id, linkedin_account_id, status, scheduled_for, expires_at, priority)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [accountId, campaignId, cc.campaign_contact_id, campaign.linkedin_account_id, queueStatus, scheduledFor, expiresAt, i]
       );
+      const queueRowId = insertResult.rows[0].id;
+
+      // Create Bull delayed job if scheduled for today
+      if (scheduledFor) {
+        const delayMs = Math.max(0, scheduledFor.getTime() - Date.now());
+        const job = await linkedinInviteQueue.add('send-invite', {
+          queueId: queueRowId,
+          campaignId,
+          campaignContactId: cc.campaign_contact_id,
+          linkedinAccountId: campaign.linkedin_account_id,
+          unipileAccountId: campaign.unipile_account_id
+        }, {
+          delay: delayMs,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 10000 },
+          jobId: `invite-${queueRowId}`
+        });
+
+        await client.query(
+          'UPDATE campaign_invite_queue SET bull_job_id = $1 WHERE id = $2',
+          [job.id.toString(), queueRowId]
+        );
+      }
 
       // Update campaign_contact status to indicate queued
       await client.query(
@@ -203,7 +227,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
       );
 
       const scheduleInfo = scheduledFor
-        ? `agendado para ${DateTime.fromJSDate(scheduledFor).toFormat('HH:mm')}`
+        ? `agendado para ${DateTime.fromJSDate(scheduledFor).toFormat('HH:mm')} (Bull job)`
         : 'pendente (próximo dia)';
       log.info(`   ✓ ${cc.contact_name} - ${queueStatus} (${scheduleInfo})`);
 
@@ -247,29 +271,16 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
 };
 
 /**
- * Get scheduled invites for processing
- * @param {number} limit - Maximum invites to get
- * @returns {object[]} Invites ready to be sent
+ * Get invite expiry days from campaign config
+ * @param {string} campaignId - Campaign ID
+ * @returns {Promise<number>} Expiry days
  */
-const getScheduledInvites = async (limit = 10) => {
+const getInviteExpiryDays = async (campaignId) => {
   const result = await db.query(
-    `SELECT ciq.*, cc.linkedin_profile_id, cc.contact_id, ct.name as contact_name, ct.profile_url,
-            camp.name as campaign_name, la.unipile_account_id
-     FROM campaign_invite_queue ciq
-     JOIN campaign_contacts cc ON cc.id = ciq.campaign_contact_id
-     JOIN contacts ct ON ct.id = cc.contact_id
-     JOIN campaigns camp ON camp.id = ciq.campaign_id
-     JOIN linkedin_accounts la ON la.id = ciq.linkedin_account_id
-     WHERE ciq.status = 'scheduled'
-       AND ciq.scheduled_for <= NOW()
-       AND camp.status = 'active'
-       AND camp.automation_active = true
-     ORDER BY ciq.scheduled_for ASC, ciq.priority ASC
-     LIMIT $1`,
-    [limit]
+    'SELECT invite_expiry_days FROM campaign_review_config WHERE campaign_id = $1',
+    [campaignId]
   );
-
-  return result.rows;
+  return result.rows[0]?.invite_expiry_days || 7;
 };
 
 /**
@@ -527,7 +538,7 @@ const getQueueStatus = async (campaignId) => {
 const scheduleInvitesForToday = async (campaignId, accountId) => {
   // Get pending invites that haven't been scheduled
   const pendingResult = await db.query(
-    `SELECT ciq.id, ciq.opportunity_id
+    `SELECT ciq.id, ciq.campaign_contact_id
      FROM campaign_invite_queue ciq
      JOIN campaigns c ON c.id = ciq.campaign_id
      WHERE ciq.campaign_id = $1
@@ -584,7 +595,7 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
     timezone: config.timezone
   });
 
-  // Update queue entries
+  // Update queue entries and create Bull delayed jobs
   for (let i = 0; i < toSchedule; i++) {
     const entry = pendingResult.rows[i];
     const scheduledFor = sendTimes[i];
@@ -596,6 +607,28 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
        WHERE id = $3`,
       [scheduledFor, expiresAt, entry.id]
     );
+
+    // Create Bull delayed job
+    const delayMs = Math.max(0, scheduledFor.getTime() - Date.now());
+    const job = await linkedinInviteQueue.add('send-invite', {
+      queueId: entry.id,
+      campaignId,
+      campaignContactId: entry.campaign_contact_id,
+      linkedinAccountId: config.linkedin_account_id,
+      unipileAccountId: config.unipile_account_id
+    }, {
+      delay: delayMs,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 10000 },
+      jobId: `invite-${entry.id}`
+    });
+
+    await db.query(
+      'UPDATE campaign_invite_queue SET bull_job_id = $1 WHERE id = $2',
+      [job.id.toString(), entry.id]
+    );
+
+    log.info(`   Reagendado: ${entry.id} → delay ${Math.round(delayMs / 60000)} min (Bull job ${job.id})`);
   }
 
   return {
@@ -611,6 +644,26 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
  * @returns {number} Number of cancelled invites
  */
 const cancelCampaignInvites = async (campaignId) => {
+  // Cancel Bull jobs (delayed + waiting)
+  try {
+    const [waitingJobs, delayedJobs] = await Promise.all([
+      linkedinInviteQueue.getWaiting(),
+      linkedinInviteQueue.getDelayed()
+    ]);
+
+    let bullCanceled = 0;
+    for (const job of [...waitingJobs, ...delayedJobs]) {
+      if (job.data.campaignId === campaignId) {
+        await job.remove();
+        bullCanceled++;
+      }
+    }
+    log.info(`Bull jobs cancelados: ${bullCanceled}`);
+  } catch (bullError) {
+    log.error('Erro ao cancelar Bull jobs:', bullError.message);
+  }
+
+  // Update DB
   const result = await db.query(
     `UPDATE campaign_invite_queue
      SET status = 'withdrawn', withdrawn_at = NOW()
@@ -711,7 +764,7 @@ const getCampaignReport = async (campaignId, filters = {}) => {
 module.exports = {
   calculateRandomSendTimes,
   createInviteQueue,
-  getScheduledInvites,
+  getInviteExpiryDays,
   markInviteAsSent,
   markInviteAsAccepted,
   getExpiredInvites,

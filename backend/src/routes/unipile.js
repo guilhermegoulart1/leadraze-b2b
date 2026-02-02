@@ -148,12 +148,19 @@ router.get('/industries', async (req, res) => {
 
     const industries = unipileResponse.items || unipileResponse.data || [];
 
+    // Log raw para debug do formato da Unipile
+    if (industries.length > 0) {
+      console.log('🏭 [industries] Raw primeiro item:', JSON.stringify(industries[0]));
+    }
+
     const processedIndustries = industries
       .map(industry => {
-        if (typeof industry === 'string') return industry;
-        return industry.name || industry.title || industry.label || industry.displayName;
+        if (typeof industry === 'string') return { value: industry, label: industry };
+        const label = industry.name || industry.title || industry.label || industry.displayName;
+        const value = industry.id || industry.value || industry.urn_id || label;
+        return { value, label };
       })
-      .filter(industry => industry && typeof industry === 'string')
+      .filter(industry => industry.label)
       .slice(0, parseInt(limit));
 
     console.log(`✅ Processados ${processedIndustries.length} setores`);
@@ -210,12 +217,19 @@ router.get('/job-titles', async (req, res) => {
 
     const jobTitles = unipileResponse.items || unipileResponse.data || [];
 
+    // Log raw para debug do formato da Unipile
+    if (jobTitles.length > 0) {
+      console.log('💼 [job-titles] Raw primeiro item:', JSON.stringify(jobTitles[0]));
+    }
+
     const processedJobTitles = jobTitles
       .map(title => {
-        if (typeof title === 'string') return title;
-        return title.name || title.title || title.label || title.displayName;
+        if (typeof title === 'string') return { value: title, label: title };
+        const label = title.name || title.title || title.label || title.displayName;
+        const value = title.id || title.value || title.urn_id || label;
+        return { value, label };
       })
-      .filter(title => title && typeof title === 'string')
+      .filter(title => title.label)
       .slice(0, parseInt(limit));
 
     console.log(`✅ Processados ${processedJobTitles.length} cargos`);
@@ -272,12 +286,18 @@ router.get('/companies', async (req, res) => {
 
     const companies = unipileResponse.items || unipileResponse.data || [];
 
+    if (companies.length > 0) {
+      console.log('🏢 [companies] Raw primeiro item:', JSON.stringify(companies[0]));
+    }
+
     const processedCompanies = companies
       .map(company => {
-        if (typeof company === 'string') return company;
-        return company.name || company.title || company.label || company.displayName;
+        if (typeof company === 'string') return { value: company, label: company };
+        const label = company.name || company.title || company.label || company.displayName;
+        const value = company.id || company.value || company.urn_id || label;
+        return { value, label };
       })
-      .filter(company => company && typeof company === 'string')
+      .filter(company => company.label)
       .slice(0, parseInt(limit));
 
     console.log(`✅ Processadas ${processedCompanies.length} empresas`);

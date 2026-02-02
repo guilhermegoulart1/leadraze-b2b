@@ -274,6 +274,30 @@ async function executeFromNode(startNode, workflowDef, context) {
           // Mark this entry as initial send (not an evaluation attempt)
           nodeResult.hadMessage = false;
           console.log(`⏸️ [ConversationStep] First execution of node ${currentNode.id} - pausing for lead response. hasThisNodeBeenExecuted=${hasThisNodeBeenExecuted}`);
+
+          // Schedule follow-up flow if configured on this conversation step
+          if (currentNode.data?.followUpEnabled && currentNode.data?.followUpFlowId) {
+            try {
+              const { followUpQueue } = require('../queues');
+              const job = await followUpQueue.add(
+                {
+                  type: 'follow_up_flow',
+                  conversationId: context.conversationId,
+                  agentId: context.agentId,
+                  flowId: currentNode.data.followUpFlowId,
+                  triggerNodeId: currentNode.id
+                },
+                {
+                  delay: 0,
+                  removeOnComplete: true,
+                  removeOnFail: { age: 7 * 24 * 3600 }
+                }
+              );
+              console.log(`⏰ [FollowUp] Scheduled follow-up flow ${currentNode.data.followUpFlowId} for conversation ${context.conversationId}, job ${job.id}`);
+            } catch (followUpErr) {
+              console.error(`❌ [FollowUp] Failed to schedule follow-up flow:`, followUpErr.message);
+            }
+          }
         }
         // If this node WAS executed before AND we have a lead message, evaluate the objective
         else if (hasThisNodeBeenExecuted && context.message) {

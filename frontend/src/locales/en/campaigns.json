@@ -40,16 +40,39 @@
       }
     },
     "step1_5": {
-      "title": "Configure your automatic search",
-      "subtitle": "Simple and direct: choose the city and job titles. AI does the rest!",
+      "title": "Define your ideal customer profile",
+      "subtitle": "Describe who you want to prospect and AI will generate the filters automatically",
       "location": {
         "label": "Location",
         "placeholder": "Type a city or region...",
-        "example": "E.g.: São Paulo, SP or Rio de Janeiro, RJ",
+        "example": "E.g.: New York, NY or San Francisco, CA",
         "noOptions": "Type to search locations",
         "loading": "Searching...",
         "required": "Select a location first"
       },
+      "icpDescription": {
+        "label": "Describe your target audience",
+        "placeholder": "E.g.: marketing agency owners, CTO of tech startups, HR directors at mid-size companies...",
+        "help": "Describe in natural language who you want to prospect. AI will extract job titles, industries and keywords automatically.",
+        "required": "Describe the profile you want to search (minimum 15 characters)",
+        "example1": "Marketing agency owners",
+        "example2": "CTOs at tech startups",
+        "example3": "HR Directors at mid-size companies",
+        "example4": "Doctors and clinic directors"
+      },
+      "aiPreview": {
+        "reasoning": "AI Interpretation:",
+        "jobTitles": "Identified job titles:",
+        "industries": "Identified industries:",
+        "keywords": "Keywords:",
+        "validationStatus": "{{validated}} of {{total}} terms validated on LinkedIn",
+        "editHint": "Click X to remove terms. Confirm when you are satisfied.",
+        "confirmButton": "Confirm and Continue",
+        "adjustButton": "Adjust"
+      },
+      "switchToAdvanced": "Advanced mode",
+      "switchToAI": "Back to AI mode",
+      "howItWorksIA": "How it works: Describe your target audience and our AI automatically identifies optimized job titles, industries and keywords for LinkedIn search.",
       "jobTitles": {
         "label": "Job Titles",
         "placeholder": "E.g.: CEO, Director, Manager, Founder...",
@@ -58,7 +81,7 @@
       },
       "howItWorks": "How it works: You define the city and job titles, and our AI expands and optimizes the filters automatically to find the best profiles.",
       "generateButton": "Generate Filters with AI",
-      "generating": "Generating filters..."
+      "generating": "Analyzing description..."
     },
     "step2": {
       "title": "Configure profile collection",

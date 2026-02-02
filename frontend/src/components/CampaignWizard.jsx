@@ -1,6 +1,6 @@
 // frontend/src/components/CampaignWizard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Bot, Users, MapPin, Briefcase, Crown, ChevronDown, Building } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Sparkles, Search, Target, CheckCircle, Loader, Bot, Users, MapPin, Briefcase, Crown, ChevronDown, Building, Settings, MessageSquare, CheckCircle2 } from 'lucide-react';
 import AsyncSelect from 'react-select/async';
 import api from '../services/api';
 import { useTranslation } from 'react-i18next';
@@ -41,11 +41,19 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
     selected_location: null, // Location selecionada pelo usuário
     search_filters: null,
 
-    // Campos estruturados para busca automática
-    manual_job_titles: [], // Cargos (obrigatório)
+    // Campos estruturados para busca automática (modo avançado)
+    manual_job_titles: [], // Cargos (obrigatório no modo avançado)
     manual_industries: [], // Setores (opcional)
     manual_companies: [], // Empresas (opcional)
     searchLinkedinAccountId: '', // Conta LinkedIn para realizar a busca
+
+    // Modo IA (ICP por linguagem natural)
+    icp_description: '', // Texto livre do ICP
+    ai_generated_filters: null, // Resposta bruta da IA
+    ai_reasoning: '', // Explicação da IA
+    ai_validation: null, // Status de validação Unipile
+    show_ai_preview: false, // Mostrar painel de preview
+    advancedMode: false, // Toggle modo avançado vs modo IA
 
     // Step 2: Coleta
     name: '',
@@ -91,81 +99,135 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       return;
     }
 
-    // Validar se os cargos foram preenchidos
-    if (formData.manual_job_titles.length === 0) {
-      setError(t('wizard.errors.minJobTitles'));
+    // Modo avançado: fluxo original
+    if (formData.advancedMode) {
+      if (formData.manual_job_titles.length === 0) {
+        setError(t('wizard.errors.minJobTitles'));
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+
+      try {
+        let promptParts = [
+          `Localização: ${formData.selected_location.label}`,
+          `Cargos: ${formData.manual_job_titles.join(', ')}`
+        ];
+
+        if (formData.manual_industries && formData.manual_industries.length > 0) {
+          const industries = formData.manual_industries.map(i => i.label || i.value).join(', ');
+          promptParts.push(`Setores: ${industries}`);
+        }
+
+        if (formData.manual_companies && formData.manual_companies.length > 0) {
+          const companies = formData.manual_companies.map(c => c.label || c.value).join(', ');
+          promptParts.push(`Empresas: ${companies}`);
+        }
+
+        const structuredPrompt = promptParts.join('. ');
+        const result = await api.generateSearchFilters(structuredPrompt);
+
+        const filters = {
+          ...result.data.filters,
+          location: [formData.selected_location.value]
+        };
+
+        if (formData.manual_industries && formData.manual_industries.length > 0) {
+          filters.industries = formData.manual_industries.map(i => i.value || i.label);
+        }
+
+        if (formData.manual_companies && formData.manual_companies.length > 0) {
+          filters.companies = formData.manual_companies.map(c => c.value || c.label);
+        }
+
+        const campaignNameBase = formData.manual_industries?.length > 0
+          ? formData.manual_industries[0].label
+          : (result.data.filters.industries?.[0] || 'Automática');
+
+        setFormData({
+          ...formData,
+          search_filters: filters,
+          name: `Campanha ${campaignNameBase} - ${new Date().toLocaleDateString('pt-BR')}`
+        });
+        setCurrentStep(2);
+      } catch (err) {
+        console.error('Erro ao gerar filtros:', err);
+        setError(err.message || t('wizard.errors.generateFilters'));
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
-    console.log('🔍 Location selecionada:', formData.selected_location);
-    console.log('📍 Location VALUE:', formData.selected_location.value);
-    console.log('📍 Location LABEL:', formData.selected_location.label);
+    // Modo IA: fluxo novo com ICP
+    if (!formData.icp_description || formData.icp_description.trim().length < 15) {
+      setError(t('wizard.step1_5.icpDescription.required', 'Descreva o perfil que deseja buscar (mínimo 15 caracteres)'));
+      return;
+    }
 
     setIsLoading(true);
     setError('');
 
     try {
-      // Construir prompt incluindo todos os campos para a IA adaptar ao idioma/contexto correto
-      let promptParts = [
-        `Localização: ${formData.selected_location.label}`,
-        `Cargos: ${formData.manual_job_titles.join(', ')}`
-      ];
+      const result = await api.generateFiltersFromICP(
+        formData.icp_description.trim(),
+        formData.selected_location,
+        formData.searchLinkedinAccountId
+      );
 
-      // Adicionar setores se preenchidos
-      if (formData.manual_industries && formData.manual_industries.length > 0) {
-        const industries = formData.manual_industries.map(i => i.label || i.value).join(', ');
-        promptParts.push(`Setores: ${industries}`);
-      }
+      console.log('🤖 [ICP] Filtros recebidos:', result.data);
 
-      // Adicionar empresas se preenchidas
-      if (formData.manual_companies && formData.manual_companies.length > 0) {
-        const companies = formData.manual_companies.map(c => c.label || c.value).join(', ');
-        promptParts.push(`Empresas: ${companies}`);
-      }
-
-      const structuredPrompt = promptParts.join('. ');
-
-      console.log('📝 Prompt estruturado:', structuredPrompt);
-
-      const result = await api.generateSearchFilters(structuredPrompt);
-
-      console.log('🤖 Filtros recebidos da IA:', result.data.filters);
-
-      // Combinar filtros da IA com os dados selecionados pelo usuário
-      const filters = {
-        ...result.data.filters,
-        location: [formData.selected_location.value] // Usar o ID da location selecionada
-      };
-
-      // Adicionar industries selecionados manualmente (sobrescrever IA se o usuário selecionou)
-      if (formData.manual_industries && formData.manual_industries.length > 0) {
-        filters.industries = formData.manual_industries.map(i => i.value || i.label);
-      }
-
-      // Adicionar companies selecionadas manualmente
-      if (formData.manual_companies && formData.manual_companies.length > 0) {
-        filters.companies = formData.manual_companies.map(c => c.value || c.label);
-      }
-
-      console.log('✅ Filtros finais combinados:', filters);
-
-      // Determinar nome da campanha baseado nos filtros
-      const campaignNameBase = formData.manual_industries?.length > 0
-        ? formData.manual_industries[0].label
-        : (result.data.filters.industries?.[0] || 'Automática');
-
-      setFormData({
-        ...formData,
-        search_filters: filters,
-        name: `Campanha ${campaignNameBase} - ${new Date().toLocaleDateString('pt-BR')}`
-      });
-      setCurrentStep(2);
+      setFormData(prev => ({
+        ...prev,
+        ai_generated_filters: result.data.filters,
+        ai_reasoning: result.data.reasoning || '',
+        ai_validation: result.data.validation || null,
+        show_ai_preview: true
+      }));
     } catch (err) {
-      console.error('Erro ao gerar filtros:', err);
+      console.error('Erro ao gerar filtros ICP:', err);
       setError(err.message || t('wizard.errors.generateFilters'));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Confirmar filtros do preview e avançar para Step 2
+  const handleConfirmFilters = () => {
+    if (!formData.ai_generated_filters) return;
+
+    const filters = {
+      ...formData.ai_generated_filters,
+      location: [formData.selected_location.value]
+    };
+
+    const campaignNameBase = formData.ai_generated_filters.industries?.[0] || 'Automática';
+
+    setFormData(prev => ({
+      ...prev,
+      search_filters: filters,
+      manual_job_titles: formData.ai_generated_filters.job_titles || [],
+      manual_industries: (formData.ai_generated_filters.industries || []).map(i => ({ value: i, label: i })),
+      manual_companies: (formData.ai_generated_filters.companies || []).map(c => ({ value: c, label: c })),
+      name: `Campanha ${campaignNameBase} - ${new Date().toLocaleDateString('pt-BR')}`
+    }));
+    setCurrentStep(2);
+  };
+
+  // Remover um tag do preview
+  const handleRemovePreviewTag = (type, index) => {
+    setFormData(prev => {
+      const filters = { ...prev.ai_generated_filters };
+      if (type === 'job_titles') {
+        filters.job_titles = filters.job_titles.filter((_, i) => i !== index);
+      } else if (type === 'industries') {
+        filters.industries = filters.industries.filter((_, i) => i !== index);
+      } else if (type === 'companies') {
+        filters.companies = filters.companies.filter((_, i) => i !== index);
+      }
+      return { ...prev, ai_generated_filters: filters };
+    });
   };
 
   const handleNext = () => {
@@ -181,9 +243,16 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
         setError(t('wizard.step1_5.location.required') || 'Selecione uma localização');
         return;
       }
-      if (formData.manual_job_titles.length === 0) {
-        setError(t('wizard.step1_5.jobTitles.required') || 'Adicione pelo menos um cargo');
-        return;
+      if (formData.advancedMode) {
+        if (formData.manual_job_titles.length === 0) {
+          setError(t('wizard.step1_5.jobTitles.required') || 'Adicione pelo menos um cargo');
+          return;
+        }
+      } else {
+        if (!formData.search_filters) {
+          setError('Gere e confirme os filtros antes de continuar');
+          return;
+        }
       }
     }
 
@@ -281,6 +350,12 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       manual_companies: [],
       manual_keywords: [],
       searchLinkedinAccountId: '',
+      icp_description: '',
+      ai_generated_filters: null,
+      ai_reasoning: '',
+      ai_validation: null,
+      show_ai_preview: false,
+      advancedMode: false,
       name: '',
       description: '',
       target_profiles_count: 100,
@@ -320,10 +395,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       if (!linkedinAccountId) return [];
 
       const response = await api.searchIndustries(inputValue, linkedinAccountId);
-      return (response.data || []).map(item => ({
-        value: item,
-        label: item
-      }));
+      return (response.data || []).map(item =>
+        typeof item === 'string' ? { value: item, label: item } : item
+      );
     } catch (error) {
       console.error('Erro ao buscar setores:', error);
       return [];
@@ -340,10 +414,9 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
       if (!linkedinAccountId) return [];
 
       const response = await api.searchCompanies(inputValue, linkedinAccountId);
-      return (response.data || []).map(item => ({
-        value: item,
-        label: item
-      }));
+      return (response.data || []).map(item =>
+        typeof item === 'string' ? { value: item, label: item } : item
+      );
     } catch (error) {
       console.error('Erro ao buscar empresas:', error);
       return [];
@@ -576,203 +649,291 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                 </p>
               </div>
 
-              {/* Cargos */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4" />
-                  {t('wizard.step1_5.jobTitles.label')} *
-                </label>
-                <TagsInput
-                  tags={formData.manual_job_titles}
-                  onChange={(tags) => setFormData({ ...formData, manual_job_titles: tags })}
-                  placeholder={t('wizard.step1_5.jobTitles.placeholder')}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('wizard.step1_5.jobTitles.help')}
-                </p>
-              </div>
+              {/* Toggle Modo IA / Modo Avançado */}
+              {!formData.show_ai_preview && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      advancedMode: !prev.advancedMode,
+                      show_ai_preview: false,
+                      ai_generated_filters: null,
+                      ai_reasoning: '',
+                      ai_validation: null
+                    }))}
+                    className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 flex items-center gap-1 transition-colors"
+                  >
+                    <Settings className="w-3 h-3" />
+                    {formData.advancedMode
+                      ? t('wizard.step1_5.switchToAI', 'Voltar ao modo IA')
+                      : t('wizard.step1_5.switchToAdvanced', 'Modo avançado')
+                    }
+                  </button>
+                </div>
+              )}
 
-              {/* Setores (opcional) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                  <Building className="w-4 h-4" />
-                  {t('wizard.step1_5.industries.label', 'Setores')}
-                  <span className="text-xs text-gray-400 font-normal">({t('wizard.step1_5.optional', 'opcional')})</span>
-                </label>
-                <AsyncSelect
-                  cacheOptions
-                  isMulti
-                  loadOptions={fetchIndustrySuggestions}
-                  onChange={(selected) => setFormData({ ...formData, manual_industries: selected || [] })}
-                  value={formData.manual_industries}
-                  placeholder={t('wizard.step1_5.industries.placeholder', 'Busque por setores...')}
-                  noOptionsMessage={() => t('wizard.step1_5.industries.noOptions', 'Digite para buscar setores')}
-                  loadingMessage={() => t('wizard.step1_5.industries.loading', 'Buscando...')}
-                  isDisabled={!formData.searchLinkedinAccountId}
-                  className="text-sm"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#374151' : '#fff',
-                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
-                      '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
-                      boxShadow: 'none',
-                      '&:focus-within': {
-                        borderColor: '#a855f7',
-                        boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)'
-                      }
-                    }),
-                    menu: (base) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#374151' : '#fff',
-                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
-                    }),
-                    option: (base, state) => ({
-                      ...base,
-                      backgroundColor: state.isFocused
-                        ? (isDarkMode ? '#4b5563' : '#f3f4f6')
-                        : (isDarkMode ? '#374151' : '#fff'),
-                      color: isDarkMode ? '#f3f4f6' : '#111827',
-                      '&:active': {
-                        backgroundColor: isDarkMode ? '#6b7280' : '#e5e7eb'
-                      }
-                    }),
-                    multiValue: (base) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#4b5563' : '#e5e7eb'
-                    }),
-                    multiValueLabel: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#f3f4f6' : '#111827'
-                    }),
-                    multiValueRemove: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280',
-                      '&:hover': {
-                        backgroundColor: isDarkMode ? '#6b7280' : '#d1d5db',
-                        color: isDarkMode ? '#f3f4f6' : '#111827'
-                      }
-                    }),
-                    input: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#f3f4f6' : '#111827'
-                    }),
-                    placeholder: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280'
-                    }),
-                    indicatorSeparator: (base) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db'
-                    }),
-                    dropdownIndicator: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280'
-                    }),
-                    clearIndicator: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280'
-                    })
-                  }}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('wizard.step1_5.industries.help', 'Ex: Tecnologia, Financeiro, Saúde')}
-                </p>
-              </div>
+              {/* ===== MODO IA (padrão) ===== */}
+              {!formData.advancedMode && !formData.show_ai_preview && (
+                <>
+                  {/* Textarea ICP */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      {t('wizard.step1_5.icpDescription.label', 'Descreva seu público-alvo')} *
+                    </label>
+                    <textarea
+                      value={formData.icp_description}
+                      onChange={(e) => setFormData({ ...formData, icp_description: e.target.value })}
+                      placeholder={t('wizard.step1_5.icpDescription.placeholder', 'Ex: donos de agências de marketing digital, CTOs de startups de tecnologia, diretores de RH de empresas de médio porte...')}
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-none"
+                    />
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {t('wizard.step1_5.icpDescription.help', 'Descreva em linguagem natural quem você quer prospectar. A IA vai extrair cargos, setores e palavras-chave automaticamente.')}
+                      </p>
+                      <span className={`text-xs ${formData.icp_description.trim().length >= 15 ? 'text-green-500' : 'text-gray-400'}`}>
+                        {formData.icp_description.trim().length}/15
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Empresas (opcional) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  {t('wizard.step1_5.companies.label', 'Empresas')}
-                  <span className="text-xs text-gray-400 font-normal">({t('wizard.step1_5.optional', 'opcional')})</span>
-                </label>
-                <AsyncSelect
-                  cacheOptions
-                  isMulti
-                  loadOptions={fetchCompanySuggestions}
-                  onChange={(selected) => setFormData({ ...formData, manual_companies: selected || [] })}
-                  value={formData.manual_companies}
-                  placeholder={t('wizard.step1_5.companies.placeholder', 'Busque por empresas...')}
-                  noOptionsMessage={() => t('wizard.step1_5.companies.noOptions', 'Digite para buscar empresas')}
-                  loadingMessage={() => t('wizard.step1_5.companies.loading', 'Buscando...')}
-                  isDisabled={!formData.searchLinkedinAccountId}
-                  className="text-sm"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#374151' : '#fff',
-                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
-                      '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
-                      boxShadow: 'none',
-                      '&:focus-within': {
-                        borderColor: '#a855f7',
-                        boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)'
-                      }
-                    }),
-                    menu: (base) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#374151' : '#fff',
-                      borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
-                    }),
-                    option: (base, state) => ({
-                      ...base,
-                      backgroundColor: state.isFocused
-                        ? (isDarkMode ? '#4b5563' : '#f3f4f6')
-                        : (isDarkMode ? '#374151' : '#fff'),
-                      color: isDarkMode ? '#f3f4f6' : '#111827',
-                      '&:active': {
-                        backgroundColor: isDarkMode ? '#6b7280' : '#e5e7eb'
-                      }
-                    }),
-                    multiValue: (base) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#4b5563' : '#e5e7eb'
-                    }),
-                    multiValueLabel: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#f3f4f6' : '#111827'
-                    }),
-                    multiValueRemove: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280',
-                      '&:hover': {
-                        backgroundColor: isDarkMode ? '#6b7280' : '#d1d5db',
-                        color: isDarkMode ? '#f3f4f6' : '#111827'
-                      }
-                    }),
-                    input: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#f3f4f6' : '#111827'
-                    }),
-                    placeholder: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280'
-                    }),
-                    indicatorSeparator: (base) => ({
-                      ...base,
-                      backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db'
-                    }),
-                    dropdownIndicator: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280'
-                    }),
-                    clearIndicator: (base) => ({
-                      ...base,
-                      color: isDarkMode ? '#9ca3af' : '#6b7280'
-                    })
-                  }}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('wizard.step1_5.companies.help', 'Ex: Google, Microsoft, Apple')}
-                </p>
-              </div>
+                  {/* Exemplos clicáveis */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      t('wizard.step1_5.icpDescription.example1', 'Donos de agências de marketing'),
+                      t('wizard.step1_5.icpDescription.example2', 'CTOs de startups de tecnologia'),
+                      t('wizard.step1_5.icpDescription.example3', 'Diretores de RH de empresas de médio porte'),
+                      t('wizard.step1_5.icpDescription.example4', 'Médicos e diretores de clínicas')
+                    ].map((example, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, icp_description: example }))}
+                        className="text-xs px-3 py-1.5 rounded-full border border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors cursor-pointer"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
 
-              <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
-                <p className="text-sm text-purple-800 dark:text-purple-300">
-                  <strong>✨ {t('wizard.step1_5.howItWorks')}</strong>
-                </p>
-              </div>
+                  <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+                    <p className="text-sm text-purple-800 dark:text-purple-300">
+                      <strong>{t('wizard.step1_5.howItWorksIA', 'Como funciona: Descreva seu público-alvo e nossa IA identifica automaticamente cargos, setores e palavras-chave otimizados para a busca no LinkedIn.')}</strong>
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* ===== PREVIEW DA IA ===== */}
+              {!formData.advancedMode && formData.show_ai_preview && formData.ai_generated_filters && (
+                <div className="space-y-4">
+                  {/* Reasoning */}
+                  {formData.ai_reasoning && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1">
+                        {t('wizard.step1_5.aiPreview.reasoning', 'Interpretação da IA:')}
+                      </p>
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        {formData.ai_reasoning}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Job Titles */}
+                  {formData.ai_generated_filters.job_titles?.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <Briefcase className="w-4 h-4" />
+                        {t('wizard.step1_5.aiPreview.jobTitles', 'Cargos identificados:')}
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.ai_generated_filters.job_titles.map((title, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-700">
+                            {title}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePreviewTag('job_titles', idx)}
+                              className="ml-1 text-purple-500 hover:text-purple-700 dark:hover:text-purple-300"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Industries */}
+                  {formData.ai_generated_filters.industries?.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <Building className="w-4 h-4" />
+                        {t('wizard.step1_5.aiPreview.industries', 'Setores identificados:')}
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.ai_generated_filters.industries.map((industry, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700">
+                            {industry}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePreviewTag('industries', idx)}
+                              className="ml-1 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Keywords */}
+                  {formData.ai_generated_filters.keywords && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('wizard.step1_5.aiPreview.keywords', 'Palavras-chave:')}
+                      </label>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-2 border border-gray-200 dark:border-gray-600">
+                        {formData.ai_generated_filters.keywords}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Validation Status */}
+                  {formData.ai_validation && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <span>
+                        {t('wizard.step1_5.aiPreview.validationStatus', '{{validated}} de {{total}} termos validados no LinkedIn', {
+                          validated: (formData.ai_validation.job_titles_validated || 0) + (formData.ai_validation.industries_validated || 0),
+                          total: (formData.ai_validation.job_titles_total || 0) + (formData.ai_validation.industries_total || 0)
+                        })}
+                      </span>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {t('wizard.step1_5.aiPreview.editHint', 'Clique no X para remover termos. Confirme quando estiver satisfeito.')}
+                  </p>
+                </div>
+              )}
+
+              {/* ===== MODO AVANÇADO (campos antigos) ===== */}
+              {formData.advancedMode && (
+                <>
+                  {/* Cargos */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                      <Briefcase className="w-4 h-4" />
+                      {t('wizard.step1_5.jobTitles.label')} *
+                    </label>
+                    <TagsInput
+                      tags={formData.manual_job_titles}
+                      onChange={(tags) => setFormData({ ...formData, manual_job_titles: tags })}
+                      placeholder={t('wizard.step1_5.jobTitles.placeholder')}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {t('wizard.step1_5.jobTitles.help')}
+                    </p>
+                  </div>
+
+                  {/* Setores (opcional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                      <Building className="w-4 h-4" />
+                      {t('wizard.step1_5.industries.label', 'Setores')}
+                      <span className="text-xs text-gray-400 font-normal">({t('wizard.step1_5.optional', 'opcional')})</span>
+                    </label>
+                    <AsyncSelect
+                      cacheOptions
+                      isMulti
+                      loadOptions={fetchIndustrySuggestions}
+                      onChange={(selected) => setFormData({ ...formData, manual_industries: selected || [] })}
+                      value={formData.manual_industries}
+                      placeholder={t('wizard.step1_5.industries.placeholder', 'Busque por setores...')}
+                      noOptionsMessage={() => t('wizard.step1_5.industries.noOptions', 'Digite para buscar setores')}
+                      loadingMessage={() => t('wizard.step1_5.industries.loading', 'Buscando...')}
+                      isDisabled={!formData.searchLinkedinAccountId}
+                      className="text-sm"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          backgroundColor: isDarkMode ? '#374151' : '#fff',
+                          borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                          '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
+                          boxShadow: 'none',
+                          '&:focus-within': { borderColor: '#a855f7', boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)' }
+                        }),
+                        menu: (base) => ({ ...base, backgroundColor: isDarkMode ? '#374151' : '#fff', borderColor: isDarkMode ? '#4b5563' : '#d1d5db' }),
+                        option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? (isDarkMode ? '#4b5563' : '#f3f4f6') : (isDarkMode ? '#374151' : '#fff'), color: isDarkMode ? '#f3f4f6' : '#111827' }),
+                        multiValue: (base) => ({ ...base, backgroundColor: isDarkMode ? '#4b5563' : '#e5e7eb' }),
+                        multiValueLabel: (base) => ({ ...base, color: isDarkMode ? '#f3f4f6' : '#111827' }),
+                        multiValueRemove: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280', '&:hover': { backgroundColor: isDarkMode ? '#6b7280' : '#d1d5db', color: isDarkMode ? '#f3f4f6' : '#111827' } }),
+                        input: (base) => ({ ...base, color: isDarkMode ? '#f3f4f6' : '#111827' }),
+                        placeholder: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280' }),
+                        indicatorSeparator: (base) => ({ ...base, backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db' }),
+                        dropdownIndicator: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280' }),
+                        clearIndicator: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280' })
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {t('wizard.step1_5.industries.help', 'Ex: Tecnologia, Financeiro, Saúde')}
+                    </p>
+                  </div>
+
+                  {/* Empresas (opcional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      {t('wizard.step1_5.companies.label', 'Empresas')}
+                      <span className="text-xs text-gray-400 font-normal">({t('wizard.step1_5.optional', 'opcional')})</span>
+                    </label>
+                    <AsyncSelect
+                      cacheOptions
+                      isMulti
+                      loadOptions={fetchCompanySuggestions}
+                      onChange={(selected) => setFormData({ ...formData, manual_companies: selected || [] })}
+                      value={formData.manual_companies}
+                      placeholder={t('wizard.step1_5.companies.placeholder', 'Busque por empresas...')}
+                      noOptionsMessage={() => t('wizard.step1_5.companies.noOptions', 'Digite para buscar empresas')}
+                      loadingMessage={() => t('wizard.step1_5.companies.loading', 'Buscando...')}
+                      isDisabled={!formData.searchLinkedinAccountId}
+                      className="text-sm"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          backgroundColor: isDarkMode ? '#374151' : '#fff',
+                          borderColor: isDarkMode ? '#4b5563' : '#d1d5db',
+                          '&:hover': { borderColor: isDarkMode ? '#6b7280' : '#9ca3af' },
+                          boxShadow: 'none',
+                          '&:focus-within': { borderColor: '#a855f7', boxShadow: '0 0 0 2px rgba(168, 85, 247, 0.1)' }
+                        }),
+                        menu: (base) => ({ ...base, backgroundColor: isDarkMode ? '#374151' : '#fff', borderColor: isDarkMode ? '#4b5563' : '#d1d5db' }),
+                        option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? (isDarkMode ? '#4b5563' : '#f3f4f6') : (isDarkMode ? '#374151' : '#fff'), color: isDarkMode ? '#f3f4f6' : '#111827' }),
+                        multiValue: (base) => ({ ...base, backgroundColor: isDarkMode ? '#4b5563' : '#e5e7eb' }),
+                        multiValueLabel: (base) => ({ ...base, color: isDarkMode ? '#f3f4f6' : '#111827' }),
+                        multiValueRemove: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280', '&:hover': { backgroundColor: isDarkMode ? '#6b7280' : '#d1d5db', color: isDarkMode ? '#f3f4f6' : '#111827' } }),
+                        input: (base) => ({ ...base, color: isDarkMode ? '#f3f4f6' : '#111827' }),
+                        placeholder: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280' }),
+                        indicatorSeparator: (base) => ({ ...base, backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db' }),
+                        dropdownIndicator: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280' }),
+                        clearIndicator: (base) => ({ ...base, color: isDarkMode ? '#9ca3af' : '#6b7280' })
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {t('wizard.step1_5.companies.help', 'Ex: Google, Microsoft, Apple')}
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+                    <p className="text-sm text-purple-800 dark:text-purple-300">
+                      <strong>{t('wizard.step1_5.howItWorks')}</strong>
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -785,48 +946,6 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
                   {t('wizard.step2.subtitle')}
                 </p>
               </div>
-
-              {/* Filtros gerados */}
-              {formData.search_filters && (
-                <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4 mb-4">
-                  <h4 className="font-medium text-purple-900 dark:text-purple-300 mb-3 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    {t('wizard.step2.generatedFilters')}
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    {formData.search_filters.keywords && (
-                      <div>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.keywords')}</span>{' '}
-                        <span className="text-gray-900 dark:text-gray-100">{formData.search_filters.keywords}</span>
-                      </div>
-                    )}
-                    {formData.selected_location && (
-                      <div>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.location')}</span>{' '}
-                        <span className="text-gray-900 dark:text-gray-100">{formData.selected_location.label}</span>
-                      </div>
-                    )}
-                    {formData.search_filters.industries && formData.search_filters.industries.length > 0 && (
-                      <div>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.industries')}</span>{' '}
-                        <span className="text-gray-900 dark:text-gray-100">{formData.search_filters.industries.join(', ')}</span>
-                      </div>
-                    )}
-                    {formData.search_filters.job_titles && formData.search_filters.job_titles.length > 0 && (
-                      <div>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.jobTitles')}</span>{' '}
-                        <span className="text-gray-900 dark:text-gray-100">{formData.search_filters.job_titles.join(', ')}</span>
-                      </div>
-                    )}
-                    {formData.search_filters.companies && formData.search_filters.companies.length > 0 && (
-                      <div>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{t('wizard.step2.filters.companies', 'Empresas:')}</span>{' '}
-                        <span className="text-gray-900 dark:text-gray-100">{formData.search_filters.companies.join(', ')}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1026,23 +1145,49 @@ const CampaignWizard = ({ isOpen, onClose, onCampaignCreated }) => {
             </button>
 
             {currentStep === 1.5 ? (
-              <button
-                onClick={handleGenerateFilters}
-                disabled={isLoading}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    {t('wizard.step1_5.generating')}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    {t('wizard.step1_5.generateButton')}
-                  </>
-                )}
-              </button>
+              formData.show_ai_preview && !formData.advancedMode ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      show_ai_preview: false,
+                      ai_generated_filters: null,
+                      ai_reasoning: '',
+                      ai_validation: null
+                    }))}
+                    className="px-4 py-2 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg flex items-center gap-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    {t('wizard.step1_5.aiPreview.adjustButton', 'Ajustar')}
+                  </button>
+                  <button
+                    onClick={handleConfirmFilters}
+                    disabled={!formData.ai_generated_filters?.job_titles?.length}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    {t('wizard.step1_5.aiPreview.confirmButton', 'Confirmar e Continuar')}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGenerateFilters}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      {t('wizard.step1_5.generating', 'Analisando...')}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      {t('wizard.step1_5.generateButton')}
+                    </>
+                  )}
+                </button>
+              )
             ) : currentStep < 3 ? (
               <button
                 onClick={handleNext}

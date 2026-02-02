@@ -18,11 +18,9 @@ require('./workers/emailWorker');
 // ✅ Import Google Maps Agent processor
 const { registerGoogleMapsAgentProcessor } = require('./queues/processors/googleMapsAgentProcessor');
 
-// ✅ Import Invite Expiration Worker
-const inviteExpirationWorker = require('./workers/inviteExpirationWorker');
-
-// ✅ Import Invite Send Worker (processes scheduled invites)
-const inviteSendWorker = require('./workers/inviteSendWorker');
+// ✅ Import LinkedIn Invite Worker (Bull queue processor for invites + expirations)
+require('./workers/linkedinInviteWorker');
+const { linkedinInviteQueue } = require('./queues');
 
 // ✅ Import Invitation Polling Worker (polls for received invitations every 4h)
 const invitationPollingWorker = require('./workers/invitationPollingWorker');
@@ -62,13 +60,12 @@ async function startServer() {
     // Register Google Maps Agent processor
     registerGoogleMapsAgentProcessor();
 
-    // ✅ Start Invite Expiration Worker
-    inviteExpirationWorker.startProcessor();
-    console.log('✅ Invite expiration worker started (cron job)');
-
-    // ✅ Start Invite Send Worker
-    inviteSendWorker.startProcessor();
-    console.log('✅ Invite send worker started (processes scheduled invites every 2 min)');
+    // ✅ Register repeatable job for invite expiration checks (every 1 hour)
+    await linkedinInviteQueue.add('check-expirations', {}, {
+      repeat: { every: 60 * 60 * 1000 },
+      jobId: 'expiration-check'
+    });
+    console.log('✅ LinkedIn invite system active (Bull queue - delayed jobs + hourly expiration)');
 
     // ✅ Start Invitation Polling Worker
     invitationPollingWorker.startProcessor();
@@ -91,8 +88,7 @@ async function startServer() {
       console.log('\n📊 Queue Status:');
       console.log('   - webhooks: ✅ Active (real-time processing)');
       console.log('   - google-maps-agents: ✅ Active (automated lead collection)');
-      console.log('   - invite-send: ✅ Active (every 2 min)');
-      console.log('   - invite-expiration: ✅ Active (hourly cron job)');
+      console.log('   - linkedin-invites: ✅ Active (Bull delayed jobs + hourly expiration)');
       console.log('   - campaigns: Ready (Phase 2)');
       console.log('   - bulk-collection: Ready (Phase 3)');
       console.log('   - conversation-sync: Disabled (webhooks handle sync)');

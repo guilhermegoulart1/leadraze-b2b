@@ -137,10 +137,10 @@ async function processJob(job) {
           searchParams.location = translatedFilters.location;
         }
         if (translatedFilters.industries && Array.isArray(translatedFilters.industries)) {
-          searchParams.industries = translatedFilters.industries;
+          searchParams.industry = translatedFilters.industries;
         }
         if (translatedFilters.job_titles && Array.isArray(translatedFilters.job_titles)) {
-          searchParams.job_titles = translatedFilters.job_titles;
+          searchParams.job_title = translatedFilters.job_titles;
         }
         if (translatedFilters.companies && Array.isArray(translatedFilters.companies)) {
           searchParams.companies = translatedFilters.companies;

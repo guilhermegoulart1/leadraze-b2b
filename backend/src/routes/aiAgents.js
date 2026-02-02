@@ -21,6 +21,7 @@ router.get('/behavioral-profiles', aiAgentController.getBehavioralProfiles);
 // OPEN AI - GERAÇÃO DE FILTROS
 // ================================
 router.post('/generate-filters', openaiController.generateSearchFilters);
+router.post('/generate-filters-from-icp', openaiController.generateFiltersFromICP);
 
 // ================================
 // CRUD DE AGENTES

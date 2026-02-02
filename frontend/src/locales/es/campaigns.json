@@ -40,8 +40,8 @@
       }
     },
     "step1_5": {
-      "title": "Configure su búsqueda automática",
-      "subtitle": "Simple y directo: elija la ciudad y los cargos. ¡La IA hace el resto!",
+      "title": "Defina su perfil ideal de cliente",
+      "subtitle": "Describa a quién quiere prospectar y la IA generará los filtros automáticamente",
       "location": {
         "label": "Ubicación",
         "placeholder": "Escriba una ciudad o región...",
@@ -50,6 +50,29 @@
         "loading": "Buscando...",
         "required": "Seleccione una ubicación primero"
       },
+      "icpDescription": {
+        "label": "Describa su público objetivo",
+        "placeholder": "Ej: dueños de agencias de marketing digital, CTOs de startups de tecnología, directores de RRHH de empresas medianas...",
+        "help": "Describa en lenguaje natural a quién desea prospectar. La IA extraerá cargos, sectores y palabras clave automáticamente.",
+        "required": "Describa el perfil que desea buscar (mínimo 15 caracteres)",
+        "example1": "Dueños de agencias de marketing",
+        "example2": "CTOs de startups de tecnología",
+        "example3": "Directores de RRHH de empresas medianas",
+        "example4": "Médicos y directores de clínicas"
+      },
+      "aiPreview": {
+        "reasoning": "Interpretación de la IA:",
+        "jobTitles": "Cargos identificados:",
+        "industries": "Sectores identificados:",
+        "keywords": "Palabras clave:",
+        "validationStatus": "{{validated}} de {{total}} términos validados en LinkedIn",
+        "editHint": "Haga clic en X para eliminar términos. Confirme cuando esté satisfecho.",
+        "confirmButton": "Confirmar y Continuar",
+        "adjustButton": "Ajustar"
+      },
+      "switchToAdvanced": "Modo avanzado",
+      "switchToAI": "Volver al modo IA",
+      "howItWorksIA": "Cómo funciona: Describa su público objetivo y nuestra IA identifica automáticamente cargos, sectores y palabras clave optimizados para la búsqueda en LinkedIn.",
       "jobTitles": {
         "label": "Cargos",
         "placeholder": "Ej: CEO, Director, Gerente, Fundador...",
@@ -58,7 +81,7 @@
       },
       "howItWorks": "Cómo funciona: Usted define la ciudad y los cargos, y nuestra IA expande y optimiza los filtros automáticamente para encontrar los mejores perfiles.",
       "generateButton": "Generar Filtros con IA",
-      "generating": "Generando filtros..."
+      "generating": "Analizando descripción..."
     },
     "step2": {
       "title": "Configurar recopilación de perfiles",

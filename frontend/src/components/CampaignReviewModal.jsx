@@ -1,9 +1,9 @@
 // frontend/src/components/CampaignReviewModal.jsx
 import React, { useState, useEffect } from 'react';
 import {
-  X, CheckCircle, Users, Sparkles, MessageSquare, Play,
-  ArrowLeft, Loader, AlertCircle, Trash2, Settings, Clock,
-  Save, Globe, Calendar, Bot, Download, Check, XCircle, Ban
+  X, CheckCircle, Users, Sparkles, Play,
+  ArrowLeft, Loader, AlertCircle, Settings, Clock,
+  Save, Globe, Download, Check, XCircle, Ban
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -27,12 +27,13 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const [contacts, setContacts] = useState([]);
   const [contactsStats, setContactsStats] = useState({});
   const [aiAgent, setAiAgent] = useState(null);
+  const [aiAgents, setAiAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isActivating, setIsActivating] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState(new Set());
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('collected'); // collected, approved, rejected, all
+  const [statusFilter, setStatusFilter] = useState('all'); // collected, approved, rejected, all
 
   // Configuration states
   const [sectors, setSectors] = useState([]);
@@ -41,18 +42,13 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const [config, setConfig] = useState({
     sector_id: '',
     round_robin_users: [],
-    invite_expiry_days: 7,
     max_pending_invites: 100,
-    withdraw_expired_invites: true,
     send_start_hour: 9,
     send_end_hour: 18,
     timezone: 'America/Sao_Paulo',
-    ai_initiate_delay_min: 5,
-    ai_initiate_delay_max: 60,
   });
   const [isConfigSaved, setIsConfigSaved] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
 
   useEffect(() => {
     if (isOpen && campaign) {
@@ -88,6 +84,14 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
         console.warn('Could not load contacts stats:', e);
       }
 
+      // Load all AI agents for dropdown
+      try {
+        const agentsResponse = await api.getAIAgents();
+        setAiAgents(agentsResponse.data || []);
+      } catch (e) {
+        console.warn('Could not load AI agents:', e);
+      }
+
       // Load AI agent if exists
       if (campaign.ai_agent_id) {
         const agentResponse = await api.getAIAgent(campaign.ai_agent_id);
@@ -110,14 +114,10 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
           setConfig({
             sector_id: existingConfig.sector_id || '',
             round_robin_users: existingConfig.round_robin_users || [],
-            invite_expiry_days: existingConfig.invite_expiry_days || 7,
             max_pending_invites: existingConfig.max_pending_invites || 100,
-            withdraw_expired_invites: existingConfig.withdraw_expired_invites !== false,
             send_start_hour: existingConfig.send_start_hour || 9,
             send_end_hour: existingConfig.send_end_hour || 18,
             timezone: existingConfig.timezone || 'America/Sao_Paulo',
-            ai_initiate_delay_min: existingConfig.ai_initiate_delay_min || 5,
-            ai_initiate_delay_max: existingConfig.ai_initiate_delay_max || 60,
           });
           setIsConfigSaved(existingConfig.is_reviewed === true);
 
@@ -190,6 +190,19 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
       alert(t('campaignReview.saveConfigError', 'Erro ao salvar configuração'));
     } finally {
       setIsSavingConfig(false);
+    }
+  };
+
+  const handleChangeAgent = async (agentId) => {
+    if (!agentId) return;
+    try {
+      await api.updateCampaign(campaign.id, { ai_agent_id: agentId });
+      const agentResponse = await api.getAIAgent(agentId);
+      setAiAgent(agentResponse.data);
+      campaign.ai_agent_id = agentId;
+    } catch (error) {
+      console.error('Error changing agent:', error);
+      alert(t('campaignReview.changeAgentError', 'Erro ao trocar agente'));
     }
   };
 
@@ -405,139 +418,44 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
             </div>
           ) : (
             <div className="flex h-full" style={{ minHeight: 0 }}>
-              {/* Coluna Esquerda - Informações da Campanha */}
-              <div className="flex-1 p-6 space-y-6 overflow-y-auto" style={{ minHeight: 0 }}>
-                {/* Stats Overview - 4 cards showing contact status */}
-                <div className="grid grid-cols-4 gap-3">
-                  {/* Total coletados */}
-                  <button
-                    onClick={() => setStatusFilter('collected')}
-                    className={`rounded-lg p-3 border transition-all ${
-                      statusFilter === 'collected'
-                        ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-600 ring-2 ring-blue-500'
-                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span className="text-xs font-medium text-blue-900 dark:text-blue-300">{t('campaignReview.collected', 'Coletados')}</span>
-                    </div>
-                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{contactsStats.collected || 0}</p>
-                  </button>
+              {/* Coluna Esquerda - Configurações da Campanha */}
+              <div className="w-[380px] flex-shrink-0 p-5 space-y-4 overflow-y-auto border-r border-gray-200 dark:border-gray-700" style={{ minHeight: 0 }}>
 
-                  {/* Aprovados */}
-                  <button
-                    onClick={() => setStatusFilter('approved')}
-                    className={`rounded-lg p-3 border transition-all ${
-                      statusFilter === 'approved'
-                        ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-600 ring-2 ring-green-500'
-                        : 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                      <span className="text-xs font-medium text-green-900 dark:text-green-300">{t('campaignReview.approved', 'Aprovados')}</span>
-                    </div>
-                    <p className="text-xl font-bold text-green-600 dark:text-green-400">{contactsStats.approved || 0}</p>
-                  </button>
-
-                  {/* Rejeitados */}
-                  <button
-                    onClick={() => setStatusFilter('rejected')}
-                    className={`rounded-lg p-3 border transition-all ${
-                      statusFilter === 'rejected'
-                        ? 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-600 ring-2 ring-red-500'
-                        : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Ban className="w-4 h-4 text-red-600 dark:text-red-400" />
-                      <span className="text-xs font-medium text-red-900 dark:text-red-300">{t('campaignReview.rejected', 'Rejeitados')}</span>
-                    </div>
-                    <p className="text-xl font-bold text-red-600 dark:text-red-400">{contactsStats.rejected || 0}</p>
-                  </button>
-
-                  {/* Todos */}
-                  <button
-                    onClick={() => setStatusFilter('all')}
-                    className={`rounded-lg p-3 border transition-all ${
-                      statusFilter === 'all'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-300 dark:border-purple-600 ring-2 ring-purple-500'
-                        : 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      <span className="text-xs font-medium text-purple-900 dark:text-purple-300">{t('campaignReview.total', 'Total')}</span>
-                    </div>
-                    <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{contacts.length}</p>
-                  </button>
-                </div>
-
-              {/* AI Agent Section */}
-              {aiAgent && (
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{aiAgent.name}</h3>
-                        <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 rounded text-xs font-medium">
-                          {t('campaignReview.aiAgent')}
-                        </span>
-                      </div>
-                      {aiAgent.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{aiAgent.description}</p>
-                      )}
-
-                      {/* Message Template */}
-                      {aiAgent.system_prompt && (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
-                          <div className="flex items-center gap-2 mb-2">
-                            <MessageSquare className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('campaignReview.messageToSend')}</span>
-                          </div>
-                          <p className="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
-                            {aiAgent.system_prompt}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Configuration Section */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <button
-                  onClick={() => setShowConfig(!showConfig)}
-                  className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 transition-colors"
+              {/* AI Agent Section - compact */}
+              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg px-4 py-3 border border-gray-200 dark:border-gray-700">
+                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  {t('campaignReview.aiAgent', 'Agente IA')}:
+                </label>
+                <select
+                  value={aiAgent?.id || campaign?.ai_agent_id || ''}
+                  onChange={(e) => handleChangeAgent(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
-                  <div className="flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
-                      {t('campaignReview.configuration', 'Configuração da Campanha')}
-                    </span>
-                    {isConfigSaved && (
-                      <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 rounded text-xs font-medium">
-                        {t('campaignReview.saved', 'Salvo')}
-                      </span>
-                    )}
-                  </div>
-                  <svg
-                    className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${showConfig ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                  <option value="">{t('campaignReview.selectAgent', 'Selecione um agente')}</option>
+                  {aiAgents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                {showConfig && (
-                  <div className="p-4 space-y-6">
+              {/* Configuration Section - always open */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-4 py-2.5 flex items-center gap-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+                  <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {t('campaignReview.configuration', 'Configuração da Campanha')}
+                  </span>
+                  {isConfigSaved && (
+                    <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 rounded text-xs font-medium">
+                      {t('campaignReview.saved', 'Salvo')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 space-y-4">
                     {/* Round Robin Section */}
                     <div className="space-y-4">
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -589,46 +507,6 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                           )}
                         </div>
                       )}
-                    </div>
-
-                    {/* Invite Settings */}
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        {t('campaignReview.inviteSettings', 'Configurações de Convite')}
-                      </h4>
-
-                      {/* Expiry Days Slider */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          {t('campaignReview.expiryDays', 'Dias de espera para expirar')}: <span className="font-bold text-blue-600 dark:text-blue-400">{config.invite_expiry_days}</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="1"
-                          max="14"
-                          value={config.invite_expiry_days}
-                          onChange={(e) => handleConfigChange('invite_expiry_days', parseInt(e.target.value))}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          <span>1 dia</span>
-                          <span>14 dias</span>
-                        </div>
-                      </div>
-
-                      {/* Withdraw Expired */}
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={config.withdraw_expired_invites}
-                          onChange={(e) => handleConfigChange('withdraw_expired_invites', e.target.checked)}
-                          className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {t('campaignReview.withdrawExpired', 'Retirar convites expirados automaticamente')}
-                        </span>
-                      </label>
                     </div>
 
                     {/* Business Hours */}
@@ -690,46 +568,6 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                       </div>
                     </div>
 
-                    {/* AI Delay Settings */}
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                        <Bot className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        {t('campaignReview.aiDelay', 'Delay do Agente de IA')}
-                      </h4>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {t('campaignReview.minDelay', 'Mínimo (min)')}
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="120"
-                            value={config.ai_initiate_delay_min}
-                            onChange={(e) => handleConfigChange('ai_initiate_delay_min', parseInt(e.target.value) || 5)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {t('campaignReview.maxDelay', 'Máximo (min)')}
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="120"
-                            value={config.ai_initiate_delay_max}
-                            onChange={(e) => handleConfigChange('ai_initiate_delay_max', parseInt(e.target.value) || 60)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {t('campaignReview.aiDelayHelp', 'Tempo aleatório entre aceite do convite e primeira mensagem do agente')}
-                      </p>
-                    </div>
-
                     {/* Save Button */}
                     <div className="pt-2">
                       <button
@@ -751,37 +589,81 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
               </div>
 
-              {/* Coluna Direita - Lista de Contatos */}
-              <div className="w-96 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800" style={{ minHeight: 0 }}>
-                {/* Header da lista */}
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        {statusFilter === 'all' ? t('campaignReview.allContacts', 'Todos os Contatos') :
-                         statusFilter === 'collected' ? t('campaignReview.pendingReview', 'Aguardando Revisão') :
-                         statusFilter === 'approved' ? t('campaignReview.approvedContacts', 'Contatos Aprovados') :
-                         t('campaignReview.rejectedContacts', 'Contatos Rejeitados')}
-                      </h3>
-                      <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 rounded text-xs font-medium">
-                        {getFilteredContacts().length}
-                      </span>
-                    </div>
+              {/* Coluna Direita - Filtros + Lista de Contatos */}
+              <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 overflow-hidden" style={{ minHeight: 0 }}>
+                {/* Filter badges */}
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
-                      onClick={handleExportCSV}
-                      disabled={contacts.length === 0}
-                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={t('campaignReview.exportCSV', 'Exportar CSV')}
+                      onClick={() => setStatusFilter('collected')}
+                      className={`flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all ${
+                        statusFilter === 'collected'
+                          ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-500 ring-1 ring-blue-500'
+                          : 'border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                      }`}
                     >
-                      <Download className="w-4 h-4" />
+                      <Users className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      <span className="text-blue-900 dark:text-blue-300">{t('campaignReview.collected', 'Coletados')}</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">{contactsStats.collected || 0}</span>
                     </button>
-                  </div>
 
-                  {/* Actions bar */}
+                    <button
+                      onClick={() => setStatusFilter('approved')}
+                      className={`flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all ${
+                        statusFilter === 'approved'
+                          ? 'bg-green-100 dark:bg-green-900/40 border-green-400 dark:border-green-500 ring-1 ring-green-500'
+                          : 'border-gray-200 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                      }`}
+                    >
+                      <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                      <span className="text-green-900 dark:text-green-300">{t('campaignReview.approved', 'Aprovados')}</span>
+                      <span className="font-bold text-green-600 dark:text-green-400">{contactsStats.approved || 0}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setStatusFilter('rejected')}
+                      className={`flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all ${
+                        statusFilter === 'rejected'
+                          ? 'bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-500 ring-1 ring-red-500'
+                          : 'border-gray-200 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                      }`}
+                    >
+                      <Ban className="w-3 h-3 text-red-600 dark:text-red-400" />
+                      <span className="text-red-900 dark:text-red-300">{t('campaignReview.rejected', 'Rejeitados')}</span>
+                      <span className="font-bold text-red-600 dark:text-red-400">{contactsStats.rejected || 0}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className={`flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all ${
+                        statusFilter === 'all'
+                          ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-400 dark:border-purple-500 ring-1 ring-purple-500'
+                          : 'border-gray-200 dark:border-gray-600 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                      }`}
+                    >
+                      <Sparkles className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                      <span className="text-purple-900 dark:text-purple-300">{t('campaignReview.total', 'Total')}</span>
+                      <span className="font-bold text-purple-600 dark:text-purple-400">{contacts.length}</span>
+                    </button>
+
+                    <div className="ml-auto">
+                      <button
+                        onClick={handleExportCSV}
+                        disabled={contacts.length === 0}
+                        className="p-1 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={t('campaignReview.exportCSV', 'Exportar CSV')}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions bar */}
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={toggleAll}
@@ -833,7 +715,7 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                 </div>
 
                 {/* Lista scrollável */}
-                <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
+                <div className="flex-1 overflow-y-auto pr-1" style={{ minHeight: 0, scrollbarGutter: 'stable' }}>
                   {getFilteredContacts().length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <AlertCircle className="w-12 h-12 text-gray-400 mb-3" />
