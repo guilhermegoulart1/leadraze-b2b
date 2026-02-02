@@ -4,11 +4,12 @@ const db = require('../config/database');
 const DEFAULT_SOURCES = [
   { name: 'linkedin', label: 'LinkedIn', color: '#0077b5', icon: 'in', display_order: 0 },
   { name: 'google_maps', label: 'Google Maps', color: '#34a853', icon: 'G', display_order: 1 },
-  { name: 'lista', label: 'Lista', color: '#7c3aed', icon: 'L', display_order: 2 },
-  { name: 'trafego_pago', label: 'Tráfego Pago', color: '#f59e0b', icon: '$', display_order: 3 },
-  { name: 'manual', label: 'Manual', color: '#3b82f6', icon: 'M', display_order: 4 },
-  { name: 'indicacao', label: 'Indicação', color: '#10b981', icon: 'R', display_order: 5 },
-  { name: 'outro', label: 'Outro', color: '#6b7280', icon: '?', display_order: 6 }
+  { name: 'chrome_extension', label: 'Extensão Chrome', color: '#10b981', icon: 'C', display_order: 2 },
+  { name: 'lista', label: 'Lista', color: '#7c3aed', icon: 'L', display_order: 3 },
+  { name: 'trafego_pago', label: 'Tráfego Pago', color: '#f59e0b', icon: '$', display_order: 4 },
+  { name: 'manual', label: 'Manual', color: '#3b82f6', icon: 'M', display_order: 5 },
+  { name: 'indicacao', label: 'Indicação', color: '#10b981', icon: 'R', display_order: 6 },
+  { name: 'outro', label: 'Outro', color: '#6b7280', icon: '?', display_order: 7 }
 ];
 
 // Mapping from old source values to new names

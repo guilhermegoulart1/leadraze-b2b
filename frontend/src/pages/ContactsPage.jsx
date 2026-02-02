@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Search, Filter, Download, Upload, Plus,
   Mail, Phone, MessageCircle, Instagram, Linkedin, Send,
-  Eye, Edit2, Trash2, X, MapPin, FileText, Users, ChevronLeft, ChevronRight
+  Eye, Edit2, Trash2, X, MapPin, FileText, Users, ChevronLeft, ChevronRight, Chrome
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -84,6 +84,13 @@ const ContactsPage = () => {
       bg: 'bg-indigo-50',
       border: 'border-indigo-200',
       label: t('sources.campaign')
+    },
+    chrome_extension: {
+      icon: Chrome,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      border: 'border-emerald-200',
+      label: t('sources.chromeExtension')
     }
   };
 

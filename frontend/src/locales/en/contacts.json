@@ -197,6 +197,7 @@
     "import": "Import",
     "manual": "Manual",
     "campaign": "Campaign",
+    "chromeExtension": "Chrome Extension",
     "tooltip": "Source: {{source}}"
   },
   "time": {

@@ -190,24 +190,24 @@ const approveContacts = async (req, res) => {
     let result;
 
     if (approve_all) {
-      // Aprovar todos os coletados
+      // Aprovar todos os coletados/rejeitados
       result = await db.query(`
         UPDATE campaign_contacts
         SET status = 'approved', updated_at = NOW()
         WHERE campaign_id = $1
         AND account_id = $2
-        AND status = 'collected'
+        AND status IN ('collected', 'rejected')
         RETURNING id
       `, [campaignId, accountId]);
     } else if (contact_ids && contact_ids.length > 0) {
-      // Aprovar contatos específicos
+      // Aprovar contatos específicos (collected ou rejected)
       result = await db.query(`
         UPDATE campaign_contacts
         SET status = 'approved', updated_at = NOW()
         WHERE campaign_id = $1
         AND account_id = $2
         AND id = ANY($3)
-        AND status = 'collected'
+        AND status IN ('collected', 'rejected')
         RETURNING id
       `, [campaignId, accountId, contact_ids]);
     } else {
@@ -250,24 +250,24 @@ const rejectContacts = async (req, res) => {
     let result;
 
     if (reject_all) {
-      // Rejeitar todos os coletados
+      // Rejeitar todos os coletados/aprovados
       result = await db.query(`
         UPDATE campaign_contacts
         SET status = 'rejected', updated_at = NOW()
         WHERE campaign_id = $1
         AND account_id = $2
-        AND status = 'collected'
+        AND status IN ('collected', 'approved')
         RETURNING id
       `, [campaignId, accountId]);
     } else if (contact_ids && contact_ids.length > 0) {
-      // Rejeitar contatos específicos
+      // Rejeitar contatos específicos (collected ou approved)
       result = await db.query(`
         UPDATE campaign_contacts
         SET status = 'rejected', updated_at = NOW()
         WHERE campaign_id = $1
         AND account_id = $2
         AND id = ANY($3)
-        AND status = 'collected'
+        AND status IN ('collected', 'approved')
         RETURNING id
       `, [campaignId, accountId, contact_ids]);
     } else {

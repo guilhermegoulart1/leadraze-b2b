@@ -197,6 +197,7 @@
     "import": "Importación",
     "manual": "Manual",
     "campaign": "Campaña",
+    "chromeExtension": "Extensión Chrome",
     "tooltip": "Origen: {{source}}"
   },
   "time": {
