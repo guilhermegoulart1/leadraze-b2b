@@ -1,5 +1,6 @@
 // frontend/src/pages/InstagramAgentsPage.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Loader2, X, Camera, Search, Download, Trash2,
@@ -9,6 +10,7 @@ import {
 import apiService from '../services/api';
 
 const InstagramAgentsPage = () => {
+  const navigate = useNavigate();
   const { t } = useTranslation(['instagram', 'common', 'navigation']);
 
   // Agents state
@@ -30,12 +32,7 @@ const InstagramAgentsPage = () => {
   // Executing state
   const [executingAgents, setExecutingAgents] = useState(new Set());
 
-  // Profiles modal
-  const [profilesModal, setProfilesModal] = useState({ show: false, agent: null });
-  const [profiles, setProfiles] = useState([]);
-  const [profilesLoading, setProfilesLoading] = useState(false);
-  const [profilesPage, setProfilesPage] = useState(1);
-  const [profilesPagination, setProfilesPagination] = useState(null);
+  // Profiles (unused - navigates to detail page now)
 
   // Delete confirmation
   const [deleteModal, setDeleteModal] = useState({ show: false, agent: null, deleting: false });
@@ -161,31 +158,10 @@ const InstagramAgentsPage = () => {
     }
   };
 
-  const handleViewProfiles = async (agent) => {
-    setProfilesModal({ show: true, agent });
-    setProfilesPage(1);
-    await loadProfiles(agent.id, 1);
+  const handleViewProfiles = (agent) => {
+    navigate(`/instagram-agents/${agent.id}`);
   };
 
-  const loadProfiles = async (agentId, page) => {
-    try {
-      setProfilesLoading(true);
-      const result = await apiService.getInstagramAgentProfiles(agentId, { page, limit: 20 });
-      if (result.success) {
-        setProfiles(result.profiles || []);
-        setProfilesPagination(result.pagination);
-      }
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setProfilesLoading(false);
-    }
-  };
-
-  const handleProfilesPageChange = (newPage) => {
-    setProfilesPage(newPage);
-    loadProfiles(profilesModal.agent.id, newPage);
-  };
 
   const handleExportCSV = async (agentId) => {
     try {
@@ -541,120 +517,6 @@ const InstagramAgentsPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ============================= */}
-      {/* PROFILES MODAL */}
-      {/* ============================= */}
-      {profilesModal.show && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-4xl shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {profilesModal.agent?.name} - {t('agents.viewProfiles')}
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {profilesModal.agent?.total_profiles_found || 0} {t('agents.profilesFound')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleExportCSV(profilesModal.agent.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  CSV
-                </button>
-                <button
-                  onClick={() => setProfilesModal({ show: false, agent: null })}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto p-5">
-              {profilesLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
-                </div>
-              ) : profiles.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  {t('agents.noProfilesYet')}
-                </div>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
-                      <th className="pb-3 pr-4">{t('agents.username')}</th>
-                      <th className="pb-3 pr-4">{t('agents.displayName')}</th>
-                      <th className="pb-3 pr-4">{t('agents.bioExcerpt')}</th>
-                      <th className="pb-3 pr-4">{t('agents.foundAt')}</th>
-                      <th className="pb-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {profiles.map((profile, idx) => (
-                      <tr key={`${profile.username}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="py-3 pr-4">
-                          <span className="font-medium text-purple-600 dark:text-purple-400">
-                            @{profile.username}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4 text-gray-900 dark:text-white">
-                          {profile.display_name || '-'}
-                        </td>
-                        <td className="py-3 pr-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
-                          {profile.bio_excerpt || '-'}
-                        </td>
-                        <td className="py-3 pr-4 text-sm text-gray-400">
-                          {formatDate(profile.found_at)}
-                        </td>
-                        <td className="py-3">
-                          <a
-                            href={profile.profile_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {profilesPagination && profilesPagination.pages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">
-                <span className="text-sm text-gray-500">
-                  {t('agents.page')} {profilesPagination.page} / {profilesPagination.pages}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleProfilesPageChange(profilesPage - 1)}
-                    disabled={profilesPage <= 1}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleProfilesPageChange(profilesPage + 1)}
-                    disabled={profilesPage >= profilesPagination.pages}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}

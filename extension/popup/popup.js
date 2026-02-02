@@ -13,6 +13,19 @@ const errorMessage = document.getElementById('error-message');
 const connectedSince = document.getElementById('connected-since');
 
 /**
+ * Localize all elements with data-i18n attribute
+ */
+function localizeHtml() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    const msg = chrome.i18n.getMessage(key);
+    if (msg) {
+      el.textContent = msg;
+    }
+  });
+}
+
+/**
  * Show a specific section, hide others
  */
 function showSection(section) {
@@ -57,7 +70,9 @@ function showConnected(accountInfo) {
   showSection(connectedSection);
   if (accountInfo && accountInfo.validatedAt) {
     const date = new Date(accountInfo.validatedAt);
-    connectedSince.textContent = `Desde ${date.toLocaleDateString('pt-BR')}`;
+    const lang = chrome.i18n.getUILanguage() || 'pt-BR';
+    const dateStr = date.toLocaleDateString(lang);
+    connectedSince.textContent = chrome.i18n.getMessage('popupStatusSince', [dateStr]);
   }
 }
 
@@ -69,12 +84,12 @@ async function handleSave() {
   const apiKey = apiKeyInput.value.trim();
 
   if (!apiKey) {
-    showError('Por favor, insira sua API Key.');
+    showError(chrome.i18n.getMessage('popupErrorRequired'));
     return;
   }
 
   if (!apiKey.startsWith('lr_live_')) {
-    showError('API Key invalida. Deve comecar com "lr_live_".');
+    showError(chrome.i18n.getMessage('popupErrorInvalid'));
     return;
   }
 
@@ -87,7 +102,7 @@ async function handleSave() {
       (response) => {
         if (chrome.runtime.lastError) {
           showSection(setupSection);
-          showError('Erro de conexao. Tente novamente.');
+          showError(chrome.i18n.getMessage('popupErrorConnection'));
           saveBtn.disabled = false;
           return;
         }
@@ -97,7 +112,7 @@ async function handleSave() {
           apiKeyInput.value = '';
         } else {
           showSection(setupSection);
-          const msg = response?.error?.message || 'API Key invalida ou expirada.';
+          const msg = response?.error?.message || chrome.i18n.getMessage('popupErrorExpired');
           showError(msg);
         }
         saveBtn.disabled = false;
@@ -105,7 +120,7 @@ async function handleSave() {
     );
   } catch (err) {
     showSection(setupSection);
-    showError('Erro ao validar. Verifique sua conexao.');
+    showError(chrome.i18n.getMessage('popupErrorValidation'));
     saveBtn.disabled = false;
   }
 }
@@ -131,5 +146,18 @@ apiKeyInput.addEventListener('keypress', (e) => {
   }
 });
 
-// Check status on popup open
+/**
+ * Show extension version from manifest
+ */
+function showVersion() {
+  const manifest = chrome.runtime.getManifest();
+  const versionEl = document.getElementById('version-text');
+  if (versionEl) {
+    versionEl.textContent = chrome.i18n.getMessage('popupVersion', [manifest.version]);
+  }
+}
+
+// Initialize
+localizeHtml();
 checkStatus();
+showVersion();

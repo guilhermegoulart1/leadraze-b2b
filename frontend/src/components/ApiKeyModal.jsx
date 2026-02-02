@@ -8,6 +8,10 @@ const AVAILABLE_PERMISSIONS = [
   { value: 'opportunities:read', label: 'Ler Oportunidades', description: 'Listar e visualizar leads' },
   { value: 'opportunities:write', label: 'Criar/Editar Oportunidades', description: 'Criar e atualizar leads' },
   { value: 'opportunities:delete', label: 'Excluir Oportunidades', description: 'Remover leads permanentemente' },
+  { value: 'campaigns:read', label: 'Ler Campanhas', description: 'Listar e visualizar campanhas do LinkedIn' },
+  { value: 'campaigns:write', label: 'Adicionar a Campanhas', description: 'Adicionar contatos a campanhas do LinkedIn' },
+  { value: 'instagram_agents:read', label: 'Ler Agentes Instagram', description: 'Listar e visualizar agentes do Instagram' },
+  { value: 'instagram_agents:write', label: 'Adicionar a Agentes Instagram', description: 'Adicionar perfis a agentes do Instagram' },
 ];
 
 export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, onSubmit }) {
@@ -16,7 +20,7 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
 
   const [formData, setFormData] = useState({
     name: '',
-    permissions: ['contacts:read', 'contacts:write', 'opportunities:read', 'opportunities:write'],
+    permissions: ['contacts:read', 'contacts:write', 'opportunities:read', 'opportunities:write', 'campaigns:read', 'campaigns:write', 'instagram_agents:read', 'instagram_agents:write'],
     rate_limit: 1000,
     expires_at: ''
   });
@@ -72,18 +76,18 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold">
+            <Key className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {mode === 'create' ? 'Criar Nova API Key' : 'Editar API Key'}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-500 dark:text-gray-400"
           >
             <X className="w-5 h-5" />
           </button>
@@ -92,15 +96,15 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <span className="text-sm text-red-700">{error}</span>
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
             </div>
           )}
 
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Nome da API Key *
             </label>
             <input
@@ -108,35 +112,35 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Ex: Integracao Zapier, Webhook HubSpot"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Use um nome descritivo para identificar onde esta key sera usada
             </p>
           </div>
 
           {/* Permissions */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
               <Shield className="w-4 h-4" />
               Permissoes *
             </label>
-            <div className="space-y-2 bg-gray-50 rounded-lg p-3">
+            <div className="space-y-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
               {AVAILABLE_PERMISSIONS.map((perm) => (
                 <label
                   key={perm.value}
-                  className="flex items-start gap-3 p-2 hover:bg-white rounded cursor-pointer"
+                  className="flex items-start gap-3 p-2 hover:bg-white dark:hover:bg-gray-700 rounded cursor-pointer"
                 >
                   <input
                     type="checkbox"
                     checked={formData.permissions.includes(perm.value)}
                     onChange={() => handlePermissionToggle(perm.value)}
-                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-800"
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{perm.label}</div>
-                    <div className="text-xs text-gray-500">{perm.description}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{perm.label}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{perm.description}</div>
                   </div>
                 </label>
               ))}
@@ -145,7 +149,7 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
 
           {/* Rate Limit */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Limite de requisicoes por hora
             </label>
             <input
@@ -154,16 +158,16 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
               onChange={(e) => setFormData(prev => ({ ...prev, rate_limit: e.target.value }))}
               min="10"
               max="10000"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Minimo 10, maximo 10.000 requisicoes por hora
             </p>
           </div>
 
           {/* Expiration */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
               <Clock className="w-4 h-4" />
               Data de expiracao (opcional)
             </label>
@@ -172,19 +176,19 @@ export default function ApiKeyModal({ mode = 'create', apiKey = null, onClose, o
               value={formData.expires_at}
               onChange={(e) => setFormData(prev => ({ ...prev, expires_at: e.target.value }))}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Deixe em branco para a key nunca expirar
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t">
+          <div className="flex gap-3 pt-4 border-t dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
               disabled={loading}
             >
               Cancelar

@@ -11,6 +11,9 @@
   let currentUrl = '';
   let dropdownOpen = false;
 
+  /** Helper to get i18n message */
+  const t = (key, substitutions) => chrome.i18n.getMessage(key, substitutions) || key;
+
   /**
    * Check if we're on a LinkedIn profile page
    */
@@ -27,12 +30,32 @@
       title: '',
       company: '',
       location: '',
-      linkedin_profile_url: ''
+      linkedin_profile_url: '',
+      profile_picture: '',
+      about: '',
+      extracted_contacts: { emails: [], phones: [], websites: [] }
     };
 
     // Profile URL (most reliable - from URL)
     const path = window.location.pathname.split('?')[0].replace(/\/+$/, '');
     data.linkedin_profile_url = `https://www.linkedin.com${path}`;
+
+    // Profile photo
+    const photoSelectors = [
+      'img.pv-top-card-profile-picture__image--show',
+      'img.pv-top-card-profile-picture__image',
+      '.pv-top-card__photo img',
+      'main section img.evi-image[width="200"]',
+      'button[aria-label*="photo"] img',
+      'button[aria-label*="foto"] img'
+    ];
+    for (const selector of photoSelectors) {
+      const el = document.querySelector(selector);
+      if (el && el.src && el.src.startsWith('http')) {
+        data.profile_picture = el.src;
+        break;
+      }
+    }
 
     // Name - main h1 on profile
     const nameEl = document.querySelector('h1.text-heading-xlarge')
@@ -62,7 +85,57 @@
       data.company = experienceSection.textContent.trim();
     }
 
+    // About section
+    const aboutSelectors = [
+      '#about ~ div .inline-show-more-text span[aria-hidden="true"]',
+      '#about ~ div .pv-shared-text-with-see-more span[aria-hidden="true"]',
+      '#about + div + div span.visually-hidden + span',
+      '.pv-about__summary-text span[aria-hidden="true"]'
+    ];
+    for (const selector of aboutSelectors) {
+      const el = document.querySelector(selector);
+      if (el && el.textContent.trim().length > 10) {
+        data.about = el.textContent.trim();
+        break;
+      }
+    }
+
+    // Extract contacts from about section and headline
+    const textToParse = [data.about, data.title].filter(Boolean).join(' ');
+    data.extracted_contacts = extractContactsFromText(textToParse);
+
     return data;
+  }
+
+  /**
+   * Extract contact info (emails, phones, websites) from text
+   */
+  function extractContactsFromText(text) {
+    const contacts = { emails: [], phones: [], websites: [] };
+    if (!text) return contacts;
+
+    // Extract emails
+    const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+    const emails = text.match(emailRegex);
+    if (emails) {
+      contacts.emails = [...new Set(emails.map(e => e.toLowerCase()))];
+    }
+
+    // Extract phone numbers (BR and international formats)
+    const phoneRegex = /(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,3}\)?[\s.-]?\d{4,5}[\s.-]?\d{4}/g;
+    const phones = text.match(phoneRegex);
+    if (phones) {
+      contacts.phones = [...new Set(phones.map(p => p.replace(/[\s.-]/g, '').replace(/[()]/g, '')))];
+    }
+
+    // Extract URLs/websites
+    const urlRegex = /https?:\/\/[^\s,;)>\]]+/gi;
+    const urls = text.match(urlRegex);
+    if (urls) {
+      contacts.websites = [...new Set(urls.map(u => u.replace(/[.,;]+$/, '')))];
+    }
+
+    return contacts;
   }
 
   /**
@@ -80,7 +153,7 @@
     const btn = document.createElement('button');
     btn.id = BUTTON_ID;
     btn.className = 'getraze-btn';
-    btn.innerHTML = '<span class="getraze-btn-icon">GR</span> Adicionar ao GetRaze';
+    btn.innerHTML = `<span class="getraze-btn-icon">GR</span> ${t('btnAddToGetraze')}`;
     btn.addEventListener('click', handleButtonClick);
 
     wrapper.appendChild(btn);
@@ -94,23 +167,43 @@
     if (!isProfilePage()) return;
     if (document.getElementById(WRAPPER_ID)) return;
 
-    // Wait for the profile actions area to load
-    const actionsContainer = document.querySelector('.pv-top-card-v2-ctas')
-      || document.querySelector('.pvs-profile-actions')
-      || document.querySelector('.pv-top-card--list .display-flex');
+    // Find the row containing Connect/Message/More buttons
+    // LinkedIn uses buttons with specific text - find them and inject next to them
+    const allButtons = document.querySelectorAll('main section button');
+    let targetRow = null;
 
-    if (actionsContainer) {
+    for (const btn of allButtons) {
+      const text = btn.textContent.trim().toLowerCase();
+      if (text === 'connect' || text === 'conectar' || text === 'message' || text === 'mensagem' || text === 'more' || text === 'mais') {
+        // Found an action button - its parent is the button row
+        targetRow = btn.parentElement;
+        break;
+      }
+    }
+
+    if (targetRow) {
       const wrapper = createButton();
       wrapper.style.marginLeft = '8px';
-      actionsContainer.appendChild(wrapper);
-    } else {
-      // Fallback: insert after the profile header
-      const header = document.querySelector('.pv-top-card')
-        || document.querySelector('.scaffold-layout__main');
-      if (header) {
+      wrapper.style.display = 'inline-flex';
+      wrapper.style.alignItems = 'center';
+      targetRow.appendChild(wrapper);
+      return;
+    }
+
+    // Fallback: look for known class-based containers
+    const actionsSelectors = [
+      '.pvs-profile-actions',
+      '.pv-top-card-v2-ctas'
+    ];
+
+    for (const selector of actionsSelectors) {
+      const container = document.querySelector(selector);
+      if (container) {
         const wrapper = createButton();
-        wrapper.style.margin = '8px 0 0 24px';
-        header.appendChild(wrapper);
+        wrapper.style.marginLeft = '8px';
+        wrapper.style.display = 'inline-flex';
+        container.appendChild(wrapper);
+        return;
       }
     }
   }
@@ -157,7 +250,7 @@
       <div class="getraze-dropdown-logo">GR</div>
       <div>
         <div class="getraze-dropdown-title">GetRaze</div>
-        <div class="getraze-dropdown-subtitle">Selecione uma campanha LinkedIn</div>
+        <div class="getraze-dropdown-subtitle">${t('linkedinDropdownSubtitle')}</div>
       </div>
     `;
     dropdown.appendChild(header);
@@ -205,7 +298,7 @@
   function createLoadingContent() {
     const div = document.createElement('div');
     div.className = 'getraze-loading';
-    div.innerHTML = '<div class="getraze-spinner"></div><div class="getraze-loading-text">Carregando campanhas...</div>';
+    div.innerHTML = `<div class="getraze-spinner"></div><div class="getraze-loading-text">${t('linkedinLoadingCampaigns')}</div>`;
     return div;
   }
 
@@ -215,7 +308,7 @@
   function createNoKeyContent() {
     const div = document.createElement('div');
     div.className = 'getraze-no-key';
-    div.textContent = 'API Key nao configurada. Clique no icone da extensao GetRaze para conectar sua conta.';
+    div.textContent = t('noApiKey');
     return div;
   }
 
@@ -232,7 +325,7 @@
       if (response && response.error) {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'getraze-error';
-        errorDiv.textContent = response.error.message || 'Erro ao carregar campanhas.';
+        errorDiv.textContent = response.error.message || t('linkedinErrorLoad');
         body.appendChild(errorDiv);
         return;
       }
@@ -242,7 +335,7 @@
       if (campaigns.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'getraze-empty';
-        empty.textContent = 'Nenhuma campanha LinkedIn encontrada. Crie uma campanha no painel GetRaze.';
+        empty.textContent = t('linkedinEmpty');
         body.appendChild(empty);
         return;
       }
@@ -265,12 +358,12 @@
     info.className = 'getraze-item-info';
     info.innerHTML = `
       <div class="getraze-item-name">${escapeHtml(campaign.name)}</div>
-      <div class="getraze-item-detail">${campaign.contact_count || 0} contatos - ${campaign.status}</div>
+      <div class="getraze-item-detail">${t('linkedinContactDetail', [String(campaign.contact_count || 0), campaign.status])}</div>
     `;
 
     const actionBtn = document.createElement('button');
     actionBtn.className = 'getraze-item-action';
-    actionBtn.textContent = 'Adicionar';
+    actionBtn.textContent = t('btnAdd');
     actionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       addToCampaign(campaign, actionBtn);
@@ -288,7 +381,7 @@
     const profileData = extractProfileData();
 
     if (!profileData.name) {
-      showToast('Nao foi possivel extrair o nome do perfil.', 'error');
+      showToast(t('linkedinCantExtractName'), 'error');
       return;
     }
 
@@ -303,23 +396,30 @@
       },
       (response) => {
         if (response && response.success) {
-          btn.textContent = 'Adicionado';
+          btn.textContent = t('btnAdded');
           btn.classList.add('success');
-          showToast(`${profileData.name} adicionado a "${campaign.name}"`, 'success');
+          showToast(t('linkedinAddedToCampaign', [profileData.name, campaign.name]), 'success');
         } else {
-          const errorMsg = response?.error?.message || 'Erro ao adicionar.';
+          const errorMsg = response?.error?.message || t('errorAddGeneric');
           if (response?.error?.code === 'DUPLICATE_ERROR') {
-            btn.textContent = 'Ja existe';
+            btn.textContent = t('btnAlreadyExists');
             btn.classList.add('error');
-            showToast('Este perfil ja esta nessa campanha.', 'info');
+            showToast(t('linkedinAlreadyInCampaign'), 'info');
           } else {
-            btn.textContent = 'Erro';
+            btn.textContent = t('btnError');
             btn.classList.add('error');
-            showToast(errorMsg, 'error');
+            // Show debug info if available
+            const debugInfo = response?.error?.debug;
+            if (debugInfo && debugInfo.pg_message) {
+              console.error('[GetRaze] DB Error:', debugInfo);
+              showToast(`${errorMsg} (DB: ${debugInfo.pg_message})`, 'error');
+            } else {
+              showToast(errorMsg, 'error');
+            }
             // Re-enable after 2s for retry
             setTimeout(() => {
               btn.disabled = false;
-              btn.textContent = 'Adicionar';
+              btn.textContent = t('btnAdd');
               btn.classList.remove('error');
             }, 2000);
           }
@@ -393,8 +493,10 @@
 
     // Inject new button if on profile page
     if (isProfilePage()) {
-      // Small delay to let the new page render
+      // LinkedIn loads content progressively - retry with increasing delays
       setTimeout(injectButton, 500);
+      setTimeout(injectButton, 1500);
+      setTimeout(injectButton, 3000);
     }
   }
 
@@ -405,11 +507,17 @@
     currentUrl = window.location.href;
 
     if (isProfilePage()) {
-      // Wait for page to be ready
+      // LinkedIn loads content progressively - retry with increasing delays
       if (document.readyState === 'complete') {
         setTimeout(injectButton, 1000);
+        setTimeout(injectButton, 2000);
+        setTimeout(injectButton, 4000);
       } else {
-        window.addEventListener('load', () => setTimeout(injectButton, 1000));
+        window.addEventListener('load', () => {
+          setTimeout(injectButton, 1000);
+          setTimeout(injectButton, 2500);
+          setTimeout(injectButton, 5000);
+        });
       }
     }
 

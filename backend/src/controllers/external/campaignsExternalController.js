@@ -99,6 +99,7 @@ exports.addContactToCampaign = async (req, res) => {
       email,
       phone,
       about,
+      profile_picture,
       extracted_contacts
     } = req.body;
 
@@ -181,10 +182,10 @@ exports.addContactToCampaign = async (req, res) => {
 
       const newContact = await db.query(
         `INSERT INTO contacts
-          (account_id, user_id, name, profile_url, linkedin_profile_id, title, company, location, email, phone, about, extracted_contacts, source)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'chrome_extension')
+          (account_id, user_id, name, profile_url, linkedin_profile_id, title, company, location, email, phone, about, profile_picture, extracted_contacts, source)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'chrome_extension')
         RETURNING id, name, profile_url`,
-        [accountId, userId, name.trim(), normalizedUrl, linkedinProfileId, title, company, location, contactEmail, contactPhone, about || null, extracted_contacts ? JSON.stringify(extracted_contacts) : null]
+        [accountId, userId, name.trim(), normalizedUrl, linkedinProfileId, title, company, location, contactEmail, contactPhone, about || null, profile_picture || null, extracted_contacts ? JSON.stringify(extracted_contacts) : null]
       );
       contact = newContact.rows[0];
     }

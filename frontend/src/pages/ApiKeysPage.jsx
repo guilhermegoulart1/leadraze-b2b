@@ -258,19 +258,8 @@ export default function ApiKeysPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{key.name}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 font-mono flex items-center gap-2">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
                         {key.key_preview}
-                        <button
-                          onClick={() => copyToClipboard(key.key_preview, key.id)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copiar prefixo"
-                        >
-                          {copiedId === key.id ? (
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
                       </div>
                     </div>
                   </td>

@@ -61,6 +61,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import OnboardingAdminPage from './pages/OnboardingAdminPage';
 import NotificationsPage from './pages/NotificationsPage';
 import InstagramAgentsPage from './pages/InstagramAgentsPage';
+import InstagramAgentDetailPage from './pages/InstagramAgentDetailPage';
 
 // Partner Pages
 import PartnerLoginPage from './pages/partner/PartnerLoginPage';
@@ -172,6 +173,7 @@ function AppRoutes() {
         <Route path="google-maps-agents" element={<GoogleMapsAgentsPage />} />
         <Route path="google-maps-agents/:id" element={<GoogleMapsAgentDetailPage />} />
         <Route path="instagram-agents" element={<InstagramAgentsPage />} />
+        <Route path="instagram-agents/:id" element={<InstagramAgentDetailPage />} />
         <Route path="campaigns" element={<LinkedInPage />} />
         <Route path="campaigns/:id/report" element={<CampaignReportPage />} />
         <Route path="leads" element={<Navigate to="/pipelines" replace />} />

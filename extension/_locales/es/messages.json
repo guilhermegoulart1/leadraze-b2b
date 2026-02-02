@@ -1,0 +1,145 @@
+{
+  "extName": {
+    "message": "GetRaze"
+  },
+  "extDescription": {
+    "message": "Agrega perfiles de LinkedIn e Instagram a tus campañas de GetRaze"
+  },
+
+  "btnAddToGetraze": {
+    "message": "Agregar a GetRaze"
+  },
+  "btnAdd": {
+    "message": "Agregar"
+  },
+  "btnAdded": {
+    "message": "Agregado"
+  },
+  "btnAlreadyExists": {
+    "message": "Ya existe"
+  },
+  "btnError": {
+    "message": "Error"
+  },
+  "errorAddGeneric": {
+    "message": "Error al agregar."
+  },
+  "noApiKey": {
+    "message": "API Key no configurada. Haz clic en el ícono de la extensión GetRaze para conectar tu cuenta."
+  },
+
+  "popupDescription": {
+    "message": "Conecta tu cuenta GetRaze para agregar perfiles de LinkedIn e Instagram directamente a tus campañas."
+  },
+  "popupApiKeyLabel": {
+    "message": "API Key"
+  },
+  "popupBtnConnect": {
+    "message": "Conectar"
+  },
+  "popupBtnDisconnect": {
+    "message": "Desconectar"
+  },
+  "popupStatusConnected": {
+    "message": "Conectado"
+  },
+  "popupStatusSince": {
+    "message": "Desde $date$",
+    "placeholders": {
+      "date": { "content": "$1", "example": "01/02/2026" }
+    }
+  },
+  "popupActiveInfo": {
+    "message": "La extensión está activa. Navega a un perfil de LinkedIn o Instagram para agregarlo a una campaña."
+  },
+  "popupErrorRequired": {
+    "message": "Por favor, ingresa tu API Key."
+  },
+  "popupErrorInvalid": {
+    "message": "API Key inválida. Debe comenzar con \"lr_live_\"."
+  },
+  "popupErrorConnection": {
+    "message": "Error de conexión. Intenta nuevamente."
+  },
+  "popupErrorExpired": {
+    "message": "API Key inválida o expirada."
+  },
+  "popupErrorValidation": {
+    "message": "Error al validar. Verifica tu conexión."
+  },
+  "popupVersion": {
+    "message": "GetRaze Extension v$version$",
+    "placeholders": {
+      "version": { "content": "$1", "example": "1.3.0" }
+    }
+  },
+  "loadingValidating": {
+    "message": "Validando..."
+  },
+
+  "linkedinDropdownSubtitle": {
+    "message": "Selecciona una campaña de LinkedIn"
+  },
+  "linkedinLoadingCampaigns": {
+    "message": "Cargando campañas..."
+  },
+  "linkedinErrorLoad": {
+    "message": "Error al cargar campañas."
+  },
+  "linkedinEmpty": {
+    "message": "No se encontraron campañas de LinkedIn. Crea una campaña en el panel de GetRaze."
+  },
+  "linkedinCantExtractName": {
+    "message": "No se pudo extraer el nombre del perfil."
+  },
+  "linkedinAddedToCampaign": {
+    "message": "$name$ agregado a \"$campaign$\"",
+    "placeholders": {
+      "name": { "content": "$1", "example": "Juan Pérez" },
+      "campaign": { "content": "$2", "example": "Campaña Q1" }
+    }
+  },
+  "linkedinAlreadyInCampaign": {
+    "message": "Este perfil ya está en esta campaña."
+  },
+  "linkedinContactDetail": {
+    "message": "$count$ contactos - $status$",
+    "placeholders": {
+      "count": { "content": "$1", "example": "42" },
+      "status": { "content": "$2", "example": "active" }
+    }
+  },
+
+  "instagramDropdownSubtitle": {
+    "message": "Selecciona un agente de Instagram"
+  },
+  "instagramLoadingAgents": {
+    "message": "Cargando agentes..."
+  },
+  "instagramErrorLoad": {
+    "message": "Error al cargar agentes."
+  },
+  "instagramEmpty": {
+    "message": "No se encontraron agentes de Instagram. Crea un agente en el panel de GetRaze."
+  },
+  "instagramCantExtractUsername": {
+    "message": "No se pudo extraer el username del perfil."
+  },
+  "instagramAddedToAgent": {
+    "message": "@$username$ agregado a \"$agent$\"",
+    "placeholders": {
+      "username": { "content": "$1", "example": "juanperez" },
+      "agent": { "content": "$2", "example": "Agente IG" }
+    }
+  },
+  "instagramAlreadyInAgent": {
+    "message": "Este perfil ya está en este agente."
+  },
+  "instagramProfileDetail": {
+    "message": "$count$ perfiles - $status$",
+    "placeholders": {
+      "count": { "content": "$1", "example": "15" },
+      "status": { "content": "$2", "example": "active" }
+    }
+  }
+}
