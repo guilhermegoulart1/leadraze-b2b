@@ -90,7 +90,7 @@ exports.addProfile = async (req, res) => {
   try {
     const accountId = req.apiKey.accountId;
     const { id: agentId } = req.params;
-    const { username, display_name, profile_url } = req.body;
+    const { username, display_name, profile_url, bio, followers_count, following_count, posts_count, external_url, extracted_contacts } = req.body;
 
     // Validate required fields
     if (!username || username.trim().length === 0) {
@@ -156,6 +156,12 @@ exports.addProfile = async (req, res) => {
       username: normalizedUsername,
       display_name: display_name || normalizedUsername,
       profile_url: profile_url || `https://www.instagram.com/${normalizedUsername}`,
+      bio: bio || '',
+      followers_count: followers_count != null ? parseInt(followers_count) || null : null,
+      following_count: following_count != null ? parseInt(following_count) || null : null,
+      posts_count: posts_count != null ? parseInt(posts_count) || null : null,
+      external_url: external_url || '',
+      extracted_contacts: extracted_contacts || { emails: [], phones: [], websites: [] },
       source: 'chrome_extension',
       added_at: new Date().toISOString()
     };

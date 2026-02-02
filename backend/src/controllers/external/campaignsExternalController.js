@@ -97,7 +97,9 @@ exports.addContactToCampaign = async (req, res) => {
       company,
       location,
       email,
-      phone
+      phone,
+      about,
+      extracted_contacts
     } = req.body;
 
     // Validate required fields
@@ -158,23 +160,31 @@ exports.addContactToCampaign = async (req, res) => {
     // Normalize LinkedIn URL (remove query params and trailing slash)
     const normalizedUrl = linkedin_profile_url.split('?')[0].replace(/\/+$/, '');
 
-    // Find or create contact by LinkedIn URL
+    // Extract linkedin_profile_id from URL (e.g. "https://www.linkedin.com/in/john-doe" -> "john-doe")
+    const profileIdMatch = normalizedUrl.match(/\/in\/([^/]+)$/);
+    const linkedinProfileId = profileIdMatch ? profileIdMatch[1] : null;
+
+    // Find or create contact by LinkedIn URL (stored in profile_url column)
     let contact;
     const existingContact = await db.query(
-      `SELECT id, name, linkedin_profile_url FROM contacts
-       WHERE account_id = $1 AND linkedin_profile_url = $2`,
+      `SELECT id, name, profile_url FROM contacts
+       WHERE account_id = $1 AND profile_url = $2`,
       [accountId, normalizedUrl]
     );
 
     if (existingContact.rows.length > 0) {
       contact = existingContact.rows[0];
     } else {
+      // Use extracted contacts as fallback for email/phone
+      const contactEmail = email || (extracted_contacts?.emails?.[0]) || null;
+      const contactPhone = phone || (extracted_contacts?.phones?.[0]) || null;
+
       const newContact = await db.query(
         `INSERT INTO contacts
-          (account_id, user_id, name, linkedin_profile_url, title, company, location, email, phone, source)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'chrome_extension')
-        RETURNING id, name, linkedin_profile_url`,
-        [accountId, userId, name.trim(), normalizedUrl, title, company, location, email, phone]
+          (account_id, user_id, name, profile_url, linkedin_profile_id, title, company, location, email, phone, about, extracted_contacts, source)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'chrome_extension')
+        RETURNING id, name, profile_url`,
+        [accountId, userId, name.trim(), normalizedUrl, linkedinProfileId, title, company, location, contactEmail, contactPhone, about || null, extracted_contacts ? JSON.stringify(extracted_contacts) : null]
       );
       contact = newContact.rows[0];
     }
@@ -213,7 +223,7 @@ exports.addContactToCampaign = async (req, res) => {
         contact: {
           id: contact.id,
           name: contact.name,
-          linkedin_profile_url: contact.linkedin_profile_url
+          profile_url: contact.profile_url
         },
         campaign: {
           id: campaignResult.rows[0].id,
@@ -224,11 +234,22 @@ exports.addContactToCampaign = async (req, res) => {
     });
   } catch (error) {
     console.error('External API - Error adding contact to campaign:', error);
+    console.error('Error detail:', error.message);
+    console.error('Error code:', error.code);
+    if (error.detail) console.error('PG detail:', error.detail);
+    if (error.column) console.error('PG column:', error.column);
+
     return res.status(500).json({
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An error occurred while adding the contact to the campaign'
+        message: 'An error occurred while adding the contact to the campaign',
+        debug: {
+          pg_message: error.message,
+          pg_code: error.code,
+          pg_detail: error.detail || null,
+          pg_column: error.column || null
+        }
       }
     });
   }
