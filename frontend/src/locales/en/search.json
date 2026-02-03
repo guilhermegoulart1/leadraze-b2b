@@ -63,7 +63,8 @@
     "allLoaded": "All profiles loaded",
     "tableView": "Table view",
     "gridView": "Grid view",
-    "bulkCollection": "Bulk Collection"
+    "bulkCollection": "Bulk Collection",
+    "addToCampaign": "Add to campaign"
   },
   "table": {
     "profile": "Profile",
@@ -109,6 +110,30 @@
     "selectCampaignError": "Please select a campaign",
     "bulkCollectionStarted": "Bulk collection started! You will receive a notification when it's completed.",
     "errorStartingCollection": "Error starting collection: {{error}}"
+  },
+  "addToCampaignModal": {
+    "title": "Add to Campaign",
+    "subtitle": "Add selected profiles directly to a campaign",
+    "selectCampaign": "Select campaign",
+    "selectCampaignPlaceholder": "Select a campaign...",
+    "selectCampaignError": "Please select a campaign",
+    "noProfilesError": "No profiles selected",
+    "createNew": "+ Create new campaign",
+    "campaignNamePlaceholder": "New campaign name...",
+    "errorCreating": "Error creating campaign",
+    "creating": "Creating...",
+    "create": "Create",
+    "cancel": "Cancel",
+    "addButton": "Add to Campaign",
+    "adding": "Adding...",
+    "successTitle": "Profiles Added!",
+    "successMessage": "{{added}} profile(s) added successfully.",
+    "duplicatesMessage": "{{duplicates}} already existed in the campaign.",
+    "summary": "Summary",
+    "profilesToAdd": "Profiles to add:",
+    "selectedCampaign": "Selected campaign:",
+    "info": "Profiles will be added with \"approved\" status and the campaign's AI agent will initiate contact automatically.",
+    "errorAdding": "Error adding profiles"
   },
   "bulkCollection": {
     "title": "Bulk Collection",

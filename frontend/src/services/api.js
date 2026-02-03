@@ -354,6 +354,13 @@ class ApiService {
     });
   }
 
+  async bulkAddProfilesToCampaign(campaignId, profiles) {
+    return this.request(`/campaigns/${campaignId}/contacts/bulk-add`, {
+      method: 'POST',
+      body: JSON.stringify({ profiles }),
+    });
+  }
+
   async updateLeadStatus(opportunityId, status) {
     return this.request(`/opportunities/${opportunityId}/status`, {
       method: 'PATCH',

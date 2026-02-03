@@ -63,7 +63,8 @@
     "allLoaded": "Todos los perfiles cargados",
     "tableView": "Vista de tabla",
     "gridView": "Vista de cuadrícula",
-    "bulkCollection": "Recopilación Masiva"
+    "bulkCollection": "Recopilación Masiva",
+    "addToCampaign": "Agregar a campaña"
   },
   "table": {
     "profile": "Perfil",
@@ -109,6 +110,30 @@
     "selectCampaignError": "Por favor, seleccione una campaña",
     "bulkCollectionStarted": "¡Recopilación masiva iniciada! Recibirá una notificación cuando se complete.",
     "errorStartingCollection": "Error al iniciar recopilación: {{error}}"
+  },
+  "addToCampaignModal": {
+    "title": "Agregar a Campaña",
+    "subtitle": "Agregue los perfiles seleccionados directamente a una campaña",
+    "selectCampaign": "Seleccione la campaña",
+    "selectCampaignPlaceholder": "Seleccione una campaña...",
+    "selectCampaignError": "Seleccione una campaña",
+    "noProfilesError": "Ningún perfil seleccionado",
+    "createNew": "+ Crear nueva campaña",
+    "campaignNamePlaceholder": "Nombre de la nueva campaña...",
+    "errorCreating": "Error al crear campaña",
+    "creating": "Creando...",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "addButton": "Agregar a Campaña",
+    "adding": "Agregando...",
+    "successTitle": "¡Perfiles Agregados!",
+    "successMessage": "{{added}} perfil(es) agregado(s) con éxito.",
+    "duplicatesMessage": "{{duplicates}} ya existía(n) en la campaña.",
+    "summary": "Resumen",
+    "profilesToAdd": "Perfiles a agregar:",
+    "selectedCampaign": "Campaña seleccionada:",
+    "info": "Los perfiles se agregarán con estado \"aprobado\" y el agente de IA de la campaña iniciará el contacto automáticamente.",
+    "errorAdding": "Error al agregar perfiles"
   },
   "bulkCollection": {
     "title": "Recopilación Masiva",

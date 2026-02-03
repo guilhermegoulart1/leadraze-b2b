@@ -1,5 +1,11 @@
 # GetRaze Extension - Changelog
 
+## v1.4.0
+- Substituicao do logo "GR" em texto pelo logo oficial da empresa (imagem)
+- Icones da extensao atualizados com o logo real
+- Adicionado web_accessible_resources no manifest para carregar logos nos content scripts
+- Pagina de download da extensao adicionada no frontend (Configuracoes > Extensao Chrome)
+
 ## v1.3.0
 - Internacionalizacao (i18n) com suporte a 3 idiomas: Portugues (pt-BR), Ingles (en), Espanhol (es)
 - Usa chrome.i18n API nativa do Chrome para traducao automatica

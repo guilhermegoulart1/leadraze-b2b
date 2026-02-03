@@ -25,15 +25,8 @@ body {
 .logo {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: -0.5px;
+  object-fit: contain;
 }
 
 .header h1 {

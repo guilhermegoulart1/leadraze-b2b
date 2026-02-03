@@ -6,11 +6,7 @@ import apiService from '../services/api';
 import SearchSidebar from '../components/SearchSidebar';
 import SearchResults from '../components/SearchResults';
 import SendInviteModal from '../components/SendInviteModal';
-import {
-  X,
-  PlayCircle,
-  Target
-} from 'lucide-react';
+import AddToCampaignModal from '../components/AddToCampaignModal';
 
 const SearchPage = () => {
   const { t } = useTranslation(['search', 'common']);
@@ -50,14 +46,9 @@ const SearchPage = () => {
   const [linkedinAccounts, setLinkedinAccounts] = useState([]);
   const [selectedProfiles, setSelectedProfiles] = useState([]);
 
-  // Estados de coleta em lote
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [bulkTargetCount, setBulkTargetCount] = useState(100);
+  // Estados de campanhas e modal adicionar a campanha
   const [campaigns, setCampaigns] = useState([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
-  const [showCreateCampaign, setShowCreateCampaign] = useState(false);
-  const [newCampaignName, setNewCampaignName] = useState('');
-  const [creatingCampaign, setCreatingCampaign] = useState(false);
+  const [showAddToCampaignModal, setShowAddToCampaignModal] = useState(false);
 
   // Estados do modal de envio de convite
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -90,7 +81,7 @@ const SearchPage = () => {
     try {
       const response = await apiService.getCampaigns();
       if (response.success) {
-        setCampaigns(response.data || []);
+        setCampaigns(response.data?.campaigns || response.data || []);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar campanhas:', error);
@@ -328,83 +319,16 @@ const SearchPage = () => {
     }
   };
 
-  // Criar campanha nova
-  const handleCreateCampaign = async () => {
-    if (!newCampaignName.trim()) {
-      alert(t('messages.enterCampaignName'));
-      return;
-    }
-
-    setCreatingCampaign(true);
-
-    try {
-      const response = await apiService.createCampaign({
-        name: newCampaignName,
-        status: 'draft'
-      });
-
-      if (response.success) {
-        const newCampaign = response.data;
-        setCampaigns(prev => [...prev, newCampaign]);
-        setSelectedCampaign(newCampaign.id);
-        setShowCreateCampaign(false);
-        setNewCampaignName('');
-        alert(t('messages.campaignCreatedSuccess'));
-      }
-    } catch (error) {
-      console.error('❌ Erro ao criar campanha:', error);
-      alert(t('messages.errorCreatingCampaign', { error: error.message }));
-    } finally {
-      setCreatingCampaign(false);
-    }
+  // Adicionar perfis a campanha
+  const handleAddToCampaign = () => {
+    if (selectedProfiles.length === 0) return;
+    setShowAddToCampaignModal(true);
   };
 
-  // Iniciar coleta em lote
-  const startBulkCollection = async () => {
-    if (!selectedCampaign) {
-      alert(t('messages.selectCampaignError'));
-      return;
-    }
-
-    try {
-      const bulkData = {
-        linkedin_account_id: searchParams.linkedin_account_id,
-        campaign_id: selectedCampaign,
-        target_count: parseInt(bulkTargetCount),
-        api: searchParams.api,
-        search_filters: {
-          keywords: searchParams.query || undefined,
-          location: selectedLocation ? [selectedLocation.value] : undefined,
-          // Include full location data for country detection
-          location_data: selectedLocation ? {
-            id: selectedLocation.value,
-            label: selectedLocation.label,
-            country: selectedLocation.country
-          } : undefined,
-          industries: selectedIndustries.length > 0
-            ? selectedIndustries.map(i => i.value)
-            : undefined,
-          job_titles: selectedJobTitles.length > 0
-            ? selectedJobTitles.map(j => j.value)
-            : undefined,
-          companies: selectedCompanies.length > 0
-            ? selectedCompanies.map(c => c.value)
-            : undefined
-        }
-      };
-
-      console.log('🚀 Iniciando coleta em lote:', bulkData);
-
-      const response = await apiService.createBulkCollectionJob(bulkData);
-
-      if (response.success) {
-        alert(t('messages.bulkCollectionStarted'));
-        setShowBulkModal(false);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao iniciar coleta:', error);
-      alert(t('messages.errorStartingCollection', { error: error.message }));
-    }
+  const handleAddToCampaignSuccess = () => {
+    setShowAddToCampaignModal(false);
+    setSelectedProfiles([]);
+    loadCampaigns();
   };
 
   // Toggle seleção de perfil
@@ -518,7 +442,7 @@ const SearchPage = () => {
         hasMoreResults={hasMoreResults}
         loadingMore={loadingMore}
         onLoadMore={loadMoreResults}
-        onBulkCollection={() => setShowBulkModal(true)}
+        onAddToCampaign={handleAddToCampaign}
         onSendInvite={handleSendInvite}
         onStartConversation={handleStartConversation}
       />
@@ -535,138 +459,14 @@ const SearchPage = () => {
         onSuccess={handleInviteSuccess}
       />
 
-      {/* Modal de Bulk Collection */}
-      {showBulkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('bulkCollection.title')}</h2>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  {t('bulkCollection.subtitle')}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowBulkModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* Quantos perfis */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Target className="w-4 h-4 inline mr-1" />
-                  {t('bulkCollection.targetCount')}
-                </label>
-                <input
-                  type="number"
-                  value={bulkTargetCount}
-                  onChange={(e) => setBulkTargetCount(e.target.value)}
-                  min="10"
-                  max="1000"
-                  step="10"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('bulkCollection.targetCountHelp')}
-                </p>
-              </div>
-
-              {/* Campanha */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('bulkCollection.selectCampaign')}
-                </label>
-
-                {!showCreateCampaign ? (
-                  <>
-                    <select
-                      value={selectedCampaign}
-                      onChange={(e) => setSelectedCampaign(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    >
-                      <option value="">{t('bulkCollection.selectCampaignPlaceholder')}</option>
-                      {campaigns.map(campaign => (
-                        <option key={campaign.id} value={campaign.id}>
-                          {campaign.name} ({campaign.status})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => setShowCreateCampaign(true)}
-                      className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium"
-                    >
-                      {t('bulkCollection.createNew')}
-                    </button>
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={newCampaignName}
-                      onChange={(e) => setNewCampaignName(e.target.value)}
-                      placeholder={t('bulkCollection.campaignNamePlaceholder')}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={handleCreateCampaign}
-                        disabled={creatingCampaign || !newCampaignName.trim()}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
-                      >
-                        {creatingCampaign ? t('bulkCollection.creating') : t('bulkCollection.create')}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowCreateCampaign(false);
-                          setNewCampaignName('');
-                        }}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                      >
-                        {t('bulkCollection.cancel')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
-                <p className="text-sm text-purple-800 dark:text-purple-300 font-medium mb-1">ℹ️ {t('bulkCollection.howItWorks')}</p>
-                <ul className="text-sm text-purple-700 dark:text-purple-400 space-y-1">
-                  {t('bulkCollection.howItWorksList', { returnObjects: true }).map((item, index) => (
-                    <li key={index}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setShowBulkModal(false);
-                  setShowCreateCampaign(false);
-                  setNewCampaignName('');
-                }}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300"
-              >
-                {t('bulkCollection.cancel')}
-              </button>
-              <button
-                onClick={startBulkCollection}
-                disabled={!selectedCampaign}
-                className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
-              >
-                <PlayCircle className="w-5 h-5" />
-                <span>{t('bulkCollection.startCollection')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de Adicionar a Campanha */}
+      <AddToCampaignModal
+        isOpen={showAddToCampaignModal}
+        onClose={() => setShowAddToCampaignModal(false)}
+        onSuccess={handleAddToCampaignSuccess}
+        selectedProfiles={selectedProfiles}
+        campaigns={campaigns}
+      />
     </div>
   );
 };

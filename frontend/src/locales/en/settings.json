@@ -11,7 +11,26 @@
     "checklists": "CRM Checklists",
     "emails": "Emails",
     "quickReplies": "Quick Replies",
-    "roadmaps": "Roadmaps"
+    "roadmaps": "Roadmaps",
+    "chromeExtension": "Chrome Extension"
+  },
+  "chromeExtension": {
+    "title": "GetRaze Chrome Extension",
+    "description": "Capture leads directly from LinkedIn and Instagram with one click.",
+    "installButton": "Install from Chrome Web Store",
+    "howToUse": "How to use",
+    "step1Title": "Install the extension",
+    "step1Description": "Click the button above to install the GetRaze extension on your Chrome browser.",
+    "step2Title": "Set up your API Key",
+    "step2Description": "Click the extension icon and enter your API Key. You can generate one in the API Key tab in settings.",
+    "step3Title": "Capture leads",
+    "step3Description": "Visit LinkedIn or Instagram profiles and click 'Add to GetRaze' to capture leads.",
+    "featuresTitle": "Features",
+    "features": {
+      "linkedin": "LinkedIn profile capture",
+      "instagram": "Instagram profile capture",
+      "campaigns": "Add directly to your campaigns"
+    }
   },
   "quickReplies": {
     "title": "Quick Replies",

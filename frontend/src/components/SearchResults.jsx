@@ -32,6 +32,7 @@ const SearchResults = ({
   loadingMore = false,
   onLoadMore,
   onBulkCollection,
+  onAddToCampaign,
   onSendInvite,
   onStartConversation
 }) => {
@@ -562,14 +563,14 @@ const SearchResults = ({
               </button>
             </div>
 
-            {/* Bulk Collection Button */}
-            {selectedProfiles.length > 0 && onBulkCollection && (
+            {/* Add to Campaign Button */}
+            {selectedProfiles.length > 0 && onAddToCampaign && (
               <button
-                onClick={onBulkCollection}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium transition-all shadow-sm"
+                onClick={onAddToCampaign}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 font-medium transition-all shadow-sm"
               >
-                <Zap className="w-4 h-4" />
-                {t('results.bulkCollection')}
+                <UserPlus className="w-4 h-4" />
+                {t('results.addToCampaign', 'Adicionar a campanha')} ({selectedProfiles.length})
               </button>
             )}
           </div>

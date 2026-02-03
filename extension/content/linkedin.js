@@ -153,7 +153,8 @@
     const btn = document.createElement('button');
     btn.id = BUTTON_ID;
     btn.className = 'getraze-btn';
-    btn.innerHTML = `<span class="getraze-btn-icon">GR</span> ${t('btnAddToGetraze')}`;
+    const logoUrl = chrome.runtime.getURL('icons/logo16.png');
+    btn.innerHTML = `<img src="${logoUrl}" alt="GR" class="getraze-btn-icon" width="16" height="16"> ${t('btnAddToGetraze')}`;
     btn.addEventListener('click', handleButtonClick);
 
     wrapper.appendChild(btn);
@@ -246,8 +247,9 @@
     // Header
     const header = document.createElement('div');
     header.className = 'getraze-dropdown-header';
+    const dropdownLogoUrl = chrome.runtime.getURL('icons/logo24.png');
     header.innerHTML = `
-      <div class="getraze-dropdown-logo">GR</div>
+      <img src="${dropdownLogoUrl}" alt="GetRaze" class="getraze-dropdown-logo" width="24" height="24">
       <div>
         <div class="getraze-dropdown-title">GetRaze</div>
         <div class="getraze-dropdown-subtitle">${t('linkedinDropdownSubtitle')}</div>

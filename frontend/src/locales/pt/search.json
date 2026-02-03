@@ -63,7 +63,8 @@
     "allLoaded": "Todos os perfis foram carregados",
     "tableView": "Visualização em tabela",
     "gridView": "Visualização em grade",
-    "bulkCollection": "Coleta em Lote"
+    "bulkCollection": "Coleta em Lote",
+    "addToCampaign": "Adicionar a campanha"
   },
   "table": {
     "profile": "Perfil",
@@ -109,6 +110,30 @@
     "selectCampaignError": "Por favor, selecione uma campanha",
     "bulkCollectionStarted": "Coleta em lote iniciada! Você receberá uma notificação quando concluir.",
     "errorStartingCollection": "Erro ao iniciar coleta: {{error}}"
+  },
+  "addToCampaignModal": {
+    "title": "Adicionar a Campanha",
+    "subtitle": "Adicione os perfis selecionados diretamente a uma campanha",
+    "selectCampaign": "Selecione a campanha",
+    "selectCampaignPlaceholder": "Selecione uma campanha...",
+    "selectCampaignError": "Selecione uma campanha",
+    "noProfilesError": "Nenhum perfil selecionado",
+    "createNew": "+ Criar nova campanha",
+    "campaignNamePlaceholder": "Nome da nova campanha...",
+    "errorCreating": "Erro ao criar campanha",
+    "creating": "Criando...",
+    "create": "Criar",
+    "cancel": "Cancelar",
+    "addButton": "Adicionar a Campanha",
+    "adding": "Adicionando...",
+    "successTitle": "Perfis Adicionados!",
+    "successMessage": "{{added}} perfil(is) adicionado(s) com sucesso.",
+    "duplicatesMessage": "{{duplicates}} ja existia(m) na campanha.",
+    "summary": "Resumo",
+    "profilesToAdd": "Perfis a adicionar:",
+    "selectedCampaign": "Campanha selecionada:",
+    "info": "Os perfis serao adicionados com status \"aprovado\" e o agente de IA da campanha iniciara o contato automaticamente.",
+    "errorAdding": "Erro ao adicionar perfis"
   },
   "bulkCollection": {
     "title": "Coleta em Lote",

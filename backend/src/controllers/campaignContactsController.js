@@ -338,10 +338,139 @@ const updateContactStatus = async (req, res) => {
   }
 };
 
+// ================================
+// 6. ADICIONAR PERFIS DA BUSCA A UMA CAMPANHA (BULK)
+// ================================
+const bulkAddSearchProfiles = async (req, res) => {
+  try {
+    const { id: campaignId } = req.params;
+    const accountId = req.user.account_id;
+    const userId = req.user.id;
+    const { profiles } = req.body;
+
+    console.log(`➕ Adicionando ${profiles?.length || 0} perfis à campanha ${campaignId}`);
+
+    if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
+      return sendError(res, { message: 'Nenhum perfil fornecido' }, 400);
+    }
+
+    // Verificar se campanha pertence à conta
+    const campaignCheck = await db.query(
+      'SELECT id, name FROM campaigns WHERE id = $1 AND account_id = $2',
+      [campaignId, accountId]
+    );
+
+    if (campaignCheck.rows.length === 0) {
+      throw new NotFoundError('Campanha não encontrada');
+    }
+
+    let added = 0;
+    let duplicates = 0;
+    const errors = [];
+
+    for (const profile of profiles) {
+      try {
+        // Construir/normalizar URL do LinkedIn
+        let normalizedUrl = null;
+        let linkedinProfileId = null;
+
+        if (profile.profile_url) {
+          normalizedUrl = profile.profile_url.split('?')[0].replace(/\/+$/, '');
+        } else if (profile.provider_id) {
+          normalizedUrl = `https://www.linkedin.com/in/${profile.provider_id}`;
+        }
+
+        if (normalizedUrl) {
+          const profileIdMatch = normalizedUrl.match(/\/in\/([^/]+)$/);
+          linkedinProfileId = profileIdMatch ? profileIdMatch[1] : null;
+        }
+
+        if (!linkedinProfileId && profile.provider_id) {
+          linkedinProfileId = profile.provider_id;
+        }
+
+        // Buscar contato existente
+        let contact;
+        const existingContact = await db.query(
+          `SELECT id FROM contacts
+           WHERE account_id = $1 AND (
+             ($2::text IS NOT NULL AND linkedin_profile_id = $2::text)
+             OR ($3::text IS NOT NULL AND profile_url = $3::text)
+           )`,
+          [accountId, linkedinProfileId, normalizedUrl]
+        );
+
+        if (existingContact.rows.length > 0) {
+          contact = existingContact.rows[0];
+        } else {
+          // Criar novo contato
+          const newContact = await db.query(
+            `INSERT INTO contacts
+              (account_id, user_id, name, profile_url, linkedin_profile_id, title, company, location, profile_picture, headline, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'search')
+            RETURNING id`,
+            [
+              accountId,
+              userId,
+              (profile.name || '').trim(),
+              normalizedUrl,
+              linkedinProfileId,
+              profile.title || profile.headline || null,
+              profile.company || profile.current_company || null,
+              profile.location || null,
+              profile.profile_picture || profile.profile_picture_url || null,
+              profile.headline || null
+            ]
+          );
+          contact = newContact.rows[0];
+        }
+
+        // Verificar duplicata na campanha
+        const existingCampaignContact = await db.query(
+          'SELECT id FROM campaign_contacts WHERE campaign_id = $1 AND contact_id = $2',
+          [campaignId, contact.id]
+        );
+
+        if (existingCampaignContact.rows.length > 0) {
+          duplicates++;
+          continue;
+        }
+
+        // Inserir na campanha com status 'approved'
+        await db.query(
+          `INSERT INTO campaign_contacts
+            (campaign_id, contact_id, account_id, status, linkedin_profile_id, provider_id)
+          VALUES ($1, $2, $3, 'approved', $4, $5)`,
+          [campaignId, contact.id, accountId, linkedinProfileId, profile.provider_id || null]
+        );
+
+        added++;
+      } catch (profileError) {
+        console.error(`❌ Erro ao adicionar perfil ${profile.name}:`, profileError.message);
+        errors.push({ name: profile.name, error: profileError.message });
+      }
+    }
+
+    console.log(`✅ Resultado: ${added} adicionados, ${duplicates} duplicatas, ${errors.length} erros`);
+
+    sendSuccess(res, {
+      added,
+      duplicates,
+      errors: errors.length,
+      total: profiles.length
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao adicionar perfis à campanha:', error);
+    sendError(res, error);
+  }
+};
+
 module.exports = {
   getCampaignContacts,
   getCampaignContactsStats,
   approveContacts,
   rejectContacts,
-  updateContactStatus
+  updateContactStatus,
+  bulkAddSearchProfiles
 };

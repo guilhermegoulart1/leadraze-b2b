@@ -105,4 +105,7 @@ router.patch('/:id/contacts/reject', campaignContactsController.rejectContacts);
 // Atualizar status de um contato específico
 router.patch('/:id/contacts/:contactId/status', campaignContactsController.updateContactStatus);
 
+// Adicionar perfis da busca a uma campanha (bulk)
+router.post('/:id/contacts/bulk-add', campaignContactsController.bulkAddSearchProfiles);
+
 module.exports = router;

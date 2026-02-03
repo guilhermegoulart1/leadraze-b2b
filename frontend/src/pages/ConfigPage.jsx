@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Key, Link2, Package, XCircle, Tag, Share2, MessageSquare, Map, Shield } from 'lucide-react';
+import { Key, Link2, Package, XCircle, Tag, Share2, MessageSquare, Map, Shield, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ApiKeysPage from './ApiKeysPage';
 import ChannelsPage from './ChannelsPage';
@@ -12,6 +12,7 @@ import LeadSourcesTab from '../components/settings/LeadSourcesTab';
 import QuickRepliesTab from '../components/settings/QuickRepliesTab';
 import RoadmapsTab from '../components/settings/RoadmapsTab';
 import SupportAccessTab from '../components/settings/SupportAccessTab';
+import ChromeExtensionTab from '../components/settings/ChromeExtensionTab';
 
 const ConfigPage = () => {
   const { t } = useTranslation('settings');
@@ -38,6 +39,7 @@ const ConfigPage = () => {
     { id: 'api-keys', label: t('configTabs.apiKeys'), icon: Key },
     { id: 'quick-replies', label: t('configTabs.quickReplies'), icon: MessageSquare },
     { id: 'roadmaps', label: t('configTabs.roadmaps', 'Roadmaps'), icon: Map },
+    { id: 'chrome-extension', label: t('configTabs.chromeExtension'), icon: Chrome },
     { id: 'support-access', label: 'Acesso Remoto', icon: Shield, adminOnly: true },
   ];
 
@@ -59,6 +61,8 @@ const ConfigPage = () => {
         return <QuickRepliesTab />;
       case 'roadmaps':
         return <RoadmapsTab />;
+      case 'chrome-extension':
+        return <ChromeExtensionTab />;
       case 'support-access':
         return <SupportAccessTab />;
       default:
