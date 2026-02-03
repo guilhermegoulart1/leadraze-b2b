@@ -853,6 +853,31 @@ const searchProfilesAdvanced = async (req, res) => {
     }
     console.log('🔍 === FIM DO LOG ===');
 
+    // ✅ BATCH: Verificar quais perfis já estão em campanhas (query única)
+    const profileIds = profiles
+      .map(p => p.id || p.provider_id || p.urn_id)
+      .filter(Boolean);
+
+    let campaignContactsMap = {};
+    if (profileIds.length > 0) {
+      try {
+        const campaignCheck = await db.query(
+          `SELECT cc.linkedin_profile_id, cc.provider_id, c.name as campaign_name, cc.status
+           FROM campaign_contacts cc
+           JOIN campaigns c ON cc.campaign_id = c.id
+           WHERE cc.account_id = $1
+           AND (cc.linkedin_profile_id = ANY($2::text[]) OR cc.provider_id = ANY($2::text[]))`,
+          [accountId, profileIds]
+        );
+        campaignCheck.rows.forEach(row => {
+          const key = row.provider_id || row.linkedin_profile_id;
+          if (key) campaignContactsMap[key] = { campaign_name: row.campaign_name, status: row.status };
+        });
+      } catch (checkError) {
+        console.warn('⚠️ Erro ao verificar campanhas dos perfis:', checkError.message);
+      }
+    }
+
     // ✅ PROCESSAR PERFIS COM VERIFICAÇÃO DE OPPORTUNITIES
     const processedProfiles = await Promise.all(
       profiles.map(async (profile, index) => {
@@ -874,9 +899,11 @@ const searchProfilesAdvanced = async (req, res) => {
             isOpportunity = opportunityCheck.rows.length > 0;
           } catch (checkError) {
             console.warn('⚠️ Erro ao verificar opportunity:', checkError.message);
-            // Se der erro, continua sem marcar
           }
         }
+
+        // Verificar se está em alguma campanha (do batch acima)
+        const campaignInfo = campaignContactsMap[profileId] || null;
 
         // Map multiple possible photo fields from Unipile API
         const profilePicture = profile.profile_picture ||
@@ -939,6 +966,7 @@ const searchProfilesAdvanced = async (req, res) => {
           verified: profile.verified || false,
           is_private: profile.is_private || false,
           already_opportunity: isOpportunity,
+          campaign_info: campaignInfo,
           can_get_details: true,
           profile_score: calculateProfileScore(profile),
           // Incluir current_positions para debug no frontend
