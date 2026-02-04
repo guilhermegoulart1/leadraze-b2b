@@ -864,10 +864,10 @@ const reactivateCampaign = async (req, res) => {
       throw new NotFoundError('AI Agent not found in your account');
     }
 
-    // Atualizar campanha com novo agente
+    // Atualizar campanha com novo agente - voltar para draft para permitir revisão/ativação
     const updatedCampaign = await db.update('campaigns', {
       ai_agent_id,
-      status: CAMPAIGN_STATUS.PAUSED, // Volta para pausada, usuário decide se quer ativar
+      status: CAMPAIGN_STATUS.DRAFT,
       paused_reason: null,
       paused_at: null
     }, { id });

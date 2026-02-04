@@ -10,6 +10,59 @@ const PROCESSOR_INTERVAL = 10000; // 10 segundos
 let isProcessing = false;
 
 // ================================
+// RESOLVER NOMES DE INDÚSTRIA PARA IDs NUMÉRICOS
+// ================================
+async function resolveIndustryIds(industryNames, accountId) {
+  if (!industryNames || !Array.isArray(industryNames) || industryNames.length === 0) {
+    return [];
+  }
+
+  // Se já são IDs numéricos, retornar como estão
+  if (industryNames.every(name => /^\d+$/.test(name))) {
+    console.log('✅ Industries já são IDs numéricos:', industryNames);
+    return industryNames;
+  }
+
+  console.log('🔄 Resolvendo nomes de indústria para IDs numéricos...');
+  const resolvedIds = [];
+
+  for (const name of industryNames) {
+    // Se já é numérico, manter
+    if (/^\d+$/.test(name)) {
+      resolvedIds.push(name);
+      continue;
+    }
+
+    try {
+      const response = await unipileClient.searchParams.industries({
+        account_id: accountId,
+        keywords: name,
+        limit: 1
+      });
+
+      const items = response.items || response.data || [];
+      if (items.length > 0) {
+        const item = items[0];
+        const id = item.id || item.value || item.urn_id;
+        if (id && /^\d+$/.test(String(id))) {
+          resolvedIds.push(String(id));
+          console.log(`  ✅ "${name}" → ${id}`);
+        } else {
+          console.warn(`  ⚠️ "${name}" → ID não numérico: ${id}, ignorando`);
+        }
+      } else {
+        console.warn(`  ⚠️ "${name}" → não encontrado na Unipile, ignorando`);
+      }
+    } catch (err) {
+      console.error(`  ❌ Erro ao resolver "${name}":`, err.message);
+    }
+  }
+
+  console.log(`🏭 Industries resolvidas: ${resolvedIds.length}/${industryNames.length}`, resolvedIds);
+  return resolvedIds;
+}
+
+// ================================
 // PROCESSAR JOBS PENDENTES
 // ================================
 async function processJobs() {
@@ -112,6 +165,11 @@ async function processJob(job) {
       console.log('⚠️ Não foi possível detectar o país, usando filtros originais');
     }
 
+    // Resolver nomes de indústria para IDs numéricos (Unipile exige IDs)
+    if (translatedFilters.industries && Array.isArray(translatedFilters.industries) && translatedFilters.industries.length > 0) {
+      translatedFilters.industries = await resolveIndustryIds(translatedFilters.industries, job.unipile_account_id);
+    }
+
     // Loop de coleta
     while (totalCollected < job.target_count && searchCount < MAX_SEARCHES) {
       searchCount++;
@@ -136,14 +194,14 @@ async function processJob(job) {
         if (translatedFilters.location && Array.isArray(translatedFilters.location)) {
           searchParams.location = translatedFilters.location;
         }
-        if (translatedFilters.industries && Array.isArray(translatedFilters.industries)) {
+        if (translatedFilters.industries && Array.isArray(translatedFilters.industries) && translatedFilters.industries.length > 0) {
           searchParams.industry = translatedFilters.industries;
         }
-        if (translatedFilters.job_titles && Array.isArray(translatedFilters.job_titles)) {
-          searchParams.job_title = translatedFilters.job_titles;
-        }
-        if (translatedFilters.companies && Array.isArray(translatedFilters.companies)) {
-          searchParams.companies = translatedFilters.companies;
+        if (translatedFilters.job_titles && Array.isArray(translatedFilters.job_titles) && translatedFilters.job_titles.length > 0) {
+          // Unipile não aceita "job_title" como campo. Usar advanced_keywords.title (string única)
+          searchParams.advanced_keywords = {
+            title: translatedFilters.job_titles.join(' OR ')
+          };
         }
       }
 

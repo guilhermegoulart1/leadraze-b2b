@@ -249,7 +249,7 @@ const CampaignsPage = () => {
       // Carregar agentes disponíveis
       const response = await api.getAgents();
       if (response.success) {
-        setAvailableAgents(response.data || []);
+        setAvailableAgents(response.data?.agents || response.data || []);
       }
       setSelectedAgentId(null);
       setReactivateCampaign(campaign);
