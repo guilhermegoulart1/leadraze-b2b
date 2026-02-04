@@ -17,12 +17,19 @@ const rotationService = require('./rotationService');
  * Execute handoff from AI to human
  * @param {number} conversationId - The conversation ID
  * @param {object} agent - The AI agent configuration
- * @param {string} reason - The reason for handoff ('exchange_limit', 'escalation_sentiment', 'escalation_keyword', 'manual')
+ * @param {string} reason - The reason for handoff
+ * @param {object} options - Per-rule destination overrides
+ * @param {string} options.ruleId - Transfer rule ID that triggered this
+ * @param {string} options.sectorId - Override sector for assignment
+ * @param {string} options.userId - Override specific user for assignment
+ * @param {string} options.transferMode - 'silent' or 'notify'
+ * @param {string} options.transferMessage - Override message
+ * @param {boolean} options.notifyOnHandoff - Override notification setting
  * @returns {Promise<object>}
  */
-async function executeHandoff(conversationId, agent, reason) {
+async function executeHandoff(conversationId, agent, reason, options = {}) {
   try {
-    console.log(`🔄 [HandoffService] Executing handoff for conversation ${conversationId}, reason: ${reason}`);
+    console.log(`[HandoffService] Executing handoff for conversation ${conversationId}, reason: ${reason}`);
 
     // 1. Get conversation details
     const conversationResult = await db.query(`
@@ -56,39 +63,86 @@ async function executeHandoff(conversationId, agent, reason) {
       WHERE id = $2
     `, [reason, conversationId]);
 
-    console.log(`✅ [HandoffService] AI deactivated for conversation ${conversationId}`);
+    console.log(`[HandoffService] AI deactivated for conversation ${conversationId}`);
 
-    // 3. Select next assignee via rotation (if configured)
+    // 3. Select assignee - per-rule destination takes priority
     let assignee = null;
-    if (agent.id) {
-      assignee = await rotationService.getNextAssignee(agent.id);
 
+    if (options.userId) {
+      // Direct user assignment from rule destination
+      const userResult = await db.query(`
+        SELECT id, name, email FROM users WHERE id = $1
+      `, [options.userId]);
+      if (userResult.rows[0]) {
+        assignee = {
+          userId: userResult.rows[0].id,
+          userName: userResult.rows[0].name,
+          userEmail: userResult.rows[0].email
+        };
+        await db.query(`
+          UPDATE conversations SET assigned_user_id = $1, updated_at = NOW() WHERE id = $2
+        `, [assignee.userId, conversationId]);
+        console.log(`[HandoffService] Conversation assigned to specific user ${assignee.userName}`);
+      }
+    } else if (options.sectorId) {
+      // Sector-based assignment (round-robin within sector)
+      try {
+        const roundRobinService = require('./roundRobinService');
+        const sectorUser = await roundRobinService.getNextUser(options.sectorId, conversation.account_id);
+        if (sectorUser) {
+          // roundRobinService.getNextUser returns { user_id, name, email }
+          assignee = {
+            userId: sectorUser.user_id,
+            userName: sectorUser.name,
+            userEmail: sectorUser.email
+          };
+          await db.query(`
+            UPDATE conversations SET assigned_user_id = $1, updated_at = NOW() WHERE id = $2
+          `, [assignee.userId, conversationId]);
+          console.log(`[HandoffService] Conversation assigned to ${assignee.userName} via sector round-robin`);
+        }
+      } catch (rrError) {
+        console.log(`[HandoffService] Sector round-robin failed, falling back to agent rotation: ${rrError.message}`);
+        // Fallback to agent-level rotation
+        if (agent.id) {
+          assignee = await rotationService.getNextAssignee(agent.id);
+          if (assignee) {
+            await rotationService.recordAssignment(agent.id, assignee.userId, conversationId);
+          }
+        }
+      }
+    } else if (agent.id) {
+      // Default: use agent-level rotation
+      assignee = await rotationService.getNextAssignee(agent.id);
       if (assignee) {
-        // Assign conversation to the user
         await rotationService.recordAssignment(agent.id, assignee.userId, conversationId);
-        console.log(`✅ [HandoffService] Conversation assigned to ${assignee.userName}`);
+        console.log(`[HandoffService] Conversation assigned to ${assignee.userName} via agent rotation`);
       } else {
-        console.log(`⚠️ [HandoffService] No assignees configured for agent ${agent.id}`);
+        console.log(`[HandoffService] No assignees configured for agent ${agent.id}`);
       }
     }
 
     // 4. Send handoff message to lead (if not silent)
-    // Support both old (handoff_silent/handoff_message) and new (transfer_mode/transfer_message) field names
-    const isSilent = agent.transfer_mode === 'silent' || agent.handoff_silent;
-    const handoffMessage = agent.transfer_message || agent.handoff_message;
+    // Per-rule options override agent defaults
+    const isSilent = options.transferMode === 'silent' ||
+      (options.transferMode === undefined && (agent.transfer_mode === 'silent' || agent.handoff_silent));
+    const handoffMessage = options.transferMessage || agent.transfer_message || agent.handoff_message;
 
     if (!isSilent && handoffMessage) {
       try {
         await sendHandoffMessage(conversation, handoffMessage);
-        console.log(`✅ [HandoffService] Handoff message sent to lead`);
+        console.log(`[HandoffService] Handoff message sent to lead`);
       } catch (error) {
-        console.error(`⚠️ [HandoffService] Failed to send handoff message:`, error.message);
-        // Don't fail the entire handoff if message sending fails
+        console.error(`[HandoffService] Failed to send handoff message:`, error.message);
       }
     }
 
     // 5. Create notification for assignee(s)
-    if (agent.notify_on_handoff !== false) {
+    const shouldNotify = options.notifyOnHandoff !== undefined
+      ? options.notifyOnHandoff
+      : agent.notify_on_handoff !== false;
+
+    if (shouldNotify) {
       await createHandoffNotification(conversation, agent, assignee, reason);
     }
 
@@ -97,11 +151,12 @@ async function executeHandoff(conversationId, agent, reason) {
       conversationId,
       assignee,
       reason,
+      ruleId: options.ruleId || null,
       messageSent: !isSilent && !!handoffMessage
     };
 
   } catch (error) {
-    console.error(`❌ [HandoffService] Error executing handoff:`, error);
+    console.error(`[HandoffService] Error executing handoff:`, error);
     throw error;
   }
 }

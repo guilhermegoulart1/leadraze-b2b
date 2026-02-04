@@ -12,6 +12,7 @@ const { v4: uuidv4 } = require('uuid');
 const workflowExecutionService = require('./workflowExecutionService');
 const workflowLogService = require('./workflowLogService');
 const aiResponseService = require('./aiResponseService');
+const transferRuleService = require('./transferRuleService');
 
 /**
  * Start a new test session for an agent
@@ -315,19 +316,50 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
     [JSON.stringify(messages), sessionId]
   );
 
-  console.log(`✅ Test message processed, response: "${(response || '').substring(0, 50)}..."`);
-  console.log(`🔍 [agentTestService] Returning waitInfo:`, JSON.stringify(waitInfo));
-  if (allResponses?.length > 1) {
-    console.log(`📬 [agentTestService] Returning ${allResponses.length} responses:`, allResponses.map(r => r.nodeLabel));
+  console.log(`[agentTestService] Test message processed, response: "${(response || '').substring(0, 50)}..."`);
+
+  // Evaluate global transfer rules in test mode (simulated)
+  let transferRuleMatch = null;
+  if (eventType === 'message_received' && message) {
+    try {
+      const exchangeCount = messages.filter(m => m.sender === 'lead').length;
+      transferRuleMatch = await transferRuleService.evaluateTransferRules(
+        session.agent_id,
+        message,
+        { exchangeCount }
+      );
+
+      if (transferRuleMatch.shouldTransfer) {
+        // Log the match in test mode
+        await workflowLogService.logTransferRuleEvaluation({
+          testSessionId: sessionId,
+          agentId: session.agent_id,
+          matchedRule: transferRuleMatch.matchedRule,
+          reason: transferRuleMatch.reasonText,
+          message,
+          simulated: true
+        });
+
+        // Refresh logs after adding the transfer rule log
+        workflowLogs = await workflowLogService.getTestSessionLogs(sessionId);
+      }
+    } catch (trError) {
+      console.error('[agentTestService] Error evaluating transfer rules:', trError.message);
+    }
   }
 
   return {
     response,
-    allResponses, // ✅ Array com todas as respostas quando múltiplos nós executam
+    allResponses,
     messages,
     logs: workflowLogs,
     workflowEnabled: session.workflow_enabled,
-    waitInfo
+    waitInfo,
+    transferRuleMatch: transferRuleMatch?.shouldTransfer ? {
+      ruleName: transferRuleMatch.matchedRule.name,
+      reason: transferRuleMatch.reasonText,
+      simulated: true
+    } : null
   };
 }
 

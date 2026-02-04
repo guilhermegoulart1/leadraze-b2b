@@ -564,10 +564,13 @@ const AIEmployeesPage = () => {
         faq: profile?.faq || existingConfig.faq,
         objections: profile?.objections || existingConfig.objections,
         documents: profile?.documents || existingConfig.documents,
-        // Novos campos adicionados
         baseInstructions: profile?.baseInstructions || existingConfig.baseInstructions,
         formality: profile?.formality ?? existingConfig.formality ?? 50,
-        assertiveness: profile?.assertiveness ?? existingConfig.assertiveness ?? 50
+        assertiveness: profile?.assertiveness ?? existingConfig.assertiveness ?? 50,
+        language: profile?.language ?? existingConfig.language ?? 'pt-BR',
+        latency: profile?.latency || existingConfig.latency,
+        workingHours: profile?.workingHours || existingConfig.workingHours,
+        responseLength: profile?.responseLength || existingConfig.responseLength || 'medium'
       };
 
       console.log('📤 [handleProfileSave] newConfig:', {
@@ -728,10 +731,13 @@ const AIEmployeesPage = () => {
           objections: agentProfile?.objections || existingConfig.objections,
           documents: agentProfile?.documents || existingConfig.documents,
           workflow: workflowDefinition || existingConfig.workflow,
-          // Novos campos adicionados
           baseInstructions: agentProfile?.baseInstructions || existingConfig.baseInstructions,
           formality: agentProfile?.formality ?? existingConfig.formality ?? 50,
-          assertiveness: agentProfile?.assertiveness ?? existingConfig.assertiveness ?? 50
+          assertiveness: agentProfile?.assertiveness ?? existingConfig.assertiveness ?? 50,
+          language: agentProfile?.language ?? existingConfig.language ?? 'pt-BR',
+          latency: agentProfile?.latency || existingConfig.latency,
+          workingHours: agentProfile?.workingHours || existingConfig.workingHours,
+          responseLength: agentProfile?.responseLength || existingConfig.responseLength || 'medium'
         };
 
         // Ensure required fields exist based on agent type
@@ -773,12 +779,16 @@ const AIEmployeesPage = () => {
           avatar_url: agentProfile?.avatarUrl,
           tone: agentProfile?.tone || 'consultivo',
           objective: agentProfile?.objective || 'qualify',
+          customObjective: agentProfile?.customObjective || '',
           personality: agentProfile?.personality || [],
           rules: agentProfile?.rules || [],
+          baseInstructions: agentProfile?.baseInstructions || '',
           company_name: agentProfile?.company?.name || '',
           company_website: agentProfile?.company?.website || '',
           company_description: agentProfile?.company?.description || '',
           company_sector: agentProfile?.company?.sector || '',
+          avg_ticket: agentProfile?.company?.avgTicket || '',
+          target_audience: agentProfile?.company?.icp || '',
           product_name: agentProfile?.product?.name || '',
           product_description: agentProfile?.product?.description || '',
           product_benefits: agentProfile?.product?.benefits || [],
@@ -786,6 +796,11 @@ const AIEmployeesPage = () => {
           faq: agentProfile?.faq || [],
           objections: agentProfile?.objections || [],
           response_length: agentProfile?.responseLength || 'medium',
+          language: agentProfile?.language || 'pt-BR',
+          latency: agentProfile?.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' },
+          workingHours: agentProfile?.workingHours || { enabled: false },
+          formality: agentProfile?.formality ?? 50,
+          assertiveness: agentProfile?.assertiveness ?? 50,
           ...interviewAnswers
         };
 

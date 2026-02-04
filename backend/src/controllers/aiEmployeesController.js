@@ -4,6 +4,7 @@
 const templateService = require('../services/templateService');
 const smartInterviewService = require('../services/smartInterviewService');
 const agentTestService = require('../services/agentTestService');
+const transferRuleService = require('../services/transferRuleService');
 
 /**
  * Get all templates
@@ -682,5 +683,169 @@ module.exports = {
   endTestSession,
   resetTestSession,
   updateTestLead,
-  getActiveSessions
+  getActiveSessions,
+  // Transfer rules
+  getTransferRules,
+  createTransferRule,
+  updateTransferRule,
+  deleteTransferRule,
+  reorderTransferRules,
+  getDefaultTransferConfig,
+  updateDefaultTransferConfig,
+  getPresetTriggerDefinitions
 };
+
+// ==========================================
+// TRANSFER RULE FUNCTIONS
+// ==========================================
+
+/**
+ * Get all transfer rules for an agent
+ * GET /api/ai-employees/:agentId/transfer-rules
+ */
+async function getTransferRules(req, res) {
+  try {
+    const { agentId } = req.params;
+    const rules = await transferRuleService.getRulesForAgent(agentId);
+    const defaultConfig = await transferRuleService.getDefaultTransferConfig(agentId);
+
+    res.json({
+      success: true,
+      data: { rules, defaultConfig }
+    });
+  } catch (error) {
+    console.error('Error getting transfer rules:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Create a new transfer rule
+ * POST /api/ai-employees/:agentId/transfer-rules
+ */
+async function createTransferRule(req, res) {
+  try {
+    const { agentId } = req.params;
+    const { accountId } = req.user;
+
+    const rule = await transferRuleService.createRule(agentId, accountId, req.body);
+
+    res.status(201).json({
+      success: true,
+      data: { rule }
+    });
+  } catch (error) {
+    console.error('Error creating transfer rule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Update a transfer rule
+ * PUT /api/ai-employees/:agentId/transfer-rules/:ruleId
+ */
+async function updateTransferRule(req, res) {
+  try {
+    const { ruleId } = req.params;
+    const rule = await transferRuleService.updateRule(ruleId, req.body);
+
+    if (!rule) {
+      return res.status(404).json({ success: false, error: 'Rule not found' });
+    }
+
+    res.json({
+      success: true,
+      data: { rule }
+    });
+  } catch (error) {
+    console.error('Error updating transfer rule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Delete a transfer rule
+ * DELETE /api/ai-employees/:agentId/transfer-rules/:ruleId
+ */
+async function deleteTransferRule(req, res) {
+  try {
+    const { ruleId } = req.params;
+    const deleted = await transferRuleService.deleteRule(ruleId);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: 'Rule not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting transfer rule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Reorder transfer rules
+ * PUT /api/ai-employees/:agentId/transfer-rules/reorder
+ */
+async function reorderTransferRules(req, res) {
+  try {
+    const { agentId } = req.params;
+    const { ruleIds } = req.body;
+
+    await transferRuleService.reorderRules(agentId, ruleIds);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error reordering transfer rules:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Get default transfer config for an agent
+ * GET /api/ai-employees/:agentId/default-transfer-config
+ */
+async function getDefaultTransferConfig(req, res) {
+  try {
+    const { agentId } = req.params;
+    const config = await transferRuleService.getDefaultTransferConfig(agentId);
+
+    res.json({
+      success: true,
+      data: { config }
+    });
+  } catch (error) {
+    console.error('Error getting default transfer config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Update default transfer config for an agent
+ * PUT /api/ai-employees/:agentId/default-transfer-config
+ */
+async function updateDefaultTransferConfig(req, res) {
+  try {
+    const { agentId } = req.params;
+    const config = await transferRuleService.updateDefaultTransferConfig(agentId, req.body);
+
+    res.json({
+      success: true,
+      data: { config }
+    });
+  } catch (error) {
+    console.error('Error updating default transfer config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Get preset trigger definitions (static data)
+ * GET /api/ai-employees/transfer-presets
+ */
+async function getPresetTriggerDefinitions(req, res) {
+  res.json({
+    success: true,
+    data: { presets: transferRuleService.PRESET_TRIGGER_DEFINITIONS }
+  });
+}

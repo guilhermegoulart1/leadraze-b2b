@@ -59,6 +59,10 @@ const EVENT_TYPES = {
   WORKFLOW_FAILED: 'workflow_failed',
   WORKFLOW_TRANSFERRED: 'workflow_transferred',
 
+  // Transfer rule events
+  TRANSFER_RULE_MATCHED: 'TRANSFER_RULE_MATCHED',
+  TRANSFER_RULE_EVALUATED: 'TRANSFER_RULE_EVALUATED',
+
   // Test session events
   SESSION_STARTED: 'session_started',
   SESSION_ENDED: 'session_ended',
@@ -311,6 +315,8 @@ function getEventEmoji(eventType, success) {
     [EVENT_TYPES.LEAD_SIMULATION_UPDATED]: '👤',
     [EVENT_TYPES.AI_RESPONSE_GENERATED]: '🤖',
     [EVENT_TYPES.EDGE_FOLLOWED]: '➡️',
+    [EVENT_TYPES.TRANSFER_RULE_MATCHED]: '🔄',
+    [EVENT_TYPES.TRANSFER_RULE_EVALUATED]: '🔍',
     [EVENT_TYPES.ERROR]: '❌'
   };
 
@@ -420,6 +426,42 @@ function cleanupOldSessions(maxAgeMs = 60 * 60 * 1000) {
 // Run cleanup every 30 minutes
 setInterval(() => cleanupOldSessions(), 30 * 60 * 1000);
 
+/**
+ * Log a transfer rule evaluation (used in test mode)
+ */
+function logTransferRuleEvaluation(params) {
+  const {
+    testSessionId,
+    conversationId,
+    agentId,
+    matchedRule = null,
+    reason = null,
+    message = null,
+    simulated = true
+  } = params;
+
+  if (matchedRule) {
+    return logEvent({
+      testSessionId,
+      conversationId,
+      agentId,
+      eventType: EVENT_TYPES.TRANSFER_RULE_MATCHED,
+      nodeLabel: `Regra: ${matchedRule.name}`,
+      inputData: {
+        message: message?.substring(0, 100),
+        triggerType: matchedRule.trigger_type,
+        destinationType: matchedRule.destination_type
+      },
+      outputData: {
+        ruleName: matchedRule.name,
+        reason,
+        simulated
+      },
+      decisionReason: reason
+    });
+  }
+}
+
 module.exports = {
   EVENT_TYPES,
   logEvent,
@@ -439,6 +481,7 @@ module.exports = {
   logWorkflowResumed,
   logWorkflowCompleted,
   logWorkflowFailed,
+  logTransferRuleEvaluation,
   logError,
   getTestSessionLogs,
   clearTestSessionLogs,

@@ -6,7 +6,7 @@ import {
   ChevronRight, CheckCircle, AlertCircle, Info, Zap,
   Play, Square, Clock, MessageSquare, GitBranch, Search,
   Target, Hash, UserCheck, UserX, ThumbsUp, ThumbsDown,
-  FastForward, Timer
+  FastForward, Timer, ArrowRightLeft
 } from 'lucide-react';
 import api from '../../../services/api';
 
@@ -33,6 +33,8 @@ const LOG_STYLES = {
   WORKFLOW_PAUSED: { color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20', icon: Clock },
   ERROR: { color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', icon: AlertCircle },
   LEAD_SIMULATION_UPDATED: { color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-gray-900/20', icon: User },
+  TRANSFER_RULE_MATCHED: { color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20', icon: ArrowRightLeft },
+  TRANSFER_RULE_EVALUATED: { color: 'text-gray-500 dark:text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20', icon: Search },
 };
 
 const AgentTestModal = ({ agent, onClose }) => {

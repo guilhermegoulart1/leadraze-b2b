@@ -85,4 +85,30 @@ router.post('/test/:sessionId/reset', aiEmployeesController.resetTestSession);
 // Update lead simulation
 router.put('/test/:sessionId/lead', aiEmployeesController.updateTestLead);
 
+// ===========================================
+// TRANSFER RULES ROUTES
+// ===========================================
+
+// Get preset trigger definitions (static, must be before :agentId routes)
+router.get('/transfer-presets', aiEmployeesController.getPresetTriggerDefinitions);
+
+// Get all transfer rules for an agent
+router.get('/:agentId/transfer-rules', aiEmployeesController.getTransferRules);
+
+// Reorder transfer rules (must be before :ruleId route)
+router.put('/:agentId/transfer-rules/reorder', aiEmployeesController.reorderTransferRules);
+
+// Create a new transfer rule
+router.post('/:agentId/transfer-rules', aiEmployeesController.createTransferRule);
+
+// Update a transfer rule
+router.put('/:agentId/transfer-rules/:ruleId', aiEmployeesController.updateTransferRule);
+
+// Delete a transfer rule
+router.delete('/:agentId/transfer-rules/:ruleId', aiEmployeesController.deleteTransferRule);
+
+// Default transfer config
+router.get('/:agentId/default-transfer-config', aiEmployeesController.getDefaultTransferConfig);
+router.put('/:agentId/default-transfer-config', aiEmployeesController.updateDefaultTransferConfig);
+
 module.exports = router;

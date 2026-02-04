@@ -3233,6 +3233,56 @@ class ApiService {
   }
 
   // ==========================================
+  // TRANSFER RULES
+  // ==========================================
+
+  async getTransferRules(agentId) {
+    return this.request(`/ai-employees/${agentId}/transfer-rules`);
+  }
+
+  async createTransferRule(agentId, ruleData) {
+    return this.request(`/ai-employees/${agentId}/transfer-rules`, {
+      method: 'POST',
+      body: JSON.stringify(ruleData),
+    });
+  }
+
+  async updateTransferRule(agentId, ruleId, ruleData) {
+    return this.request(`/ai-employees/${agentId}/transfer-rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(ruleData),
+    });
+  }
+
+  async deleteTransferRule(agentId, ruleId) {
+    return this.request(`/ai-employees/${agentId}/transfer-rules/${ruleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderTransferRules(agentId, ruleIds) {
+    return this.request(`/ai-employees/${agentId}/transfer-rules/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ ruleIds }),
+    });
+  }
+
+  async getDefaultTransferConfig(agentId) {
+    return this.request(`/ai-employees/${agentId}/default-transfer-config`);
+  }
+
+  async updateDefaultTransferConfig(agentId, config) {
+    return this.request(`/ai-employees/${agentId}/default-transfer-config`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async getTransferPresets() {
+    return this.request('/ai-employees/transfer-presets');
+  }
+
+  // ==========================================
   // FOLLOW-UP FLOWS
   // ==========================================
 

@@ -2,10 +2,11 @@
 // Container principal com header estilo Artisan + tabs
 
 import React, { useState, useRef } from 'react';
-import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield, Loader2, ChevronDown, Target, Headphones, MessageSquare, Linkedin, Mail, Globe } from 'lucide-react';
+import { Bot, User, BookOpen, Settings, ArrowLeft, ArrowRight, RefreshCw, Upload, Camera, Shield, Loader2, ChevronDown, Target, Headphones, MessageSquare, Linkedin, Mail, Globe, ArrowRightLeft } from 'lucide-react';
 import IdentityTab from './IdentityTab';
 import KnowledgeTab from './KnowledgeTab';
 import RulesTab from './RulesTab';
+import TransferTab from './TransferTab';
 import ConfigTab from './ConfigTab';
 
 // Unsplash professional portrait photo IDs
@@ -101,6 +102,7 @@ const tabs = [
   { id: 'identity', label: 'Perfil', icon: User },
   { id: 'knowledge', label: 'Base Conhecimento', icon: BookOpen },
   { id: 'rules', label: 'Regras', icon: Shield },
+  { id: 'transfer', label: 'Transferencia', icon: ArrowRightLeft },
   { id: 'config', label: 'Config', icon: Settings }
 ];
 
@@ -434,6 +436,13 @@ const AgentProfileStep = ({ agentType, channel, onComplete, onSave, onBack, init
           <RulesTab
             profile={profile}
             onChange={updateProfile}
+          />
+        )}
+        {activeTab === 'transfer' && (
+          <TransferTab
+            agentId={agentId || initialData?.id}
+            profile={profile}
+            onProfileChange={updateProfile}
           />
         )}
         {activeTab === 'config' && (

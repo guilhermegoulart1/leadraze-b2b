@@ -590,7 +590,7 @@ const getAgentPromptPreview = async (req, res) => {
       industry: 'Tecnologia'
     };
 
-    const prompt = buildSystemPrompt({
+    const prompt = await buildSystemPrompt({
       ai_agent: agent,
       behavioralProfile,
       lead_data: sampleLeadData,

@@ -328,7 +328,7 @@ async function generateResponse(params) {
     }
 
     // Construir system prompt com conhecimento relevante, objeções, playbook e análise de perfil
-    const systemPrompt = buildSystemPrompt({
+    const systemPrompt = await buildSystemPrompt({
       ai_agent,
       behavioralProfile,
       lead_data,
@@ -489,15 +489,20 @@ async function generateResponse(params) {
       }
     }
 
-    // Check if AI response contains [TRANSFER] tag (from transfer triggers)
+    // Check if AI response contains [TRANSFER] or [TRANSFER:rule_id] tag
     let aiRequestedTransfer = false;
-    let cleanedResponse = messageContent; // Usar messageContent (já parseado do JSON se aplicável)
-    if (messageContent.includes('[TRANSFER]')) {
+    let transferRuleIdFromAI = null;
+    let cleanedResponse = messageContent;
+    const transferMatch = messageContent.match(/\[TRANSFER(?::([a-f0-9-]+))?\]/i);
+    if (transferMatch) {
       aiRequestedTransfer = true;
       shouldEscalate = true;
-      escalationReasons.push('IA detectou gatilho de transferência');
-      cleanedResponse = messageContent.replace('[TRANSFER]', '').trim();
-      console.log(`🔄 IA solicitou transferência via [TRANSFER] tag`);
+      transferRuleIdFromAI = transferMatch[1] || null;
+      escalationReasons.push(transferRuleIdFromAI
+        ? `IA detectou gatilho de transferência (regra: ${transferRuleIdFromAI})`
+        : 'IA detectou gatilho de transferência');
+      cleanedResponse = messageContent.replace(/\[TRANSFER(?::[a-f0-9-]+)?\]/gi, '').trim();
+      console.log(`[aiResponseService] IA solicitou transferência via [TRANSFER${transferRuleIdFromAI ? ':' + transferRuleIdFromAI : ''}] tag`);
     }
 
     // Check if AI indicated step completion
@@ -542,6 +547,7 @@ async function generateResponse(params) {
       escalationReasons,
       matchedKeywords: keywordResult.matchedKeywords,
       aiRequestedTransfer,
+      transferRuleIdFromAI,
       should_offer_scheduling,
       scheduling_link: should_offer_scheduling ? ai_agent.scheduling_link : null,
       tokens_used: completion.usage.total_tokens,
@@ -563,7 +569,7 @@ async function generateResponse(params) {
 /**
  * Construir system prompt baseado no agente IA
  */
-function buildSystemPrompt({ ai_agent, behavioralProfile, lead_data, knowledgeContext = '', objectionsContext = '', playbookContext = '', profileAnalysisContext = '', currentStep = 0 }) {
+async function buildSystemPrompt({ ai_agent, behavioralProfile, lead_data, knowledgeContext = '', objectionsContext = '', playbookContext = '', profileAnalysisContext = '', currentStep = 0 }) {
   // Parse config JSON (pode vir como string ou objeto)
   const config = typeof ai_agent.config === 'string'
     ? JSON.parse(ai_agent.config || '{}')
@@ -674,36 +680,13 @@ GATILHOS DE ESCALAÇÃO (transferir para humano quando detectar):`;
 Quando detectar estes gatilhos, informe que vai conectar com um especialista humano.`;
   }
 
-  // Build transfer triggers section (new system based on checkboxes)
+  // Build transfer triggers section from centralized transfer rules
   let transferTriggersSection = '';
-  const transferTriggers = ai_agent.transfer_triggers || [];
-  if (transferTriggers.length > 0) {
-    const triggerLabels = {
-      doubt: 'O lead expressa dúvidas, confusão ou pede explicações mais detalhadas',
-      qualified: 'O lead demonstra alto interesse, está qualificado e pronto para avançar',
-      price: 'O lead pergunta sobre preços, valores, custos ou planos',
-      demo: 'O lead solicita demo, demonstração, apresentação ou teste',
-      competitor: 'O lead menciona concorrentes ou compara com outras soluções',
-      urgency: 'O lead demonstra urgência, pressa ou necessidade imediata',
-      frustration: 'O lead expressa frustração, irritação ou insatisfação'
-    };
-
-    const activeTriggersText = transferTriggers
-      .map(t => triggerLabels[t])
-      .filter(Boolean)
-      .join('\n- ');
-
-    transferTriggersSection = `
-
-GATILHOS DE TRANSFERÊNCIA PARA HUMANO:
-Quando detectar QUALQUER uma destas situações, você DEVE:
-1. Informar gentilmente que vai conectar o lead com um especialista
-2. Incluir [TRANSFER] no final da sua mensagem para sinalizar ao sistema
-
-Situações que exigem transferência:
-- ${activeTriggersText}
-
-IMPORTANTE: Ao detectar um gatilho de transferência, responda de forma empática, informe que entendeu a necessidade e que vai conectar com alguém da equipe que pode ajudar melhor. Termine a mensagem com [TRANSFER].`;
+  try {
+    const transferRuleService = require('./transferRuleService');
+    transferTriggersSection = await transferRuleService.buildTransferPromptSection(ai_agent.id);
+  } catch (err) {
+    console.error('[aiResponseService] Error building transfer prompt section:', err.message);
   }
 
   // Build priority rules section (user-defined behavioral rules)
@@ -1414,7 +1397,7 @@ async function generateEmailResponse(params) {
     }
 
     // Build system prompt with email instructions
-    const basePrompt = buildSystemPrompt({
+    const basePrompt = await buildSystemPrompt({
       ai_agent,
       behavioralProfile,
       lead_data,

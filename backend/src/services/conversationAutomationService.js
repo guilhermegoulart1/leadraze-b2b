@@ -9,6 +9,7 @@ const stripeService = require('./stripeService');
 const handoffService = require('./handoffService');
 const workflowExecutionService = require('./workflowExecutionService');
 const workflowStateService = require('./workflowStateService');
+const transferRuleService = require('./transferRuleService');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -223,7 +224,49 @@ async function processIncomingMessage(params) {
           workflowResult.enrichedData.objection
         );
       } catch (error) {
-        console.error('⚠️ Erro ao registrar objeção:', error.message);
+        console.error('Erro ao registrar objeção:', error.message);
+      }
+    }
+
+    // ========================================
+    // GLOBAL TRANSFER RULES: Evaluate after workflow
+    // Only if workflow didn't already trigger a transfer (completed = endsBranch from transfer action)
+    // ========================================
+    let transferRuleMatch = null;
+    if (!workflowResult.completed) {
+      try {
+        // Get exchange count for exchange_limit rules
+        const exchResult = await db.query(
+          'SELECT exchange_count FROM conversations WHERE id = $1',
+          [conversation_id]
+        );
+        const exchangeCount = exchResult.rows[0]?.exchange_count || 0;
+
+        // Check for AI-signaled transfer rule
+        const lastConvNode = [...(workflowResult.executedNodes || [])].reverse()
+          .find(n => n.nodeType === 'conversationStep');
+        const ruleIdFromAI = lastConvNode?.result?.transferRuleIdFromAI || null;
+
+        transferRuleMatch = await transferRuleService.evaluateTransferRules(
+          agent.id,
+          message_content,
+          {
+            exchangeCount,
+            aiResponse: workflowResult.response,
+            ruleIdFromAI
+          }
+        );
+
+        if (transferRuleMatch.shouldTransfer) {
+          console.log(`[TransferRule] Global rule matched: "${transferRuleMatch.matchedRule.name}" - executing transfer`);
+          await transferRuleService.executeTransferFromRule(
+            conversation_id,
+            transferRuleMatch.matchedRule,
+            agent
+          );
+        }
+      } catch (trError) {
+        console.error('Erro ao avaliar regras de transferência:', trError.message);
       }
     }
 
@@ -235,7 +278,11 @@ async function processIncomingMessage(params) {
       paused: workflowResult.paused,
       completed: workflowResult.completed,
       actions: workflowResult.executedActions || [],
-      enrichedData: workflowResult.enrichedData || null
+      enrichedData: workflowResult.enrichedData || null,
+      transferRuleMatch: transferRuleMatch?.shouldTransfer ? {
+        ruleName: transferRuleMatch.matchedRule.name,
+        reason: transferRuleMatch.reasonText
+      } : null
     };
 
   } catch (error) {

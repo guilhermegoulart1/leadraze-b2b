@@ -193,6 +193,7 @@ async function generateAgentConfig(options) {
       interview_answers: answers,
       workflow: workflowDefinition || null,
       // Profile fields - saved directly for easy access on edit
+      baseInstructions: answers.baseInstructions || '',
       tone: answers.tone || 'consultivo',
       objective: answers.objective || 'qualify',
       customObjective: answers.customObjective || '',

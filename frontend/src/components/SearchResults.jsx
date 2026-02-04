@@ -156,7 +156,7 @@ const SearchResults = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-1">
+                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                     {profile.name}
                   </h3>
@@ -176,6 +176,12 @@ const SearchResults = ({
                     <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded-full flex-shrink-0" title="Hiring">
                       <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                       <span className="text-[10px] font-medium text-blue-700 dark:text-blue-300">Hiring</span>
+                    </div>
+                  )}
+                  {profile.campaign_info && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex-shrink-0" title={profile.campaign_info.campaign_name}>
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                      <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 truncate max-w-[120px]">{profile.campaign_info.campaign_name}</span>
                     </div>
                   )}
                 </div>
@@ -391,6 +397,14 @@ const SearchResults = ({
               </div>
               {title && (
                 <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{title}</div>
+              )}
+              {profile.campaign_info && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 rounded text-[9px] font-medium text-emerald-700 dark:text-emerald-300" title={profile.campaign_info.campaign_name}>
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                    <span className="truncate max-w-[150px]">{profile.campaign_info.campaign_name}</span>
+                  </span>
+                </div>
               )}
             </div>
           </div>
