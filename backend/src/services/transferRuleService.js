@@ -59,6 +59,42 @@ const PRESET_TRIGGER_DEFINITIONS = {
     keywords: ['frustrado', 'irritado', 'problema', 'não funciona', 'péssimo', 'horrível', 'decepcionado', 'cansado'],
     label: 'Frustração',
     description: 'O lead expressa frustração'
+  },
+  // AI-evaluated presets (triggered by AI self-assessment, not keywords)
+  ai_no_answer: {
+    keywords: [],
+    ai_evaluated: true,
+    prompt: 'Você não sabe a resposta, não tem informação suficiente na base de conhecimento, ou a pergunta foge do seu escopo',
+    label: 'IA Sem Resposta',
+    description: 'A IA não sabe responder a pergunta do lead'
+  },
+  ai_confused: {
+    keywords: [],
+    ai_evaluated: true,
+    prompt: 'A mensagem do lead é ambígua, confusa ou você não conseguiu entender o que ele quis dizer mesmo após tentar clarificar',
+    label: 'IA Não Entendeu',
+    description: 'A IA não conseguiu entender a pergunta'
+  },
+  ai_repeated_question: {
+    keywords: [],
+    ai_evaluated: true,
+    prompt: 'O lead está repetindo a mesma pergunta ou insistindo no mesmo assunto porque não ficou satisfeito com as respostas anteriores',
+    label: 'Lead Insatisfeito',
+    description: 'O lead repete a pergunta, insatisfeito com a resposta'
+  },
+  ai_complex_request: {
+    keywords: [],
+    ai_evaluated: true,
+    prompt: 'O lead fez uma solicitação complexa que exige análise humana, como negociação de contrato, suporte técnico avançado ou caso muito específico',
+    label: 'Caso Complexo',
+    description: 'Solicitação complexa que exige atendimento humano'
+  },
+  human_request: {
+    keywords: ['falar com humano', 'falar com atendente', 'atendente humano', 'pessoa real', 'falar com alguém', 'quero falar com uma pessoa', 'atendimento humano', 'falar com gente'],
+    ai_evaluated: true,
+    prompt: 'O lead pediu explicitamente para falar com um humano ou atendente real',
+    label: 'Pediu Humano',
+    description: 'O lead pediu para falar com um atendente humano'
   }
 };
 
@@ -104,8 +140,8 @@ async function createRule(agentId, accountId, ruleData) {
       agent_id, account_id, name, description, priority, is_active,
       trigger_type, trigger_config,
       destination_type, destination_config,
-      transfer_mode, transfer_message, notify_on_handoff
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      transfer_mode, transfer_message, notify_on_handoff, actions
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *
   `, [
     agentId,
@@ -120,7 +156,8 @@ async function createRule(agentId, accountId, ruleData) {
     JSON.stringify(ruleData.destination_config || {}),
     ruleData.transfer_mode || 'notify',
     ruleData.transfer_message || null,
-    ruleData.notify_on_handoff !== false
+    ruleData.notify_on_handoff !== false,
+    JSON.stringify(ruleData.actions || [])
   ]);
 
   return result.rows[0];
@@ -138,12 +175,13 @@ async function updateRule(ruleId, ruleData) {
     'name', 'description', 'priority', 'is_active',
     'trigger_type', 'trigger_config',
     'destination_type', 'destination_config',
-    'transfer_mode', 'transfer_message', 'notify_on_handoff'
+    'transfer_mode', 'transfer_message', 'notify_on_handoff',
+    'actions'
   ];
 
   for (const field of allowedFields) {
     if (ruleData[field] !== undefined) {
-      const value = (field === 'trigger_config' || field === 'destination_config')
+      const value = (field === 'trigger_config' || field === 'destination_config' || field === 'actions')
         ? JSON.stringify(ruleData[field])
         : ruleData[field];
       fields.push(`${field} = $${paramIndex}`);
@@ -359,6 +397,7 @@ async function buildTransferPromptSection(agentId) {
 
     const aiDetectedRules = [];
     const sentimentRules = [];
+    const aiPresetRules = [];
     const keywordRules = [];
 
     for (const rule of rules.rows) {
@@ -369,8 +408,17 @@ async function buildTransferPromptSection(agentId) {
         case 'sentiment':
           sentimentRules.push(rule);
           break;
+        case 'preset': {
+          const presetId = rule.trigger_config?.preset_id;
+          const preset = PRESET_TRIGGER_DEFINITIONS[presetId];
+          if (preset?.ai_evaluated) {
+            aiPresetRules.push({ rule, preset });
+          } else {
+            keywordRules.push(rule);
+          }
+          break;
+        }
         case 'keyword':
-        case 'preset':
           keywordRules.push(rule);
           break;
       }
@@ -378,8 +426,9 @@ async function buildTransferPromptSection(agentId) {
 
     let section = '';
 
-    // AI-detected and sentiment rules need the AI to signal
-    if (aiDetectedRules.length > 0 || sentimentRules.length > 0) {
+    // AI-detected, sentiment, and AI-evaluated preset rules need the AI to signal
+    const hasAiRules = aiDetectedRules.length > 0 || sentimentRules.length > 0 || aiPresetRules.length > 0;
+    if (hasAiRules) {
       section += `\nGATILHOS DE TRANSFERÊNCIA PARA HUMANO:
 Quando detectar QUALQUER uma destas situações, você DEVE:
 1. Informar gentilmente que vai conectar o lead com um especialista
@@ -390,6 +439,10 @@ Situações que exigem transferência:\n`;
       for (const rule of aiDetectedRules) {
         const prompt = rule.trigger_config?.prompt || rule.name;
         section += `- ${prompt} → Incluir [TRANSFER:${rule.id}]\n`;
+      }
+
+      for (const { rule, preset } of aiPresetRules) {
+        section += `- ${preset.prompt} → Incluir [TRANSFER:${rule.id}]\n`;
       }
 
       for (const rule of sentimentRules) {
@@ -422,6 +475,116 @@ Situações que exigem transferência:\n`;
 // ==========================================
 // Transfer Execution
 // ==========================================
+
+/**
+ * Execute automation actions configured for a transfer rule.
+ * Actions run before the actual handoff so tags/notes are visible to the assignee.
+ *
+ * @param {string} conversationId
+ * @param {object} rule - The matched transfer rule (with actions array)
+ * @param {object} agent - The AI agent config
+ */
+async function executeActions(conversationId, rule, agent) {
+  const actions = rule.actions || [];
+  if (actions.length === 0) return;
+
+  // Get conversation context for variable replacement and contact_id
+  const convResult = await db.query(`
+    SELECT c.*, ct.id as contact_id, ct.name as contact_name
+    FROM conversations c
+    LEFT JOIN opportunities o ON c.opportunity_id = o.id
+    LEFT JOIN contacts ct ON o.contact_id = ct.id
+    WHERE c.id = $1
+  `, [conversationId]);
+
+  const conv = convResult.rows[0];
+  if (!conv) return;
+
+  const contactId = conv.contact_id;
+
+  // Variable replacement helper
+  const replaceVars = (text) => {
+    if (!text) return text;
+    return text
+      .replace(/\{\{contact_name\}\}/g, conv.contact_name || 'Lead')
+      .replace(/\{\{agent_name\}\}/g, agent.name || 'AI Agent')
+      .replace(/\{\{rule_name\}\}/g, rule.name || '')
+      .replace(/\{\{handoff_reason\}\}/g, rule.name || rule.trigger_type || '');
+  };
+
+  for (const action of actions) {
+    try {
+      switch (action.type) {
+        case 'add_tag': {
+          if (!contactId || !action.config?.tag_id) break;
+          await db.query(`
+            INSERT INTO contact_tags (contact_id, tag_id)
+            VALUES ($1, $2)
+            ON CONFLICT DO NOTHING
+          `, [contactId, action.config.tag_id]);
+          console.log(`[TransferActions] Added tag ${action.config.tag_id} to contact ${contactId}`);
+          break;
+        }
+
+        case 'remove_tag': {
+          if (!contactId || !action.config?.tag_id) break;
+          await db.query(`
+            DELETE FROM contact_tags WHERE contact_id = $1 AND tag_id = $2
+          `, [contactId, action.config.tag_id]);
+          console.log(`[TransferActions] Removed tag ${action.config.tag_id} from contact ${contactId}`);
+          break;
+        }
+
+        case 'add_note': {
+          const noteText = replaceVars(action.config?.note);
+          if (!noteText) break;
+          await db.query(`
+            INSERT INTO messages (conversation_id, content, message_type, sender_type, created_at)
+            VALUES ($1, $2, 'note', 'system', NOW())
+          `, [conversationId, noteText]);
+          console.log(`[TransferActions] Added note to conversation ${conversationId}`);
+          break;
+        }
+
+        case 'update_contact': {
+          if (!contactId || !action.config?.field || action.config?.value === undefined) break;
+          const allowedContactFields = ['company', 'role', 'phone', 'email'];
+          if (!allowedContactFields.includes(action.config.field)) break;
+          await db.query(`
+            UPDATE contacts SET ${action.config.field} = $1, updated_at = NOW() WHERE id = $2
+          `, [action.config.value, contactId]);
+          console.log(`[TransferActions] Updated contact ${contactId} field ${action.config.field}`);
+          break;
+        }
+
+        case 'send_webhook': {
+          if (!action.config?.url) break;
+          const webhookPayload = {
+            event: 'transfer_triggered',
+            rule: { id: rule.id, name: rule.name, trigger_type: rule.trigger_type },
+            conversation_id: conversationId,
+            contact: { id: contactId, name: conv.contact_name },
+            agent: { id: agent.id, name: agent.name },
+            timestamp: new Date().toISOString()
+          };
+          fetch(action.config.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(action.config.headers || {}) },
+            body: JSON.stringify(webhookPayload)
+          }).catch(err => console.error(`[TransferActions] Webhook failed:`, err.message));
+          console.log(`[TransferActions] Sent webhook to ${action.config.url}`);
+          break;
+        }
+
+        default:
+          console.warn(`[TransferActions] Unknown action type: ${action.type}`);
+      }
+    } catch (actionError) {
+      console.error(`[TransferActions] Error executing action ${action.type}:`, actionError.message);
+      // Continue with next action - don't block transfer
+    }
+  }
+}
 
 /**
  * Execute a transfer based on a matched rule.
@@ -466,6 +629,9 @@ async function executeTransferFromRule(conversationId, rule, agent) {
         break;
       }
     }
+
+    // Execute automation actions before handoff
+    await executeActions(conversationId, rule, agent);
 
     // Record the rule that triggered this handoff
     await db.query(`

@@ -67,6 +67,9 @@ const AgentTestModal = ({ agent, onClose }) => {
   const [waitInfo, setWaitInfo] = useState(null);
   const [waitCountdown, setWaitCountdown] = useState(null); // Countdown in seconds for waits <= 1 min
 
+  // Transfer state
+  const [transferTriggered, setTransferTriggered] = useState(false);
+
   // Refs for auto-scroll
   const messagesEndRef = useRef(null);
   const logsEndRef = useRef(null);
@@ -170,6 +173,9 @@ const AgentTestModal = ({ agent, onClose }) => {
         if (data.waitInfo?.isWaitAction) {
           setWaitInfo(data.waitInfo);
         }
+
+        // Check for transfer match
+        handleTransferMatch(data);
       }
     } catch (err) {
       setError(err.message);
@@ -276,6 +282,9 @@ const AgentTestModal = ({ agent, onClose }) => {
         if (data.waitInfo?.isWaitAction) {
           setWaitInfo(data.waitInfo);
         }
+
+        // Check for transfer match
+        handleTransferMatch(data);
       } else {
         throw new Error(response.error || 'Failed to simulate event');
       }
@@ -348,6 +357,9 @@ const AgentTestModal = ({ agent, onClose }) => {
         if (data.waitInfo?.isWaitAction) {
           setWaitInfo(data.waitInfo);
         }
+
+        // Check for transfer match
+        handleTransferMatch(data);
       } else {
         throw new Error(response.error || 'Failed to send message');
       }
@@ -379,6 +391,7 @@ const AgentTestModal = ({ agent, onClose }) => {
         setShowEventPanel(true);
         setWaitInfo(null);
         setWaitCountdown(null);
+        setTransferTriggered(false);
         setLogs([{
           id: Date.now(),
           timestamp: new Date().toISOString(),
@@ -424,6 +437,21 @@ const AgentTestModal = ({ agent, onClose }) => {
     }
   };
 
+  // Handle transfer match from API response
+  const handleTransferMatch = (data) => {
+    if (data.transferRuleMatch) {
+      setTransferTriggered(true);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 999,
+        sender: 'system',
+        content: `Transferencia disparada: "${data.transferRuleMatch.ruleName}" - ${data.transferRuleMatch.reason}`,
+        timestamp: new Date().toISOString(),
+        isSystemEvent: true,
+        isTransfer: true
+      }]);
+    }
+  };
+
   // Handle Enter key
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -464,7 +492,9 @@ const AgentTestModal = ({ agent, onClose }) => {
       WORKFLOW_COMPLETED: 'Workflow Concluído',
       WORKFLOW_PAUSED: 'Workflow Pausado',
       ERROR: 'Erro',
-      LEAD_SIMULATION_UPDATED: 'Lead Atualizado'
+      LEAD_SIMULATION_UPDATED: 'Lead Atualizado',
+      TRANSFER_RULE_MATCHED: 'Regra de Transferencia',
+      TRANSFER_RULE_EVALUATED: 'Regras Avaliadas'
     };
     return labels[eventType] || eventType;
   };
@@ -711,8 +741,19 @@ const AgentTestModal = ({ agent, onClose }) => {
                       }`}
                     >
                       {message.sender === 'system' ? (
-                        <div className="bg-gray-200 dark:bg-gray-700 rounded-full px-4 py-1.5">
-                          <p className="text-xs text-gray-600 dark:text-gray-300">{message.content}</p>
+                        <div className={`rounded-full px-4 py-1.5 ${
+                          message.isTransfer
+                            ? 'bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700'
+                            : 'bg-gray-200 dark:bg-gray-700'
+                        }`}>
+                          <p className={`text-xs ${
+                            message.isTransfer
+                              ? 'text-orange-700 dark:text-orange-300 font-medium'
+                              : 'text-gray-600 dark:text-gray-300'
+                          }`}>
+                            {message.isTransfer && '-> '}
+                            {message.content}
+                          </p>
                         </div>
                       ) : (
                         <div
@@ -753,24 +794,33 @@ const AgentTestModal = ({ agent, onClose }) => {
 
             {/* Input */}
             <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Digite uma mensagem..."
-                  disabled={sending || loading || !sessionId}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={sending || loading || !inputMessage.trim() || !sessionId}
-                  className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              </div>
+              {transferTriggered ? (
+                <div className="flex items-center justify-center gap-2 py-2 px-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
+                  <ArrowRightLeft className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm text-orange-700 dark:text-orange-300">
+                    Conversa transferida para humano. Reinicie para testar novamente.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Digite uma mensagem..."
+                    disabled={sending || loading || !sessionId}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={sending || loading || !inputMessage.trim() || !sessionId}
+                    className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

@@ -316,17 +316,41 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
     [JSON.stringify(messages), sessionId]
   );
 
+  // Extract [TRANSFER:rule_id] tag from AI response (same detection as production)
+  let ruleIdFromAI = null;
+  if (response) {
+    const transferMatch = response.match(/\[TRANSFER(?::([a-f0-9-]+))?\]/i);
+    if (transferMatch) {
+      ruleIdFromAI = transferMatch[1] || null;
+      response = response.replace(/\[TRANSFER(?::[a-f0-9-]+)?\]/gi, '').trim();
+      console.log(`[agentTestService] Detected [TRANSFER${ruleIdFromAI ? ':' + ruleIdFromAI : ''}] tag in AI response`);
+    }
+  }
+
+  // Also check allResponses for transfer tags
+  if (allResponses) {
+    for (const r of allResponses) {
+      if (r.message) {
+        const match = r.message.match(/\[TRANSFER(?::([a-f0-9-]+))?\]/i);
+        if (match) {
+          ruleIdFromAI = ruleIdFromAI || match[1] || null;
+          r.message = r.message.replace(/\[TRANSFER(?::[a-f0-9-]+)?\]/gi, '').trim();
+        }
+      }
+    }
+  }
+
   console.log(`[agentTestService] Test message processed, response: "${(response || '').substring(0, 50)}..."`);
 
   // Evaluate global transfer rules in test mode (simulated)
   let transferRuleMatch = null;
-  if (eventType === 'message_received' && message) {
+  if (eventType === 'message_received' && (message || ruleIdFromAI)) {
     try {
       const exchangeCount = messages.filter(m => m.sender === 'lead').length;
       transferRuleMatch = await transferRuleService.evaluateTransferRules(
         session.agent_id,
-        message,
-        { exchangeCount }
+        message || '',
+        { exchangeCount, ruleIdFromAI, aiResponse: response }
       );
 
       if (transferRuleMatch.shouldTransfer) {

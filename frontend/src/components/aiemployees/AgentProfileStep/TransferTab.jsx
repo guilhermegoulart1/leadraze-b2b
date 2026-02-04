@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowRightLeft, Plus, Trash2, GripVertical, ChevronDown, ChevronUp,
   Power, PowerOff, Info, Building2, VolumeX, Volume2, Bell, Search,
-  MessageSquare, Brain, Heart, AlertTriangle, Loader2, Tag
+  MessageSquare, Brain, Heart, AlertTriangle, Loader2, Tag,
+  Zap, Link, UserCog, StickyNote, X, HelpCircle
 } from 'lucide-react';
 import api from '../../../services/api';
 import SectorSelector from '../../SectorSelector';
@@ -24,6 +25,21 @@ const TRIGGER_TYPES = [
     description: 'Detectar sentimentos especificos do lead' }
 ];
 
+const ACTION_TYPES = [
+  { id: 'add_tag', label: 'Adicionar Tag', icon: Tag, color: 'green' },
+  { id: 'remove_tag', label: 'Remover Tag', icon: Tag, color: 'red' },
+  { id: 'add_note', label: 'Nota Interna', icon: StickyNote, color: 'amber' },
+  { id: 'update_contact', label: 'Atualizar Contato', icon: UserCog, color: 'blue' },
+  { id: 'send_webhook', label: 'Webhook', icon: Link, color: 'purple' }
+];
+
+const CONTACT_FIELDS = [
+  { id: 'company', label: 'Empresa' },
+  { id: 'role', label: 'Cargo' },
+  { id: 'phone', label: 'Telefone' },
+  { id: 'email', label: 'Email' }
+];
+
 const SENTIMENT_OPTIONS = [
   { id: 'frustration', label: 'Frustracao' },
   { id: 'confusion', label: 'Confusao' },
@@ -39,34 +55,56 @@ const TransferTab = ({ agentId, profile, onProfileChange }) => {
   const [rules, setRules] = useState([]);
   const [defaultConfig, setDefaultConfig] = useState({});
   const [presets, setPresets] = useState({});
+  const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedRules, setExpandedRules] = useState(new Set());
   const [draggedIndex, setDraggedIndex] = useState(null);
 
-  // Load rules and presets on mount
+  // Load presets and tags on mount (static data, no agentId needed)
+  useEffect(() => {
+    loadPresets();
+    loadTags();
+  }, []);
+
+  // Load rules when agentId is available
   useEffect(() => {
     if (agentId) {
-      loadData();
+      loadRules();
     } else {
       setLoading(false);
     }
   }, [agentId]);
 
-  const loadData = async () => {
+  const loadPresets = async () => {
+    try {
+      const presetsRes = await api.getTransferPresets();
+      if (presetsRes.success) {
+        setPresets(presetsRes.data.presets || {});
+      }
+    } catch (err) {
+      console.error('Error loading transfer presets:', err);
+    }
+  };
+
+  const loadTags = async () => {
+    try {
+      const tagsRes = await api.getTags();
+      if (tagsRes.success) {
+        setTags(tagsRes.data.tags || []);
+      }
+    } catch (err) {
+      console.error('Error loading tags:', err);
+    }
+  };
+
+  const loadRules = async () => {
     try {
       setLoading(true);
-      const [rulesRes, presetsRes] = await Promise.all([
-        api.getTransferRules(agentId),
-        api.getTransferPresets()
-      ]);
-
+      const rulesRes = await api.getTransferRules(agentId);
       if (rulesRes.success) {
         setRules(rulesRes.data.rules || []);
         setDefaultConfig(rulesRes.data.defaultConfig || {});
-      }
-      if (presetsRes.success) {
-        setPresets(presetsRes.data.presets || {});
       }
     } catch (err) {
       console.error('Error loading transfer rules:', err);
@@ -131,8 +169,8 @@ const TransferTab = ({ agentId, profile, onProfileChange }) => {
   };
 
   const handleUpdateRule = async (ruleId, updates) => {
-    // Update locally first
-    setRules(rules.map(r => r.id === ruleId ? { ...r, ...updates } : r));
+    // Update locally first (functional update to avoid stale closure)
+    setRules(prev => prev.map(r => r.id === ruleId ? { ...r, ...updates } : r));
 
     if (agentId && !ruleId.startsWith('temp_')) {
       try {
@@ -144,7 +182,7 @@ const TransferTab = ({ agentId, profile, onProfileChange }) => {
   };
 
   const handleDeleteRule = async (ruleId) => {
-    setRules(rules.filter(r => r.id !== ruleId));
+    setRules(prev => prev.filter(r => r.id !== ruleId));
 
     if (agentId && !ruleId.startsWith('temp_')) {
       try {
@@ -314,7 +352,7 @@ const TransferTab = ({ agentId, profile, onProfileChange }) => {
           <button
             onClick={handleAddRule}
             disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Nova Regra
@@ -342,6 +380,7 @@ const TransferTab = ({ agentId, profile, onProfileChange }) => {
                 index={index}
                 isExpanded={expandedRules.has(rule.id)}
                 presets={presets}
+                tags={tags}
                 onToggleExpand={() => toggleExpand(rule.id)}
                 onUpdate={(updates) => handleUpdateRule(rule.id, updates)}
                 onDelete={() => handleDeleteRule(rule.id)}
@@ -376,11 +415,213 @@ const TransferTab = ({ agentId, profile, onProfileChange }) => {
 };
 
 // ==========================================
+// ActionsSection Component
+// ==========================================
+
+const ActionsSection = ({ actions, tags, onChange }) => {
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [webhookInfoIdx, setWebhookInfoIdx] = useState(null);
+
+  const addAction = (type) => {
+    const defaultConfigs = {
+      add_tag: { tag_id: '', tag_name: '' },
+      remove_tag: { tag_id: '' },
+      add_note: { note: '' },
+      update_contact: { field: 'company', value: '' },
+      send_webhook: { url: '' }
+    };
+    onChange([...actions, { type, config: defaultConfigs[type] || {} }]);
+    setShowAddMenu(false);
+  };
+
+  const updateAction = (index, config) => {
+    const updated = actions.map((a, i) => i === index ? { ...a, config: { ...a.config, ...config } } : a);
+    onChange(updated);
+  };
+
+  const removeAction = (index) => {
+    onChange(actions.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-2">
+        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+          <Zap className="w-3 h-3" />
+          Acoes na Transferencia
+        </label>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowAddMenu(!showAddMenu)}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Acao
+          </button>
+          {showAddMenu && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+              {ACTION_TYPES.map(at => {
+                const Icon = at.icon;
+                return (
+                  <button
+                    key={at.id}
+                    type="button"
+                    onClick={() => addAction(at.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-gray-400" />
+                    {at.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {actions.length === 0 ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+          Nenhuma acao configurada
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {actions.map((action, idx) => {
+            const actionType = ACTION_TYPES.find(a => a.id === action.type);
+            const Icon = actionType?.icon || Zap;
+            return (
+              <div
+                key={idx}
+                className="flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                <div className="flex-shrink-0 mt-0.5">
+                  <Icon className="w-3.5 h-3.5 text-gray-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">
+                    {actionType?.label || action.type}
+                  </span>
+
+                  {/* Tag selector */}
+                  {(action.type === 'add_tag' || action.type === 'remove_tag') && (
+                    <select
+                      value={action.config?.tag_id || ''}
+                      onChange={(e) => {
+                        const tag = tags.find(t => t.id === e.target.value);
+                        updateAction(idx, { tag_id: e.target.value, tag_name: tag?.name || '' });
+                      }}
+                      className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-purple-400 dark:text-white"
+                    >
+                      <option value="">Selecionar tag...</option>
+                      {tags.map(tag => (
+                        <option key={tag.id} value={tag.id}>{tag.name}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* Note textarea */}
+                  {action.type === 'add_note' && (
+                    <div>
+                      <textarea
+                        value={action.config?.note || ''}
+                        onChange={(e) => updateAction(idx, { note: e.target.value })}
+                        placeholder="Texto da nota... (use {{contact_name}}, {{agent_name}}, {{rule_name}})"
+                        rows={2}
+                        className="w-full px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-1 focus:ring-purple-400 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Contact field update */}
+                  {action.type === 'update_contact' && (
+                    <div className="flex gap-1.5">
+                      <select
+                        value={action.config?.field || 'company'}
+                        onChange={(e) => updateAction(idx, { field: e.target.value })}
+                        className="w-28 px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-purple-400 dark:text-white"
+                      >
+                        {CONTACT_FIELDS.map(f => (
+                          <option key={f.id} value={f.id}>{f.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={action.config?.value || ''}
+                        onChange={(e) => updateAction(idx, { value: e.target.value })}
+                        placeholder="Valor..."
+                        className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-purple-400 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Webhook URL */}
+                  {action.type === 'send_webhook' && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="url"
+                          value={action.config?.url || ''}
+                          onChange={(e) => updateAction(idx, { url: e.target.value })}
+                          placeholder="https://..."
+                          className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-purple-400 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setWebhookInfoIdx(webhookInfoIdx === idx ? null : idx)}
+                          className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-500 transition-colors"
+                          title="Ver estrutura do payload"
+                        >
+                          <HelpCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      {webhookInfoIdx === idx && (
+                        <div className="p-2.5 bg-gray-900 dark:bg-black rounded-md border border-gray-700">
+                          <p className="text-[10px] font-medium text-gray-300 mb-1.5">Payload enviado (POST):</p>
+                          <pre className="text-[10px] leading-relaxed text-green-400 font-mono whitespace-pre overflow-x-auto">{`{
+  "event": "transfer_triggered",
+  "rule": {
+    "id": "uuid",
+    "name": "Nome da regra",
+    "trigger_type": "keyword"
+  },
+  "conversation_id": "uuid",
+  "contact": {
+    "id": "uuid",
+    "name": "Nome do contato"
+  },
+  "agent": {
+    "id": "uuid",
+    "name": "Nome do agente"
+  },
+  "timestamp": "2026-02-04T12:00:00Z"
+}`}</pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeAction(idx)}
+                  className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==========================================
 // RuleCard Component
 // ==========================================
 
 const RuleCard = ({
-  rule, index, isExpanded, presets,
+  rule, index, isExpanded, presets, tags,
   onToggleExpand, onUpdate, onDelete, onToggle,
   onDragStart, onDragOver, onDragEnd, isDragged
 }) => {
@@ -665,6 +906,13 @@ const RuleCard = ({
               compact={true}
             />
           </div>
+
+          {/* Actions on transfer */}
+          <ActionsSection
+            actions={rule.actions || []}
+            tags={tags}
+            onChange={(actions) => onUpdate({ actions })}
+          />
 
           {/* Transfer mode for this rule */}
           <div className="space-y-2">
