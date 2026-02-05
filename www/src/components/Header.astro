@@ -482,11 +482,11 @@ const currentLang = languages.find(l => l.code === currentLocale) || languages[0
   const talkToSalesBtn = document.getElementById('talk-to-sales-btn');
   const talkToSalesBtnMobile = document.getElementById('talk-to-sales-btn-mobile');
 
-  const openSalesChat = () => {
-    window.dispatchEvent(new CustomEvent('openSalesChat'));
+  const openCalendly = () => {
+    window.open('https://calendly.com/contatorenamaciel/getraze', '_blank');
     mobileMenu?.classList.add('hidden');
   };
 
-  talkToSalesBtn?.addEventListener('click', openSalesChat);
-  talkToSalesBtnMobile?.addEventListener('click', openSalesChat);
+  talkToSalesBtn?.addEventListener('click', openCalendly);
+  talkToSalesBtnMobile?.addEventListener('click', openCalendly);
 </script>

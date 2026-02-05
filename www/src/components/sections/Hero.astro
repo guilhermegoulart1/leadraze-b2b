@@ -270,9 +270,9 @@ const t = getTranslation(locale);
     resizeTimeout = setTimeout(initConnectionLines, 200);
   });
 
-  // Hero demo button opens sales chat
+  // Hero demo button opens Calendly
   document.getElementById('hero-demo-btn')?.addEventListener('click', () => {
-    window.dispatchEvent(new Event('openSalesChat'));
+    window.open('https://calendly.com/contatorenamaciel/getraze', '_blank');
   });
 </script>
 
