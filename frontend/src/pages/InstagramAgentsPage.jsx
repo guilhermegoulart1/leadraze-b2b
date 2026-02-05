@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Loader2, X, Camera, Search, Download, Trash2,
-  Play, Pause, RefreshCw, ExternalLink, ChevronLeft, ChevronRight,
-  AlertCircle, CheckCircle, Clock, Eye
+  Play, Pause, RefreshCw, AlertCircle, CheckCircle, Clock, Eye
 } from 'lucide-react';
 import apiService from '../services/api';
 
@@ -211,9 +210,9 @@ const InstagramAgentsPage = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Camera className="w-7 h-7 text-purple-500" />
@@ -232,7 +231,7 @@ const InstagramAgentsPage = () => {
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 flex items-center gap-2">
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
           {error}
         </div>
@@ -240,7 +239,7 @@ const InstagramAgentsPage = () => {
 
       {/* Empty State */}
       {agents.length === 0 && !error && (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <Camera className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('agents.noAgentsTitle')}</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">{t('agents.noAgentsSubtitle')}</p>
@@ -254,140 +253,148 @@ const InstagramAgentsPage = () => {
         </div>
       )}
 
-      {/* Agents List */}
+      {/* Agents Table */}
       {agents.length > 0 && (
-        <div className="grid gap-4">
-          {agents.map(agent => {
-            const isExecuting = executingAgents.has(agent.id);
-            const canExecute = agent.status === 'active' && agent.has_more_results !== false && !isExecuting;
-            const progress = agent.total_limit > 0
-              ? Math.round((agent.total_profiles_found / agent.total_limit) * 100)
-              : 0;
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Campanha
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Perfis
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Ultima Execucao
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Acoes
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {agents.map(agent => {
+                  const isExecuting = executingAgents.has(agent.id);
+                  const progress = agent.total_limit > 0
+                    ? Math.round((agent.total_profiles_found / agent.total_limit) * 100)
+                    : 0;
 
-            return (
-              <div
-                key={agent.id}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  {/* Left: Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">{agent.name}</h3>
-                      {getStatusBadge(agent.status)}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-3">
-                      <span className="flex items-center gap-1">
-                        <Search className="w-3.5 h-3.5" />
-                        {agent.search_niche}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Camera className="w-3.5 h-3.5" />
-                        {agent.search_location}
-                      </span>
-                      {agent.last_execution_at && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {formatDate(agent.last_execution_at)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-xs">
-                        <div
-                          className={`h-2 rounded-full transition-all ${
-                            agent.status === 'completed' ? 'bg-blue-500' : 'bg-purple-500'
-                          }`}
-                          style={{ width: `${Math.min(progress, 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                        {agent.total_profiles_found || 0} / {agent.total_limit} {t('agents.profilesFound')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-2 ml-4">
-                    {/* Execute */}
-                    {canExecute && (
-                      <button
-                        onClick={() => handleExecute(agent.id)}
-                        disabled={isExecuting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                      >
-                        {isExecuting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            {t('agents.executing')}
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4" />
-                            {t('agents.execute')}
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* Pause/Resume */}
-                    {agent.status === 'active' && !isExecuting && (
-                      <button
-                        onClick={() => handlePause(agent.id)}
-                        className="p-1.5 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
-                        title={t('agents.pause')}
-                      >
-                        <Pause className="w-4 h-4" />
-                      </button>
-                    )}
-                    {agent.status === 'paused' && (
-                      <button
-                        onClick={() => handleResume(agent.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        {t('agents.resume')}
-                      </button>
-                    )}
-
-                    {/* View profiles */}
-                    {agent.total_profiles_found > 0 && (
-                      <button
-                        onClick={() => handleViewProfiles(agent)}
-                        className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                        title={t('agents.viewProfiles')}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {/* Export CSV */}
-                    {agent.total_profiles_found > 0 && (
-                      <button
-                        onClick={() => handleExportCSV(agent.id)}
-                        className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                        title={t('agents.exportCSV')}
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {/* Delete */}
-                    <button
-                      onClick={() => setDeleteModal({ show: true, agent, deleting: false })}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      title={t('agents.delete')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                  return (
+                    <tr key={agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      {/* Campanha */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 rounded-lg flex-shrink-0">
+                            <Camera className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{agent.name}</p>
+                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                              <Search className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate max-w-[150px]">{agent.search_niche}</span>
+                              <span className="text-gray-400 mx-0.5">·</span>
+                              <span className="truncate max-w-[100px]">{agent.search_location}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        {getStatusBadge(agent.status)}
+                      </td>
+                      {/* Perfis */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{agent.total_profiles_found || 0}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">de {agent.total_limit}</p>
+                          </div>
+                          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 max-w-[80px]">
+                            <div
+                              className={`h-1.5 rounded-full ${agent.status === 'completed' ? 'bg-blue-500' : 'bg-purple-500'}`}
+                              style={{ width: `${Math.min(progress, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      {/* Ultima Execucao */}
+                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                        {formatDate(agent.last_execution_at)}
+                      </td>
+                      {/* Acoes */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* View profiles */}
+                          <button
+                            onClick={() => handleViewProfiles(agent)}
+                            disabled={!agent.total_profiles_found}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={t('agents.viewProfiles')}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {/* Execute */}
+                          {agent.status === 'active' && agent.has_more_results !== false && (
+                            <button
+                              onClick={() => handleExecute(agent.id)}
+                              disabled={isExecuting}
+                              className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded transition-colors disabled:opacity-50"
+                              title={t('agents.execute')}
+                            >
+                              {isExecuting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                            </button>
+                          )}
+                          {/* Pause */}
+                          {agent.status === 'active' && !isExecuting && (
+                            <button
+                              onClick={() => handlePause(agent.id)}
+                              className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded transition-colors"
+                              title={t('agents.pause')}
+                            >
+                              <Pause className="w-4 h-4" />
+                            </button>
+                          )}
+                          {/* Resume */}
+                          {agent.status === 'paused' && (
+                            <button
+                              onClick={() => handleResume(agent.id)}
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                              title={t('agents.resume')}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          )}
+                          {/* Export CSV */}
+                          {agent.total_profiles_found > 0 && (
+                            <button
+                              onClick={() => handleExportCSV(agent.id)}
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                              title={t('agents.exportCSV')}
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )}
+                          {/* Delete */}
+                          <button
+                            onClick={() => setDeleteModal({ show: true, agent, deleting: false })}
+                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                            title={t('agents.delete')}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
