@@ -35,8 +35,32 @@ const responseLengthOptions = [
 
 const languageOptions = [
   { value: 'pt-BR', label: 'Portugues (Brasil)' },
+  { value: 'pt-PT', label: 'Portugues (Portugal)' },
   { value: 'en-US', label: 'English (US)' },
-  { value: 'es', label: 'Espanol' }
+  { value: 'en-GB', label: 'English (UK)' },
+  { value: 'es', label: 'Espanol' },
+  { value: 'es-MX', label: 'Espanol (Mexico)' },
+  { value: 'fr', label: 'Francais' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'nl', label: 'Nederlands' },
+  { value: 'pl', label: 'Polski' },
+  { value: 'ru', label: 'Russkiy' },
+  { value: 'ja', label: 'Nihongo (Japanese)' },
+  { value: 'ko', label: 'Hangugeo (Korean)' },
+  { value: 'zh-CN', label: 'Zhongwen Simplified (Chinese)' },
+  { value: 'zh-TW', label: 'Zhongwen Traditional (Chinese)' },
+  { value: 'ar', label: 'Al-Arabiya (Arabic)' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'tr', label: 'Turkce' },
+  { value: 'sv', label: 'Svenska' },
+  { value: 'da', label: 'Dansk' },
+  { value: 'no', label: 'Norsk' },
+  { value: 'fi', label: 'Suomi' },
+  { value: 'he', label: 'Ivrit (Hebrew)' },
+  { value: 'th', label: 'Phasa Thai' },
+  { value: 'vi', label: 'Tieng Viet' },
+  { value: 'id', label: 'Bahasa Indonesia' }
 ];
 
 const ConfigTab = ({ profile, onChange }) => {
@@ -132,11 +156,11 @@ const ConfigTab = ({ profile, onChange }) => {
         </div>
       </div>
 
-      {/* Idioma Preferido */}
+      {/* Idioma do agente */}
       <div>
         <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           <Globe className="w-4 h-4" />
-          Idioma Preferido
+          Idioma do agente
         </label>
         <select
           value={profile.language || 'pt-BR'}

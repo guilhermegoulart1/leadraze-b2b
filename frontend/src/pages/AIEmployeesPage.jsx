@@ -570,7 +570,12 @@ const AIEmployeesPage = () => {
         language: profile?.language ?? existingConfig.language ?? 'pt-BR',
         latency: profile?.latency || existingConfig.latency,
         workingHours: profile?.workingHours || existingConfig.workingHours,
-        responseLength: profile?.responseLength || existingConfig.responseLength || 'medium'
+        responseLength: profile?.responseLength || existingConfig.responseLength || 'medium',
+        // Campos adicionais
+        priority_rules: profile?.priority_rules || existingConfig.priority_rules || [],
+        similarityThreshold: profile?.similarityThreshold ?? existingConfig.similarityThreshold ?? 0.7,
+        customVariables: profile?.customVariables || existingConfig.customVariables || [],
+        documents: profile?.documents || existingConfig.documents || []
       };
 
       console.log('📤 [handleProfileSave] newConfig:', {
@@ -1289,13 +1294,19 @@ const AIEmployeesPage = () => {
                                       },
                                       faq: config.faq || [],
                                       objections: config.objections || [],
+                                      documents: config.documents || [],
+                                      // Instrucoes e Regras
+                                      baseInstructions: config.baseInstructions || '',
+                                      priority_rules: config.priority_rules || [],
                                       // Config
                                       formality: config.formality ?? 50,
                                       assertiveness: config.assertiveness ?? 50,
                                       responseLength: config.responseLength || employee.response_length || 'medium',
                                       language: config.language || 'pt-BR',
                                       latency: config.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' },
-                                      workingHours: config.workingHours || { enabled: false, timezone: 'America/Sao_Paulo', startTime: '09:00', endTime: '18:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'], outsideBehavior: 'queue', awayMessage: '' }
+                                      workingHours: config.workingHours || { enabled: false, timezone: 'America/Sao_Paulo', startTime: '09:00', endTime: '18:00', days: ['mon', 'tue', 'wed', 'thu', 'fri'], outsideBehavior: 'queue', awayMessage: '' },
+                                      similarityThreshold: config.similarityThreshold ?? 0.7,
+                                      customVariables: config.customVariables || []
                                     });
                                     setCurrentStep(STEPS.AGENT_PROFILE);
                                     setShowCreator(true);
@@ -1327,13 +1338,19 @@ const AIEmployeesPage = () => {
                                       product: config.product || {},
                                       faq: config.faq || [],
                                       objections: config.objections || [],
+                                      documents: config.documents || [],
+                                      // Instrucoes e Regras
+                                      baseInstructions: config.baseInstructions || '',
+                                      priority_rules: config.priority_rules || [],
                                       // Config
                                       formality: config.formality ?? 50,
                                       assertiveness: config.assertiveness ?? 50,
                                       responseLength: config.responseLength || employee.response_length || 'medium',
                                       language: config.language || 'pt-BR',
                                       latency: config.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' },
-                                      workingHours: config.workingHours || { enabled: false }
+                                      workingHours: config.workingHours || { enabled: false },
+                                      similarityThreshold: config.similarityThreshold ?? 0.7,
+                                      customVariables: config.customVariables || []
                                     });
                                     setCurrentStep(STEPS.WORKFLOW_BUILDER);
                                     setShowCreator(true);
@@ -2125,6 +2142,7 @@ const AIEmployeesPage = () => {
             onSave={handleProfileSave}
             onBack={handleBack}
             isEditing={!!(editingAgent || editingAgentWorkflow)}
+            agentId={editingAgent?.id || editingAgentWorkflow?.id}
             onTypeChange={(newType) => setAgentType(newType)}
             onChannelChange={(newChannel) => setChannel(newChannel)}
           />

@@ -55,6 +55,12 @@ const initialProfile = {
   personality: [],
   rules: [],
 
+  // INSTRUCOES DO AGENTE
+  baseInstructions: '',
+
+  // REGRAS DE COMPORTAMENTO
+  priority_rules: [],
+
   // BASE DE CONHECIMENTO (RAG - carrega sob demanda)
   company: {
     website: '',
@@ -71,12 +77,15 @@ const initialProfile = {
   },
   faq: [],
   objections: [],
+  documents: [],
 
   // CONFIG
   formality: 50,
   assertiveness: 50,
   responseLength: 'medium',
   language: 'pt-BR',
+  similarityThreshold: 0.7,
+  customVariables: [],
 
   // LATENCIA DE RESPOSTA
   latency: {
