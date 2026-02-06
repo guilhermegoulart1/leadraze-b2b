@@ -705,6 +705,18 @@ async function executeConversationNode(node, context) {
     current_step: data.stepNumber || 0
   });
 
+  // Aplicar latência de resposta se configurada no step
+  if (data.latencyEnabled && data.latency) {
+    const lat = data.latency;
+    const minMs = (lat.min || 0) * (lat.minUnit === 'minutes' ? 60000 : 1000);
+    const maxMs = (lat.max || 0) * (lat.maxUnit === 'minutes' ? 60000 : 1000);
+    if (maxMs > 0 && maxMs >= minMs) {
+      const delayMs = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+      console.log(`⏱️ [Latency] Step "${data.label || data.name || 'N/A'}": aguardando ${delayMs}ms antes de responder (${lat.min}${lat.minUnit === 'minutes' ? 'min' : 's'}-${lat.max}${lat.maxUnit === 'minutes' ? 'min' : 's'})`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
   const durationMs = Date.now() - startTime;
 
   // Log message generated

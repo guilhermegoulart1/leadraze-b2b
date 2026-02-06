@@ -779,6 +779,107 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose, onOpenHttpModal })
         )}
       </div>
 
+      {/* Latência de Resposta */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
+            <Zap className="w-3 h-3 inline mr-1" />
+            Latencia de Resposta
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (localData.latencyEnabled) {
+                handleChange('latencyEnabled', false);
+              } else {
+                handleMultiChange({
+                  latencyEnabled: true,
+                  latency: localData.latency || { min: 30, minUnit: 'seconds', max: 2, maxUnit: 'minutes' }
+                });
+              }
+            }}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              localData.latencyEnabled ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                localData.latencyEnabled ? 'translate-x-4' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+        {localData.latencyEnabled ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="block text-[10px] text-gray-600 dark:text-gray-400">Minimo</label>
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={localData.latency?.min ?? 30}
+                    onChange={(e) => handleChange('latency', {
+                      ...localData.latency,
+                      min: parseInt(e.target.value) || 0
+                    })}
+                    className="w-14 px-1.5 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-purple-500 dark:text-white"
+                  />
+                  <select
+                    value={localData.latency?.minUnit || 'seconds'}
+                    onChange={(e) => handleChange('latency', {
+                      ...localData.latency,
+                      minUnit: e.target.value
+                    })}
+                    className="flex-1 px-1 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-purple-500 dark:text-white"
+                  >
+                    <option value="seconds">seg</option>
+                    <option value="minutes">min</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] text-gray-600 dark:text-gray-400">Maximo</label>
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={localData.latency?.max ?? 2}
+                    onChange={(e) => handleChange('latency', {
+                      ...localData.latency,
+                      max: parseInt(e.target.value) || 0
+                    })}
+                    className="w-14 px-1.5 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-purple-500 dark:text-white"
+                  />
+                  <select
+                    value={localData.latency?.maxUnit || 'minutes'}
+                    onChange={(e) => handleChange('latency', {
+                      ...localData.latency,
+                      maxUnit: e.target.value
+                    })}
+                    className="flex-1 px-1 py-1 text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-purple-500 dark:text-white"
+                  >
+                    <option value="seconds">seg</option>
+                    <option value="minutes">min</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
+              <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                Responde entre{' '}
+                <strong>{localData.latency?.min ?? 30} {localData.latency?.minUnit === 'minutes' ? 'min' : 'seg'}</strong> e{' '}
+                <strong>{localData.latency?.max ?? 2} {localData.latency?.maxUnit === 'seconds' ? 'seg' : 'min'}</strong>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">
+            Responde imediatamente
+          </p>
+        )}
+      </div>
+
       <div className="space-y-1">
         <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300">
           Exemplos de Mensagens

@@ -2,7 +2,7 @@
 // Tab de Configuracoes adicionais
 
 import React, { useState } from 'react';
-import { Sliders, MessageSquare, Zap, Globe, Clock, Calendar, Variable, Plus, Trash2, Info } from 'lucide-react';
+import { Sliders, MessageSquare, Zap, Globe, Calendar, Variable, Plus, Trash2, Info } from 'lucide-react';
 
 // Timezone options
 const timezoneOptions = [
@@ -280,89 +280,6 @@ const ConfigTab = ({ profile, onChange }) => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Divider */}
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-6">
-          Tempo de Resposta
-        </h3>
-      </div>
-
-      {/* Latência de Resposta */}
-      <div>
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-          <Clock className="w-4 h-4" />
-          Latencia de Resposta
-        </label>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Tempo aleatorio que o agente demora para responder quando o lead envia uma mensagem
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
-              Minimo
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="0"
-                value={profile.latency?.min || 30}
-                onChange={(e) => onChange('latency', {
-                  ...profile.latency,
-                  min: parseInt(e.target.value) || 0
-                })}
-                className="w-20 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-sm"
-              />
-              <select
-                value={profile.latency?.minUnit || 'seconds'}
-                onChange={(e) => onChange('latency', {
-                  ...profile.latency,
-                  minUnit: e.target.value
-                })}
-                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-sm"
-              >
-                <option value="seconds">segundos</option>
-                <option value="minutes">minutos</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
-              Maximo
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="0"
-                value={profile.latency?.max || 2}
-                onChange={(e) => onChange('latency', {
-                  ...profile.latency,
-                  max: parseInt(e.target.value) || 0
-                })}
-                className="w-20 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-sm"
-              />
-              <select
-                value={profile.latency?.maxUnit || 'minutes'}
-                onChange={(e) => onChange('latency', {
-                  ...profile.latency,
-                  maxUnit: e.target.value
-                })}
-                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-sm"
-              >
-                <option value="seconds">segundos</option>
-                <option value="minutes">minutos</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            O agente respondera em um tempo aleatorio entre{' '}
-            <strong>{profile.latency?.min || 30} {profile.latency?.minUnit === 'minutes' ? 'minutos' : 'segundos'}</strong> e{' '}
-            <strong>{profile.latency?.max || 2} {profile.latency?.maxUnit === 'seconds' ? 'segundos' : 'minutos'}</strong>.
-          </p>
-        </div>
       </div>
 
       {/* Horário de Funcionamento */}

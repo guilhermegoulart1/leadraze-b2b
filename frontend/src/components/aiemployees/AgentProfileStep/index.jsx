@@ -87,14 +87,6 @@ const initialProfile = {
   similarityThreshold: 0.7,
   customVariables: [],
 
-  // LATENCIA DE RESPOSTA
-  latency: {
-    min: 30,
-    minUnit: 'seconds',
-    max: 2,
-    maxUnit: 'minutes'
-  },
-
   // HORARIO DE FUNCIONAMENTO
   workingHours: {
     enabled: false,

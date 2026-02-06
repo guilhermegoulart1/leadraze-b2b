@@ -3,7 +3,7 @@
 
 import React, { memo, useState } from 'react';
 import { Handle, Position } from 'reactflow';
-import { MessageCircle, Target, Clock, MessageSquare, Trash2, Copy, X, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { MessageCircle, Target, Clock, MessageSquare, Trash2, Copy, X, AlertTriangle, CheckCircle, XCircle, Zap } from 'lucide-react';
 
 // Delete confirmation modal
 const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, nodeName }) => {
@@ -157,12 +157,22 @@ const ConversationStepNode = ({ id, data, selected }) => {
             </div>
             <span className="font-bold text-white text-base">ETAPA {data.stepNumber || 1}</span>
           </div>
-          {data.hasMaxMessages && data.maxMessages && (
-            <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full">
-              <Clock className="w-3.5 h-3.5 text-white" />
-              <span className="text-sm text-white font-medium">{data.maxMessages} msgs</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            {data.hasMaxMessages && data.maxMessages && (
+              <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full">
+                <Clock className="w-3.5 h-3.5 text-white" />
+                <span className="text-sm text-white font-medium">{data.maxMessages} msgs</span>
+              </div>
+            )}
+            {data.latencyEnabled && data.latency && (
+              <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full">
+                <Zap className="w-3.5 h-3.5 text-white" />
+                <span className="text-sm text-white font-medium">
+                  {data.latency.min}{data.latency.minUnit === 'minutes' ? 'm' : 's'}-{data.latency.max}{data.latency.maxUnit === 'minutes' ? 'm' : 's'}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content */}
