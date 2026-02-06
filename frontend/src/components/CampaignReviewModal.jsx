@@ -8,20 +8,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
-// Timezones comuns
-const TIMEZONES = [
-  { value: 'America/Sao_Paulo', label: 'São Paulo (GMT-3)' },
-  { value: 'America/New_York', label: 'New York (GMT-5)' },
-  { value: 'America/Los_Angeles', label: 'Los Angeles (GMT-8)' },
-  { value: 'Europe/London', label: 'London (GMT+0)' },
-  { value: 'Europe/Paris', label: 'Paris (GMT+1)' },
-  { value: 'Europe/Berlin', label: 'Berlin (GMT+1)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (GMT+9)' },
-  { value: 'Asia/Shanghai', label: 'Shanghai (GMT+8)' },
-  { value: 'Australia/Sydney', label: 'Sydney (GMT+11)' },
-  { value: 'UTC', label: 'UTC (GMT+0)' },
-];
-
 const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
   const { t } = useTranslation('modals');
   const [contacts, setContacts] = useState([]);
@@ -43,10 +29,8 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
     sector_id: '',
     round_robin_users: [],
     max_pending_invites: 100,
-    send_start_hour: 9,
-    send_end_hour: 18,
-    timezone: 'America/Sao_Paulo',
   });
+  const [agentWorkingHours, setAgentWorkingHours] = useState(null);
   const [isConfigSaved, setIsConfigSaved] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
@@ -115,10 +99,8 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
             sector_id: existingConfig.sector_id || '',
             round_robin_users: existingConfig.round_robin_users || [],
             max_pending_invites: existingConfig.max_pending_invites || 100,
-            send_start_hour: existingConfig.send_start_hour || 9,
-            send_end_hour: existingConfig.send_end_hour || 18,
-            timezone: existingConfig.timezone || 'America/Sao_Paulo',
           });
+          setAgentWorkingHours(existingConfig.agent_working_hours || null);
           setIsConfigSaved(existingConfig.is_reviewed === true);
 
           // Load sector users if sector is selected
@@ -509,63 +491,54 @@ const CampaignReviewModal = ({ isOpen, onClose, campaign, onActivate }) => {
                       )}
                     </div>
 
-                    {/* Business Hours */}
-                    <div className="space-y-4">
+                    {/* Business Hours - Read-only from Agent */}
+                    <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-orange-600" />
                         {t('campaignReview.businessHours', 'Horário de Envio')}
                       </h4>
 
-                      <div className="grid grid-cols-3 gap-4">
-                        {/* Start Hour */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {t('campaignReview.startHour', 'Início')}
-                          </label>
-                          <select
-                            value={config.send_start_hour}
-                            onChange={(e) => handleConfigChange('send_start_hour', parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                          >
-                            {Array.from({ length: 24 }, (_, i) => (
-                              <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
-                            ))}
-                          </select>
+                      {agentWorkingHours?.enabled ? (
+                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">{t('campaignReview.schedule', 'Horário')}</span>
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                              {agentWorkingHours.startTime || '09:00'} - {agentWorkingHours.endTime || '18:00'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              <Globe className="w-3 h-3 inline mr-1" />
+                              {t('campaignReview.timezone', 'Fuso')}
+                            </span>
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                              {agentWorkingHours.timezone || 'America/Sao_Paulo'}
+                            </span>
+                          </div>
+                          {agentWorkingHours.days && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-500 dark:text-gray-400">{t('campaignReview.days', 'Dias')}</span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {agentWorkingHours.days.map(d => ({
+                                  mon: 'Seg', tue: 'Ter', wed: 'Qua', thu: 'Qui', fri: 'Sex', sat: 'Sáb', sun: 'Dom'
+                                }[d] || d)).join(', ')}
+                              </span>
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            {t('campaignReview.hoursFromAgent', 'Controlado pela configuração do agente')}
+                          </p>
                         </div>
-
-                        {/* End Hour */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            {t('campaignReview.endHour', 'Fim')}
-                          </label>
-                          <select
-                            value={config.send_end_hour}
-                            onChange={(e) => handleConfigChange('send_end_hour', parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                          >
-                            {Array.from({ length: 24 }, (_, i) => (
-                              <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
-                            ))}
-                          </select>
+                      ) : (
+                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {t('campaignReview.noAgentHours', 'O agente está configurado como 24/7. Os convites serão enviados no horário padrão (09:00 - 18:00).')}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            {t('campaignReview.configureInAgent', 'Para personalizar, defina o horário de funcionamento na configuração do agente.')}
+                          </p>
                         </div>
-
-                        {/* Timezone */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            <Globe className="w-3 h-3 inline mr-1" />
-                            {t('campaignReview.timezone', 'Fuso')}
-                          </label>
-                          <select
-                            value={config.timezone}
-                            onChange={(e) => handleConfigChange('timezone', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                          >
-                            {TIMEZONES.map(tz => (
-                              <option key={tz.value} value={tz.value}>{tz.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Save Button */}

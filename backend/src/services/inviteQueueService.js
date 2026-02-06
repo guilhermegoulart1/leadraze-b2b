@@ -17,6 +17,36 @@ const log = {
 };
 
 /**
+ * Extract send hours from agent workingHours config
+ * Falls back to campaign config or defaults
+ * @param {object} agentConfig - Agent config JSONB (parsed)
+ * @param {object} campaignConfig - Campaign review config (fallback)
+ * @returns {object} { send_start_hour, send_end_hour, timezone, days }
+ */
+const getScheduleFromAgent = (agentConfig, campaignConfig = {}) => {
+  const wh = agentConfig?.workingHours;
+
+  if (wh?.enabled) {
+    const [startH] = (wh.startTime || '09:00').split(':').map(Number);
+    const [endH] = (wh.endTime || '18:00').split(':').map(Number);
+    return {
+      send_start_hour: startH,
+      send_end_hour: endH,
+      timezone: wh.timezone || 'America/Sao_Paulo',
+      days: wh.days || ['mon', 'tue', 'wed', 'thu', 'fri']
+    };
+  }
+
+  // Fallback to campaign config (backwards compatibility)
+  return {
+    send_start_hour: campaignConfig.send_start_hour || 9,
+    send_end_hour: campaignConfig.send_end_hour || 18,
+    timezone: campaignConfig.timezone || 'America/Sao_Paulo',
+    days: null // no day filtering when using campaign config fallback
+  };
+};
+
+/**
  * Calculate random send times for invites throughout the day
  * @param {number} count - Number of invites to schedule
  * @param {object} config - Configuration with send hours and timezone
@@ -81,13 +111,15 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     await client.query('BEGIN');
     log.step('1/6', 'Transação iniciada');
 
-    // Get campaign with review config
+    // Get campaign with review config and agent config
     const campaignResult = await client.query(
-      `SELECT c.*, crc.*, la.id as linkedin_account_id, la.unipile_account_id, la.daily_limit
+      `SELECT c.*, crc.*, la.id as linkedin_account_id, la.unipile_account_id, la.daily_limit,
+              aa.config as agent_config
        FROM campaigns c
        LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
        LEFT JOIN campaign_linkedin_accounts cla ON cla.campaign_id = c.id AND cla.is_active = true
        LEFT JOIN linkedin_accounts la ON la.id = cla.linkedin_account_id
+       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
        WHERE c.id = $1 AND c.account_id = $2`,
       [campaignId, accountId]
     );
@@ -98,14 +130,23 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     }
 
     const campaign = campaignResult.rows[0];
+
+    // Parse agent config to get working hours (source of truth)
+    const agentConfig = typeof campaign.agent_config === 'string'
+      ? JSON.parse(campaign.agent_config || '{}')
+      : (campaign.agent_config || {});
+    const schedule = getScheduleFromAgent(agentConfig, campaign);
+
     log.step('2/6', 'Campanha encontrada:', {
       name: campaign.name,
       linkedin_account_id: campaign.linkedin_account_id,
       is_reviewed: campaign.is_reviewed,
       invite_expiry_days: campaign.invite_expiry_days,
-      send_start_hour: campaign.send_start_hour,
-      send_end_hour: campaign.send_end_hour,
-      timezone: campaign.timezone
+      send_start_hour: schedule.send_start_hour,
+      send_end_hour: schedule.send_end_hour,
+      timezone: schedule.timezone,
+      days: schedule.days,
+      source: agentConfig?.workingHours?.enabled ? 'agent' : 'campaign_fallback'
     });
 
     if (!campaign.is_reviewed) {
@@ -159,11 +200,11 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     const invitesToday = Math.min(campaignContacts.length, dailyLimit, availableSlots);
     log.info(`   Convites para hoje: ${invitesToday}`);
 
-    // Calculate random send times for today's invites
+    // Calculate random send times for today's invites (using agent hours)
     const sendTimes = calculateRandomSendTimes(invitesToday, {
-      send_start_hour: campaign.send_start_hour,
-      send_end_hour: campaign.send_end_hour,
-      timezone: campaign.timezone
+      send_start_hour: schedule.send_start_hour,
+      send_end_hour: schedule.send_end_hour,
+      timezone: schedule.timezone
     });
 
     log.step('5/6', 'Horários de envio calculados:');
@@ -553,11 +594,13 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
     return { scheduled: 0, message: 'No pending invites to schedule' };
   }
 
-  // Get config
+  // Get config with agent working hours
   const configResult = await db.query(
-    `SELECT crc.*, la.id as linkedin_account_id, la.daily_limit
+    `SELECT crc.*, la.id as linkedin_account_id, la.daily_limit,
+            aa.config as agent_config
      FROM campaign_review_config crc
      JOIN campaigns c ON c.id = crc.campaign_id
+     LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
      JOIN campaign_linkedin_accounts cla ON cla.campaign_id = c.id AND cla.is_active = true
      JOIN linkedin_accounts la ON la.id = cla.linkedin_account_id
      WHERE crc.campaign_id = $1`,
@@ -569,6 +612,12 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
   }
 
   const config = configResult.rows[0];
+
+  // Get schedule from agent (source of truth) with campaign fallback
+  const agentCfg = typeof config.agent_config === 'string'
+    ? JSON.parse(config.agent_config || '{}')
+    : (config.agent_config || {});
+  const schedule = getScheduleFromAgent(agentCfg, config);
 
   // Check how many we can still send today
   const sentToday = await getDailyInvitesSent(config.linkedin_account_id);
@@ -588,11 +637,11 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
     return { scheduled: 0, message: 'No slots available' };
   }
 
-  // Calculate send times
+  // Calculate send times (using agent hours)
   const sendTimes = calculateRandomSendTimes(toSchedule, {
-    send_start_hour: config.send_start_hour,
-    send_end_hour: config.send_end_hour,
-    timezone: config.timezone
+    send_start_hour: schedule.send_start_hour,
+    send_end_hour: schedule.send_end_hour,
+    timezone: schedule.timezone
   });
 
   // Update queue entries and create Bull delayed jobs
@@ -762,6 +811,7 @@ const getCampaignReport = async (campaignId, filters = {}) => {
 };
 
 module.exports = {
+  getScheduleFromAgent,
   calculateRandomSendTimes,
   createInviteQueue,
   getInviteExpiryDays,

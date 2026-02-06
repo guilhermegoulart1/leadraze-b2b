@@ -1072,6 +1072,8 @@ const saveReviewConfig = async (req, res) => {
       invite_expiry_days,
       max_pending_invites,
       withdraw_expired_invites,
+      // send_start_hour / send_end_hour / timezone are now controlled by the agent's workingHours
+      // Kept for backwards compatibility but ignored if agent has workingHours enabled
       send_start_hour,
       send_end_hour,
       timezone,
@@ -1090,8 +1092,7 @@ const saveReviewConfig = async (req, res) => {
     console.log(`⚙️    Dias para expirar: ${invite_expiry_days || 7}`);
     console.log(`⚙️    Max convites pendentes: ${max_pending_invites || 100}`);
     console.log(`⚙️    Retirar expirados: ${withdraw_expired_invites !== false}`);
-    console.log(`⚙️    Horário envio: ${send_start_hour || 9}h - ${send_end_hour || 18}h`);
-    console.log(`⚙️    Timezone: ${timezone || 'America/Sao_Paulo'}`);
+    console.log(`⚙️    Horário envio: controlado pelo agente (campos legado: ${send_start_hour || 9}h - ${send_end_hour || 18}h)`);
     console.log(`⚙️    Delay IA: ${ai_initiate_delay_min || 5} - ${ai_initiate_delay_max || 60} minutos`);
     console.log('⚙️ ───────────────────────────────────────────────────────────');
 
@@ -1254,20 +1255,36 @@ const getReviewConfig = async (req, res) => {
       throw new NotFoundError('Campaign not found');
     }
 
-    // Buscar configuração
+    // Buscar configuração com horário do agente vinculado
     const configResult = await db.query(
       `SELECT crc.*,
               s.name as sector_name,
-              u.name as reviewed_by_name
+              u.name as reviewed_by_name,
+              aa.config as agent_config
        FROM campaign_review_config crc
        LEFT JOIN sectors s ON crc.sector_id = s.id
        LEFT JOIN users u ON crc.reviewed_by = u.id
+       LEFT JOIN campaigns c ON c.id = crc.campaign_id
+       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
        WHERE crc.campaign_id = $1`,
       [id]
     );
 
     if (configResult.rows.length === 0) {
-      // Retornar configuração padrão se não existir
+      // Buscar horário do agente mesmo sem config de review
+      const agentResult = await db.query(
+        `SELECT aa.config as agent_config
+         FROM campaigns c
+         LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
+         WHERE c.id = $1`,
+        [id]
+      );
+
+      const agentCfg = agentResult.rows[0]?.agent_config;
+      const parsedAgentCfg = typeof agentCfg === 'string' ? JSON.parse(agentCfg || '{}') : (agentCfg || {});
+      const wh = parsedAgentCfg?.workingHours;
+
+      // Retornar configuração padrão, com horário do agente se disponível
       sendSuccess(res, {
         campaign_id: id,
         sector_id: null,
@@ -1280,12 +1297,20 @@ const getReviewConfig = async (req, res) => {
         timezone: 'America/Sao_Paulo',
         ai_initiate_delay_min: 5,
         ai_initiate_delay_max: 60,
-        is_reviewed: false
+        is_reviewed: false,
+        agent_working_hours: wh || null
       });
       return;
     }
 
     const config = configResult.rows[0];
+
+    // Parse agent working hours and attach to response
+    const agentCfg = typeof config.agent_config === 'string'
+      ? JSON.parse(config.agent_config || '{}')
+      : (config.agent_config || {});
+    config.agent_working_hours = agentCfg?.workingHours || null;
+    delete config.agent_config; // Don't expose full agent config
 
     // Buscar detalhes dos usuários do round robin
     if (config.round_robin_users && config.round_robin_users.length > 0) {

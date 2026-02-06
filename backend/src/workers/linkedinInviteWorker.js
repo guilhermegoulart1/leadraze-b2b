@@ -93,12 +93,31 @@ async function processInvite(job) {
     if (!limitCheck.canSend) {
       log.warn(`Limite diário atingido: ${limitCheck.sent}/${limitCheck.limit}`);
 
-      // Reschedule for tomorrow 9 AM
+      // Reschedule for next business day using agent working hours
+      let rescheduleHour = 9; // default fallback
+      try {
+        const agentResult = await db.query(
+          `SELECT aa.config as agent_config
+           FROM campaigns c
+           LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
+           WHERE c.id = $1`,
+          [campaignId]
+        );
+        const agentCfg = agentResult.rows[0]?.agent_config;
+        const parsedCfg = typeof agentCfg === 'string' ? JSON.parse(agentCfg || '{}') : (agentCfg || {});
+        const wh = parsedCfg?.workingHours;
+        if (wh?.enabled && wh.startTime) {
+          rescheduleHour = parseInt(wh.startTime.split(':')[0]) || 9;
+        }
+      } catch (agentErr) {
+        log.warn(`Erro ao buscar horário do agente, usando default 9h: ${agentErr.message}`);
+      }
+
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(9, 0, 0, 0);
+      tomorrow.setHours(rescheduleHour, 0, 0, 0);
 
-      log.info(`   Reagendando para amanhã: ${tomorrow.toISOString()}`);
+      log.info(`   Reagendando para amanhã ${String(rescheduleHour).padStart(2, '0')}:00: ${tomorrow.toISOString()}`);
       await linkedinInviteQueue.add('send-invite', job.data, {
         delay: tomorrow.getTime() - Date.now(),
         jobId: `invite-${queueId}-retry-${Date.now()}`
