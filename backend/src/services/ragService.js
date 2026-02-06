@@ -442,80 +442,165 @@ function formatKnowledgeForPrompt(knowledgeResults) {
 }
 
 /**
+ * Cria chave única normalizada para comparação de conteúdo de knowledge items
+ */
+function createKnowledgeContentKey(question, answer) {
+  const normalizedQ = (question || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const normalizedA = (answer || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return `${normalizedQ}|||${normalizedA}`;
+}
+
+/**
+ * Compara knowledge items existentes com incoming e retorna diff
+ * @param {Array} existing - Items atuais do banco
+ * @param {Array} incoming - Items vindos do config
+ * @param {string} type - 'faq' ou 'objection'
+ * @returns {{ toAdd: Array, toDelete: number[], unchanged: number }}
+ */
+function diffKnowledge(existing, incoming, type) {
+  const existingMap = new Map();
+  (existing || []).forEach(item => {
+    const key = createKnowledgeContentKey(item.question, item.answer);
+    existingMap.set(key, item);
+  });
+
+  const incomingMap = new Map();
+  const toAdd = [];
+
+  (incoming || []).forEach(item => {
+    const question = type === 'objection' ? (item.objection || item.question) : item.question;
+    const answer = type === 'objection' ? (item.response || item.answer) : item.answer;
+
+    if (!question || !answer || !question.trim() || !answer.trim()) return;
+
+    const key = createKnowledgeContentKey(question, answer);
+    incomingMap.set(key, { question, answer });
+
+    if (!existingMap.has(key)) {
+      toAdd.push({ question, answer });
+    }
+  });
+
+  const toDelete = [];
+  let unchanged = 0;
+
+  existingMap.forEach((item, key) => {
+    if (incomingMap.has(key)) {
+      unchanged++;
+    } else {
+      toDelete.push(item.id);
+    }
+  });
+
+  return { toAdd, toDelete, unchanged };
+}
+
+/**
  * Sincroniza FAQ e objeções do config JSON para a tabela ai_agent_knowledge
- * Isso permite que esses dados sejam buscados via RAG (busca vetorial semântica)
+ * Usa smart diff para evitar re-gerar embeddings de itens que não mudaram
  * @param {string} agentId - ID do agente
  * @param {Object} config - Objeto config do agente (pode ser JSON string ou objeto)
  * @returns {Promise<Object>} - Estatísticas de sincronização
  */
 async function syncKnowledgeFromConfig(agentId, config) {
   try {
-    // Parse config se for string
     const configObj = typeof config === 'string' ? JSON.parse(config) : (config || {});
 
-    console.log(`🔄 Sincronizando conhecimento do config para agente ${agentId}...`);
+    console.log(`🔄 [syncKnowledgeFromConfig] Sincronizando conhecimento para agente ${agentId}...`);
 
-    // 1. Remover FAQs e objeções existentes deste agente (para evitar duplicatas)
-    const deleteResult = await db.query(
-      `DELETE FROM ai_agent_knowledge
+    // 1. Buscar FAQs e objeções existentes no banco
+    const existingKnowledge = await db.query(
+      `SELECT id, type, question, answer
+       FROM ai_agent_knowledge
        WHERE ai_agent_id = $1 AND type IN ('faq', 'objection')
-       RETURNING id`,
+       ORDER BY type, created_at`,
       [agentId]
     );
-    console.log(`🗑️ Removidos ${deleteResult.rowCount} itens antigos de FAQ/objeções`);
 
-    let faqCount = 0;
-    let objectionCount = 0;
+    const existingFAQs = existingKnowledge.rows.filter(k => k.type === 'faq');
+    const existingObjections = existingKnowledge.rows.filter(k => k.type === 'objection');
 
-    // 2. Inserir FAQs (com embeddings gerados automaticamente pelo addKnowledge)
-    const faqs = configObj.faq || [];
-    for (const faq of faqs) {
-      if (faq.question && faq.answer) {
-        try {
-          await addKnowledge({
-            ai_agent_id: agentId,
-            type: 'faq',
-            question: faq.question,
-            answer: faq.answer,
-            always_include: false // FAQs são buscados por similaridade, não sempre incluídos
-          });
-          faqCount++;
-        } catch (error) {
-          console.error(`⚠️ Erro ao adicionar FAQ "${faq.question?.substring(0, 30)}...":`, error.message);
-        }
+    const incomingFAQs = configObj.faq || [];
+    const incomingObjections = configObj.objections || [];
+
+    // 2. Diff
+    const faqDiff = diffKnowledge(existingFAQs, incomingFAQs, 'faq');
+    const objDiff = diffKnowledge(existingObjections, incomingObjections, 'objection');
+
+    const totalChanges = faqDiff.toAdd.length + faqDiff.toDelete.length +
+                         objDiff.toAdd.length + objDiff.toDelete.length;
+
+    console.log(`📊 [syncKnowledgeFromConfig] Diff: FAQs(+${faqDiff.toAdd.length} -${faqDiff.toDelete.length} =${faqDiff.unchanged}) Objeções(+${objDiff.toAdd.length} -${objDiff.toDelete.length} =${objDiff.unchanged})`);
+
+    // 3. Se nada mudou, pular completamente
+    if (totalChanges === 0) {
+      console.log(`⚡ [syncKnowledgeFromConfig] Nenhuma mudança detectada, pulando sincronização (0 API calls)`);
+      return {
+        success: true,
+        faqCount: faqDiff.unchanged,
+        objectionCount: objDiff.unchanged,
+        deletedCount: 0,
+        addedCount: 0,
+        skipped: true
+      };
+    }
+
+    // 4. Deletar apenas os itens removidos
+    let deletedCount = 0;
+    const idsToDelete = [...faqDiff.toDelete, ...objDiff.toDelete];
+    if (idsToDelete.length > 0) {
+      const deleteResult = await db.query(
+        `DELETE FROM ai_agent_knowledge WHERE id = ANY($1) RETURNING id`,
+        [idsToDelete]
+      );
+      deletedCount = deleteResult.rowCount;
+      console.log(`🗑️ Removidos ${deletedCount} itens obsoletos`);
+    }
+
+    // 5. Adicionar apenas FAQs novos
+    let addedFAQCount = 0;
+    for (const faq of faqDiff.toAdd) {
+      try {
+        await addKnowledge({
+          ai_agent_id: agentId,
+          type: 'faq',
+          question: faq.question,
+          answer: faq.answer,
+          always_include: false
+        });
+        addedFAQCount++;
+      } catch (error) {
+        console.error(`⚠️ Erro ao adicionar FAQ "${faq.question?.substring(0, 30)}...":`, error.message);
       }
     }
 
-    // 3. Inserir objeções (com embeddings gerados automaticamente)
-    const objections = configObj.objections || [];
-    for (const obj of objections) {
-      // Aceitar tanto formato {objection, response} quanto {question, answer}
-      const objectionText = obj.objection || obj.question;
-      const responseText = obj.response || obj.answer;
-
-      if (objectionText && responseText) {
-        try {
-          await addKnowledge({
-            ai_agent_id: agentId,
-            type: 'objection',
-            question: objectionText,  // Campo 'question' guarda a objeção
-            answer: responseText,      // Campo 'answer' guarda como responder
-            always_include: false
-          });
-          objectionCount++;
-        } catch (error) {
-          console.error(`⚠️ Erro ao adicionar objeção "${objectionText?.substring(0, 30)}...":`, error.message);
-        }
+    // 6. Adicionar apenas objeções novas
+    let addedObjCount = 0;
+    for (const obj of objDiff.toAdd) {
+      try {
+        await addKnowledge({
+          ai_agent_id: agentId,
+          type: 'objection',
+          question: obj.question,
+          answer: obj.answer,
+          always_include: false
+        });
+        addedObjCount++;
+      } catch (error) {
+        console.error(`⚠️ Erro ao adicionar objeção "${obj.question?.substring(0, 30)}...":`, error.message);
       }
     }
 
-    console.log(`✅ Sincronização concluída: ${faqCount} FAQs e ${objectionCount} objeções adicionadas`);
+    const totalAdded = addedFAQCount + addedObjCount;
+    console.log(`✅ Sincronização concluída: +${totalAdded} novos, -${deletedCount} removidos, ${faqDiff.unchanged + objDiff.unchanged} mantidos (${totalAdded} API calls)`);
 
     return {
       success: true,
-      faqCount,
-      objectionCount,
-      deletedCount: deleteResult.rowCount
+      faqCount: faqDiff.unchanged + addedFAQCount,
+      objectionCount: objDiff.unchanged + addedObjCount,
+      deletedCount,
+      addedCount: totalAdded,
+      skipped: false
     };
 
   } catch (error) {

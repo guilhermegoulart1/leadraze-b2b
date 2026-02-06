@@ -538,6 +538,7 @@ async function executeFromNode(startNode, workflowDef, context) {
 
   // Extract enriched data from the last conversationStep node
   let enrichedData = null;
+  let latencyInfo = null;
   const lastConversationNode = [...executedNodes].reverse().find(n => n.nodeType === 'conversationStep');
   if (lastConversationNode?.result) {
     const result = lastConversationNode.result;
@@ -548,6 +549,9 @@ async function executeFromNode(startNode, workflowDef, context) {
         objection: result.objection || null
       };
       console.log(`📊 [Workflow] Dados enriquecidos extraídos:`, JSON.stringify(enrichedData));
+    }
+    if (result.latencyInfo) {
+      latencyInfo = result.latencyInfo;
     }
   }
 
@@ -566,7 +570,8 @@ async function executeFromNode(startNode, workflowDef, context) {
     pauseReason,
     resumeNodeId,
     waitInfo,
-    enrichedData
+    enrichedData,
+    latencyInfo
   };
 }
 
@@ -702,11 +707,13 @@ async function executeConversationNode(node, context) {
       objective_instructions: mergedInstructions
     },
     lead_data: context.lead,
-    current_step: data.stepNumber || 0
+    current_step: data.stepNumber || 0,
+    context: { isTest: context.isTestMode || false }
   });
 
-  // Aplicar latência de resposta se configurada no step
-  if (data.latencyEnabled && data.latency) {
+  // Aplicar latência de resposta se configurada no step (pular no modo teste)
+  let latencyInfo = null;
+  if (data.latencyEnabled && data.latency && !context.isTestMode) {
     const lat = data.latency;
     const minMs = (lat.min || 0) * (lat.minUnit === 'minutes' ? 60000 : 1000);
     const maxMs = (lat.max || 0) * (lat.maxUnit === 'minutes' ? 60000 : 1000);
@@ -715,6 +722,17 @@ async function executeConversationNode(node, context) {
       console.log(`⏱️ [Latency] Step "${data.label || data.name || 'N/A'}": aguardando ${delayMs}ms antes de responder (${lat.min}${lat.minUnit === 'minutes' ? 'min' : 's'}-${lat.max}${lat.maxUnit === 'minutes' ? 'min' : 's'})`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
+  } else if (data.latencyEnabled && data.latency && context.isTestMode) {
+    const lat = data.latency;
+    latencyInfo = {
+      skipped: true,
+      stepName: data.label || data.name || 'N/A',
+      min: lat.min,
+      minUnit: lat.minUnit,
+      max: lat.max,
+      maxUnit: lat.maxUnit
+    };
+    console.log(`⏱️ [Latency] Skipped in test mode for step "${latencyInfo.stepName}"`);
   }
 
   const durationMs = Date.now() - startTime;
@@ -776,7 +794,8 @@ async function executeConversationNode(node, context) {
     // Novos campos enriquecidos
     extractedData: aiResult.extractedData,
     qualification: aiResult.qualification,
-    objection: aiResult.objection
+    objection: aiResult.objection,
+    latencyInfo
   };
 }
 
@@ -1500,7 +1519,8 @@ async function processTestMessage(testSessionId, agentId, message, options = {})
       paused: result.paused,
       completed: result.completed,
       waitInfo: result.waitInfo,
-      enrichedData: result.enrichedData  // Dados enriquecidos (extractedData, qualification, objection)
+      enrichedData: result.enrichedData,
+      latencyInfo: result.latencyInfo
     };
   } catch (error) {
     console.error('❌ Error processing test message:', error);

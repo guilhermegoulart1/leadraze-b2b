@@ -31,17 +31,16 @@ async function hasContactReplied(conversationId) {
 }
 
 /**
- * Buscar dados da opportunity e campanha
- * @param {string} opportunityId - ID da opportunity
- * @returns {Promise<Object>} Dados da opportunity, contato e campanha
+ * Buscar dados da conversa, contato e campanha
+ * @param {string} conversationId - ID da conversa
+ * @returns {Promise<Object>} Dados do contato, campanha e agente AI
  */
-async function getOpportunityAndCampaign(opportunityId) {
+async function getConversationData(conversationId) {
   const result = await db.query(
     `SELECT
-      o.id as opportunity_id,
-      o.title as opportunity_title,
-      o.campaign_id,
-      ct.id as contact_id,
+      conv.id as conversation_id,
+      conv.campaign_id,
+      conv.contact_id,
       ct.name as contact_name,
       ct.title,
       ct.company,
@@ -58,17 +57,17 @@ async function getOpportunityAndCampaign(opportunityId) {
       ai.workflow_enabled,
       ai.config as ai_config,
       la.unipile_account_id
-    FROM opportunities o
-    LEFT JOIN contacts ct ON o.contact_id = ct.id
-    LEFT JOIN campaigns c ON o.campaign_id = c.id
+    FROM conversations conv
+    LEFT JOIN contacts ct ON conv.contact_id = ct.id
+    LEFT JOIN campaigns c ON conv.campaign_id = c.id
     LEFT JOIN ai_agents ai ON c.ai_agent_id = ai.id
     LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
-    WHERE o.id = $1`,
-    [opportunityId]
+    WHERE conv.id = $1`,
+    [conversationId]
   );
 
   if (!result.rows || result.rows.length === 0) {
-    throw new Error('Opportunity not found');
+    throw new Error('Conversation not found');
   }
 
   return result.rows[0];
@@ -79,14 +78,14 @@ async function getOpportunityAndCampaign(opportunityId) {
  * @param {Object} job - Job da fila Bull
  */
 async function processDelayedConversation(job) {
-  const { opportunityId, conversationId } = job.data;
+  const { conversationId } = job.data;
 
-  console.log(`\n💬 Processando início de conversa - Opportunity: ${opportunityId}, Conversation: ${conversationId}`);
+  console.log(`\n💬 Processando início de conversa - Conversation: ${conversationId}`);
 
   try {
     // Verificar se conversa ainda existe e está ativa
     const conversationResult = await db.query(
-      `SELECT id, status, opportunity_id, unipile_chat_id
+      `SELECT id, status, unipile_chat_id
        FROM conversations
        WHERE id = $1`,
       [conversationId]
@@ -113,40 +112,40 @@ async function processDelayedConversation(job) {
       return { canceled: true, reason: 'contact_already_replied' };
     }
 
-    // Buscar dados da opportunity e campanha
-    const opportunityData = await getOpportunityAndCampaign(opportunityId);
+    // Buscar dados da conversa, contato e campanha
+    const convData = await getConversationData(conversationId);
 
-    if (!opportunityData.unipile_account_id) {
+    if (!convData.unipile_account_id) {
       throw new Error('LinkedIn account not configured');
     }
 
-    if (!opportunityData.ai_agent_id) {
+    if (!convData.ai_agent_id) {
       throw new Error('AI agent not configured for this campaign');
     }
 
     // Buscar account_id do usuario
     const userResult = await db.query(
       'SELECT account_id FROM users WHERE id = (SELECT user_id FROM campaigns WHERE id = $1)',
-      [opportunityData.campaign_id]
+      [convData.campaign_id]
     );
     const accountId = userResult.rows[0]?.account_id;
 
     // Montar lead data para o workflow
     const leadData = {
-      name: opportunityData.contact_name,
-      title: opportunityData.title,
-      company: opportunityData.company,
-      location: opportunityData.location,
-      industry: opportunityData.industry,
-      headline: opportunityData.headline,
-      summary: opportunityData.summary
+      name: convData.contact_name,
+      title: convData.title,
+      company: convData.company,
+      location: convData.location,
+      industry: convData.industry,
+      headline: convData.headline,
+      summary: convData.summary
     };
 
     // 1. Inicializar workflow com trigger invite_accepted
-    console.log(`🔄 Inicializando workflow para agente ${opportunityData.ai_agent_id}...`);
+    console.log(`🔄 Inicializando workflow para agente ${convData.ai_agent_id}...`);
     const initResult = await workflowExecutionService.initializeWorkflow(
       conversationId,
-      opportunityData.ai_agent_id,
+      convData.ai_agent_id,
       'invite_accepted'
     );
 
@@ -167,7 +166,7 @@ async function processDelayedConversation(job) {
         lead: leadData
       },
       {
-        agentId: opportunityData.ai_agent_id,
+        agentId: convData.ai_agent_id,
         accountId
       }
     );
@@ -186,7 +185,7 @@ async function processDelayedConversation(job) {
         console.log(`📤 Enviando resposta do workflow via Unipile (${workflowResult.response.length} chars)...`);
 
         await unipileClient.messaging.send({
-          account_id: opportunityData.unipile_account_id,
+          account_id: convData.unipile_account_id,
           user_id: conversation.unipile_chat_id,
           text: workflowResult.response
         });
@@ -219,10 +218,9 @@ async function processDelayedConversation(job) {
     return {
       success: true,
       workflow: true,
-      opportunityId,
       conversationId,
       executedNodes: workflowResult.executedNodes?.length || 0,
-      contactName: opportunityData.contact_name
+      contactName: convData.contact_name
     };
 
   } catch (error) {
@@ -233,21 +231,19 @@ async function processDelayedConversation(job) {
 
 /**
  * Agendar início de conversa com delay configurável
- * @param {string} opportunityId - ID da opportunity
  * @param {string} conversationId - ID da conversa
  * @param {number} delayMs - Delay em milissegundos (opcional, padrão: 5 minutos)
  * @returns {Promise<Object>} Job agendado
  */
-async function scheduleDelayedConversation(opportunityId, conversationId, delayMs = null) {
+async function scheduleDelayedConversation(conversationId, delayMs = null) {
   const DEFAULT_DELAY = 5 * 60 * 1000; // 5 minutos em ms
   const actualDelay = delayMs || DEFAULT_DELAY;
   const delayMinutes = Math.round(actualDelay / 60000);
 
-  console.log(`📅 Agendando início de conversa para daqui ${delayMinutes} minuto(s) - Opportunity: ${opportunityId}`);
+  console.log(`📅 Agendando início de conversa para daqui ${delayMinutes} minuto(s) - Conversation: ${conversationId}`);
 
   const job = await delayedConversationQueue.add(
     {
-      opportunityId,
       conversationId
     },
     {
@@ -271,12 +267,12 @@ async function scheduleDelayedConversation(opportunityId, conversationId, delayM
 
 /**
  * Cancelar início de conversa agendado
- * (quando contato envia mensagem antes dos 5 minutos)
- * @param {string} opportunityId - ID da opportunity
+ * (quando contato envia mensagem antes do delay)
+ * @param {string} conversationId - ID da conversa
  * @returns {Promise<boolean>} True se cancelou algum job
  */
-async function cancelDelayedConversation(opportunityId) {
-  console.log(`🛑 Cancelando início de conversa agendado - Opportunity: ${opportunityId}`);
+async function cancelDelayedConversation(conversationId) {
+  console.log(`🛑 Cancelando início de conversa agendado - Conversation: ${conversationId}`);
 
   try {
     // Buscar jobs pendentes
@@ -288,7 +284,7 @@ async function cancelDelayedConversation(opportunityId) {
     let canceledCount = 0;
 
     for (const job of allPendingJobs) {
-      if (job.data.opportunityId === opportunityId) {
+      if (job.data.conversationId === conversationId) {
         await job.remove();
         canceledCount++;
         console.log(`✅ Job ${job.id} cancelado`);
@@ -296,7 +292,7 @@ async function cancelDelayedConversation(opportunityId) {
     }
 
     if (canceledCount === 0) {
-      console.log('ℹ️ Nenhum job pendente encontrado para esta opportunity');
+      console.log('ℹ️ Nenhum job pendente encontrado para esta conversa');
     }
 
     return canceledCount > 0;

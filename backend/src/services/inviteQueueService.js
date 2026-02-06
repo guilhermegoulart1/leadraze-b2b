@@ -2,6 +2,7 @@
 const db = require('../config/database');
 const { DateTime } = require('luxon');
 const { linkedinInviteQueue } = require('../queues');
+const inviteService = require('./inviteService');
 
 // ====================================
 // 🔧 LOGGING HELPER
@@ -148,7 +149,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     // Get campaign with review config and agent config
     const campaignResult = await client.query(
       `SELECT c.*, crc.*, la.id as linkedin_account_id, la.unipile_account_id, la.daily_limit,
-              aa.config as agent_config
+              la.weekly_limit, aa.config as agent_config
        FROM campaigns c
        LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
        LEFT JOIN campaign_linkedin_accounts cla ON cla.campaign_id = c.id AND cla.is_active = true
@@ -208,8 +209,9 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
       throw new Error('No approved contacts to queue');
     }
 
-    // Get daily limit and pending count
-    const dailyLimit = campaign.daily_limit || 50;
+    // Get daily + weekly limits and pending count
+    const dailyLimit = campaign.daily_limit || 20;
+    const weeklyLimit = campaign.weekly_limit || 100;
     const maxPending = campaign.max_pending_invites || 100;
 
     // Get current pending invites count for this LinkedIn account
@@ -223,15 +225,22 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     const currentPending = parseInt(pendingResult.rows[0].count) || 0;
     const availableSlots = Math.max(0, maxPending - currentPending);
 
+    // Check weekly remaining (LinkedIn usa limites semanais)
+    const sentThisWeek = await inviteService.getInvitesSentThisWeek(campaign.linkedin_account_id);
+    const weeklyRemaining = Math.max(0, weeklyLimit - sentThisWeek);
+
     log.step('4/6', 'Limites calculados:', {
       dailyLimit,
+      weeklyLimit,
+      weeklyRemaining,
+      sentThisWeek,
       maxPending,
       currentPending,
       availableSlots
     });
 
-    // Calculate how many invites we can queue today
-    const invitesToday = Math.min(campaignContacts.length, dailyLimit, availableSlots);
+    // Calculate how many invites we can queue today (respecting daily + weekly + pending)
+    const invitesToday = Math.min(campaignContacts.length, dailyLimit, availableSlots, weeklyRemaining);
     log.info(`   Convites para hoje: ${invitesToday}`);
 
     // Calculate random send times for today's invites (using agent hours + days)
@@ -631,7 +640,7 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
 
   // Get config with agent working hours
   const configResult = await db.query(
-    `SELECT crc.*, la.id as linkedin_account_id, la.daily_limit,
+    `SELECT crc.*, la.id as linkedin_account_id, la.daily_limit, la.weekly_limit,
             aa.config as agent_config
      FROM campaign_review_config crc
      JOIN campaigns c ON c.id = crc.campaign_id
@@ -654,19 +663,28 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
     : (config.agent_config || {});
   const schedule = getScheduleFromAgent(agentCfg, config);
 
-  // Check how many we can still send today
+  // Check how many we can still send today (daily inner cap)
   const sentToday = await getDailyInvitesSent(config.linkedin_account_id);
-  const dailyLimit = config.daily_limit || 50;
+  const dailyLimit = config.daily_limit || 20;
   const availableToday = Math.max(0, dailyLimit - sentToday);
 
   if (availableToday === 0) {
     return { scheduled: 0, message: 'Daily limit reached' };
   }
 
+  // Check weekly remaining (LinkedIn usa limites semanais)
+  const sentThisWeek = await inviteService.getInvitesSentThisWeek(config.linkedin_account_id);
+  const weeklyLimit = config.weekly_limit || 100;
+  const weeklyRemaining = Math.max(0, weeklyLimit - sentThisWeek);
+
+  if (weeklyRemaining === 0) {
+    return { scheduled: 0, message: 'Weekly limit reached' };
+  }
+
   // Check pending limit
   const { available: pendingAvailable } = await canQueueMoreInvites(config.linkedin_account_id, campaignId);
 
-  const toSchedule = Math.min(pendingResult.rows.length, availableToday, pendingAvailable);
+  const toSchedule = Math.min(pendingResult.rows.length, availableToday, pendingAvailable, weeklyRemaining);
 
   if (toSchedule === 0) {
     return { scheduled: 0, message: 'No slots available' };

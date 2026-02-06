@@ -1140,11 +1140,11 @@ async function handleMessageReceived(payload) {
     console.log(`📡 Ably: Evento new_message emitido (isOwnMessage: ${isOwnMessage})`)
 
     // CANCELAR JOB DE DELAY SE CONTATO ENVIOU MENSAGEM
-    // (cancela o início automático de conversa se contato responder antes dos 5 minutos)
-    if (!isOwnMessage && conversation.opportunity_id) {
+    // (cancela o início automático de conversa se contato responder antes do delay)
+    if (!isOwnMessage && conversation.id) {
       try {
         console.log('🛑 Verificando job de delay para cancelar...');
-        const canceled = await cancelDelayedConversation(conversation.opportunity_id);
+        const canceled = await cancelDelayedConversation(conversation.id);
         if (canceled) {
           console.log('✅ Job de delay cancelado (contato respondeu primeiro)');
         }
@@ -1258,62 +1258,44 @@ async function handleNewRelation(payload) {
       };
     }
 
-    // Busca opportunity com status pendente (invite_sent, invite_queued)
-    // contact_id é obtido diretamente da opportunity
-    const opportunityQuery = `
-      SELECT o.*,
-             o.contact_id,
-             ct.name as contact_name,
-             ct.linkedin_profile_id as contact_linkedin_profile_id,
-             ct.profile_url as contact_profile_url,
-             c.user_id as campaign_user_id,
-             c.ai_agent_id,
-             c.automation_active,
-             c.name as campaign_name,
-             COALESCE(c.account_id, o.account_id) as account_id,
-             crc.sector_id, crc.round_robin_users, crc.ai_initiate_delay_min, crc.ai_initiate_delay_max,
+    // Busca campaign_contact com convite enviado (invite_sent)
+    const campaignContactQuery = `
+      SELECT cc.id as campaign_contact_id, cc.contact_id, cc.campaign_id, cc.linkedin_profile_id,
+             ct.name as contact_name, ct.profile_url as contact_profile_url,
+             c.user_id as campaign_user_id, c.ai_agent_id, c.automation_active,
+             c.name as campaign_name, c.account_id,
              aa.connection_strategy, aa.wait_time_after_accept, aa.require_lead_reply
-      FROM opportunities o
-      LEFT JOIN contacts ct ON o.contact_id = ct.id
-      LEFT JOIN campaigns c ON o.campaign_id = c.id
-      LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
+      FROM campaign_contacts cc
+      JOIN contacts ct ON ct.id = cc.contact_id
+      JOIN campaigns c ON c.id = cc.campaign_id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
-      LEFT JOIN linkedin_accounts la ON la.id = c.linkedin_account_id OR la.account_id = o.account_id
-      WHERE (c.linkedin_account_id = $1 OR la.unipile_account_id = $5)
+      WHERE cc.status = 'invite_sent'
+      AND c.linkedin_account_id = $1
       AND (
-        o.linkedin_profile_id = $2
-        OR o.linkedin_profile_id = $3
+        cc.linkedin_profile_id = $2
+        OR cc.linkedin_profile_id = $3
         OR ct.linkedin_profile_id = $2
         OR ct.linkedin_profile_id = $3
         OR ct.profile_url LIKE $4
       )
-      AND o.sent_at IS NOT NULL
-      AND o.accepted_at IS NULL
       LIMIT 1
     `;
 
-    const opportunityResult = await db.query(opportunityQuery, [
+    const campaignContactResult = await db.query(campaignContactQuery, [
       linkedinAccount.id,
       user_provider_id,
       user_public_identifier,
-      `%${user_public_identifier}%`,
-      account_id
+      `%${user_public_identifier}%`
     ]);
 
-    if (opportunityResult.rows.length === 0) {
-      return { handled: false, reason: 'Opportunity not found' };
+    if (campaignContactResult.rows.length === 0) {
+      return { handled: false, reason: 'Campaign contact not found' };
     }
 
-    const opportunity = opportunityResult.rows[0];
+    const cc = campaignContactResult.rows[0];
 
     // Buscar perfil completo via Unipile API
     const fullProfile = await fetchUserProfileFromUnipile(account_id, user_provider_id);
-
-    // Dados para atualizar a opportunity (apenas timestamps e status)
-    const opportunityUpdateData = {
-      accepted_at: new Date(),
-      updated_at: new Date()
-    };
 
     // Dados para atualizar o contact (dados enriquecidos do perfil)
     const contactUpdateData = {
@@ -1406,46 +1388,14 @@ async function handleNewRelation(payload) {
       contactUpdateData.network_distance = 'FIRST_DEGREE';
     }
 
-    // Distribuição via Round Robin
-    let ownerUserId = null;
-    if (opportunity.sector_id && opportunity.round_robin_users && opportunity.round_robin_users.length > 0) {
-      const sectorResult = await db.query(
-        `SELECT last_assigned_user_id FROM sectors WHERE id = $1`,
-        [opportunity.sector_id]
-      );
-
-      const lastAssignedUserId = sectorResult.rows[0]?.last_assigned_user_id;
-      let nextIndex = 0;
-
-      if (lastAssignedUserId) {
-        const lastIndex = opportunity.round_robin_users.indexOf(lastAssignedUserId);
-        if (lastIndex !== -1) {
-          nextIndex = (lastIndex + 1) % opportunity.round_robin_users.length;
-        }
-      }
-
-      ownerUserId = opportunity.round_robin_users[nextIndex];
-
-      await db.query(
-        `UPDATE sectors SET last_assigned_user_id = $1 WHERE id = $2`,
-        [ownerUserId, opportunity.sector_id]
-      );
-
-      opportunityUpdateData.owner_user_id = ownerUserId;
-      opportunityUpdateData.round_robin_distributed_at = new Date();
-    }
-
-    // Atualizar opportunity
-    await db.update('opportunities', opportunityUpdateData, { id: opportunity.id });
-
     // Atualizar contact com dados enriquecidos
-    if (opportunity.contact_id && Object.keys(contactUpdateData).length > 1) {
-      await db.update('contacts', contactUpdateData, { id: opportunity.contact_id });
+    if (cc.contact_id && Object.keys(contactUpdateData).length > 1) {
+      await db.update('contacts', contactUpdateData, { id: cc.contact_id });
     }
 
-    // Marcar convite como aceito na fila
+    // Marcar convite como aceito na fila (atualiza campaign_invite_queue + campaign_contacts + campaigns.pending_invites_count)
     try {
-      await inviteQueueService.markInviteAsAccepted(opportunity.id);
+      await inviteQueueService.markInviteAsAccepted(cc.campaign_contact_id);
     } catch (queueError) {
       // Silent fail - pode não existir na fila
     }
@@ -1455,35 +1405,25 @@ async function handleNewRelation(payload) {
       await db.query(
         `UPDATE linkedin_invite_logs
          SET status = 'accepted', accepted_at = NOW()
-         WHERE opportunity_id = $1 AND linkedin_account_id = $2 AND status = 'sent'`,
-        [opportunity.id, linkedinAccount.id]
+         WHERE campaign_id = $1 AND linkedin_account_id = $2 AND status = 'sent'
+         ORDER BY sent_at DESC LIMIT 1`,
+        [cc.campaign_id, linkedinAccount.id]
       );
     } catch (logError) {
       // Silent fail
     }
 
-    // Atualizar contadores da campanha (apenas se tiver campaign_id)
-    if (opportunity.campaign_id) {
-      await db.query(
-        `UPDATE campaigns
-         SET pending_invites_count = GREATEST(0, pending_invites_count - 1)
-         WHERE id = $1`,
-        [opportunity.campaign_id]
-      );
-    }
-
     // Criar notificação na plataforma
-    const opportunityUserId = opportunity.campaign_user_id || opportunity.owner_user_id || linkedinAccount.user_id;
-    const notifyUserId = ownerUserId || opportunityUserId;
+    const userId = cc.campaign_user_id || linkedinAccount.user_id;
     const contactProfilePicture = contactUpdateData.profile_picture || user_picture_url || null;
     try {
       await notificationService.notifyInviteAccepted({
-        accountId: opportunity.account_id,
-        userId: notifyUserId,
-        opportunityName: opportunity.contact_name || opportunity.title || user_full_name || 'Contato',
-        opportunityId: opportunity.id,
-        campaignId: opportunity.campaign_id || null,
-        campaignName: opportunity.campaign_name || 'Busca LinkedIn',
+        accountId: cc.account_id,
+        userId,
+        opportunityName: cc.contact_name || user_full_name || 'Contato',
+        opportunityId: null,
+        campaignId: cc.campaign_id,
+        campaignName: cc.campaign_name || 'Busca LinkedIn',
         profilePicture: contactProfilePicture,
         linkedinAccountId: linkedinAccount.id,
         providerId: user_provider_id
@@ -1492,7 +1432,7 @@ async function handleNewRelation(payload) {
       // Silent fail
     }
 
-    // 📸 Limpar snapshot do convite (já foi aceito)
+    // Limpar snapshot do convite (já foi aceito)
     try {
       await db.query(
         `DELETE FROM invitation_snapshots
@@ -1507,19 +1447,19 @@ async function handleNewRelation(payload) {
     }
 
     // IA ativa somente se campanha tem automação ativa
-    const shouldActivateAI = opportunity.campaign_id && opportunity.automation_active === true;
+    const shouldActivateAI = cc.campaign_id && cc.automation_active === true;
 
-    // Criar conversa automaticamente
+    // Criar conversa automaticamente (sem opportunity_id - oportunidade será criada pelo agente)
     const conversationData = {
-      user_id: opportunityUserId,
-      account_id: opportunity.account_id,
+      user_id: userId,
+      account_id: cc.account_id,
       linkedin_account_id: linkedinAccount.id,
-      opportunity_id: opportunity.id,
-      campaign_id: opportunity.campaign_id || null,
-      unipile_chat_id: `temp_chat_${opportunity.id}`,
+      contact_id: cc.contact_id,
+      campaign_id: cc.campaign_id,
+      unipile_chat_id: `temp_chat_${cc.campaign_contact_id}`,
       status: shouldActivateAI ? 'ai_active' : 'manual',
       ai_active: shouldActivateAI,
-      ai_agent_id: opportunity.ai_agent_id || null,
+      ai_agent_id: cc.ai_agent_id || null,
       is_connection: true,
       unread_count: 0
     };
@@ -1528,24 +1468,21 @@ async function handleNewRelation(payload) {
 
     // Agendar início de conversa baseado na estratégia de conexão
     let delayedJobScheduled = false;
-    let connectionStrategy = opportunity.connection_strategy || 'with-intro';
+    let connectionStrategy = cc.connection_strategy || 'with-intro';
 
     try {
       if (shouldActivateAI) {
         // Se estratégia é 'icebreaker', não agenda - só responde se contato falar primeiro
-        if (opportunity.require_lead_reply === true) {
+        if (cc.require_lead_reply === true) {
           console.log('🔗 [CONNECTION STRATEGY] Icebreaker: aguardando contato iniciar conversa');
-          // Não agenda job, apenas espera contato enviar mensagem
           delayedJobScheduled = false;
         } else {
           // Calcular delay baseado na estratégia
           let delayMinutes;
 
-          if (opportunity.wait_time_after_accept != null) {
-            // Usar configuração do agente
-            delayMinutes = opportunity.wait_time_after_accept;
+          if (cc.wait_time_after_accept != null) {
+            delayMinutes = cc.wait_time_after_accept;
           } else {
-            // Usar defaults da estratégia
             const strategyDefaults = {
               'silent': 5,        // 5 minutos
               'with-intro': 60,   // 1 hora
@@ -1561,7 +1498,7 @@ async function handleNewRelation(payload) {
 
           console.log(`🔗 [CONNECTION STRATEGY] ${connectionStrategy}: agendando início em ${finalDelay} minutos`);
 
-          await scheduleDelayedConversation(opportunity.id, conversation.id, finalDelay * 60 * 1000);
+          await scheduleDelayedConversation(conversation.id, finalDelay * 60 * 1000);
           delayedJobScheduled = true;
         }
       }
@@ -1572,13 +1509,12 @@ async function handleNewRelation(payload) {
 
     return {
       handled: true,
-      opportunity_id: opportunity.id,
+      campaign_contact_id: cc.campaign_contact_id,
       conversation_id: conversation.id,
       accepted: true,
-      owner_user_id: ownerUserId,
       delayed_conversation_scheduled: delayedJobScheduled,
       connection_strategy: connectionStrategy,
-      require_contact_reply: opportunity.require_lead_reply || false,
+      require_contact_reply: cc.require_lead_reply || false,
       profile_enriched: !!fullProfile
     };
 

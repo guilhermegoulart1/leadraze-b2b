@@ -7,30 +7,52 @@ const db = require('../config/database');
 // LIMITES RECOMENDADOS POR TIPO
 // ================================
 
+// Limites alinhados com limites reais do LinkedIn (2025/2026)
+// daily: inner safety cap para evitar burst em um dia
+// weekly: limite real do LinkedIn (rolling 7 days)
+// monthly_messages: convites com nota personalizada por mes (Free: 10, Premium: ilimitado)
+// note_char_limit: limite de caracteres da nota (Free: 200, Premium: 300)
 const ACCOUNT_TYPE_LIMITS = {
   free: {
-    safe: 28,
-    moderate: 35,
-    aggressive: 42,
-    max_recommended: 50
+    daily: { safe: 15, moderate: 20, aggressive: 25, max_recommended: 30 },
+    weekly: { safe: 70, moderate: 100, max_recommended: 100 },
+    monthly_messages: 10,
+    note_char_limit: 200,
+    // Legacy flat values (backwards compatibility com código que usa .safe direto)
+    safe: 15,
+    moderate: 20,
+    aggressive: 25,
+    max_recommended: 30
   },
   premium: {
-    safe: 45,
-    moderate: 55,
-    aggressive: 70,
-    max_recommended: 80
+    daily: { safe: 25, moderate: 35, aggressive: 45, max_recommended: 50 },
+    weekly: { safe: 120, moderate: 200, max_recommended: 200 },
+    monthly_messages: 99999,
+    note_char_limit: 300,
+    safe: 25,
+    moderate: 35,
+    aggressive: 45,
+    max_recommended: 50
   },
   sales_navigator: {
-    safe: 70,
-    moderate: 90,
-    aggressive: 110,
-    max_recommended: 120
+    daily: { safe: 30, moderate: 40, aggressive: 50, max_recommended: 60 },
+    weekly: { safe: 150, moderate: 250, max_recommended: 250 },
+    monthly_messages: 99999,
+    note_char_limit: 300,
+    safe: 30,
+    moderate: 40,
+    aggressive: 50,
+    max_recommended: 60
   },
   recruiter: {
-    safe: 110,
-    moderate: 130,
-    aggressive: 160,
-    max_recommended: 180
+    daily: { safe: 30, moderate: 40, aggressive: 50, max_recommended: 60 },
+    weekly: { safe: 150, moderate: 250, max_recommended: 250 },
+    monthly_messages: 99999,
+    note_char_limit: 300,
+    safe: 30,
+    moderate: 40,
+    aggressive: 50,
+    max_recommended: 60
   }
 };
 
@@ -393,15 +415,29 @@ async function getRecommendedLimit(linkedinAccountId, strategy = 'moderate') {
       });
     }
 
-    // Arredondar e garantir limites mínimos/máximos
+    // Arredondar e garantir limites mínimos/máximos (daily)
     const recommendedLimit = Math.round(baseLimit);
     const minLimit = Math.max(10, Math.round(baseLimit * 0.5));
     const maxLimit = Math.min(maxRecommended, Math.round(baseLimit * 1.5));
+
+    // Calcular recomendação semanal
+    const typeLimits = ACCOUNT_TYPE_LIMITS[accountType];
+    const weeklyBase = typeLimits.weekly?.[strategy] || typeLimits.weekly?.moderate || 100;
+    const weeklyMax = typeLimits.weekly?.max_recommended || 100;
 
     return {
       recommended: recommendedLimit,
       min: minLimit,
       max: maxLimit,
+      // Recomendações semanais
+      weekly: {
+        recommended: weeklyBase,
+        max: weeklyMax
+      },
+      // Limite mensal de mensagens personalizadas
+      monthly_messages: typeLimits.monthly_messages || 10,
+      // Limite de caracteres
+      note_char_limit: typeLimits.note_char_limit || 200,
       account_type: accountType,
       strategy,
       health_score: healthData.score,
@@ -415,6 +451,9 @@ async function getRecommendedLimit(linkedinAccountId, strategy = 'moderate') {
       recommended: 25,
       min: 10,
       max: 50,
+      weekly: { recommended: 100, max: 100 },
+      monthly_messages: 10,
+      note_char_limit: 200,
       account_type: 'free',
       strategy: 'safe',
       adjustment_factors: [],
@@ -524,6 +563,67 @@ async function checkRiskPatterns(linkedinAccountId) {
         message: `Health Score crítico: ${healthData.score}/100`,
         recommendation: 'Pause envios e revise estratégia. Risco de restrição do LinkedIn.'
       });
+    }
+
+    // 6. Volume semanal alto (LinkedIn usa limites semanais)
+    const weeklyResult = await db.query(
+      `SELECT COUNT(*) as count
+       FROM linkedin_invite_logs
+       WHERE linkedin_account_id = $1
+         AND sent_at >= NOW() - INTERVAL '7 days'
+         AND status IN ('sent', 'accepted')`,
+      [linkedinAccountId]
+    );
+
+    const weeklyCount = parseInt(weeklyResult.rows[0]?.count || 0);
+    const weeklyLimit = account.weekly_limit || 100;
+
+    if (weeklyCount >= weeklyLimit * 0.9) {
+      risks.push({
+        level: 'high',
+        category: 'weekly_limit',
+        message: `Próximo do limite semanal: ${weeklyCount}/${weeklyLimit}`,
+        recommendation: 'Você está próximo do limite semanal do LinkedIn. Reduza o ritmo de envio.'
+      });
+    } else if (weeklyCount >= weeklyLimit * 0.7) {
+      risks.push({
+        level: 'medium',
+        category: 'weekly_limit',
+        message: `Volume semanal elevado: ${weeklyCount}/${weeklyLimit} (${Math.round(weeklyCount/weeklyLimit*100)}%)`,
+        recommendation: 'Monitore o volume semanal para evitar atingir o limite.'
+      });
+    }
+
+    // 7. Mensagens personalizadas próximas do limite mensal (contas free)
+    const monthlyMessageLimit = account.monthly_message_limit ?? 10;
+    if (monthlyMessageLimit < 99999) {
+      const msgResult = await db.query(
+        `SELECT COUNT(*) as count
+         FROM linkedin_invite_logs
+         WHERE linkedin_account_id = $1
+           AND sent_at >= DATE_TRUNC('month', CURRENT_DATE)
+           AND status = 'sent'
+           AND message_included = true`,
+        [linkedinAccountId]
+      );
+
+      const messagesSent = parseInt(msgResult.rows[0]?.count || 0);
+
+      if (messagesSent >= monthlyMessageLimit) {
+        risks.push({
+          level: 'high',
+          category: 'monthly_messages_exhausted',
+          message: `Limite mensal de notas personalizadas atingido: ${messagesSent}/${monthlyMessageLimit}`,
+          recommendation: 'Convites serão enviados sem mensagem personalizada pelo restante do mês.'
+        });
+      } else if (messagesSent >= monthlyMessageLimit * 0.7) {
+        risks.push({
+          level: 'medium',
+          category: 'monthly_messages_low',
+          message: `Notas personalizadas quase esgotadas: ${messagesSent}/${monthlyMessageLimit} usadas`,
+          recommendation: 'Considere priorizar os leads mais importantes para os convites com mensagem restantes.'
+        });
+      }
     }
 
   } catch (error) {

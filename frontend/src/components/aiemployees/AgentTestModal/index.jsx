@@ -70,6 +70,10 @@ const AgentTestModal = ({ agent, onClose }) => {
   // Transfer state
   const [transferTriggered, setTransferTriggered] = useState(false);
 
+  // Business hours and latency info
+  const [businessHoursInfo, setBusinessHoursInfo] = useState(null);
+  const [latencyInfo, setLatencyInfo] = useState(null);
+
   // Refs for auto-scroll
   const messagesEndRef = useRef(null);
   const logsEndRef = useRef(null);
@@ -176,6 +180,11 @@ const AgentTestModal = ({ agent, onClose }) => {
 
         // Check for transfer match
         handleTransferMatch(data);
+
+        // Update business hours and latency info
+        if (data.businessHoursInfo) setBusinessHoursInfo(data.businessHoursInfo);
+        if (data.latencyInfo) setLatencyInfo(data.latencyInfo);
+        else setLatencyInfo(null);
       }
     } catch (err) {
       setError(err.message);
@@ -198,6 +207,7 @@ const AgentTestModal = ({ agent, onClose }) => {
 
       if (response.success) {
         setSessionId(response.data.sessionId);
+        setBusinessHoursInfo(response.data.businessHoursInfo || null);
         setLogs([{
           id: Date.now(),
           timestamp: new Date().toISOString(),
@@ -285,6 +295,11 @@ const AgentTestModal = ({ agent, onClose }) => {
 
         // Check for transfer match
         handleTransferMatch(data);
+
+        // Update business hours and latency info
+        if (data.businessHoursInfo) setBusinessHoursInfo(data.businessHoursInfo);
+        if (data.latencyInfo) setLatencyInfo(data.latencyInfo);
+        else setLatencyInfo(null);
       } else {
         throw new Error(response.error || 'Failed to simulate event');
       }
@@ -360,6 +375,11 @@ const AgentTestModal = ({ agent, onClose }) => {
 
         // Check for transfer match
         handleTransferMatch(data);
+
+        // Update business hours and latency info
+        if (data.businessHoursInfo) setBusinessHoursInfo(data.businessHoursInfo);
+        if (data.latencyInfo) setLatencyInfo(data.latencyInfo);
+        else setLatencyInfo(null);
       } else {
         throw new Error(response.error || 'Failed to send message');
       }
@@ -392,6 +412,7 @@ const AgentTestModal = ({ agent, onClose }) => {
         setWaitInfo(null);
         setWaitCountdown(null);
         setTransferTriggered(false);
+        setLatencyInfo(null);
         setLogs([{
           id: Date.now(),
           timestamp: new Date().toISOString(),
@@ -648,6 +669,47 @@ const AgentTestModal = ({ agent, onClose }) => {
               <FastForward className="w-4 h-4" />
               Pular Espera
             </button>
+          </div>
+        )}
+
+        {/* Business Hours Banner */}
+        {businessHoursInfo?.enabled && !businessHoursInfo?.isWithinHours && (
+          <div className="flex-shrink-0 px-6 py-3 bg-sky-50 dark:bg-sky-900/20 border-b border-sky-200 dark:border-sky-700 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-sky-800 dark:text-sky-300">
+                Fora do horário de funcionamento
+              </p>
+              <p className="text-xs text-sky-600 dark:text-sky-400">
+                Horário configurado: {businessHoursInfo.formattedHours} ({businessHoursInfo.timezone}).
+                {' '}Em produção, o agente {
+                  businessHoursInfo.outsideBehavior === 'message' ? 'enviaria mensagem de ausência' :
+                  businessHoursInfo.outsideBehavior === 'ignore' ? 'ignoraria a mensagem' :
+                  'enfileiraria para responder depois'
+                }.
+              </p>
+            </div>
+            <span className="text-xs px-2 py-1 bg-sky-100 dark:bg-sky-800/50 text-sky-700 dark:text-sky-300 rounded-full font-medium flex-shrink-0">
+              Modo Teste
+            </span>
+          </div>
+        )}
+
+        {/* Latency Skipped Banner */}
+        {latencyInfo?.skipped && (
+          <div className="flex-shrink-0 px-6 py-3 bg-violet-50 dark:bg-violet-900/20 border-b border-violet-200 dark:border-violet-700 flex items-center gap-3">
+            <Timer className="w-5 h-5 text-violet-600 dark:text-violet-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-violet-800 dark:text-violet-300">
+                Latência pulada: {latencyInfo.stepName}
+              </p>
+              <p className="text-xs text-violet-600 dark:text-violet-400">
+                Em produção, aguardaria {latencyInfo.min}{latencyInfo.minUnit === 'minutes' ? 'min' : 's'}-{latencyInfo.max}{latencyInfo.maxUnit === 'minutes' ? 'min' : 's'} antes de responder.
+              </p>
+            </div>
+            <span className="text-xs px-2 py-1 bg-violet-100 dark:bg-violet-800/50 text-violet-700 dark:text-violet-300 rounded-full font-medium flex-shrink-0">
+              Modo Teste
+            </span>
           </div>
         )}
 

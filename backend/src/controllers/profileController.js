@@ -66,7 +66,12 @@ const connectLinkedInAccount = async (req, res) => {
         }
       }
 
-      const initialLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType].safe;
+      const typeLimits = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType];
+      const initialLimit = typeLimits.safe;
+
+      // Limites semanais e mensais baseados no tipo de conta LinkedIn
+      const inviteService = require('../services/inviteService');
+      const defaultLimits = inviteService.DEFAULT_LIMITS[detectedAccountType] || inviteService.DEFAULT_LIMITS.free;
 
       const accountData = {
         user_id: userId,
@@ -79,6 +84,9 @@ const connectLinkedInAccount = async (req, res) => {
         status: 'active',
         account_type: detectedAccountType,
         daily_limit: initialLimit,
+        weekly_limit: defaultLimits.weekly,
+        monthly_message_limit: defaultLimits.monthly_messages,
+        note_char_limit: defaultLimits.note_char_limit,
         organizations: profileData?.organizations ? JSON.stringify(profileData.organizations) : null,
         premium_features: accountTypeInfo ? JSON.stringify(accountTypeInfo) : null
       };
@@ -514,6 +522,13 @@ const refreshLinkedInAccount = async (req, res) => {
 
           updateData.account_type = detectedAccountType;
           console.log(`🔍 Tipo de conta LinkedIn detectado: ${detectedAccountType}`);
+
+          // Atualizar limites semanais/mensais/char baseado no tipo detectado
+          const inviteServiceLimits = require('../services/inviteService');
+          const detectedDefaults = inviteServiceLimits.DEFAULT_LIMITS[detectedAccountType] || inviteServiceLimits.DEFAULT_LIMITS.free;
+          updateData.weekly_limit = detectedDefaults.weekly;
+          updateData.monthly_message_limit = detectedDefaults.monthly_messages;
+          updateData.note_char_limit = detectedDefaults.note_char_limit;
 
           // SUGERIR LIMITE SE NÃO ESTIVER CONFIGURADO
           if (!account.daily_limit || account.daily_limit === 0) {
@@ -1552,9 +1567,11 @@ const syncUnipileAccounts = async (req, res) => {
 
       const connectionParams = unipileAccount.connection_params?.im || {};
 
-      // Sugerir limite baseado no tipo de conta
+      // Sugerir limites baseado no tipo de conta
       const suggestedLimit = accountHealthService.ACCOUNT_TYPE_LIMITS[detectedAccountType]?.safe || 20;
-      console.log(`💡 Limite sugerido: ${suggestedLimit}/dia`);
+      const inviteServiceRef = require('../services/inviteService');
+      const channelDefaults = inviteServiceRef.DEFAULT_LIMITS[detectedAccountType] || inviteServiceRef.DEFAULT_LIMITS.free;
+      console.log(`💡 Limites sugeridos: ${suggestedLimit}/dia, ${channelDefaults.weekly}/semana`);
 
       const channelData = {
         user_id: userId,
@@ -1574,6 +1591,9 @@ const syncUnipileAccounts = async (req, res) => {
         premium_features: JSON.stringify(accountTypeInfo),
         account_type: detectedAccountType,
         daily_limit: suggestedLimit,
+        weekly_limit: channelDefaults.weekly,
+        monthly_message_limit: channelDefaults.monthly_messages,
+        note_char_limit: channelDefaults.note_char_limit,
         channel_settings: JSON.stringify({
           ignore_groups: true,
           auto_read: false,

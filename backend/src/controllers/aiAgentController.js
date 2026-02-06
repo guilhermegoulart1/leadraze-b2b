@@ -303,25 +303,18 @@ const updateAIAgent = async (req, res) => {
       : updated.linkedin_variables;
 
     // Sincronizar FAQ e objeções do config com o banco vetorial (RAG)
-    // Isso permite busca semântica de FAQs e objeções na hora de responder
+    // Usa smart diff: só re-embeda itens novos/alterados, pula se nada mudou
     if (updateData.config) {
       try {
-        // Parse config para log
-        const configForLog = typeof updateData.config === 'string'
-          ? JSON.parse(updateData.config)
-          : updateData.config;
-        console.log('📥 [updateAIAgent] Config recebido, iniciando sync RAG:', {
-          agentId: req.params.id,
-          faqCount: configForLog.faq?.length || 0,
-          objectionsCount: configForLog.objections?.length || 0
-        });
-        await syncKnowledgeFromConfig(req.params.id, updateData.config);
+        const syncResult = await syncKnowledgeFromConfig(req.params.id, updateData.config);
+        if (syncResult.skipped) {
+          console.log('⚡ [updateAIAgent] RAG sync pulado: conhecimento não mudou');
+        } else {
+          console.log(`✅ [updateAIAgent] RAG sync: +${syncResult.addedCount} novos, -${syncResult.deletedCount} removidos`);
+        }
       } catch (syncError) {
         console.error('⚠️ Erro ao sincronizar conhecimento (não crítico):', syncError.message);
-        // Não falha o update se a sincronização falhar
       }
-    } else {
-      console.log('⚠️ [updateAIAgent] updateData.config não existe, sync RAG não executado');
     }
 
     sendSuccess(res, updated);

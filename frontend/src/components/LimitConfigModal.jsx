@@ -1,25 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle, Activity, Calendar, Target, Loader2 } from 'lucide-react';
+import { X, AlertTriangle, Calendar, Target, Loader2, MessageSquare, Info } from 'lucide-react';
 import api from '../services/api';
 
 const LimitConfigModal = ({ account, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [healthData, setHealthData] = useState(null);
-  const [newLimit, setNewLimit] = useState(account.daily_limit || 50);
+  const [newLimit, setNewLimit] = useState(account.daily_limit || 20);
+  const [newWeeklyLimit, setNewWeeklyLimit] = useState(account.weekly_limit || 100);
   const [strategy, setStrategy] = useState('moderate');
   const [reason, setReason] = useState('');
 
-  // Carrega apenas health data (mais rápido)
+  // Carrega health data
   useEffect(() => {
     const loadData = async () => {
       try {
         const response = await api.getAccountHealth(account.id);
         if (response.success) {
           setHealthData(response.data);
-          // Usa o limite recomendado do health se disponível
           if (response.data?.recommended_limit) {
             setNewLimit(response.data.recommended_limit);
+          }
+          if (response.data?.weekly?.recommended) {
+            setNewWeeklyLimit(response.data.weekly.recommended);
           }
         }
       } catch (error) {
@@ -31,12 +34,14 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
     loadData();
   }, [account.id]);
 
-  // Atualiza limite quando muda estratégia
+  // Atualiza limites quando muda estratégia
   useEffect(() => {
     if (!healthData) return;
-    const base = healthData.recommended_limit || account.daily_limit || 50;
+    const base = healthData.recommended_limit || account.daily_limit || 20;
+    const weeklyBase = healthData.weekly?.recommended || account.weekly_limit || 100;
     const multipliers = { safe: 0.7, moderate: 1, aggressive: 1.4 };
     setNewLimit(Math.round(base * multipliers[strategy]));
+    setNewWeeklyLimit(Math.round(weeklyBase * multipliers[strategy]));
   }, [strategy, healthData]);
 
   const handleSave = async () => {
@@ -53,7 +58,8 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
       const response = await api.overrideLimit(
         account.id,
         newLimit,
-        reason || `Limite: ${newLimit}/dia (${strategy})`
+        reason || `Limite: ${newLimit}/dia, ${newWeeklyLimit}/semana (${strategy})`,
+        { weekly_limit: newWeeklyLimit }
       );
       if (response.success) {
         onUpdate(response.data);
@@ -73,12 +79,11 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
   const isOverride = newLimit > recommended;
   const risks = healthData?.risks || [];
 
-  // Cor do health score
-  const getScoreColor = (score) => {
-    if (score >= 70) return 'text-green-500 border-green-500';
-    if (score >= 50) return 'text-yellow-500 border-yellow-500';
-    return 'text-red-500 border-red-500';
-  };
+  // Info de limites da conta
+  const accountType = account.account_type || 'free';
+  const monthlyMessages = healthData?.monthly_messages || account.monthly_message_limit || 10;
+  const noteCharLimit = healthData?.note_char_limit || account.note_char_limit || 200;
+  const isLimitedMessages = monthlyMessages < 99999;
 
   if (loading) {
     return (
@@ -95,7 +100,7 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-        {/* Header Compacto com Info Inline */}
+        {/* Header */}
         <div className="bg-purple-600 text-white px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold">{account.profile_name}</span>
@@ -110,8 +115,8 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
               <span className="text-purple-200">
                 <Calendar className="w-3 h-3 inline mr-1" />{accountAgeDays}d
               </span>
-              <span className="text-purple-200">
-                <Target className="w-3 h-3 inline mr-1" />{account.daily_limit}/dia
+              <span className="text-purple-200 capitalize">
+                {accountType}
               </span>
             </div>
           </div>
@@ -161,36 +166,93 @@ const LimitConfigModal = ({ account, onClose, onUpdate }) => {
             </div>
           </div>
 
-          {/* Novo Limite */}
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
-            <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">Novo Limite</p>
-            <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{newLimit}</p>
-            <p className="text-[10px] text-purple-500 dark:text-purple-400">convites/dia</p>
+          {/* Limites */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Limite Diário */}
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-purple-600 dark:text-purple-400 mb-1 uppercase font-medium">Diário</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{newLimit}</p>
+              <p className="text-[10px] text-purple-500 dark:text-purple-400">convites/dia</p>
+            </div>
+            {/* Limite Semanal */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-blue-600 dark:text-blue-400 mb-1 uppercase font-medium">Semanal</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{newWeeklyLimit}</p>
+              <p className="text-[10px] text-blue-500 dark:text-blue-400">convites/semana</p>
+            </div>
           </div>
 
-          {/* Slider */}
+          {/* Slider Diário */}
           <div>
+            <label className="text-[10px] font-medium text-gray-500 mb-1 block">Limite diário</label>
             <input
               type="range"
               min="10"
-              max="150"
+              max="80"
               value={newLimit}
               onChange={(e) => setNewLimit(parseInt(e.target.value))}
               className="w-full h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
-            <div className="flex justify-between text-[9px] text-gray-400 mt-1">
+            <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
               <span>10</span>
+              <span>30</span>
+              <span>50</span>
+              <span>80</span>
+            </div>
+          </div>
+
+          {/* Slider Semanal */}
+          <div>
+            <label className="text-[10px] font-medium text-gray-500 mb-1 block">Limite semanal</label>
+            <input
+              type="range"
+              min="50"
+              max="300"
+              step="10"
+              value={newWeeklyLimit}
+              onChange={(e) => setNewWeeklyLimit(parseInt(e.target.value))}
+              className="w-full h-1.5 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
               <span>50</span>
               <span>100</span>
-              <span>150</span>
+              <span>200</span>
+              <span>300</span>
             </div>
+          </div>
+
+          {/* Info de Mensagens Mensais (read-only) */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2.5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Info className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-[10px] font-medium text-gray-500 uppercase">Limites do LinkedIn ({accountType})</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare className="w-3 h-3 text-gray-400" />
+                <span className="text-gray-600 dark:text-gray-300">
+                  Notas/mês: <span className="font-medium">{isLimitedMessages ? monthlyMessages : 'Ilimitado'}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Target className="w-3 h-3 text-gray-400" />
+                <span className="text-gray-600 dark:text-gray-300">
+                  Max chars: <span className="font-medium">{noteCharLimit}</span>
+                </span>
+              </div>
+            </div>
+            {isLimitedMessages && (
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Contas free possuem limite de {monthlyMessages} notas personalizadas por mês. Ao esgotar, convites são enviados sem mensagem automaticamente.
+              </p>
+            )}
           </div>
 
           {/* Motivo (se override) */}
           {isOverride && (
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-2.5">
               <p className="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
-                ⚠️ Acima do recomendado ({recommended}). Informe o motivo:
+                Acima do recomendado ({recommended}). Informe o motivo:
               </p>
               <textarea
                 value={reason}

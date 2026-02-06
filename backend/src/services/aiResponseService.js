@@ -154,7 +154,7 @@ async function generateResponse(params) {
       ? JSON.parse(ai_agent.config || '{}')
       : (ai_agent.config || {});
 
-    if (agentConfig.workingHours?.enabled) {
+    if (agentConfig.workingHours?.enabled && !context.isTest) {
       const isWithinHours = businessHoursService.isWithinBusinessHours(agentConfig.workingHours);
 
       if (!isWithinHours) {
@@ -639,9 +639,12 @@ ${ai_agent.objective_instructions}
 }
 
 COMO AVALIAR objectiveAchieved:
-- Leia as instruções acima com atenção
-- Se as instruções descrevem uma condição de sucesso e essa condição foi atendida pelo lead → TRUE
-- Exemplo: Se as instruções dizem "quando o cliente fizer uma pergunta, você descobriu a dúvida", e o cliente fez uma pergunta → TRUE
+- Analise o histórico completo da conversa e as instruções acima
+- Se o objetivo descreve algo que VOCÊ (assistente) deveria fazer (ex: se apresentar, explicar o produto) e você JÁ fez isso em mensagens anteriores → TRUE
+- Se o objetivo descreve algo que o LEAD deveria fazer (ex: fazer uma pergunta, fornecer um dado) e o lead fez → TRUE
+- Se o objetivo envolve uma interação (ex: iniciar conversa) e a interação já aconteceu → TRUE
+- Quando objectiveAchieved = true, o campo "message" deve ser VAZIO ("") pois a próxima etapa enviará sua própria mensagem
+- Na dúvida, se a essência do objetivo já foi cumprida, defina como TRUE para avançar o fluxo
 
 ⚠️ Responda APENAS com o JSON, sem texto adicional.`;
   }

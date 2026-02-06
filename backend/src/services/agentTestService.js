@@ -13,6 +13,7 @@ const workflowExecutionService = require('./workflowExecutionService');
 const workflowLogService = require('./workflowLogService');
 const aiResponseService = require('./aiResponseService');
 const transferRuleService = require('./transferRuleService');
+const businessHoursService = require('./businessHoursService');
 
 /**
  * Start a new test session for an agent
@@ -42,6 +43,23 @@ async function startTestSession(agentId, userId, accountId, leadSimulation = {})
   }
 
   const agent = agentResult.rows[0];
+
+  // Computar info de horário de funcionamento
+  const agentConfig = typeof agent.config === 'string'
+    ? JSON.parse(agent.config || '{}')
+    : (agent.config || {});
+
+  let businessHoursInfo = null;
+  if (agentConfig.workingHours?.enabled) {
+    const isWithinHours = businessHoursService.isWithinBusinessHours(agentConfig.workingHours);
+    businessHoursInfo = {
+      enabled: true,
+      isWithinHours,
+      formattedHours: businessHoursService.formatBusinessHours(agentConfig.workingHours),
+      outsideBehavior: agentConfig.workingHours.outsideBehavior || 'queue',
+      timezone: agentConfig.workingHours.timezone || 'America/Sao_Paulo'
+    };
+  }
 
   // Create default lead simulation if not provided
   const defaultLeadSimulation = {
@@ -103,7 +121,8 @@ async function startTestSession(agentId, userId, accountId, leadSimulation = {})
     workflowEnabled: agent.workflow_enabled,
     leadSimulation: defaultLeadSimulation,
     status: 'active',
-    createdAt: session.created_at
+    createdAt: session.created_at,
+    businessHoursInfo
   };
 }
 
@@ -151,6 +170,23 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
   const leadSimulation = session.lead_simulation || {};
   const messages = session.messages || [];
 
+  // Computar info de horário de funcionamento (atualiza em tempo real)
+  const sessionConfig = typeof session.config === 'string'
+    ? JSON.parse(session.config || '{}')
+    : (session.config || {});
+
+  let businessHoursInfo = null;
+  if (sessionConfig.workingHours?.enabled) {
+    const isWithinHours = businessHoursService.isWithinBusinessHours(sessionConfig.workingHours);
+    businessHoursInfo = {
+      enabled: true,
+      isWithinHours,
+      formattedHours: businessHoursService.formatBusinessHours(sessionConfig.workingHours),
+      outsideBehavior: sessionConfig.workingHours.outsideBehavior || 'queue',
+      timezone: sessionConfig.workingHours.timezone || 'America/Sao_Paulo'
+    };
+  }
+
   // Only add user message for message_received events
   if (eventType === 'message_received' && message) {
     const userMessage = {
@@ -181,6 +217,7 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
   let allResponses = null; // ✅ Array com todas as respostas quando múltiplos nós executam
   let workflowLogs = [];
   let waitInfo = null;
+  let latencyInfo = null;
 
   // Check if workflow is enabled
   if (session.workflow_enabled && session.workflow_definition) {
@@ -238,6 +275,7 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
     response = workflowResult.response;
     allResponses = workflowResult.allResponses; // ✅ Capturar array de respostas
     waitInfo = workflowResult.waitInfo;
+    latencyInfo = workflowResult.latencyInfo || null;
 
     // Update workflow state
     if (workflowResult.newState) {
@@ -383,7 +421,9 @@ async function sendTestMessage(sessionId, message, userId, eventType = 'message_
       ruleName: transferRuleMatch.matchedRule.name,
       reason: transferRuleMatch.reasonText,
       simulated: true
-    } : null
+    } : null,
+    businessHoursInfo,
+    latencyInfo
   };
 }
 

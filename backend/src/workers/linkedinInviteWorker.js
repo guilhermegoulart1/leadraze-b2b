@@ -86,13 +86,37 @@ async function processInvite(job) {
       return { skipped: true, reason: 'already_sent' };
     }
 
-    // 3. Check daily limit
-    log.step('3', 'Verificando limite diário...');
-    const limitCheck = await inviteService.canSendInvite(linkedinAccountId);
-    log.info(`   Enviados hoje: ${limitCheck.sent}/${limitCheck.limit}`);
+    // 3a. Determine if invite will have a message (BEFORE limit check)
+    log.step('3a', 'Determinando estratégia de mensagem...');
+    const campaignResult = await db.query(
+      `SELECT ai.initial_approach, ai.connection_strategy
+       FROM campaigns c
+       LEFT JOIN ai_agents ai ON c.ai_agent_id = ai.id
+       WHERE c.id = $1`,
+      [campaignId]
+    );
+
+    const connectionStrategy = campaignResult.rows[0]?.connection_strategy || 'with-intro';
+    const hasInitialApproach = !!campaignResult.rows[0]?.initial_approach;
+    let willHaveMessage = connectionStrategy !== 'silent' && hasInitialApproach;
+    let messageFallback = false;
+
+    log.info(`   Estratégia: ${connectionStrategy}`);
+    log.info(`   Tem mensagem configurada: ${hasInitialApproach}`);
+    log.info(`   Vai incluir mensagem: ${willHaveMessage}`);
+
+    // 3b. Check limits (daily + weekly + monthly messages)
+    log.step('3b', 'Verificando limites (diário + semanal + mensal)...');
+    const limitCheck = await inviteService.canSendInvite(linkedinAccountId, { withMessage: willHaveMessage });
+    log.info(`   Diário: ${limitCheck.daily.sent}/${limitCheck.daily.limit}`);
+    log.info(`   Semanal: ${limitCheck.weekly.sent}/${limitCheck.weekly.limit}`);
+    if (willHaveMessage) {
+      log.info(`   Mensagens no mês: ${limitCheck.monthly_messages.sent}/${limitCheck.monthly_messages.limit}`);
+    }
 
     if (!limitCheck.canSend) {
-      log.warn(`Limite diário atingido: ${limitCheck.sent}/${limitCheck.limit}`);
+      const reason = limitCheck.limitReason || 'daily';
+      log.warn(`Limite atingido (${reason}): diário=${limitCheck.daily.sent}/${limitCheck.daily.limit}, semanal=${limitCheck.weekly.sent}/${limitCheck.weekly.limit}`);
 
       // Reschedule for next active business day using agent working hours
       let rescheduleTime;
@@ -131,30 +155,37 @@ async function processInvite(job) {
         jobId: `invite-${queueId}-retry-${Date.now()}`
       });
 
-      return { skipped: true, reason: 'daily_limit', rescheduled: true };
+      return { skipped: true, reason: `limit_${reason}`, rescheduled: true };
     }
 
-    // 4. Get campaign AI agent message + process template
-    log.step('4', 'Processando mensagem de convite...');
-    const campaignResult = await db.query(
-      `SELECT ai.initial_approach FROM campaigns c
-       LEFT JOIN ai_agents ai ON c.ai_agent_id = ai.id
-       WHERE c.id = $1`,
-      [campaignId]
-    );
+    // Smart Fallback: se ia ter mensagem mas limite mensal de mensagens atingido,
+    // envia sem mensagem para maximizar conexoes (especialmente para contas free)
+    if (willHaveMessage && !limitCheck.canSendWithMessage) {
+      log.warn(`Limite mensal de mensagens atingido (${limitCheck.monthly_messages.sent}/${limitCheck.monthly_messages.limit}). Enviando convite SEM nota.`);
+      willHaveMessage = false;
+      messageFallback = true;
+    }
 
+    // 4. Process invite message (only if willHaveMessage is still true)
+    log.step('4', 'Processando mensagem de convite...');
     let inviteMessage = null;
-    if (campaignResult.rows[0]?.initial_approach) {
+
+    if (willHaveMessage && campaignResult.rows[0]?.initial_approach) {
       const templateData = TemplateProcessor.extractLeadData(contact);
       inviteMessage = TemplateProcessor.processTemplate(
         campaignResult.rows[0].initial_approach,
         templateData
       );
-      if (inviteMessage && inviteMessage.length > 300) {
-        log.warn(`Mensagem truncada: ${inviteMessage.length} -> 300 chars`);
-        inviteMessage = inviteMessage.substring(0, 297) + '...';
+
+      // Limite de caracteres dinamico por tipo de conta (Free=200, Premium=300)
+      const charLimit = limitCheck.note_char_limit || 300;
+      if (inviteMessage && inviteMessage.length > charLimit) {
+        log.warn(`Mensagem truncada: ${inviteMessage.length} -> ${charLimit} chars`);
+        inviteMessage = inviteMessage.substring(0, charLimit - 3) + '...';
       }
-      log.success(`Mensagem processada (${inviteMessage?.length || 0} chars)`);
+      log.success(`Mensagem processada (${inviteMessage?.length || 0} chars, limite: ${charLimit})`);
+    } else if (messageFallback) {
+      log.info('   Mensagem removida (fallback: limite mensal de notas atingido)');
     } else {
       log.info('   Sem mensagem de convite (convite sem nota)');
     }
@@ -175,11 +206,12 @@ async function processInvite(job) {
     const expiryDays = await inviteQueueService.getInviteExpiryDays(campaignId);
     await inviteQueueService.markInviteAsSent(queueId, campaignContactId, expiryDays);
 
-    // 7. Log in linkedin_invite_logs
+    // 7. Log in linkedin_invite_logs (with message_included tracking)
     await inviteService.logInviteSent({
       linkedinAccountId,
       campaignId,
-      status: 'sent'
+      status: 'sent',
+      messageIncluded: !!inviteMessage
     });
 
     log.divider();
@@ -187,9 +219,11 @@ async function processInvite(job) {
     log.info(`   Contato: ${contact.name}`);
     log.info(`   Empresa: ${contact.company || 'N/A'}`);
     log.info(`   Mensagem: ${inviteMessage ? inviteMessage.length + ' chars' : 'Sem nota'}`);
+    if (messageFallback) log.info(`   ⚠️ Fallback: mensagem removida (limite mensal de notas)`);
+    log.info(`   Limites: D ${limitCheck.daily.sent + 1}/${limitCheck.daily.limit} | S ${limitCheck.weekly.sent + 1}/${limitCheck.weekly.limit}`);
     log.divider();
 
-    return { success: true, contactName: contact.name, messageLength: inviteMessage ? inviteMessage.length : 0 };
+    return { success: true, contactName: contact.name, messageLength: inviteMessage ? inviteMessage.length : 0, messageFallback };
 
   } catch (error) {
     log.error(`Erro ao enviar convite: ${error.message}`);
@@ -210,7 +244,8 @@ async function processInvite(job) {
       await inviteService.logInviteSent({
         linkedinAccountId,
         campaignId,
-        status: 'failed'
+        status: 'failed',
+        messageIncluded: false
       });
     } catch (dbError) {
       log.error(`Erro ao marcar convite como falha: ${dbError.message}`);
