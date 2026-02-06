@@ -2,6 +2,7 @@
 
 const { linkedinInviteQueue } = require('../queues');
 const db = require('../config/database');
+const { DateTime } = require('luxon');
 const unipileClient = require('../config/unipile');
 const inviteQueueService = require('../services/inviteQueueService');
 const inviteService = require('../services/inviteService');
@@ -93,8 +94,8 @@ async function processInvite(job) {
     if (!limitCheck.canSend) {
       log.warn(`Limite diário atingido: ${limitCheck.sent}/${limitCheck.limit}`);
 
-      // Reschedule for next business day using agent working hours
-      let rescheduleHour = 9; // default fallback
+      // Reschedule for next active business day using agent working hours
+      let rescheduleTime;
       try {
         const agentResult = await db.query(
           `SELECT aa.config as agent_config
@@ -106,20 +107,27 @@ async function processInvite(job) {
         const agentCfg = agentResult.rows[0]?.agent_config;
         const parsedCfg = typeof agentCfg === 'string' ? JSON.parse(agentCfg || '{}') : (agentCfg || {});
         const wh = parsedCfg?.workingHours;
-        if (wh?.enabled && wh.startTime) {
-          rescheduleHour = parseInt(wh.startTime.split(':')[0]) || 9;
-        }
+
+        const startHour = (wh?.enabled && wh.startTime) ? parseInt(wh.startTime.split(':')[0]) || 9 : 9;
+        const tz = wh?.timezone || 'America/Sao_Paulo';
+        const days = (wh?.enabled && wh.days) ? wh.days : null;
+
+        const tomorrow = DateTime.now().setZone(tz).plus({ days: 1 });
+        const targetDay = days && days.length > 0
+          ? inviteQueueService.findNextActiveDay(tomorrow, days)
+          : tomorrow.startOf('day');
+
+        rescheduleTime = targetDay.set({ hour: startHour, minute: 0, second: 0, millisecond: 0 }).toJSDate();
       } catch (agentErr) {
-        log.warn(`Erro ao buscar horário do agente, usando default 9h: ${agentErr.message}`);
+        log.warn(`Erro ao buscar horário do agente, usando default amanhã 9h: ${agentErr.message}`);
+        rescheduleTime = new Date();
+        rescheduleTime.setDate(rescheduleTime.getDate() + 1);
+        rescheduleTime.setHours(9, 0, 0, 0);
       }
 
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(rescheduleHour, 0, 0, 0);
-
-      log.info(`   Reagendando para amanhã ${String(rescheduleHour).padStart(2, '0')}:00: ${tomorrow.toISOString()}`);
+      log.info(`   Reagendando para: ${rescheduleTime.toISOString()}`);
       await linkedinInviteQueue.add('send-invite', job.data, {
-        delay: tomorrow.getTime() - Date.now(),
+        delay: Math.max(0, rescheduleTime.getTime() - Date.now()),
         jobId: `invite-${queueId}-retry-${Date.now()}`
       });
 

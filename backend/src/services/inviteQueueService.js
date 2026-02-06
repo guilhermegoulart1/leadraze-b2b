@@ -47,16 +47,40 @@ const getScheduleFromAgent = (agentConfig, campaignConfig = {}) => {
 };
 
 /**
+ * Luxon weekday to day code mapping (Luxon: 1=Monday, 7=Sunday)
+ */
+const LUXON_DAY_MAP = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun' };
+
+/**
+ * Find the next active business day from a given date
+ * @param {DateTime} fromDate - Luxon DateTime to start searching from
+ * @param {string[]} days - Active day codes e.g. ['mon','tue','wed','thu','fri']
+ * @returns {DateTime} The next active day (startOf('day'))
+ */
+const findNextActiveDay = (fromDate, days) => {
+  for (let offset = 0; offset < 7; offset++) {
+    const candidate = fromDate.plus({ days: offset });
+    const dayCode = LUXON_DAY_MAP[candidate.weekday];
+    if (days.includes(dayCode)) {
+      return candidate.startOf('day');
+    }
+  }
+  // Should never happen if days has at least 1 entry, fallback to fromDate
+  return fromDate.startOf('day');
+};
+
+/**
  * Calculate random send times for invites throughout the day
  * @param {number} count - Number of invites to schedule
- * @param {object} config - Configuration with send hours and timezone
+ * @param {object} config - Configuration with send hours, timezone, and active days
  * @returns {Date[]} Array of scheduled times
  */
 const calculateRandomSendTimes = (count, config = {}) => {
   const {
     send_start_hour = 9,
     send_end_hour = 18,
-    timezone = 'America/Sao_Paulo'
+    timezone = 'America/Sao_Paulo',
+    days = null
   } = config;
 
   const schedule = [];
@@ -64,7 +88,14 @@ const calculateRandomSendTimes = (count, config = {}) => {
 
   // Get current time in the specified timezone
   const now = DateTime.now().setZone(timezone);
-  const today = now.startOf('day');
+
+  // Determine the target day: today if active and still has time, otherwise next active day
+  let targetDay;
+  if (days && days.length > 0) {
+    targetDay = findNextActiveDay(now, days);
+  } else {
+    targetDay = now.startOf('day');
+  }
 
   for (let i = 0; i < count; i++) {
     // Random minute within business hours
@@ -76,12 +107,15 @@ const calculateRandomSendTimes = (count, config = {}) => {
     const jitter = Math.floor(Math.random() * 10) - 5;
     const finalMinute = Math.max(0, Math.min(59, minute + jitter));
 
-    // Create the scheduled time
-    let scheduledTime = today.set({ hour, minute: finalMinute, second: 0, millisecond: 0 });
+    // Create the scheduled time on the target day
+    let scheduledTime = targetDay.set({ hour, minute: finalMinute, second: 0, millisecond: 0 });
 
-    // If time is in the past, schedule for tomorrow
+    // If time is in the past, advance to the next active day
     if (scheduledTime < now) {
-      scheduledTime = scheduledTime.plus({ days: 1 });
+      const nextDay = days && days.length > 0
+        ? findNextActiveDay(now.plus({ days: 1 }), days)
+        : now.plus({ days: 1 }).startOf('day');
+      scheduledTime = nextDay.set({ hour, minute: finalMinute, second: 0, millisecond: 0 });
     }
 
     schedule.push(scheduledTime.toJSDate());
@@ -200,11 +234,12 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     const invitesToday = Math.min(campaignContacts.length, dailyLimit, availableSlots);
     log.info(`   Convites para hoje: ${invitesToday}`);
 
-    // Calculate random send times for today's invites (using agent hours)
+    // Calculate random send times for today's invites (using agent hours + days)
     const sendTimes = calculateRandomSendTimes(invitesToday, {
       send_start_hour: schedule.send_start_hour,
       send_end_hour: schedule.send_end_hour,
-      timezone: schedule.timezone
+      timezone: schedule.timezone,
+      days: schedule.days
     });
 
     log.step('5/6', 'Horários de envio calculados:');
@@ -637,11 +672,12 @@ const scheduleInvitesForToday = async (campaignId, accountId) => {
     return { scheduled: 0, message: 'No slots available' };
   }
 
-  // Calculate send times (using agent hours)
+  // Calculate send times (using agent hours + days)
   const sendTimes = calculateRandomSendTimes(toSchedule, {
     send_start_hour: schedule.send_start_hour,
     send_end_hour: schedule.send_end_hour,
-    timezone: schedule.timezone
+    timezone: schedule.timezone,
+    days: schedule.days
   });
 
   // Update queue entries and create Bull delayed jobs
@@ -812,6 +848,8 @@ const getCampaignReport = async (campaignId, filters = {}) => {
 
 module.exports = {
   getScheduleFromAgent,
+  findNextActiveDay,
+  LUXON_DAY_MAP,
   calculateRandomSendTimes,
   createInviteQueue,
   getInviteExpiryDays,
