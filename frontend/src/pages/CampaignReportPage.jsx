@@ -9,14 +9,17 @@ import {
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
+// Status baseado em campaign_contacts.status (fonte de verdade)
 const STATUS_COLORS = {
-  pending: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-300', label: 'Pendente' },
-  scheduled: { bg: 'bg-blue-100 dark:bg-blue-900/50', text: 'text-blue-700 dark:text-blue-300', label: 'Agendado' },
-  sent: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-700 dark:text-yellow-300', label: 'Enviado' },
-  accepted: { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-700 dark:text-green-300', label: 'Aceito' },
-  expired: { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-700 dark:text-red-300', label: 'Expirado' },
-  withdrawn: { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-700 dark:text-purple-300', label: 'Retirado' },
-  failed: { bg: 'bg-orange-100 dark:bg-orange-900/50', text: 'text-orange-700 dark:text-orange-300', label: 'Falhou' },
+  collected: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-300', label: 'Coletado' },
+  approved: { bg: 'bg-blue-100 dark:bg-blue-900/50', text: 'text-blue-700 dark:text-blue-300', label: 'Aprovado' },
+  rejected: { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-700 dark:text-red-300', label: 'Rejeitado' },
+  invite_queued: { bg: 'bg-indigo-100 dark:bg-indigo-900/50', text: 'text-indigo-700 dark:text-indigo-300', label: 'Na Fila' },
+  invite_sent: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-700 dark:text-yellow-300', label: 'Enviado' },
+  invite_accepted: { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-700 dark:text-green-300', label: 'Aceito' },
+  invite_expired: { bg: 'bg-orange-100 dark:bg-orange-900/50', text: 'text-orange-700 dark:text-orange-300', label: 'Expirado' },
+  conversation_started: { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-700 dark:text-purple-300', label: 'Conversando' },
+  conversation_ended: { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-700 dark:text-slate-300', label: 'Finalizado' },
 };
 
 const PIPELINE_STATUS_COLORS = {
@@ -40,6 +43,7 @@ const CampaignReportPage = () => {
 
   const [campaign, setCampaign] = useState(null);
   const [leads, setLeads] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [queueStatus, setQueueStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActioning, setIsActioning] = useState(false);
@@ -78,6 +82,7 @@ const CampaignReportPage = () => {
       const reportRes = await api.getCampaignReport(id, params);
       if (reportRes.success) {
         setLeads(reportRes.data.leads || []);
+        setSummary(reportRes.data.summary || null);
         setPagination(prev => ({
           ...prev,
           total: reportRes.data.pagination?.total || 0,
@@ -177,8 +182,8 @@ const CampaignReportPage = () => {
           bValue = b.company || '';
           break;
         case 'invite_status':
-          aValue = a.invite_status || 'pending';
-          bValue = b.invite_status || 'pending';
+          aValue = a.status || 'collected';
+          bValue = b.status || 'collected';
           break;
         case 'scheduled_for':
           aValue = a.scheduled_for ? new Date(a.scheduled_for).getTime() : 0;
@@ -208,8 +213,8 @@ const CampaignReportPage = () => {
   }, [leads, sortConfig]);
 
   const getInviteStatusBadge = (lead) => {
-    const status = lead.invite_status || 'pending';
-    const colors = STATUS_COLORS[status] || STATUS_COLORS.pending;
+    const status = lead.status || 'collected';
+    const colors = STATUS_COLORS[status] || STATUS_COLORS.collected;
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
         {colors.label}
@@ -251,7 +256,7 @@ const CampaignReportPage = () => {
     );
   }
 
-  const stats = queueStatus?.statusCounts || {};
+  const stats = summary || {};
 
   return (
     <div className="p-6 space-y-6">
@@ -334,18 +339,10 @@ const CampaignReportPage = () => {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             <span className="text-sm text-gray-600 dark:text-gray-400">Pendentes</span>
           </div>
-          <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">{stats.pending || 0}</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">Agendados</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.scheduled || 0}</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{(parseInt(stats.approved) || 0) + (parseInt(stats.queued) || 0)}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -353,7 +350,7 @@ const CampaignReportPage = () => {
             <Send className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
             <span className="text-sm text-gray-600 dark:text-gray-400">Enviados</span>
           </div>
-          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.sent || 0}</p>
+          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{parseInt(stats.sent) || 0}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -361,7 +358,7 @@ const CampaignReportPage = () => {
             <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
             <span className="text-sm text-gray-600 dark:text-gray-400">Aceitos</span>
           </div>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.accepted || 0}</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{parseInt(stats.accepted) || 0}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -369,7 +366,15 @@ const CampaignReportPage = () => {
             <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             <span className="text-sm text-gray-600 dark:text-gray-400">Expirados</span>
           </div>
-          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.expired || 0}</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{parseInt(stats.expired) || 0}</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Ban className="w-5 h-5 text-red-400 dark:text-red-500" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">Rejeitados</span>
+          </div>
+          <p className="text-2xl font-bold text-red-400 dark:text-red-500">{parseInt(stats.rejected) || 0}</p>
         </div>
       </div>
 
@@ -408,13 +413,12 @@ const CampaignReportPage = () => {
               className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="all">Todos</option>
-              <option value="pending">Pendentes</option>
-              <option value="scheduled">Agendados</option>
-              <option value="sent">Enviados</option>
-              <option value="accepted">Aceitos</option>
-              <option value="expired">Expirados</option>
-              <option value="failed">Falhou</option>
-              <option value="withdrawn">Retirados</option>
+              <option value="approved">Aprovados</option>
+              <option value="rejected">Rejeitados</option>
+              <option value="invite_queued">Na Fila</option>
+              <option value="invite_sent">Enviados</option>
+              <option value="invite_accepted">Aceitos</option>
+              <option value="invite_expired">Expirados</option>
             </select>
           </div>
 
@@ -540,14 +544,14 @@ const CampaignReportPage = () => {
                             minute: '2-digit'
                           })}
                         </span>
-                      ) : lead.invite_status === 'sent' ? (
+                      ) : lead.status === 'invite_sent' ? (
                         <span className="text-green-600 dark:text-green-400 text-xs">Enviado</span>
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {lead.invite_status === 'sent' ? (
+                      {lead.status === 'invite_sent' ? (
                         <span className="font-medium text-yellow-600 dark:text-yellow-400">
                           {getDaysWaiting(lead.invite_sent_at)} dias
                         </span>
