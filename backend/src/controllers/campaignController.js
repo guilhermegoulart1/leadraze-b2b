@@ -633,18 +633,18 @@ const startCampaign = async (req, res) => {
       throw new ValidationError('Campaign is already active');
     }
 
-    // Verificar se tem opportunities pendentes (sem convite enviado)
-    const oppsCount = await db.query(
-      `SELECT COUNT(*) FROM opportunities WHERE campaign_id = $1 AND sent_at IS NULL`,
+    // Verificar se tem contatos aprovados (prontos para envio de convite)
+    const contactsCount = await db.query(
+      `SELECT COUNT(*) FROM campaign_contacts WHERE campaign_id = $1 AND status = 'approved'`,
       [id]
     );
 
-    const pendingOpps = parseInt(oppsCount.rows[0].count);
-    console.log(`🚀 [STEP 2] Opportunities pendentes: ${pendingOpps}`);
+    const pendingContacts = parseInt(contactsCount.rows[0].count);
+    console.log(`🚀 [STEP 2] Contatos aprovados: ${pendingContacts}`);
 
-    if (pendingOpps === 0) {
-      console.log('🚀 ❌ Nenhuma opportunity pendente!');
-      throw new ValidationError('Campaign has no pending opportunities. Add contacts first.');
+    if (pendingContacts === 0) {
+      console.log('🚀 ❌ Nenhum contato aprovado!');
+      throw new ValidationError('Campaign has no approved contacts. Review and approve contacts first.');
     }
 
     // 🆕 CRIAR FILA DE CONVITES
@@ -670,7 +670,7 @@ const startCampaign = async (req, res) => {
     console.log('🚀 ═══════════════════════════════════════════════════════════');
     console.log('🚀 ✅ CAMPANHA INICIADA COM SUCESSO!');
     console.log(`🚀    Nome: ${campaignData.name}`);
-    console.log(`🚀    Opportunities pendentes: ${pendingOpps}`);
+    console.log(`🚀    Contatos aprovados: ${pendingContacts}`);
     if (queueResult) {
       console.log(`🚀    Convites na fila: ${queueResult.totalQueued}`);
       console.log(`🚀    Agendados para hoje: ${queueResult.scheduledToday}`);
@@ -778,16 +778,16 @@ const resumeCampaign = async (req, res) => {
       throw new ValidationError('Campaign is not paused');
     }
 
-    // Verificar se tem opportunities pendentes
-    const oppsCount = await db.query(
-      'SELECT COUNT(*) FROM opportunities WHERE campaign_id = $1 AND sent_at IS NULL',
+    // Verificar se tem contatos pendentes (aprovados ou com convite na fila)
+    const contactsCount = await db.query(
+      `SELECT COUNT(*) FROM campaign_contacts WHERE campaign_id = $1 AND status IN ('approved', 'invite_queued')`,
       [id]
     );
 
-    const pendingOpps = parseInt(oppsCount.rows[0].count);
+    const pendingContacts = parseInt(contactsCount.rows[0].count);
 
-    if (pendingOpps === 0) {
-      throw new ValidationError('Campaign has no pending opportunities');
+    if (pendingContacts === 0) {
+      throw new ValidationError('Campaign has no pending contacts');
     }
 
     // Atualizar campanha
@@ -805,11 +805,11 @@ const resumeCampaign = async (req, res) => {
       console.error('Erro ao reagendar convites:', schedError.message);
     }
 
-    console.log(`✅ Campanha retomada - ${pendingOpps} opportunities pendentes`);
+    console.log(`✅ Campanha retomada - ${pendingContacts} contatos pendentes`);
 
     sendSuccess(res, {
       ...updatedCampaign,
-      pending_opportunities: pendingOpps,
+      pending_contacts: pendingContacts,
       schedule: scheduleResult
     }, 'Campaign resumed successfully');
 
