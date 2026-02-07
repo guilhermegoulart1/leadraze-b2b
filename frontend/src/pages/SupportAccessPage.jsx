@@ -34,6 +34,10 @@ const SupportAccessPage = () => {
       });
 
       if (response.success) {
+        // Clear any existing regular session to avoid conflicts
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+
         // Salva o token de sessao e informacoes
         localStorage.setItem('supportSessionToken', response.data.sessionToken);
         localStorage.setItem('supportSession', JSON.stringify({

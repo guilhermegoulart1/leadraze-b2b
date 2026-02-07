@@ -31,6 +31,29 @@ export const AuthProvider = ({ children }) => {
       if (accountId) {
         initializeAbly(accountId);
       }
+    } else {
+      // Check for support session (operator accessing client account without regular login)
+      const supportSession = localStorage.getItem('supportSession');
+      const supportToken = localStorage.getItem('supportSessionToken');
+      if (supportSession && supportToken) {
+        try {
+          const session = JSON.parse(supportSession);
+          const supportUser = {
+            id: null,
+            name: session.operatorName,
+            email: 'support@getraze.co',
+            role: 'support',
+            account_id: session.accountId,
+            accountId: session.accountId,
+            isImpersonating: true,
+          };
+          setUserState(supportUser);
+          setTokenState(supportToken);
+          api.setToken(supportToken);
+        } catch (e) {
+          console.error('Error loading support session:', e);
+        }
+      }
     }
 
     setLoading(false);

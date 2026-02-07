@@ -22,12 +22,14 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const token = this.getToken();
+    const supportToken = localStorage.getItem('supportSessionToken');
 
     const config = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
+        ...(supportToken && { 'X-Support-Session': supportToken }),
         ...options.headers,
       },
     };
