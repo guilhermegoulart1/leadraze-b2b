@@ -1440,24 +1440,24 @@ const getQueueStatus = async (req, res) => {
       counts[row.status] = parseInt(row.count);
     });
 
-    // Buscar próximos agendados
+    // Buscar próximos agendados (via campaign_contacts)
     const nextScheduled = await db.query(
       `SELECT ciq.id, ciq.scheduled_for, ct.name as contact_name
        FROM campaign_invite_queue ciq
-       JOIN opportunities o ON ciq.opportunity_id = o.id
-       LEFT JOIN contacts ct ON o.contact_id = ct.id
+       JOIN campaign_contacts cc ON ciq.campaign_contact_id = cc.id
+       LEFT JOIN contacts ct ON cc.contact_id = ct.id
        WHERE ciq.campaign_id = $1 AND ciq.status = 'scheduled'
        ORDER BY ciq.scheduled_for ASC
        LIMIT 5`,
       [id]
     );
 
-    // Buscar últimos enviados
+    // Buscar últimos enviados (via campaign_contacts)
     const lastSent = await db.query(
       `SELECT ciq.id, ciq.sent_at, ct.name as contact_name
        FROM campaign_invite_queue ciq
-       JOIN opportunities o ON ciq.opportunity_id = o.id
-       LEFT JOIN contacts ct ON o.contact_id = ct.id
+       JOIN campaign_contacts cc ON ciq.campaign_contact_id = cc.id
+       LEFT JOIN contacts ct ON cc.contact_id = ct.id
        WHERE ciq.campaign_id = $1 AND ciq.status IN ('sent', 'accepted')
        ORDER BY ciq.sent_at DESC
        LIMIT 5`,
@@ -1468,10 +1468,10 @@ const getQueueStatus = async (req, res) => {
 
     sendSuccess(res, {
       campaign_id: id,
-      counts,
+      statusCounts: counts,
       total: Object.values(counts).reduce((sum, c) => sum + c, 0),
-      next_scheduled: nextScheduled.rows,
-      last_sent: lastSent.rows
+      nextScheduled: nextScheduled.rows,
+      lastSent: lastSent.rows
     });
 
   } catch (error) {

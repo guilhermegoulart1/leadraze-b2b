@@ -813,9 +813,10 @@ const getCampaignReport = async (campaignId, filters = {}) => {
 
   // Get campaign_contacts with contact info and queue info
   const contactsResult = await db.query(
-    `SELECT cc.*, ct.name as contact_name, ct.company as contact_company, ct.title as contact_title,
-            ct.profile_picture, ct.profile_url,
-            ciq.status as queue_status, ciq.scheduled_for, ciq.sent_at as invite_sent_at,
+    `SELECT cc.id, cc.campaign_id, cc.contact_id, cc.status,
+            cc.invite_sent_at, cc.invite_accepted_at, cc.invite_expires_at,
+            ct.name, ct.company, ct.title, ct.profile_picture, ct.profile_url,
+            ciq.status as invite_status, ciq.scheduled_for, ciq.sent_at as queue_sent_at,
             ciq.expires_at, ciq.expired_at, ciq.withdrawn_at,
             EXTRACT(DAY FROM NOW() - cc.invite_sent_at) as days_waiting
      FROM campaign_contacts cc
@@ -853,13 +854,13 @@ const getCampaignReport = async (campaignId, filters = {}) => {
   );
 
   return {
-    contacts: contactsResult.rows,
+    leads: contactsResult.rows,
     summary: statsResult.rows[0],
     pagination: {
       page,
       limit,
       total: parseInt(countResult.rows[0].count),
-      pages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
+      totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
     }
   };
 };
