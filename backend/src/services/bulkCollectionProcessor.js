@@ -189,10 +189,11 @@ async function processJob(job) {
       } else {
         // Nova busca - adicionar filtros TRADUZIDOS
         if (translatedFilters.keywords) {
-          // Limitar keywords a 150 chars para evitar erro "content_too_large" do LinkedIn
+          // Limitar keywords a 60 chars para evitar erro "content_too_large" do LinkedIn
+          // LinkedIn Classic tem limite rígido na complexidade total da query (keywords + title)
           let kw = translatedFilters.keywords;
-          if (kw.length > 150) {
-            kw = kw.substring(0, 150);
+          if (kw.length > 60) {
+            kw = kw.substring(0, 60);
             const lastComma = kw.lastIndexOf(',');
             if (lastComma > 0) kw = kw.substring(0, lastComma);
             console.log(`⚠️ Keywords truncado de ${translatedFilters.keywords.length} para ${kw.length} chars`);
@@ -206,10 +207,11 @@ async function processJob(job) {
           searchParams.industry = translatedFilters.industries;
         }
         if (translatedFilters.job_titles && Array.isArray(translatedFilters.job_titles) && translatedFilters.job_titles.length > 0) {
-          // Limitar a 8 títulos para evitar erro "content_too_large" do LinkedIn
-          const limitedTitles = translatedFilters.job_titles.slice(0, 8);
-          if (translatedFilters.job_titles.length > 8) {
-            console.log(`⚠️ Job titles limitado de ${translatedFilters.job_titles.length} para 8`);
+          // Limitar a 5 títulos para evitar erro "content_too_large" do LinkedIn
+          // LinkedIn Classic tem limite rígido na complexidade total da query
+          const limitedTitles = translatedFilters.job_titles.slice(0, 5);
+          if (translatedFilters.job_titles.length > 5) {
+            console.log(`⚠️ Job titles limitado de ${translatedFilters.job_titles.length} para 5`);
           }
           // Unipile não aceita "job_title" como campo. Usar advanced_keywords.title (string única)
           searchParams.advanced_keywords = {
@@ -219,6 +221,7 @@ async function processJob(job) {
       }
 
       console.log('📤 Buscando no Unipile...');
+      console.log('📤 Payload:', JSON.stringify(searchParams));
 
       // Buscar via Unipile
       const unipileResponse = await unipileClient.linkedin.search(searchParams);
