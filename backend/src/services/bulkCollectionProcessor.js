@@ -189,7 +189,15 @@ async function processJob(job) {
       } else {
         // Nova busca - adicionar filtros TRADUZIDOS
         if (translatedFilters.keywords) {
-          searchParams.keywords = translatedFilters.keywords;
+          // Limitar keywords a 150 chars para evitar erro "content_too_large" do LinkedIn
+          let kw = translatedFilters.keywords;
+          if (kw.length > 150) {
+            kw = kw.substring(0, 150);
+            const lastComma = kw.lastIndexOf(',');
+            if (lastComma > 0) kw = kw.substring(0, lastComma);
+            console.log(`⚠️ Keywords truncado de ${translatedFilters.keywords.length} para ${kw.length} chars`);
+          }
+          searchParams.keywords = kw;
         }
         if (translatedFilters.location && Array.isArray(translatedFilters.location)) {
           searchParams.location = translatedFilters.location;
@@ -198,9 +206,14 @@ async function processJob(job) {
           searchParams.industry = translatedFilters.industries;
         }
         if (translatedFilters.job_titles && Array.isArray(translatedFilters.job_titles) && translatedFilters.job_titles.length > 0) {
+          // Limitar a 8 títulos para evitar erro "content_too_large" do LinkedIn
+          const limitedTitles = translatedFilters.job_titles.slice(0, 8);
+          if (translatedFilters.job_titles.length > 8) {
+            console.log(`⚠️ Job titles limitado de ${translatedFilters.job_titles.length} para 8`);
+          }
           // Unipile não aceita "job_title" como campo. Usar advanced_keywords.title (string única)
           searchParams.advanced_keywords = {
-            title: translatedFilters.job_titles.join(' OR ')
+            title: limitedTitles.join(' OR ')
           };
         }
       }

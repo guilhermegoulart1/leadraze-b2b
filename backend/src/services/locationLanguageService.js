@@ -197,6 +197,8 @@ IMPORTANTE:
 - Mantenha siglas internacionais como estão (CEO, CFO, VP, etc.)
 - Traduza apenas palavras que precisam ser traduzidas
 - Se o país for de língua portuguesa, retorne os termos como estão
+- MANTENHA a mesma quantidade de termos. NÃO adicione títulos ou keywords extras. Apenas traduza os existentes
+- O array job_titles deve ter no MÁXIMO 10 itens
 
 TERMOS EM PORTUGUÊS:
 ${JSON.stringify(termsToTranslate, null, 2)}
@@ -227,6 +229,9 @@ Retorne APENAS um JSON válido (sem markdown, sem explicações):
     const jsonText = translatedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     const translated = JSON.parse(jsonText);
+
+    // Limitar arrays para evitar payload grande no LinkedIn
+    if (translated.job_titles) translated.job_titles = translated.job_titles.slice(0, 10);
 
     console.log(`✅ Tradução para ${country} concluída:`);
     console.log('  📝 Keywords:', translated.keywords);

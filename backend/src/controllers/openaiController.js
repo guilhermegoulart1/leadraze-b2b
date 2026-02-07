@@ -55,14 +55,18 @@ REGRAS CRÍTICAS PARA PROSPECÇÃO B2B:
    - Seja específico: "Tecnologia da Informação", "Saúde", "Serviços Financeiros" (PT) ou "Salud", "Servicios Médicos" (ES)
    - Evite setores genéricos demais
 
-3. JOB_TITLES (CRÍTICO):
+3. JOB_TITLES (CRÍTICO - gere no MÁXIMO 10 títulos):
+
+   ⚠️ LIMITE OBRIGATÓRIO: Máximo 10 job_titles. NÃO exceda este limite.
 
    ⚠️ DETECÇÃO DE PROFISSÕES ESPECÍFICAS:
    - SE o usuário mencionar PROFISSÃO específica (médico, advogado, engenheiro, dentista, arquiteto, veterinário, etc.):
-     * SEMPRE inclua a PROFISSÃO em si em 8-10 variações (idioma, gênero, especialização)
-     * Exemplo "médico" → "Médico", "Doctor", "Médica", "Médico General", "Médico Especialista", "Médico Cirujano"
-     * Exemplo "advogado" → "Advogado", "Abogado", "Lawyer", "Advogada", "Abogada"
-     * DEPOIS adicione 5-8 cargos de LIDERANÇA na área: "Director Médico", "Jefe de Medicina", "Gerente de Salud"
+     * Inclua a PROFISSÃO em 4-5 variações principais
+     * Adicione 4-5 cargos de LIDERANÇA na área
+
+   - SE o usuário mencionar DONOS/PROPRIETÁRIOS de negócio:
+     * Inclua: CEO, Fundador, Sócio, Proprietário, Diretor, Owner, Founder
+     * Adicione 2-3 cargos de liderança da área
 
    - SE NÃO mencionar profissão específica (busca B2B genérica):
      * Foque 100% em DECISORES: CEO, CFO, CTO, VP, Diretores, Gerentes Seniores
@@ -71,55 +75,56 @@ REGRAS CRÍTICAS PARA PROSPECÇÃO B2B:
    - SEMPRE adapte ao IDIOMA do país
    - EVITE: júnior, assistente, analista, estagiário, trainee (exceto se explicitamente solicitado)
 
-4. COMPANIES (raramente usar):
+4. KEYWORDS (limite de tamanho):
+   - String curta com no MÁXIMO 100 caracteres
+   - Use 3-5 termos separados por vírgula
+   - Foque nos termos mais relevantes e específicos
+
+5. COMPANIES (raramente usar):
    - Deixe VAZIO [] a menos que empresas específicas sejam explicitamente mencionadas
    - Se incluir, use nomes exatos
 
 ESTRATÉGIA DE DECISORES B2B:
 - Pense em QUEM COMPRA, não apenas quem usa
-- Inclua diferentes níveis: C-Level (CEO, CFO, CTO) → Diretores → Gerentes Senior → Gerentes
-- Considere múltiplas áreas que podem influenciar: Comercial, Marketing, TI, Operações, Inovação
+- Inclua diferentes níveis: C-Level (CEO, CFO, CTO) → Diretores → Gerentes Senior
 - Para produtos técnicos: inclua tanto decisores técnicos (CTO, Diretor de TI) quanto de negócio (CEO, CFO)
 - Para serviços: inclua decisores operacionais (COO, Diretor de Operações) e financeiros (CFO)
 
 EXEMPLO DE BOM OUTPUT (para Brasil/PT):
 {
-  "keywords": "transformação digital, inovação tecnológica, digitalização",
+  "keywords": "transformação digital, inovação tecnológica",
   "industries": ["Tecnologia da Informação", "Serviços Financeiros"],
   "job_titles": [
     "CEO", "Chief Executive Officer", "Presidente",
-    "CTO", "Chief Technology Officer", "Diretor de Tecnologia",
+    "CTO", "Diretor de Tecnologia",
     "Diretor de Inovação", "VP de Tecnologia",
-    "Gerente de TI", "Head de Tecnologia",
-    "Diretor de Transformação Digital", "VP de Inovação"
+    "Gerente de TI", "Head de Tecnologia"
   ],
   "companies": []
 }
 
 EXEMPLO PARA PAÍS HISPANO (ex: Paraguay/ES):
 {
-  "keywords": "transformación digital, innovación tecnológica, digitalización",
+  "keywords": "transformación digital, innovación tecnológica",
   "industries": ["Tecnología de la Información", "Servicios Financieros"],
   "job_titles": [
     "CEO", "Chief Executive Officer", "Presidente",
-    "CTO", "Chief Technology Officer", "Director de Tecnología",
+    "CTO", "Director de Tecnología",
     "Director de Innovación", "VP de Tecnología",
-    "Gerente de TI", "Head de Tecnología",
-    "Director de Transformación Digital", "VP de Innovación"
+    "Gerente de TI", "Head de Tecnología"
   ],
   "companies": []
 }
 
 EXEMPLO PARA PROFISSÃO ESPECÍFICA (médicos no Paraguay/ES):
 {
-  "keywords": "salud, medicina, atención médica, servicios de salud",
+  "keywords": "salud, medicina, atención médica",
   "industries": ["Salud", "Servicios Médicos", "Hospitales"],
   "job_titles": [
-    "Médico", "Doctor", "Médica", "Doctora",
-    "Médico General", "Médico Especialista", "Médico Cirujano",
-    "Médico Clínico", "Médico de Familia", "Médico Internista",
-    "Director Médico", "Jefe de Medicina", "Gerente de Salud",
-    "Coordinador Médico"
+    "Médico", "Doctor", "Médica",
+    "Médico General", "Médico Especialista",
+    "Médico Cirujano", "Médico Clínico",
+    "Director Médico", "Jefe de Medicina", "Gerente de Salud"
   ],
   "companies": []
 }
@@ -156,9 +161,9 @@ Retorne APENAS o JSON válido, sem explicações ou comentários:`;
       console.warn('⚠️ IA não gerou job_titles, usando decisores genéricos');
     }
 
-    // Limitar arrays para não sobrecarregar busca
+    // Limitar arrays para não sobrecarregar busca (LinkedIn rejeita payloads grandes)
     filters.industries = filters.industries.slice(0, 5);
-    filters.job_titles = filters.job_titles.slice(0, 15);
+    filters.job_titles = filters.job_titles.slice(0, 10);
     filters.companies = filters.companies.slice(0, 5);
 
     console.log('✅ Filtros gerados e validados:', filters);
@@ -256,17 +261,18 @@ REGRAS CRÍTICAS PARA PROSPECÇÃO B2B:
    - Use nomes no IDIOMA APROPRIADO ao país da localização
    - Seja específico: "Tecnologia da Informação", "Saúde", "Serviços Financeiros" (PT) ou "Salud", "Servicios Médicos" (ES)
 
-3. JOB_TITLES (CRÍTICO - gere 8-15 títulos):
+3. JOB_TITLES (CRÍTICO - gere no MÁXIMO 10 títulos):
+
+   ⚠️ LIMITE OBRIGATÓRIO: Máximo 10 job_titles. NÃO exceda este limite.
 
    ⚠️ DETECÇÃO DE PROFISSÕES ESPECÍFICAS:
    - SE o usuário mencionar PROFISSÃO específica (médico, advogado, engenheiro, dentista, arquiteto, veterinário, etc.):
-     * SEMPRE inclua a PROFISSÃO em si em 8-10 variações (idioma, gênero, especialização)
-     * DEPOIS adicione 5-8 cargos de LIDERANÇA na área
+     * Inclua a PROFISSÃO em 4-5 variações principais
+     * Adicione 4-5 cargos de LIDERANÇA na área
 
    - SE o usuário mencionar DONOS/PROPRIETÁRIOS de negócio específico (ex: "donos de agências"):
-     * Inclua títulos como: CEO, Fundador, Co-fundador, Sócio, Proprietário, Diretor, Owner, Founder
-     * Adicione variações do tipo de negócio: "Diretor de Agência", "Sócio-Diretor"
-     * Inclua cargos de liderança da área: "Diretor de Marketing", "Head de Marketing"
+     * Inclua: CEO, Fundador, Sócio, Proprietário, Diretor, Owner, Founder
+     * Adicione 2-3 cargos de liderança da área
 
    - SE NÃO mencionar profissão específica (busca B2B genérica):
      * Foque 100% em DECISORES: CEO, CFO, CTO, VP, Diretores, Gerentes Seniores
@@ -275,17 +281,22 @@ REGRAS CRÍTICAS PARA PROSPECÇÃO B2B:
    - SEMPRE adapte ao IDIOMA do país
    - EVITE: júnior, assistente, analista, estagiário, trainee (exceto se explicitamente solicitado)
 
-4. COMPANIES (raramente usar):
+4. KEYWORDS (limite de tamanho):
+   - String curta com no MÁXIMO 100 caracteres
+   - Use 3-5 termos separados por vírgula
+   - Foque nos termos mais relevantes e específicos
+
+5. COMPANIES (raramente usar):
    - Deixe VAZIO [] a menos que empresas específicas sejam explicitamente mencionadas
    - Se incluir, use nomes exatos
 
-5. REASONING (obrigatório):
+6. REASONING (obrigatório):
    - Explique em 1-2 frases como interpretou a descrição do público-alvo
    - Seja direto e claro. Ex: "Busca proprietários e decisores de agências de marketing digital"
 
 ESTRATÉGIA DE DECISORES B2B:
 - Pense em QUEM COMPRA, não apenas quem usa
-- Inclua diferentes níveis: C-Level → Diretores → Gerentes Senior → Gerentes
+- Inclua diferentes níveis: C-Level → Diretores → Gerentes Senior
 - Considere múltiplas áreas que podem influenciar a decisão de compra
 
 Retorne APENAS o JSON válido, sem explicações fora do JSON:`;
@@ -323,9 +334,9 @@ Retorne APENAS o JSON válido, sem explicações fora do JSON:`;
       console.warn('⚠️ [ICP] IA não gerou job_titles, usando decisores genéricos');
     }
 
-    // Limitar arrays
+    // Limitar arrays (LinkedIn rejeita payloads grandes)
     result.industries = result.industries.slice(0, 5);
-    result.job_titles = result.job_titles.slice(0, 15);
+    result.job_titles = result.job_titles.slice(0, 10);
     result.companies = result.companies.slice(0, 5);
 
     console.log('✅ [ICP] Filtros gerados:', result);
