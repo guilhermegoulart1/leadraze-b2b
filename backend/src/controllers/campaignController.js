@@ -683,7 +683,7 @@ const startCampaign = async (req, res) => {
 
     sendSuccess(res, {
       ...updatedCampaign,
-      pending_opportunities: pendingOpps,
+      pending_contacts: pendingContacts,
       queue: queueResult
     }, 'Campaign started successfully');
 
