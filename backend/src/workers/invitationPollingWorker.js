@@ -3,20 +3,23 @@
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const notificationService = require('../services/notificationService');
+const { handleNewRelation } = require('../controllers/webhookController');
 
 /**
  * Invitation Polling Worker
  *
- * Polls for new received LinkedIn invitations every 4 hours (with random delay).
- * Creates notifications for new invitations detected.
+ * Two responsibilities (every 4 hours with random delay):
+ * 1. Poll for new RECEIVED LinkedIn invitations → create notifications
+ * 2. Check for ACCEPTED sent invitations → trigger handleNewRelation flow
+ *    (fallback for Unipile new_relation webhook which can delay up to 8h)
  *
  * Strategy based on Unipile documentation:
  * - Polling is recommended "few times per day" with random delay
  * - This avoids triggering LinkedIn's automation detection
  */
 
-const BASE_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours
-const RANDOM_DELAY_MAX = 30 * 60 * 1000; // ±30 minutes
+const BASE_INTERVAL = 1 * 60 * 60 * 1000; // 1 hour
+const RANDOM_DELAY_MAX = 10 * 60 * 1000; // ±10 minutes
 let isProcessing = false;
 let nextScheduledRun = null;
 
@@ -260,6 +263,149 @@ async function cleanupOldSnapshots(linkedinAccountId, currentInvitationIds) {
   return result.rowCount || 0;
 }
 
+// ====================================
+// ACCEPTANCE POLLING (Fallback for webhook delays)
+// ====================================
+
+const ACCEPT_LOG_PREFIX = '🔍 [ACCEPTANCE POLLING]';
+const acceptLog = {
+  info: (msg, data) => console.log(`${ACCEPT_LOG_PREFIX} ${msg}`, data || ''),
+  success: (msg, data) => console.log(`${ACCEPT_LOG_PREFIX} ✅ ${msg}`, data || ''),
+  warn: (msg, data) => console.warn(`${ACCEPT_LOG_PREFIX} ⚠️ ${msg}`, data || ''),
+  error: (msg, data) => console.error(`${ACCEPT_LOG_PREFIX} ❌ ${msg}`, data || ''),
+  divider: () => console.log(`${ACCEPT_LOG_PREFIX} ═══════════════════════════════════════════════════════════`),
+};
+
+/**
+ * Check for accepted sent invitations by comparing DB pending invites
+ * against recent connections from Unipile.
+ *
+ * Strategy (from Unipile docs - "Detecting Accepted Invitations"):
+ * 1. Get campaign_contacts with status 'invite_sent' for each account
+ * 2. Fetch recent connections via connections.search()
+ * 3. Cross-reference: if a pending invite's provider_id is in connections → accepted
+ * 4. Trigger handleNewRelation() for each detected acceptance
+ */
+async function checkAcceptedSentInvitations(accounts) {
+  acceptLog.divider();
+  acceptLog.info('CHECKING ACCEPTED SENT INVITATIONS');
+  acceptLog.info(`Timestamp: ${new Date().toISOString()}`);
+  acceptLog.divider();
+
+  let totalAccepted = 0;
+  let totalChecked = 0;
+  let errors = 0;
+
+  for (const account of accounts) {
+    const { id: linkedinAccountId, unipile_account_id: unipileAccountId, profile_name } = account;
+
+    try {
+      // 1. Get pending sent invites for this account
+      const pendingResult = await db.query(`
+        SELECT cc.id as campaign_contact_id, cc.linkedin_profile_id, cc.contact_id,
+               ct.name as contact_name, ct.public_identifier
+        FROM campaign_contacts cc
+        JOIN contacts ct ON ct.id = cc.contact_id
+        JOIN campaigns c ON c.id = cc.campaign_id
+        WHERE cc.status = 'invite_sent'
+        AND c.linkedin_account_id = $1
+      `, [linkedinAccountId]);
+
+      if (pendingResult.rows.length === 0) {
+        continue; // No pending invites for this account
+      }
+
+      acceptLog.info(`${profile_name}: ${pendingResult.rows.length} pending invite(s)`);
+      totalChecked += pendingResult.rows.length;
+
+      // 2. Fetch recent connections from Unipile (sorted by most recently added)
+      let connections;
+      try {
+        const connectionsData = await unipileClient.connections.search({
+          account_id: unipileAccountId,
+          limit: 100
+        });
+        connections = connectionsData?.items || [];
+      } catch (apiError) {
+        acceptLog.error(`  Error fetching connections for ${profile_name}: ${apiError.message}`);
+        errors++;
+        continue;
+      }
+
+      if (connections.length === 0) {
+        acceptLog.info(`  No connections returned from API`);
+        continue;
+      }
+
+      // 3. Create Set of connected provider_ids for O(1) lookup
+      const connectedProviderIds = new Set();
+      for (const conn of connections) {
+        const providerId = conn.provider_id || conn.id;
+        if (providerId) connectedProviderIds.add(providerId);
+      }
+
+      // 4. Cross-reference pending invites with connections
+      for (const pending of pendingResult.rows) {
+        if (!pending.linkedin_profile_id) continue;
+
+        if (connectedProviderIds.has(pending.linkedin_profile_id)) {
+          // ACCEPTED! This pending invite's target is now a connection
+          acceptLog.success(`  🎉 ACEITE DETECTADO: ${pending.contact_name} (${pending.linkedin_profile_id})`);
+
+          try {
+            // Find the connection data for enrichment
+            const connData = connections.find(c =>
+              (c.provider_id || c.id) === pending.linkedin_profile_id
+            );
+
+            // Construct payload compatible with handleNewRelation()
+            const payload = {
+              account_id: unipileAccountId,
+              user_provider_id: pending.linkedin_profile_id,
+              user_public_identifier: connData?.public_identifier || connData?.public_id || pending.public_identifier || null,
+              user_profile_url: connData?.public_identifier
+                ? `https://www.linkedin.com/in/${connData.public_identifier}`
+                : null,
+              user_full_name: connData?.name || connData?.full_name || pending.contact_name,
+              user_picture_url: connData?.profile_picture || connData?.picture_url || connData?.profile_picture_url || null
+            };
+
+            const result = await handleNewRelation(payload);
+
+            if (result.handled && result.accepted) {
+              acceptLog.success(`  Flow iniciado para ${pending.contact_name} (conversation: ${result.conversation_id})`);
+              totalAccepted++;
+            } else if (result.handled && result.skipped) {
+              acceptLog.warn(`  Skipped ${pending.contact_name}: ${result.reason}`);
+            } else {
+              acceptLog.info(`  ${pending.contact_name}: ${result.reason || 'not processed'}`);
+            }
+          } catch (handleError) {
+            acceptLog.error(`  Error processing acceptance for ${pending.contact_name}: ${handleError.message}`);
+            errors++;
+          }
+        }
+      }
+
+      // Random delay between accounts (1-3 seconds)
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+
+    } catch (error) {
+      acceptLog.error(`Error checking account ${profile_name}: ${error.message}`);
+      errors++;
+    }
+  }
+
+  acceptLog.divider();
+  acceptLog.success('ACCEPTANCE CHECK COMPLETED');
+  acceptLog.info(`  Pending invites checked: ${totalChecked}`);
+  acceptLog.info(`  Acceptances detected: ${totalAccepted}`);
+  acceptLog.info(`  Errors: ${errors}`);
+  acceptLog.divider();
+
+  return { totalAccepted, totalChecked, errors };
+}
+
 /**
  * Main polling function
  */
@@ -314,6 +460,14 @@ async function pollForInvitations() {
     log.info(`  New invitations: ${totalNew}`);
     log.info(`  Errors: ${errors}`);
     log.divider();
+
+    // Check for accepted sent invitations (fallback for webhook delays up to 8h)
+    try {
+      await checkAcceptedSentInvitations(accounts);
+    } catch (acceptError) {
+      log.error(`Acceptance check error: ${acceptError.message}`);
+      console.error(acceptError);
+    }
 
   } catch (error) {
     log.error(`Polling error: ${error.message}`);
@@ -377,5 +531,6 @@ module.exports = {
   pollForInvitations,
   runOnce,
   getNextScheduledRun,
-  processAccountInvitations
+  processAccountInvitations,
+  checkAcceptedSentInvitations
 };

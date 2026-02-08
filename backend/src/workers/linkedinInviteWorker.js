@@ -89,7 +89,7 @@ async function processInvite(job) {
     // 3a. Determine if invite will have a message (BEFORE limit check)
     log.step('3a', 'Determinando estratégia de mensagem...');
     const campaignResult = await db.query(
-      `SELECT ai.initial_approach, ai.connection_strategy
+      `SELECT c.account_id, ai.initial_approach, ai.connection_strategy
        FROM campaigns c
        LEFT JOIN ai_agents ai ON c.ai_agent_id = ai.id
        WHERE c.id = $1`,
@@ -213,6 +213,28 @@ async function processInvite(job) {
       status: 'sent',
       messageIncluded: !!inviteMessage
     });
+
+    // 8. Save snapshot for acceptance detection (polling fallback + real-time via messages)
+    try {
+      const accountId = campaignResult.rows[0]?.account_id;
+      await db.query(
+        `INSERT INTO invitation_snapshots
+         (account_id, linkedin_account_id, invitation_type, invitation_id, provider_id, user_name, invitation_message, detected_at)
+         VALUES ($1, $2, 'sent', $3, $4, $5, $6, NOW())
+         ON CONFLICT (linkedin_account_id, invitation_id) DO NOTHING`,
+        [
+          accountId,
+          linkedinAccountId,
+          result?.invitation_id || `sent_${contact.linkedin_profile_id}_${Date.now()}`,
+          contact.linkedin_profile_id,
+          contact.name,
+          inviteMessage || null
+        ]
+      );
+      log.info('   📸 Snapshot salvo para detecção de aceitação');
+    } catch (snapshotError) {
+      log.warn(`Erro ao salvar snapshot: ${snapshotError.message}`);
+    }
 
     log.divider();
     log.success('CONVITE ENVIADO COM SUCESSO!');
