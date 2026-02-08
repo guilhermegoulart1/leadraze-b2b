@@ -36,7 +36,8 @@ const listeners = {
   // Google Maps Agent events
   gmaps_agent_progress: [],
   // Account events
-  account_disconnected: []
+  account_disconnected: [],
+  account_connected: []
 };
 
 /**
@@ -223,6 +224,11 @@ function subscribeToAccountChannel(accountId) {
   accountChannel.subscribe('account_disconnected', (message) => {
     console.log('Ably: account_disconnected received', message.data);
     listeners.account_disconnected.forEach(callback => callback(message.data));
+  });
+
+  accountChannel.subscribe('account_connected', (message) => {
+    console.log('Ably: account_connected received', message.data);
+    listeners.account_connected.forEach(callback => callback(message.data));
   });
 }
 
@@ -412,6 +418,13 @@ export function onAccountDisconnected(callback) {
   };
 }
 
+export function onAccountConnected(callback) {
+  listeners.account_connected.push(callback);
+  return () => {
+    listeners.account_connected = listeners.account_connected.filter(cb => cb !== callback);
+  };
+}
+
 /**
  * Remove all listeners
  */
@@ -433,6 +446,7 @@ export function removeAllListeners() {
   listeners.gmaps_agent_progress = [];
   // Account events
   listeners.account_disconnected = [];
+  listeners.account_connected = [];
 }
 
 /**
@@ -465,6 +479,7 @@ export default {
   onGmapsAgentProgress,
   // Account events
   onAccountDisconnected,
+  onAccountConnected,
   removeAllListeners,
   getAblyClient
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Plus, Trash2, Building2, RefreshCw, Crown, Briefcase, Users, Settings, Linkedin, Power, PowerOff, X, AlertTriangle, MessageCircle, Instagram, Facebook, Send, Twitter, Mail, Cog, MoreVertical, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import { onAccountConnected } from '../services/ably';
 import LimitConfigModal from '../components/LimitConfigModal';
 import ChannelSettingsModal from '../components/ChannelSettingsModal';
 import PremiumFeatureModal from '../components/PremiumFeatureModal';
@@ -118,6 +119,16 @@ const ChannelsPage = () => {
 
   useEffect(() => {
     loadAccounts();
+  }, []);
+
+  // Listen for real-time channel connection events via Ably
+  useEffect(() => {
+    const unsubscribe = onAccountConnected((data) => {
+      console.log('Channel connected (Ably):', data);
+      loadAccounts();
+      setConnectLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   // Fechar dropdown quando clicar fora
@@ -392,17 +403,46 @@ const ChannelsPage = () => {
         const checkPopup = setInterval(async () => {
           if (popup && popup.closed) {
             clearInterval(checkPopup);
-            // Sincronizar contas da Unipile com banco local
-            try {
-              console.log('🔄 Popup fechado, sincronizando contas...');
-              const syncResult = await api.syncChannels();
-              console.log('✅ Sync result:', syncResult);
-            } catch (syncError) {
-              console.error('⚠️ Erro ao sincronizar:', syncError);
-            }
-            // Recarregar lista
-            await loadAccounts();
-            setConnectLoading(false);
+
+            // Poll for new channel (webhook may take a few seconds)
+            const previousCount = accounts.length;
+            const MAX_ATTEMPTS = 6;
+            let attempt = 0;
+            let found = false;
+
+            const pollForNewChannel = async () => {
+              if (found) return;
+              attempt++;
+              console.log(`[CHANNEL-POLL] Attempt ${attempt}/${MAX_ATTEMPTS}...`);
+
+              try {
+                await api.syncChannels();
+                const response = await api.getLinkedInAccounts();
+                if (response.success) {
+                  const newAccounts = response.data || [];
+                  if (newAccounts.length > previousCount) {
+                    console.log(`[CHANNEL-POLL] New channel detected! (${previousCount} -> ${newAccounts.length})`);
+                    found = true;
+                    setAccounts(newAccounts);
+                    loadHealthScores(newAccounts);
+                    setConnectLoading(false);
+                    return;
+                  }
+                }
+              } catch (err) {
+                console.error(`[CHANNEL-POLL] Attempt ${attempt} error:`, err);
+              }
+
+              if (attempt < MAX_ATTEMPTS && !found) {
+                setTimeout(pollForNewChannel, 3000);
+              } else if (!found) {
+                console.log('[CHANNEL-POLL] Max attempts reached, finalizing');
+                await loadAccounts();
+                setConnectLoading(false);
+              }
+            };
+
+            pollForNewChannel();
           }
         }, 500);
       } else {

@@ -4,6 +4,7 @@
 const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const { analyzeLinkedInProfile } = require('./aiProfileAnalysisService');
+const { downloadAndStoreProfilePicture, isR2Url } = require('./profilePictureService');
 
 // ================================
 // LOCATION PARSING
@@ -338,13 +339,24 @@ async function enrichContact(contactId, unipileAccountId, providerId, options = 
       }
     }
 
-    // Profile picture (prefer larger)
+    // Profile picture (prefer larger) - download and persist to R2
     const profilePic = profile.profile_picture_url_large ||
                       profile.profile_picture_url ||
                       profile.picture_url;
     if (profilePic) {
-      contactUpdate.profile_picture = profilePic;
-      console.log('[ENRICHMENT] Profile picture found:', profilePic.substring(0, 80) + '...');
+      if (isR2Url(contact.profile_picture)) {
+        console.log('[ENRICHMENT] Profile picture already on R2, skipping download');
+      } else {
+        const r2Url = await downloadAndStoreProfilePicture(profilePic, contact.account_id, contactId);
+        if (r2Url) {
+          contactUpdate.profile_picture = r2Url;
+          console.log('[ENRICHMENT] Profile picture stored in R2:', r2Url);
+        } else {
+          // Fallback to temp URL (better than no picture)
+          contactUpdate.profile_picture = profilePic;
+          console.log('[ENRICHMENT] R2 upload failed, using temp URL:', profilePic.substring(0, 80) + '...');
+        }
+      }
     } else {
       console.log('[ENRICHMENT] No profile picture in response:', {
         large: !!profile.profile_picture_url_large,

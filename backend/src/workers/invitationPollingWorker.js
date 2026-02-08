@@ -4,6 +4,7 @@ const db = require('../config/database');
 const unipileClient = require('../config/unipile');
 const notificationService = require('../services/notificationService');
 const { handleNewRelation } = require('../controllers/webhookController');
+const { downloadAndStoreProfilePicture, isR2Url } = require('../services/profilePictureService');
 
 /**
  * Invitation Polling Worker
@@ -152,12 +153,22 @@ async function processAccountInvitations(account) {
       || invitation.title
       || null;
 
-    const profilePicture = inviter.inviter_profile_picture_url
+    let profilePicture = inviter.inviter_profile_picture_url
       || invitation.profile_picture
       || invitation.profile_picture_url
       || invitation.picture_url
       || invitation.inviter_picture
       || null;
+
+    // Persist profile picture to R2 if available
+    if (profilePicture && !isR2Url(profilePicture)) {
+      const picId = inviterId || invitationId;
+      const r2Url = await downloadAndStoreProfilePicture(profilePicture, accountId, `invitation-${picId}`);
+      if (r2Url) {
+        profilePicture = r2Url;
+        log.info(`  Profile picture stored in R2 for inviter: ${inviterName}`);
+      }
+    }
 
     const invitationMessage = invitation.invitation_text
       || invitation.message

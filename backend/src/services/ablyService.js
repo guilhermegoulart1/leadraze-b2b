@@ -32,7 +32,8 @@ const CHANNELS = {
   GMAPS_AGENT_PROGRESS: 'gmaps_agent_progress',
 
   // Account Events
-  ACCOUNT_DISCONNECTED: 'account_disconnected'
+  ACCOUNT_DISCONNECTED: 'account_disconnected',
+  ACCOUNT_CONNECTED: 'account_connected'
 };
 
 /**
@@ -295,6 +296,20 @@ function publishAccountDisconnected(data) {
 }
 
 /**
+ * Publish account connected event
+ * @param {Object} data - { accountId, channelId, channelName, providerType }
+ */
+function publishAccountConnected(data) {
+  console.log(`📡 [Ably] Publishing account_connected:`, {
+    accountId: data.accountId,
+    channelId: data.channelId,
+    channelName: data.channelName,
+    providerType: data.providerType
+  });
+  publishToChannel(`account:${data.accountId}`, CHANNELS.ACCOUNT_CONNECTED, data);
+}
+
+/**
  * Cleanup on shutdown
  */
 async function cleanup() {
@@ -331,6 +346,7 @@ module.exports = {
   publishGmapsAgentProgress,
   // Account events
   publishAccountDisconnected,
+  publishAccountConnected,
   cleanup,
   CHANNELS
 };

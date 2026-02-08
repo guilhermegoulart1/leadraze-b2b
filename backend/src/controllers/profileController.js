@@ -11,6 +11,7 @@ const {
 } = require('../utils/errors');
 const inviteService = require('../services/inviteService');
 const accountHealthService = require('../services/accountHealthService');
+const { publishAccountConnected } = require('../services/ablyService');
 
 // ================================
 // 1. CONECTAR CONTA LINKEDIN
@@ -1667,6 +1668,18 @@ const handleAuthNotify = async (req, res) => {
       await db.update('linkedin_accounts', {
         status: 'active'
       }, { id: existingAccount.id });
+
+      try {
+        publishAccountConnected({
+          accountId: accountId,
+          channelId: existingAccount.id,
+          channelName: existingAccount.channel_name || 'LinkedIn Account',
+          providerType: existingAccount.provider_type || 'LINKEDIN'
+        });
+      } catch (ablyError) {
+        console.error('[Ably] Error emitting account_connected:', ablyError.message);
+      }
+
       return res.status(200).json({ success: true, message: 'Account already exists', id: existingAccount.id });
     }
 
@@ -1736,6 +1749,18 @@ const handleAuthNotify = async (req, res) => {
     const savedChannel = await db.insert('linkedin_accounts', channelData);
 
     console.log(`✅ Canal ${providerType} conectado com sucesso! ID: ${savedChannel.id}`);
+
+    // Emit real-time event for frontend
+    try {
+      publishAccountConnected({
+        accountId: accountId,
+        channelId: savedChannel.id,
+        channelName: channelData.channel_name,
+        providerType: providerType
+      });
+    } catch (ablyError) {
+      console.error('[Ably] Error emitting account_connected:', ablyError.message);
+    }
 
     // Adicionar conta ao webhook da aplicação (se configurado)
     if (process.env.WEBHOOK_URL && unipileClient.isInitialized()) {
