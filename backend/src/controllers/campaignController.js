@@ -796,13 +796,21 @@ const resumeCampaign = async (req, res) => {
       status: CAMPAIGN_STATUS.ACTIVE
     }, { id });
 
-    // Reschedule pending invites as Bull jobs
-    let scheduleResult = null;
+    // Re-create invite queue for approved contacts (pausing sets them back to 'approved' and withdraws queue entries)
+    let queueResult = null;
     try {
-      scheduleResult = await inviteQueueService.scheduleInvitesForToday(id, accountId);
-      console.log(`▶️ ${scheduleResult.scheduled} convites reagendados via Bull`);
-    } catch (schedError) {
-      console.error('Erro ao reagendar convites:', schedError.message);
+      queueResult = await inviteQueueService.createInviteQueue(id, accountId);
+      console.log(`▶️ Fila recriada: ${queueResult.totalQueued} na fila, ${queueResult.scheduledToday} agendados para hoje`);
+    } catch (queueError) {
+      console.error('Erro ao recriar fila de convites:', queueError.message);
+      // Fallback: try to schedule any remaining pending queue entries
+      try {
+        const fallback = await inviteQueueService.scheduleInvitesForToday(id, accountId);
+        console.log(`▶️ Fallback: ${fallback.scheduled} convites reagendados via Bull`);
+        queueResult = fallback;
+      } catch (fallbackError) {
+        console.error('Erro no fallback de reagendamento:', fallbackError.message);
+      }
     }
 
     console.log(`✅ Campanha retomada - ${pendingContacts} contatos pendentes`);
@@ -810,7 +818,7 @@ const resumeCampaign = async (req, res) => {
     sendSuccess(res, {
       ...updatedCampaign,
       pending_contacts: pendingContacts,
-      schedule: scheduleResult
+      queue: queueResult
     }, 'Campaign resumed successfully');
 
   } catch (error) {

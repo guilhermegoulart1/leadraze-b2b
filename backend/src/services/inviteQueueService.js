@@ -821,7 +821,12 @@ const getCampaignReport = async (campaignId, filters = {}) => {
             EXTRACT(DAY FROM NOW() - cc.invite_sent_at) as days_waiting
      FROM campaign_contacts cc
      JOIN contacts ct ON ct.id = cc.contact_id
-     LEFT JOIN campaign_invite_queue ciq ON ciq.campaign_contact_id = cc.id
+     LEFT JOIN LATERAL (
+       SELECT * FROM campaign_invite_queue q
+       WHERE q.campaign_contact_id = cc.id
+       ORDER BY q.created_at DESC
+       LIMIT 1
+     ) ciq ON true
      ${whereClause}
      ORDER BY cc.created_at DESC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
