@@ -828,7 +828,20 @@ const getCampaignReport = async (campaignId, filters = {}) => {
        LIMIT 1
      ) ciq ON true
      ${whereClause}
-     ORDER BY cc.created_at DESC
+     ORDER BY
+       CASE cc.status
+         WHEN 'invite_accepted' THEN 1
+         WHEN 'conversation_started' THEN 2
+         WHEN 'conversation_ended' THEN 3
+         WHEN 'invite_sent' THEN 4
+         WHEN 'invite_expired' THEN 5
+         WHEN 'invite_queued' THEN 6
+         WHEN 'approved' THEN 7
+         WHEN 'collected' THEN 8
+         WHEN 'rejected' THEN 9
+         ELSE 10
+       END,
+       cc.created_at DESC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     [...params, limit, offset]
   );

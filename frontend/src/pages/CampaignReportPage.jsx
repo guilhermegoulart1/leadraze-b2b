@@ -401,28 +401,34 @@ const CampaignReportPage = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {/* Filter Bar */}
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPagination(prev => ({ ...prev, page: 1 }));
-              }}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            >
-              <option value="all">Todos</option>
-              <option value="approved">Aprovados</option>
-              <option value="rejected">Rejeitados</option>
-              <option value="invite_queued">Na Fila</option>
-              <option value="invite_sent">Enviados</option>
-              <option value="invite_accepted">Aceitos</option>
-              <option value="invite_expired">Expirados</option>
-            </select>
+            {[
+              { value: 'all', label: 'Todos', count: stats.total, bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-300', activeBg: 'bg-gray-600 dark:bg-gray-300', activeText: 'text-white dark:text-gray-900' },
+              { value: 'invite_accepted', label: 'Aceitos', count: stats.accepted, bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-400', activeBg: 'bg-green-600 dark:bg-green-500', activeText: 'text-white' },
+              { value: 'invite_sent', label: 'Enviados', count: stats.sent, bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-400', activeBg: 'bg-yellow-500 dark:bg-yellow-500', activeText: 'text-white' },
+              { value: 'invite_queued', label: 'Na Fila', count: stats.queued, bg: 'bg-indigo-50 dark:bg-indigo-900/20', text: 'text-indigo-700 dark:text-indigo-400', activeBg: 'bg-indigo-600 dark:bg-indigo-500', activeText: 'text-white' },
+              { value: 'invite_expired', label: 'Expirados', count: stats.expired, bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-400', activeBg: 'bg-orange-500 dark:bg-orange-500', activeText: 'text-white' },
+              { value: 'rejected', label: 'Rejeitados', count: stats.rejected, bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-400', activeBg: 'bg-red-600 dark:bg-red-500', activeText: 'text-white' },
+            ].map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => {
+                  setStatusFilter(filter.value);
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === filter.value
+                    ? `${filter.activeBg} ${filter.activeText}`
+                    : `${filter.bg} ${filter.text} hover:opacity-80`
+                }`}
+              >
+                {filter.label} ({parseInt(filter.count) || 0})
+              </button>
+            ))}
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap ml-4">
             {pagination.total} leads encontrados
           </div>
         </div>
