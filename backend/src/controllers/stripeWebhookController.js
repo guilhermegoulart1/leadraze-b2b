@@ -128,12 +128,12 @@ async function processEvent(event) {
  * Handle checkout.session.completed
  */
 async function handleCheckoutCompleted(session) {
-  const isGuest = session.metadata?.is_guest === 'true';
   let accountId = session.metadata?.account_id;
 
-  // Handle GUEST checkout - create account from Stripe data
-  if (isGuest && !accountId) {
-    console.log('🆕 Processing guest checkout - creating account...');
+  // No account_id in metadata - create account from Stripe customer data
+  // This handles both guest checkouts (via our API) and Payment Links (no metadata)
+  if (!accountId) {
+    console.log('🆕 Processing checkout without account_id - creating account...');
 
     // Get customer data from Stripe
     const customerEmail = session.customer_details?.email || session.customer_email;
@@ -202,6 +202,16 @@ async function handleCheckoutCompleted(session) {
           extra_users: session.metadata?.extra_users || '0'
         }
       });
+
+      // Re-sync subscription now that account exists
+      // (customer.subscription.created may have fired before this handler and failed)
+      try {
+        const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
+        await handleSubscriptionUpdated(stripeSubscription);
+        console.log(`🔄 Re-synced subscription ${session.subscription} for account ${accountId}`);
+      } catch (syncError) {
+        console.error('Warning: Could not re-sync subscription:', syncError.message);
+      }
     }
   }
 
