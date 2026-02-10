@@ -288,18 +288,18 @@ const acceptLog = {
 };
 
 /**
- * Check for accepted sent invitations by comparing DB pending invites
- * against recent connections from Unipile.
+ * Check for accepted sent invitations using Unipile's recommended approach:
  *
- * Strategy (from Unipile docs - "Detecting Accepted Invitations"):
- * 1. Get campaign_contacts with status 'invite_sent' for each account
- * 2. Fetch recent connections via connections.search()
- * 3. Cross-reference: if a pending invite's provider_id is in connections → accepted
- * 4. Trigger handleNewRelation() for each detected acceptance
+ * Strategy (2-phase detection):
+ * 1. Get campaign_contacts with status 'invite_sent' from DB
+ * 2. Fetch PENDING sent invitations from Unipile API (GET /users/invite/sent)
+ * 3. Invites in our DB but NOT in the pending list = resolved (accepted/rejected/expired)
+ * 4. For resolved invites, confirm acceptance via relations API (GET /users/relations)
+ * 5. Trigger handleNewRelation() for confirmed acceptances
  */
 async function checkAcceptedSentInvitations(accounts) {
   acceptLog.divider();
-  acceptLog.info('CHECKING ACCEPTED SENT INVITATIONS');
+  acceptLog.info('CHECKING ACCEPTED SENT INVITATIONS (2-phase detection)');
   acceptLog.info(`Timestamp: ${new Date().toISOString()}`);
   acceptLog.divider();
 
@@ -311,7 +311,7 @@ async function checkAcceptedSentInvitations(accounts) {
     const { id: linkedinAccountId, unipile_account_id: unipileAccountId, profile_name } = account;
 
     try {
-      // 1. Get pending sent invites for this account
+      // 1. Get pending sent invites from our DB
       const pendingResult = await db.query(`
         SELECT cc.id as campaign_contact_id, cc.linkedin_profile_id, cc.contact_id,
                ct.name as contact_name, ct.public_identifier
@@ -326,75 +326,137 @@ async function checkAcceptedSentInvitations(accounts) {
         continue; // No pending invites for this account
       }
 
-      acceptLog.info(`${profile_name}: ${pendingResult.rows.length} pending invite(s)`);
+      acceptLog.info(`${profile_name}: ${pendingResult.rows.length} pending invite(s) in DB`);
       totalChecked += pendingResult.rows.length;
 
-      // 2. Fetch recent connections from Unipile (sorted by most recently added)
-      let connections;
+      // 2. PHASE 1: Fetch ALL pending sent invitations from Unipile API (with pagination)
+      //    This endpoint returns ONLY invitations that are still pending
+      const pendingOnUnipile = new Set();
+      let cursor = null;
+
       try {
-        const connectionsData = await unipileClient.connections.search({
-          account_id: unipileAccountId,
-          limit: 100
-        });
-        connections = connectionsData?.items || [];
+        do {
+          const params = { account_id: unipileAccountId, limit: 100 };
+          if (cursor) params.cursor = cursor;
+
+          const sentData = await unipileClient.users.listSentInvitations(params);
+          const items = sentData?.items || [];
+
+          for (const invite of items) {
+            // invited_user_id is the provider_id (confirmed in connectionController.js)
+            const providerId = invite.invited_user_id || invite.provider_id;
+            if (providerId) pendingOnUnipile.add(providerId);
+          }
+
+          cursor = sentData?.cursor || null;
+        } while (cursor);
+
+        acceptLog.info(`  ${pendingOnUnipile.size} invitation(s) still pending on Unipile`);
       } catch (apiError) {
-        acceptLog.error(`  Error fetching connections for ${profile_name}: ${apiError.message}`);
+        acceptLog.error(`  Error fetching sent invitations for ${profile_name}: ${apiError.message}`);
         errors++;
         continue;
       }
 
-      if (connections.length === 0) {
-        acceptLog.info(`  No connections returned from API`);
+      // 3. Find invites that disappeared from the pending list (= resolved)
+      const resolvedCandidates = pendingResult.rows.filter(pending => {
+        if (!pending.linkedin_profile_id) return false;
+        return !pendingOnUnipile.has(pending.linkedin_profile_id);
+      });
+
+      if (resolvedCandidates.length === 0) {
+        acceptLog.info(`  All invitations still pending, no changes detected`);
         continue;
       }
 
-      // 3. Create Set of connected provider_ids for O(1) lookup
-      const connectedProviderIds = new Set();
-      for (const conn of connections) {
-        const providerId = conn.provider_id || conn.id;
-        if (providerId) connectedProviderIds.add(providerId);
+      acceptLog.info(`  ${resolvedCandidates.length} invitation(s) no longer pending - checking relations...`);
+
+      // 4. PHASE 2: Fetch relations to confirm acceptance (vs rejection/expiry)
+      const relationsSet = new Set();
+      const relationsMap = new Map(); // provider_id -> relation data
+      const candidateIds = new Set(resolvedCandidates.map(c => c.linkedin_profile_id));
+
+      try {
+        let relCursor = null;
+
+        do {
+          const relParams = { account_id: unipileAccountId, limit: 250 };
+          if (relCursor) relParams.cursor = relCursor;
+
+          const relData = await unipileClient.users.getRelations(relParams);
+          const relItems = relData?.items || [];
+
+          for (const rel of relItems) {
+            const relProviderId = rel.provider_id || rel.id;
+            if (relProviderId) {
+              relationsSet.add(relProviderId);
+              if (candidateIds.has(relProviderId)) {
+                relationsMap.set(relProviderId, rel);
+              }
+            }
+          }
+
+          relCursor = relData?.cursor || null;
+
+          // Optimization: stop paginating if all candidates found
+          let allFound = true;
+          for (const cId of candidateIds) {
+            if (!relationsSet.has(cId)) {
+              allFound = false;
+              break;
+            }
+          }
+          if (allFound) {
+            acceptLog.info(`  All candidates found in relations, stopping pagination early`);
+            break;
+          }
+        } while (relCursor);
+
+        acceptLog.info(`  Relations check: ${relationsMap.size} confirmed acceptance(s) out of ${resolvedCandidates.length} resolved`);
+      } catch (relError) {
+        acceptLog.error(`  Error fetching relations for ${profile_name}: ${relError.message}`);
+        errors++;
+        continue;
       }
 
-      // 4. Cross-reference pending invites with connections
-      for (const pending of pendingResult.rows) {
-        if (!pending.linkedin_profile_id) continue;
+      // 5. Process confirmed acceptances
+      for (const candidate of resolvedCandidates) {
+        if (!relationsSet.has(candidate.linkedin_profile_id)) {
+          // Not in relations = rejected or expired, not accepted
+          acceptLog.info(`  ${candidate.contact_name}: not in relations (rejected/expired)`);
+          continue;
+        }
 
-        if (connectedProviderIds.has(pending.linkedin_profile_id)) {
-          // ACCEPTED! This pending invite's target is now a connection
-          acceptLog.success(`  🎉 ACEITE DETECTADO: ${pending.contact_name} (${pending.linkedin_profile_id})`);
+        acceptLog.success(`  ACEITE DETECTADO: ${candidate.contact_name} (${candidate.linkedin_profile_id})`);
 
-          try {
-            // Find the connection data for enrichment
-            const connData = connections.find(c =>
-              (c.provider_id || c.id) === pending.linkedin_profile_id
-            );
+        try {
+          const relData = relationsMap.get(candidate.linkedin_profile_id) || {};
 
-            // Construct payload compatible with handleNewRelation()
-            const payload = {
-              account_id: unipileAccountId,
-              user_provider_id: pending.linkedin_profile_id,
-              user_public_identifier: connData?.public_identifier || connData?.public_id || pending.public_identifier || null,
-              user_profile_url: connData?.public_identifier
-                ? `https://www.linkedin.com/in/${connData.public_identifier}`
-                : null,
-              user_full_name: connData?.name || connData?.full_name || pending.contact_name,
-              user_picture_url: connData?.profile_picture || connData?.picture_url || connData?.profile_picture_url || null
-            };
+          // Construct payload compatible with handleNewRelation()
+          const publicId = relData.public_identifier || relData.username || candidate.public_identifier || null;
+          const payload = {
+            account_id: unipileAccountId,
+            user_provider_id: candidate.linkedin_profile_id,
+            user_public_identifier: publicId,
+            user_profile_url: relData.profile_url
+              || (publicId ? `https://www.linkedin.com/in/${publicId}` : null),
+            user_full_name: relData.name || relData.full_name || candidate.contact_name,
+            user_picture_url: relData.profile_picture || relData.profile_picture_url || relData.picture_url || null
+          };
 
-            const result = await handleNewRelation(payload);
+          const result = await handleNewRelation(payload);
 
-            if (result.handled && result.accepted) {
-              acceptLog.success(`  Flow iniciado para ${pending.contact_name} (conversation: ${result.conversation_id})`);
-              totalAccepted++;
-            } else if (result.handled && result.skipped) {
-              acceptLog.warn(`  Skipped ${pending.contact_name}: ${result.reason}`);
-            } else {
-              acceptLog.info(`  ${pending.contact_name}: ${result.reason || 'not processed'}`);
-            }
-          } catch (handleError) {
-            acceptLog.error(`  Error processing acceptance for ${pending.contact_name}: ${handleError.message}`);
-            errors++;
+          if (result.handled && result.accepted) {
+            acceptLog.success(`  Flow iniciado para ${candidate.contact_name} (conversation: ${result.conversation_id})`);
+            totalAccepted++;
+          } else if (result.handled && result.skipped) {
+            acceptLog.warn(`  Skipped ${candidate.contact_name}: ${result.reason}`);
+          } else {
+            acceptLog.info(`  ${candidate.contact_name}: ${result.reason || 'not processed'}`);
           }
+        } catch (handleError) {
+          acceptLog.error(`  Error processing acceptance for ${candidate.contact_name}: ${handleError.message}`);
+          errors++;
         }
       }
 

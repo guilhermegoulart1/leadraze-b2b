@@ -52,7 +52,9 @@ const unipileClient = {
     listSentInvitations: (params) => provider.users.listSentInvitations(params),
     listReceivedInvitations: (params) => provider.users.listReceivedInvitations(params),
     handleReceivedInvitation: (params) => provider.users.handleReceivedInvitation(params),
-    cancelInvitation: (params) => provider.users.cancelInvitation(params)
+    cancelInvitation: (params) => provider.users.cancelInvitation(params),
+    // Relations (v1.7.0+)
+    getRelations: (params) => provider.users.getRelations(params)
   },
 
   // ================================
