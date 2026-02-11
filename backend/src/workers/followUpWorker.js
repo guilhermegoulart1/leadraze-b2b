@@ -149,7 +149,7 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
             sender_type: 'ai',
             content: messageText,
             message_type: 'text',
-            sent_at: sentViaUnipile ? new Date() : null,
+            sent_at: new Date(),
             created_at: new Date(),
             metadata: sentViaUnipile ? null : JSON.stringify({ send_failed: true, error: 'unipile_send_failed' })
           });

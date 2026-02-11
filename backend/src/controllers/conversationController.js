@@ -617,8 +617,46 @@ const getMessages = async (req, res) => {
 
     const conversation = convResult.rows[0];
 
+    // Se não tem unipile_chat_id ainda, ir direto para o cache local
+    // (conversas recém-criadas pela automação ainda não receberam o chat_id via webhook)
     if (!conversation.unipile_chat_id) {
-      throw new ValidationError('Conversation does not have a Unipile chat ID');
+      console.log('⚠️ Conversa sem unipile_chat_id, buscando do banco local...');
+
+      const messagesQuery = `
+        SELECT
+          id,
+          conversation_id,
+          unipile_message_id,
+          sender_type,
+          content,
+          message_type,
+          COALESCE(sent_at, created_at) as sent_at,
+          created_at,
+          metadata
+        FROM messages
+        WHERE conversation_id = $1
+        ORDER BY COALESCE(sent_at, created_at) ASC
+        LIMIT $2
+      `;
+
+      const messagesResult = await db.query(messagesQuery, [id, limit]);
+
+      const messagesWithCategory = messagesResult.rows.map(msg => ({
+        ...msg,
+        linkedin_category: msg.metadata?.linkedin_category || null,
+        subject: msg.metadata?.subject || null
+      }));
+
+      return sendSuccess(res, {
+        messages: messagesWithCategory,
+        fromCache: true,
+        pagination: {
+          page: 1,
+          limit: parseInt(limit),
+          total: messagesResult.rows.length,
+          pages: 1
+        }
+      });
     }
 
     // ✅ Buscar mensagens da API UNIPILE (fonte da verdade)
@@ -749,7 +787,12 @@ const getMessages = async (req, res) => {
       });
 
       // Ordenar por data (mais antiga primeiro para exibição correta)
-      messages.sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
+      // Usar 0 como fallback para mensagens sem timestamp (ficam no início)
+      messages.sort((a, b) => {
+        const timeA = a.sent_at ? new Date(a.sent_at).getTime() : 0;
+        const timeB = b.sent_at ? new Date(b.sent_at).getTime() : 0;
+        return timeA - timeB;
+      });
 
       sendSuccess(res, {
         messages,
@@ -775,12 +818,12 @@ const getMessages = async (req, res) => {
           sender_type,
           content,
           message_type,
-          sent_at,
+          COALESCE(sent_at, created_at) as sent_at,
           created_at,
           metadata
         FROM messages
         WHERE conversation_id = $1
-        ORDER BY sent_at ASC, created_at ASC
+        ORDER BY COALESCE(sent_at, created_at) ASC
         LIMIT $2
       `;
 
