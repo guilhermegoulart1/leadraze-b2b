@@ -1172,7 +1172,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
       c.contact_id as conv_contact_id, c.opportunity_id as conv_opportunity_id,
       c.linkedin_account_id, c.ai_agent_id,
       c.status, c.ai_active, c.manual_control_taken,
-      c.channel, c.provider_type, c.channel_name, c.is_group, c.group_name, c.attendee_count,
+      c.provider_type, c.is_group, c.group_name, c.attendee_count,
       c.current_step, c.unipile_chat_id, c.created_at as conv_created_at,
       o.id as opportunity_id,
       o.title as opportunity_title,
@@ -1327,8 +1327,8 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
 
     // Channel data for variable processing
     channel: {
-      type: conv.channel || conv.provider_type || 'linkedin',
-      name: conv.channel_name || '',
+      type: conv.provider_type || 'linkedin',
+      name: conv.group_name || '',
       isGroup: conv.is_group || false,
       groupName: conv.group_name || '',
       attendeeCount: conv.attendee_count || 0
