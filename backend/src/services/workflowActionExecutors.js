@@ -816,10 +816,12 @@ const executors = {
       stageName,
       title,
       value = 0,
-      createContactIfNotExists = true
+      createContactIfNotExists = true,
+      assignedUserId
     } = params.params || params;
 
-    const { lead, leadId, contactId, accountId, userId, isTestMode, variables } = context;
+    const { lead, leadId, contactId, accountId, userId, conversationId, isTestMode, variables } = context;
+    const ownerUserId = assignedUserId || userId;
 
     if (!pipelineId) {
       throw new Error('Pipeline ID is required');
@@ -964,7 +966,7 @@ const executors = {
         parseFloat(value) || 0,
         leadId,
         'workflow',
-        userId,
+        ownerUserId,
         userId
       ]
     );
@@ -985,7 +987,16 @@ const executors = {
       ]
     );
 
-    console.log(`✅ [create_opportunity] Created opportunity ${opportunityId} in pipeline "${stage.pipeline_name}" stage "${stage.name}"`);
+    console.log(`✅ [create_opportunity] Created opportunity ${opportunityId} in pipeline "${stage.pipeline_name}" stage "${stage.name}" (owner: ${ownerUserId})`);
+
+    // Link opportunity to conversation and assign user
+    if (conversationId) {
+      await db.query(
+        `UPDATE conversations SET opportunity_id = $1, assigned_user_id = $2, updated_at = NOW() WHERE id = $3`,
+        [opportunityId, ownerUserId, conversationId]
+      );
+      console.log(`🔗 [create_opportunity] Conversation ${conversationId} linked to opportunity ${opportunityId}, assigned to user ${ownerUserId}`);
+    }
 
     return {
       created: true,
