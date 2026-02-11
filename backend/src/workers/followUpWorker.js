@@ -122,19 +122,31 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
         for (const messageText of responseTexts) {
           console.log(`📤 [ResumeWorkflow] Sending response (${messageText.length} chars) via Unipile...`);
 
-          await unipileClient.messaging.send({
-            account_id: conv.unipile_account_id,
-            user_id: conv.lead_unipile_id,
-            text: messageText
-          });
+          // Wrap in try-catch to prevent destructive retry
+          // If Unipile fails but we save locally, the state is preserved
+          let sentViaUnipile = false;
+          try {
+            await unipileClient.messaging.send({
+              account_id: conv.unipile_account_id,
+              user_id: conv.lead_unipile_id,
+              text: messageText
+            });
+            sentViaUnipile = true;
+            console.log(`✅ [ResumeWorkflow] Message sent via Unipile`);
+          } catch (sendError) {
+            console.error(`❌ [ResumeWorkflow] Unipile send failed: ${sendError.message}`);
+            console.error(`❌ [ResumeWorkflow] Error details:`, JSON.stringify(sendError.response?.data || sendError.code || sendError.message));
+          }
 
+          // Always save message locally (even if Unipile failed)
           await db.insert('messages', {
             conversation_id: conversationId,
             sender_type: 'ai',
             content: messageText,
             message_type: 'text',
-            sent_at: new Date(),
-            created_at: new Date()
+            sent_at: sentViaUnipile ? new Date() : null,
+            created_at: new Date(),
+            metadata: sentViaUnipile ? null : JSON.stringify({ send_failed: true, error: 'unipile_send_failed' })
           });
 
           await db.update('conversations', {
@@ -143,7 +155,7 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
             updated_at: new Date()
           }, { id: conversationId });
 
-          console.log(`✅ [ResumeWorkflow] Message sent and saved`);
+          console.log(`✅ [ResumeWorkflow] Message saved to DB (sent=${sentViaUnipile})`);
         }
       } else {
         console.error(`❌ [ResumeWorkflow] Missing Unipile config: account=${conv?.unipile_account_id}, lead=${conv?.lead_unipile_id}`);
