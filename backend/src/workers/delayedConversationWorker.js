@@ -61,7 +61,7 @@ async function getConversationData(conversationId) {
     LEFT JOIN contacts ct ON conv.contact_id = ct.id
     LEFT JOIN campaigns c ON conv.campaign_id = c.id
     LEFT JOIN ai_agents ai ON c.ai_agent_id = ai.id
-    LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
+    LEFT JOIN linkedin_accounts la ON conv.linkedin_account_id = la.id
     WHERE conv.id = $1`,
     [conversationId]
   );

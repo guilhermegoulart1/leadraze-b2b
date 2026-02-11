@@ -33,7 +33,7 @@ async function initializeWorkflow(conversationId, agentId, triggerEvent = null) 
     // Fetch agent with workflow definition
     const agentResult = await db.query(
       `SELECT id, name, workflow_definition, workflow_enabled,
-              products_services, behavioral_profile, language, tone
+              products_services, behavioral_profile, language, personality_tone
        FROM ai_agents WHERE id = $1`,
       [agentId]
     );
@@ -1208,7 +1208,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
      LEFT JOIN opportunities o ON c.opportunity_id = o.id
      LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
      LEFT JOIN pipelines pp ON o.pipeline_id = pp.id
-     LEFT JOIN contacts ct ON o.contact_id = ct.id
+     LEFT JOIN contacts ct ON ct.id = COALESCE(c.contact_id, o.contact_id)
      LEFT JOIN campaigns camp ON c.campaign_id = camp.id
      LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
      LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
@@ -1312,7 +1312,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
       productsServices: conv.products_services,
       behavioralProfile: conv.behavioral_profile,
       language: conv.language,
-      tone: conv.tone,
+      tone: conv.personality_tone,
       autoSchedule: conv.auto_schedule,
       schedulingLink: conv.scheduling_link
     },
