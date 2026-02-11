@@ -3,7 +3,7 @@
 -- Cada aceite gera um novo registro (nunca sobrescreve), mantendo historico completo.
 
 CREATE TABLE IF NOT EXISTS terms_acceptance_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
   terms_version VARCHAR(20) NOT NULL,
