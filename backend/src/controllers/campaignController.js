@@ -1577,6 +1577,83 @@ const cancelCampaign = async (req, res) => {
   }
 };
 
+// ================================
+// 19. REFRESH MANUAL DE CONVITES ACEITOS
+// ================================
+const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos entre refreshes por conta
+const refreshCooldowns = new Map(); // linkedin_account_id -> last refresh timestamp
+
+const refreshInviteStatuses = async (req, res) => {
+  const { checkAcceptedSentInvitations } = require('../workers/invitationPollingWorker');
+
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const accountId = req.user.account_id;
+
+    // Verificar se campanha pertence ao usuario
+    const { filter: sectorFilter, params: sectorParams } = await buildCampaignSectorFilter(userId, accountId, 4);
+    const campaignResult = await db.query(
+      `SELECT c.id, c.linkedin_account_id
+       FROM campaigns c
+       WHERE c.id = $1 AND c.user_id = $2 AND c.account_id = $3 ${sectorFilter}`,
+      [id, userId, accountId, ...sectorParams]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    const campaign = campaignResult.rows[0];
+    const linkedinAccountId = campaign.linkedin_account_id;
+
+    // Cooldown por linkedin_account_id (evitar spam)
+    const lastRefresh = refreshCooldowns.get(linkedinAccountId);
+    if (lastRefresh && Date.now() - lastRefresh < REFRESH_COOLDOWN_MS) {
+      const remainingSec = Math.ceil((REFRESH_COOLDOWN_MS - (Date.now() - lastRefresh)) / 1000);
+      return sendSuccess(res, {
+        refreshed: false,
+        cooldown: true,
+        retry_after_seconds: remainingSec,
+        message: `Aguarde ${remainingSec}s para atualizar novamente`
+      });
+    }
+
+    // Buscar dados da conta LinkedIn
+    const accountResult = await db.query(`
+      SELECT id, unipile_account_id, profile_name, status
+      FROM linkedin_accounts
+      WHERE id = $1 AND status = 'active'
+    `, [linkedinAccountId]);
+
+    if (accountResult.rows.length === 0) {
+      throw new ValidationError('Conta LinkedIn não encontrada ou desconectada');
+    }
+
+    const account = accountResult.rows[0];
+
+    // Marcar cooldown
+    refreshCooldowns.set(linkedinAccountId, Date.now());
+
+    console.log(`🔄 [MANUAL REFRESH] Campanha ${id} - Verificando aceites para ${account.profile_name}`);
+
+    // Executar check de aceites (mesma lógica do polling)
+    const result = await checkAcceptedSentInvitations([account]);
+
+    console.log(`🔄 [MANUAL REFRESH] Resultado: ${result.totalAccepted} aceite(s) detectado(s)`);
+
+    sendSuccess(res, {
+      refreshed: true,
+      accepted: result.totalAccepted,
+      checked: result.totalChecked,
+      errors: result.errors
+    });
+
+  } catch (error) {
+    sendError(res, error, error.statusCode || 500);
+  }
+};
+
 module.exports = {
   getCampaigns,
   getCampaign,
@@ -1595,5 +1672,6 @@ module.exports = {
   getReviewConfig,
   getCampaignReport,
   getQueueStatus,
-  cancelCampaign
+  cancelCampaign,
+  refreshInviteStatuses
 };

@@ -86,6 +86,9 @@ router.get('/:id/queue-status', campaignController.getQueueStatus);
 // Cancelar campanha (retirar convites pendentes)
 router.post('/:id/cancel', campaignController.cancelCampaign);
 
+// Refresh manual dos status de convites (verifica aceites via Unipile)
+router.post('/:id/refresh-invites', campaignController.refreshInviteStatuses);
+
 // ================================
 // GERENCIAMENTO DE CONTATOS DA CAMPANHA
 // ================================

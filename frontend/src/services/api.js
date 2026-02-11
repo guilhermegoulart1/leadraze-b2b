@@ -274,6 +274,12 @@ class ApiService {
     });
   }
 
+  async refreshInviteStatuses(campaignId) {
+    return this.request(`/campaigns/${campaignId}/refresh-invites`, {
+      method: 'POST',
+    });
+  }
+
   // ================================
   // OPPORTUNITIES (former LEADS)
   // ================================

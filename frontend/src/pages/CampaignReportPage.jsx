@@ -55,6 +55,8 @@ const CampaignReportPage = () => {
     totalPages: 0,
   });
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshCooldown, setRefreshCooldown] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -137,6 +139,28 @@ const CampaignReportPage = () => {
       alert(error.message || 'Erro ao cancelar campanha');
     } finally {
       setIsActioning(false);
+    }
+  };
+
+  const handleRefreshInvites = async () => {
+    try {
+      setIsRefreshing(true);
+      const res = await api.refreshInviteStatuses(id);
+      if (res.success && res.data.cooldown) {
+        setRefreshCooldown(res.data.retry_after_seconds);
+        const timer = setInterval(() => {
+          setRefreshCooldown(prev => {
+            if (prev <= 1) { clearInterval(timer); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        await loadData();
+      }
+    } catch (error) {
+      console.error('Error refreshing invite statuses:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -292,6 +316,19 @@ const CampaignReportPage = () => {
           >
             <RefreshCw className="w-4 h-4" />
             Atualizar
+          </button>
+
+          <button
+            onClick={handleRefreshInvites}
+            disabled={isRefreshing || refreshCooldown > 0}
+            className="flex items-center gap-2 px-3 py-2 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRefreshing ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <UserCheck className="w-4 h-4" />
+            )}
+            {refreshCooldown > 0 ? `Aguarde ${refreshCooldown}s` : isRefreshing ? 'Verificando...' : 'Verificar aceites'}
           </button>
 
           {campaign.status === 'active' && (

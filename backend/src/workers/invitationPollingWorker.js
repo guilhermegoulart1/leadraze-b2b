@@ -9,7 +9,7 @@ const { downloadAndStoreProfilePicture, isR2Url } = require('../services/profile
 /**
  * Invitation Polling Worker
  *
- * Two responsibilities (every 4 hours with random delay):
+ * Two responsibilities (every ~40 minutes with ±10min random delay):
  * 1. Poll for new RECEIVED LinkedIn invitations → create notifications
  * 2. Check for ACCEPTED sent invitations → trigger handleNewRelation flow
  *    (fallback for Unipile new_relation webhook which can delay up to 8h)
@@ -19,7 +19,7 @@ const { downloadAndStoreProfilePicture, isR2Url } = require('../services/profile
  * - This avoids triggering LinkedIn's automation detection
  */
 
-const BASE_INTERVAL = 1 * 60 * 60 * 1000; // 1 hour
+const BASE_INTERVAL = 40 * 60 * 1000; // 40 minutes
 const RANDOM_DELAY_MAX = 10 * 60 * 1000; // ±10 minutes
 let isProcessing = false;
 let nextScheduledRun = null;
@@ -561,7 +561,7 @@ function scheduleNextRun() {
   nextScheduledRun = new Date(Date.now() + nextInterval);
 
   log.info(`Next poll scheduled for: ${nextScheduledRun.toISOString()}`);
-  log.info(`  (Base: 4h, Random delay: ${(randomDelay / 1000 / 60).toFixed(1)} minutes)`);
+  log.info(`  (Base: 40min, Random delay: ${(randomDelay / 1000 / 60).toFixed(1)} minutes)`);
 
   setTimeout(() => {
     pollForInvitations();
@@ -574,7 +574,7 @@ function scheduleNextRun() {
 function startProcessor() {
   log.divider();
   log.info('INVITATION POLLING WORKER STARTED');
-  log.info(`Base interval: ${BASE_INTERVAL / 1000 / 60 / 60} hours`);
+  log.info(`Base interval: ${BASE_INTERVAL / 1000 / 60} minutes`);
   log.info(`Random delay: +/- ${RANDOM_DELAY_MAX / 1000 / 60} minutes`);
   log.divider();
 
