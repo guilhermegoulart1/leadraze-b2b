@@ -111,7 +111,7 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose, onOpenHttpModal })
 
   // Load users and sectors when transfer action is selected
   useEffect(() => {
-    if (node.type === 'action' && localData.actionType === 'transfer') {
+    if (node.type === 'action' && (localData.actionType === 'transfer' || localData.actionType === 'create_opportunity')) {
       loadUsersAndSectors();
     }
   }, [node.type, localData.actionType]);
@@ -1981,6 +1981,43 @@ const PropertiesPanel = ({ node, onUpdate, onDelete, onClose, onOpenHttpModal })
               className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
               placeholder="0,00"
             />
+          </div>
+
+          {/* Responsible User */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-400">
+              <User className="w-2.5 h-2.5 inline mr-0.5" />
+              Responsavel
+            </label>
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-2 text-gray-400">
+                <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                <span className="text-[10px]">Carregando...</span>
+              </div>
+            ) : (
+              <select
+                value={localData.params?.assignedUserId || ''}
+                onChange={(e) => {
+                  const selectedUser = users.find(u => u.id === e.target.value);
+                  handleChange('params', {
+                    ...localData.params,
+                    assignedUserId: e.target.value || null,
+                    assignedUserName: selectedUser?.name || selectedUser?.email || ''
+                  });
+                }}
+                className="w-full px-2 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:text-white text-[11px]"
+              >
+                <option value="">Dono da campanha (padrao)</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-[9px] text-gray-400 dark:text-gray-500">
+              Usuario responsavel pela oportunidade e conversa
+            </p>
           </div>
 
           {/* Create Contact if Not Exists Toggle */}
