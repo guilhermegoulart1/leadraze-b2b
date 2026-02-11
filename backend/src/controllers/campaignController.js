@@ -1580,8 +1580,8 @@ const cancelCampaign = async (req, res) => {
 // ================================
 // 19. REFRESH MANUAL DE CONVITES ACEITOS
 // ================================
-const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos entre refreshes por conta
-const refreshCooldowns = new Map(); // linkedin_account_id -> last refresh timestamp
+const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos entre refreshes por campanha
+const refreshCooldowns = new Map(); // campaign_id -> last refresh timestamp
 
 const refreshInviteStatuses = async (req, res) => {
   const { checkAcceptedSentInvitations } = require('../workers/invitationPollingWorker');
@@ -1605,10 +1605,9 @@ const refreshInviteStatuses = async (req, res) => {
     }
 
     const campaign = campaignResult.rows[0];
-    const linkedinAccountId = campaign.linkedin_account_id;
 
-    // Cooldown por linkedin_account_id (evitar spam)
-    const lastRefresh = refreshCooldowns.get(linkedinAccountId);
+    // Cooldown por campanha (evitar spam)
+    const lastRefresh = refreshCooldowns.get(id);
     if (lastRefresh && Date.now() - lastRefresh < REFRESH_COOLDOWN_MS) {
       const remainingSec = Math.ceil((REFRESH_COOLDOWN_MS - (Date.now() - lastRefresh)) / 1000);
       return sendSuccess(res, {
@@ -1619,26 +1618,39 @@ const refreshInviteStatuses = async (req, res) => {
       });
     }
 
-    // Buscar dados da conta LinkedIn
-    const accountResult = await db.query(`
-      SELECT id, unipile_account_id, profile_name, status
-      FROM linkedin_accounts
-      WHERE id = $1 AND status = 'active'
-    `, [linkedinAccountId]);
+    // Buscar TODAS as contas de envio vinculadas à campanha via campaign_linkedin_accounts
+    const accountsResult = await db.query(`
+      SELECT la.id, la.unipile_account_id, la.profile_name, la.status
+      FROM campaign_linkedin_accounts cla
+      JOIN linkedin_accounts la ON la.id = cla.linkedin_account_id
+      WHERE cla.campaign_id = $1 AND cla.is_active = true AND la.status = 'active'
+      ORDER BY cla.priority
+    `, [id]);
 
-    if (accountResult.rows.length === 0) {
-      throw new ValidationError('Conta LinkedIn não encontrada ou desconectada');
+    let accounts;
+    if (accountsResult.rows.length > 0) {
+      accounts = accountsResult.rows;
+    } else {
+      // Fallback legado: usar campaigns.linkedin_account_id
+      const legacyResult = await db.query(`
+        SELECT id, unipile_account_id, profile_name, status
+        FROM linkedin_accounts
+        WHERE id = $1 AND status = 'active'
+      `, [campaign.linkedin_account_id]);
+      accounts = legacyResult.rows;
     }
 
-    const account = accountResult.rows[0];
+    if (accounts.length === 0) {
+      throw new ValidationError('Nenhuma conta LinkedIn ativa encontrada para esta campanha');
+    }
 
     // Marcar cooldown
-    refreshCooldowns.set(linkedinAccountId, Date.now());
+    refreshCooldowns.set(id, Date.now());
 
-    console.log(`🔄 [MANUAL REFRESH] Campanha ${id} - Verificando aceites para ${account.profile_name}`);
+    console.log(`🔄 [MANUAL REFRESH] Campanha ${id} - Verificando aceites em ${accounts.length} conta(s): ${accounts.map(a => a.profile_name).join(', ')}`);
 
-    // Executar check de aceites (mesma lógica do polling)
-    const result = await checkAcceptedSentInvitations([account]);
+    // Executar check de aceites para TODAS as contas vinculadas
+    const result = await checkAcceptedSentInvitations(accounts);
 
     console.log(`🔄 [MANUAL REFRESH] Resultado: ${result.totalAccepted} aceite(s) detectado(s)`);
 

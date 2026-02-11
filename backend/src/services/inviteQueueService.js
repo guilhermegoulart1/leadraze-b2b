@@ -144,16 +144,13 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
 
   try {
     await client.query('BEGIN');
-    log.step('1/6', 'Transação iniciada');
+    log.step('1/7', 'Transação iniciada');
 
-    // Get campaign with review config and agent config
+    // Get campaign with review config and agent config (without account JOIN)
     const campaignResult = await client.query(
-      `SELECT c.*, crc.*, la.id as linkedin_account_id, la.unipile_account_id, la.daily_limit,
-              la.weekly_limit, aa.config as agent_config
+      `SELECT c.*, crc.*, aa.config as agent_config
        FROM campaigns c
        LEFT JOIN campaign_review_config crc ON crc.campaign_id = c.id
-       LEFT JOIN campaign_linkedin_accounts cla ON cla.campaign_id = c.id AND cla.is_active = true
-       LEFT JOIN linkedin_accounts la ON la.id = cla.linkedin_account_id
        LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
        WHERE c.id = $1 AND c.account_id = $2`,
       [campaignId, accountId]
@@ -166,15 +163,44 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
 
     const campaign = campaignResult.rows[0];
 
+    // Get ALL active linked LinkedIn accounts for this campaign
+    const accountsResult = await client.query(
+      `SELECT la.id as linkedin_account_id, la.unipile_account_id,
+              la.daily_limit, la.weekly_limit, cla.priority
+       FROM campaign_linkedin_accounts cla
+       JOIN linkedin_accounts la ON la.id = cla.linkedin_account_id
+       WHERE cla.campaign_id = $1 AND cla.is_active = true AND la.status = 'active'
+       ORDER BY cla.priority`,
+      [campaignId]
+    );
+
+    let linkedinAccounts = accountsResult.rows;
+
+    // Fallback: use legacy campaigns.linkedin_account_id
+    if (linkedinAccounts.length === 0 && campaign.linkedin_account_id) {
+      const legacyResult = await client.query(
+        `SELECT id as linkedin_account_id, unipile_account_id, daily_limit, weekly_limit
+         FROM linkedin_accounts
+         WHERE id = $1 AND status = 'active'`,
+        [campaign.linkedin_account_id]
+      );
+      linkedinAccounts = legacyResult.rows;
+    }
+
+    if (linkedinAccounts.length === 0) {
+      log.error('Nenhuma conta LinkedIn ativa encontrada para esta campanha!');
+      throw new Error('No active LinkedIn accounts found for this campaign');
+    }
+
     // Parse agent config to get working hours (source of truth)
     const agentConfig = typeof campaign.agent_config === 'string'
       ? JSON.parse(campaign.agent_config || '{}')
       : (campaign.agent_config || {});
     const schedule = getScheduleFromAgent(agentConfig, campaign);
 
-    log.step('2/6', 'Campanha encontrada:', {
+    log.step('2/7', 'Campanha encontrada:', {
       name: campaign.name,
-      linkedin_account_id: campaign.linkedin_account_id,
+      linked_accounts: linkedinAccounts.length,
       is_reviewed: campaign.is_reviewed,
       invite_expiry_days: campaign.invite_expiry_days,
       send_start_hour: schedule.send_start_hour,
@@ -201,7 +227,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     );
 
     const campaignContacts = contactsResult.rows;
-    log.step('3/6', `Contatos aprovados encontrados: ${campaignContacts.length}`);
+    log.step('3/7', `Contatos aprovados encontrados: ${campaignContacts.length}`);
     campaignContacts.forEach((cc, i) => log.info(`   [${i+1}] ${cc.contact_name} (${cc.linkedin_profile_id})`));
 
     if (campaignContacts.length === 0) {
@@ -209,38 +235,41 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
       throw new Error('No approved contacts to queue');
     }
 
-    // Get daily + weekly limits and pending count
-    const dailyLimit = campaign.daily_limit || 20;
-    const weeklyLimit = campaign.weekly_limit || 100;
+    // Calculate capacity per LinkedIn account
     const maxPending = campaign.max_pending_invites || 100;
 
-    // Get current pending invites count for this LinkedIn account
-    const pendingResult = await client.query(
-      `SELECT COUNT(*) as count
-       FROM campaign_invite_queue
-       WHERE linkedin_account_id = $1 AND status IN ('sent', 'scheduled')`,
-      [campaign.linkedin_account_id]
-    );
+    for (const account of linkedinAccounts) {
+      const pendingResult = await client.query(
+        `SELECT COUNT(*) as count
+         FROM campaign_invite_queue
+         WHERE linkedin_account_id = $1 AND status IN ('sent', 'scheduled')`,
+        [account.linkedin_account_id]
+      );
+      const currentPending = parseInt(pendingResult.rows[0].count) || 0;
+      const availableSlots = Math.max(0, maxPending - currentPending);
 
-    const currentPending = parseInt(pendingResult.rows[0].count) || 0;
-    const availableSlots = Math.max(0, maxPending - currentPending);
+      const sentToday = await inviteService.getInvitesSentToday(account.linkedin_account_id);
+      const sentThisWeek = await inviteService.getInvitesSentThisWeek(account.linkedin_account_id);
 
-    // Check weekly remaining (LinkedIn usa limites semanais)
-    const sentThisWeek = await inviteService.getInvitesSentThisWeek(campaign.linkedin_account_id);
-    const weeklyRemaining = Math.max(0, weeklyLimit - sentThisWeek);
+      const dailyLimit = account.daily_limit || 20;
+      const weeklyLimit = account.weekly_limit || 100;
 
-    log.step('4/6', 'Limites calculados:', {
-      dailyLimit,
-      weeklyLimit,
-      weeklyRemaining,
-      sentThisWeek,
-      maxPending,
-      currentPending,
-      availableSlots
+      account.availableDaily = Math.max(0, dailyLimit - sentToday);
+      account.availableWeekly = Math.max(0, weeklyLimit - sentThisWeek);
+      account.availableSlots = availableSlots;
+      account.capacity = Math.min(account.availableDaily, account.availableWeekly, account.availableSlots);
+    }
+
+    const totalCapacity = linkedinAccounts.reduce((sum, a) => sum + a.capacity, 0);
+
+    log.step('4/7', `Capacidade por conta (${linkedinAccounts.length} conta(s)):`);
+    linkedinAccounts.forEach(a => {
+      log.info(`   ${a.linkedin_account_id}: daily=${a.availableDaily}, weekly=${a.availableWeekly}, slots=${a.availableSlots}, capacity=${a.capacity}`);
     });
+    log.info(`   Capacidade total: ${totalCapacity}`);
 
-    // Calculate how many invites we can queue today (respecting daily + weekly + pending)
-    const invitesToday = Math.min(campaignContacts.length, dailyLimit, availableSlots, weeklyRemaining);
+    // Distribute contacts across accounts (round-robin respecting capacity)
+    const invitesToday = Math.min(campaignContacts.length, totalCapacity);
     log.info(`   Convites para hoje: ${invitesToday}`);
 
     // Calculate random send times for today's invites (using agent hours + days)
@@ -251,7 +280,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
       days: schedule.days
     });
 
-    log.step('5/6', 'Horários de envio calculados:');
+    log.step('5/7', 'Horários de envio calculados:');
     sendTimes.forEach((t, i) => {
       const dt = DateTime.fromJSDate(t);
       log.info(`   [${i+1}] ${dt.toFormat('HH:mm:ss')} (${dt.zoneName})`);
@@ -261,13 +290,37 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     const expiryDays = campaign.invite_expiry_days || 7;
     log.info(`   Dias para expirar: ${expiryDays}`);
 
-    // Create queue entries
+    // Create queue entries with round-robin distribution
     let queuedCount = 0;
-    log.step('6/6', 'Criando entradas na fila...');
+    let scheduledCount = 0;
+    const accountStats = new Map(); // linkedin_account_id -> count of assigned invites
+    log.step('6/7', 'Criando entradas na fila (round-robin)...');
+
+    let accountIndex = 0;
 
     for (let i = 0; i < campaignContacts.length; i++) {
       const cc = campaignContacts[i];
-      const scheduledFor = i < sendTimes.length ? sendTimes[i] : null;
+
+      // Find next account with capacity (round-robin)
+      let assignedAccount = null;
+      for (let tries = 0; tries < linkedinAccounts.length; tries++) {
+        const candidate = linkedinAccounts[accountIndex % linkedinAccounts.length];
+        if (candidate.capacity > 0) {
+          assignedAccount = candidate;
+          candidate.capacity--;
+          accountIndex++;
+          break;
+        }
+        accountIndex++;
+      }
+
+      if (!assignedAccount) {
+        // All accounts exhausted capacity
+        log.warn(`   Capacidade esgotada após ${queuedCount} convites`);
+        break;
+      }
+
+      const scheduledFor = queuedCount < sendTimes.length ? sendTimes[queuedCount] : null;
       const queueStatus = scheduledFor ? 'scheduled' : 'pending';
 
       // Calculate expiration (from when it will be sent)
@@ -279,7 +332,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
         `INSERT INTO campaign_invite_queue
          (account_id, campaign_id, campaign_contact_id, linkedin_account_id, status, scheduled_for, expires_at, priority)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [accountId, campaignId, cc.campaign_contact_id, campaign.linkedin_account_id, queueStatus, scheduledFor, expiresAt, i]
+        [accountId, campaignId, cc.campaign_contact_id, assignedAccount.linkedin_account_id, queueStatus, scheduledFor, expiresAt, i]
       );
       const queueRowId = insertResult.rows[0].id;
 
@@ -290,8 +343,8 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
           queueId: queueRowId,
           campaignId,
           campaignContactId: cc.campaign_contact_id,
-          linkedinAccountId: campaign.linkedin_account_id,
-          unipileAccountId: campaign.unipile_account_id
+          linkedinAccountId: assignedAccount.linkedin_account_id,
+          unipileAccountId: assignedAccount.unipile_account_id
         }, {
           delay: delayMs,
           attempts: 3,
@@ -303,6 +356,7 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
           'UPDATE campaign_invite_queue SET bull_job_id = $1 WHERE id = $2',
           [job.id.toString(), queueRowId]
         );
+        scheduledCount++;
       }
 
       // Update campaign_contact status to indicate queued
@@ -311,12 +365,26 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
         [cc.campaign_contact_id]
       );
 
+      // Track stats per account
+      const prevCount = accountStats.get(assignedAccount.linkedin_account_id) || 0;
+      accountStats.set(assignedAccount.linkedin_account_id, prevCount + 1);
+
       const scheduleInfo = scheduledFor
         ? `agendado para ${DateTime.fromJSDate(scheduledFor).toFormat('HH:mm')} (Bull job)`
         : 'pendente (próximo dia)';
-      log.info(`   ✓ ${cc.contact_name} - ${queueStatus} (${scheduleInfo})`);
+      log.info(`   ✓ ${cc.contact_name} - ${queueStatus} via ${assignedAccount.linkedin_account_id.slice(0,8)}... (${scheduleInfo})`);
 
       queuedCount++;
+    }
+
+    // Update invites_sent stats in campaign_linkedin_accounts
+    for (const [laId, count] of accountStats) {
+      await client.query(
+        `UPDATE campaign_linkedin_accounts
+         SET invites_sent = COALESCE(invites_sent, 0) + $1, last_used_at = NOW()
+         WHERE campaign_id = $2 AND linkedin_account_id = $3`,
+        [count, campaignId, laId]
+      );
     }
 
     // Update campaign pending count
@@ -330,10 +398,15 @@ const createInviteQueue = async (campaignId, accountId, options = {}) => {
     const result = {
       success: true,
       totalQueued: queuedCount,
-      scheduledToday: sendTimes.length,
-      pendingForLater: queuedCount - sendTimes.length,
+      scheduledToday: scheduledCount,
+      pendingForLater: queuedCount - scheduledCount,
       nextScheduledAt: sendTimes.length > 0 ? sendTimes[0] : null
     };
+
+    log.step('7/7', 'Distribuição por conta:');
+    for (const [laId, count] of accountStats) {
+      log.info(`   ${laId.slice(0,8)}...: ${count} convite(s)`);
+    }
 
     log.success('═══════════════════════════════════════════════════════════');
     log.success('FILA DE CONVITES CRIADA COM SUCESSO!');

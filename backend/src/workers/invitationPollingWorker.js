@@ -312,14 +312,20 @@ async function checkAcceptedSentInvitations(accounts) {
 
     try {
       // 1. Get pending sent invites from our DB
+      //    Use campaign_invite_queue as source of truth for which account sent each invite
+      //    Fallback to campaigns.linkedin_account_id for legacy invites without queue entries
       const pendingResult = await db.query(`
         SELECT cc.id as campaign_contact_id, cc.linkedin_profile_id, cc.contact_id,
                ct.name as contact_name, ct.public_identifier
         FROM campaign_contacts cc
         JOIN contacts ct ON ct.id = cc.contact_id
         JOIN campaigns c ON c.id = cc.campaign_id
+        LEFT JOIN campaign_invite_queue ciq ON ciq.campaign_contact_id = cc.id AND ciq.status = 'sent'
         WHERE cc.status = 'invite_sent'
-        AND c.linkedin_account_id = $1
+        AND (
+          ciq.linkedin_account_id = $1
+          OR (ciq.id IS NULL AND c.linkedin_account_id = $1)
+        )
       `, [linkedinAccountId]);
 
       if (pendingResult.rows.length === 0) {
