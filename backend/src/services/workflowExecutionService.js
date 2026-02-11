@@ -1168,7 +1168,12 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
   // Fetch conversation details (using opportunities + contacts instead of leads)
   const convResult = await db.query(
     `SELECT
-      c.*,
+      c.id as conv_id, c.account_id, c.user_id, c.campaign_id as conv_campaign_id,
+      c.contact_id as conv_contact_id, c.opportunity_id as conv_opportunity_id,
+      c.linkedin_account_id, c.ai_agent_id,
+      c.status, c.ai_active, c.manual_control_taken,
+      c.channel, c.provider_type, c.channel_name, c.is_group, c.group_name, c.attendee_count,
+      c.current_step, c.unipile_chat_id, c.created_at as conv_created_at,
       o.id as opportunity_id,
       o.title as opportunity_title,
       o.value as opportunity_value,
@@ -1203,7 +1208,10 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
       la.unipile_account_id,
       camp.id as campaign_id,
       camp.name as campaign_name,
-      aa.*
+      aa.products_services, aa.behavioral_profile, aa.language,
+      aa.personality_tone, aa.objective_instructions, aa.response_style_instructions,
+      aa.target_audience, aa.conversation_steps, aa.knowledge_similarity_threshold,
+      aa.config as agent_config, aa.auto_schedule, aa.scheduling_link
      FROM conversations c
      LEFT JOIN opportunities o ON c.opportunity_id = o.id
      LEFT JOIN pipeline_stages ps ON o.stage_id = ps.id
@@ -1236,9 +1244,9 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     // IDs
     conversationId,
     agentId: state.agentId,
-    opportunityId: conv.opportunity_id,
-    contactId: conv.contact_id,
-    campaignId: conv.campaign_id,
+    opportunityId: conv.opportunity_id || conv.conv_opportunity_id,
+    contactId: conv.contact_id || conv.conv_contact_id,
+    campaignId: conv.campaign_id || conv.conv_campaign_id,
     accountId: conv.account_id,
     userId: conv.user_id,
     testSessionId: options.testSessionId || null,
@@ -1250,7 +1258,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
 
     // Contact/Lead data (kept as 'lead' for workflow compatibility)
     lead: {
-      id: conv.contact_id,
+      id: conv.contact_id || conv.conv_contact_id,
       name: conv.contact_name,
       email: conv.contact_email,
       phone: conv.contact_phone,
@@ -1261,7 +1269,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
 
     // Full contact data for variable processing
     contact: {
-      id: conv.contact_id,
+      id: conv.contact_id || conv.conv_contact_id,
       name: conv.contact_name,
       first_name: conv.contact_first_name,
       last_name: conv.contact_last_name,
@@ -1280,7 +1288,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     },
 
     // Opportunity data for variable processing
-    opportunity: conv.opportunity_id ? {
+    opportunity: (conv.opportunity_id || conv.conv_opportunity_id) ? {
       id: conv.opportunity_id,
       title: conv.opportunity_title,
       value: conv.opportunity_value,
@@ -1300,8 +1308,8 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     } : null,
 
     // Campaign data
-    campaign: conv.campaign_id ? {
-      id: conv.campaign_id,
+    campaign: (conv.campaign_id || conv.conv_campaign_id) ? {
+      id: conv.campaign_id || conv.conv_campaign_id,
       name: conv.campaign_name
     } : null,
 
@@ -1328,7 +1336,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
 
     // Unipile config (legacy compatibility)
     unipileAccountId: conv.unipile_account_id,
-    leadUnipileId: conv.lead_unipile_id,
+    leadUnipileId: conv.contact_unipile_id,
 
     // Workflow variables (includes HTTP extracted variables)
     variables: state.variables || {},
@@ -1355,7 +1363,7 @@ async function buildExecutionContext(conversationId, state, event, payload, opti
     stepNumber: state.stepNumber || 0,
     attempts: state.attempts || 0,
     workflowStartedAt: state.startedAt || null,
-    conversationStartedAt: conv.created_at,
+    conversationStartedAt: conv.conv_created_at,
 
     // Intent/sentiment from payload
     lastIntent: payload.intent,

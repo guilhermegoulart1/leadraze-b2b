@@ -88,9 +88,19 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
   );
 
   // If workflow generated a response, send it via Unipile
-  const responses = result.allResponses?.length > 0 ? result.allResponses : (result.response ? [result.response] : []);
+  // allResponses contains objects { nodeId, nodeLabel, message, type }
+  // result.response is a plain string
+  const responseTexts = [];
+  if (result.allResponses?.length > 0) {
+    for (const r of result.allResponses) {
+      const text = typeof r === 'string' ? r : r?.message;
+      if (text) responseTexts.push(text);
+    }
+  } else if (result.response) {
+    responseTexts.push(result.response);
+  }
 
-  if (responses.length > 0) {
+  if (responseTexts.length > 0) {
     // Check if already sent by an action node
     const sentByAction = result.executedNodes?.some(
       n => n.nodeType === 'action' && n.result?.result?.sent === true
@@ -109,21 +119,19 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
       const conv = convData.rows[0];
 
       if (conv?.unipile_account_id && conv?.lead_unipile_id) {
-        for (const response of responses) {
-          if (!response) continue;
-
-          console.log(`📤 [ResumeWorkflow] Sending response (${response.length} chars) via Unipile...`);
+        for (const messageText of responseTexts) {
+          console.log(`📤 [ResumeWorkflow] Sending response (${messageText.length} chars) via Unipile...`);
 
           await unipileClient.messaging.send({
             account_id: conv.unipile_account_id,
             user_id: conv.lead_unipile_id,
-            text: response
+            text: messageText
           });
 
           await db.insert('messages', {
             conversation_id: conversationId,
             sender_type: 'ai',
-            content: response,
+            content: messageText,
             message_type: 'text',
             sent_at: new Date(),
             created_at: new Date()
@@ -131,7 +139,7 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
 
           await db.update('conversations', {
             last_message_at: new Date(),
-            last_message_preview: response.substring(0, 100),
+            last_message_preview: messageText.substring(0, 100),
             updated_at: new Date()
           }, { id: conversationId });
 
