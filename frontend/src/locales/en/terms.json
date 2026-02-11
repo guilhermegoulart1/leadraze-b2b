@@ -1,0 +1,189 @@
+{
+  "modal": {
+    "title": "Terms of Use and Privacy Policy",
+    "subtitle": "To continue using GetRaze, please read and accept our updated terms.",
+    "tabTerms": "Terms of Use",
+    "tabPrivacy": "Privacy Policy",
+    "checkboxLabel": "I have read and accept the Terms of Use and Privacy Policy",
+    "acceptButton": "Accept and Continue",
+    "accepting": "Processing...",
+    "errorGeneric": "Error accepting the terms. Please try again.",
+    "lastUpdated": "Last updated: February 2026"
+  },
+  "termsOfUse": {
+    "title": "Terms of Use",
+    "section1": {
+      "title": "1. Acceptance of Terms",
+      "content": "By accessing and using the GetRaze platform (\"Service\"), you agree to be bound by these Terms of Use. If you do not agree with any part of these terms, do not use the Service. Continued use of the platform after changes to the terms constitutes your acceptance of the modifications."
+    },
+    "section2": {
+      "title": "2. Description of Service",
+      "content": "GetRaze is an artificial intelligence platform for multichannel prospecting and engagement. The Service provides tools for lead search, outreach automation across multiple channels (LinkedIn, email, among others), and prospect relationship management, using AI agents to optimize the sales process."
+    },
+    "section3": {
+      "title": "3. Intermediary Nature",
+      "content": "GetRaze acts exclusively as an intermediary between you and the official services of integrated platforms (such as LinkedIn, Meta, among others). We DO NOT store data from these social networks on our servers. All actions performed through GetRaze are executed through the official APIs and interfaces of these services, respecting their terms of use and policies."
+    },
+    "section4": {
+      "title": "4. User Accounts",
+      "content": "To use the Service, you must create an account providing accurate and up-to-date information. You are responsible for:",
+      "items": [
+        "Maintaining the security of your password and access credentials",
+        "All activities carried out under your account",
+        "Immediately notifying GetRaze of any unauthorized use",
+        "Keeping your account information up to date"
+      ]
+    },
+    "section5": {
+      "title": "5. Acceptable Use",
+      "content": "You agree NOT to use the Service to:",
+      "items": [
+        "Violate any applicable laws or regulations",
+        "Send spam or unsolicited mass communications",
+        "Collect personal information without proper legal basis",
+        "Interfere with or disrupt the operation of the Service",
+        "Attempt to gain unauthorized access to any part of the Service",
+        "Use the Service for illegal or unauthorized purposes",
+        "Violate the terms of use of integrated platforms (LinkedIn, Meta, etc.)"
+      ]
+    },
+    "section6": {
+      "title": "6. Credits and Subscription",
+      "content": "The Service operates on a credit and subscription plan system. Credit limits and features included in each plan may change periodically. We will notify you of significant changes with reasonable advance notice. All payments are processed securely by our payment providers."
+    },
+    "section7": {
+      "title": "7. No Lock-in",
+      "content": "GetRaze does NOT require loyalty or minimum commitment. You may cancel your subscription at any time, without fines or penalties. After cancellation, your access to the Service will remain active until the end of the already paid period."
+    },
+    "section8": {
+      "title": "8. Intellectual Property",
+      "content": "The Service, including its original content, features, technology, and design, is the exclusive property of GetRaze and its licensors. The Service is protected by copyright, trademark, and other intellectual property laws."
+    },
+    "section9": {
+      "title": "9. Limitation of Liability",
+      "content": "GetRaze shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or other intangible losses resulting from the use or inability to use the Service. GetRaze is not responsible for actions taken by integrated platforms (such as LinkedIn account restrictions) as a result of using the Service."
+    },
+    "section10": {
+      "title": "10. Termination",
+      "content": "We may suspend or terminate your access to the Service immediately, without prior notice, in case of violation of these Terms. You may also close your account at any time. After termination, your data will be retained for 30 days and then permanently deleted."
+    },
+    "section11": {
+      "title": "11. Changes to Terms",
+      "content": "We reserve the right to modify these Terms at any time. Significant changes will be communicated through the platform. Continued use of the Service after changes constitutes your acceptance of the new terms."
+    },
+    "section12": {
+      "title": "12. Governing Law",
+      "content": "These Terms are governed by the laws of the Federative Republic of Brazil, including the General Data Protection Law (LGPD - Law No. 13,709/2018). Any disputes shall be submitted to the jurisdiction of the courts at GetRaze's headquarters."
+    },
+    "section13": {
+      "title": "13. Contact",
+      "content": "For questions about these Terms, please contact us at legal@getraze.co."
+    }
+  },
+  "privacyPolicy": {
+    "title": "Privacy Policy",
+    "section1": {
+      "title": "1. Introduction",
+      "content": "GetRaze (\"we\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use our platform, in compliance with the Brazilian General Data Protection Law (LGPD)."
+    },
+    "section2": {
+      "title": "2. Data We Collect",
+      "content": "We collect the following types of data:",
+      "subtitle1": "Account Data",
+      "items1": [
+        "Name and email address",
+        "Access credentials (encrypted password)",
+        "Company information",
+        "Billing and payment data"
+      ],
+      "subtitle2": "Usage Data",
+      "items2": [
+        "Access logs (IP address, browser type)",
+        "Device information",
+        "Platform usage patterns and preferences",
+        "Activity logs for audit purposes"
+      ]
+    },
+    "section3": {
+      "title": "3. What We Do NOT Collect",
+      "content": "GetRaze acts as an intermediary for the official services of integrated platforms. We DO NOT store on our servers:",
+      "items": [
+        "Third-party social media profile data",
+        "Messages or conversations from external platforms",
+        "Third-party social media access credentials",
+        "Personal data of leads or prospects outside the platform context"
+      ],
+      "note": "All interactions with external platforms are carried out in real time through secure and authorized connections, without permanent retention of this data."
+    },
+    "section4": {
+      "title": "4. How We Use Your Data",
+      "content": "We use collected information to:",
+      "items": [
+        "Provide and maintain the Service",
+        "Process transactions and send related information",
+        "Send administrative communications and Service updates",
+        "Respond to support requests",
+        "Improve and personalize the user experience",
+        "Analyze usage to enhance the Service",
+        "Protect against fraudulent or illegal activities"
+      ]
+    },
+    "section5": {
+      "title": "5. Data Security",
+      "content": "We implement robust technical and organizational measures to protect your personal information. Our infrastructure holds SOC 2 Type II certification and complies with GDPR (European General Data Protection Regulation), ensuring the highest standards of security and data protection."
+    },
+    "section6": {
+      "title": "6. Data Sharing",
+      "content": "We may share your information only with:",
+      "items": [
+        "Essential service providers for platform operations (payment processing, hosting)",
+        "Legal authorities when required by law",
+        "Business partners, only with your explicit consent"
+      ],
+      "note": "We never sell your personal data to third parties."
+    },
+    "section7": {
+      "title": "7. Data Retention",
+      "content": "We retain your personal information for as long as necessary to fulfill the purposes described in this Policy. After account cancellation, your data will be kept for 30 days for possible reactivation and then permanently deleted."
+    },
+    "section8": {
+      "title": "8. Your Rights (LGPD)",
+      "content": "Under the General Data Protection Law, you have the right to:",
+      "items": [
+        "Confirmation of the existence of data processing",
+        "Access to your personal data",
+        "Correction of incomplete, inaccurate, or outdated data",
+        "Anonymization, blocking, or deletion of unnecessary data",
+        "Data portability to another provider",
+        "Deletion of data processed with your consent",
+        "Information about data sharing",
+        "Withdrawal of consent at any time"
+      ],
+      "note": "To exercise any of these rights, please contact us at privacy@getraze.co."
+    },
+    "section9": {
+      "title": "9. International Transfers",
+      "content": "Your information may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place for such transfers, in compliance with LGPD and applicable international regulations."
+    },
+    "section10": {
+      "title": "10. Cookies",
+      "content": "We use cookies and similar technologies to keep your session active, remember your preferences, and improve the platform experience. You can manage cookie settings in your browser."
+    },
+    "section11": {
+      "title": "11. Children's Privacy",
+      "content": "The Service is not intended for individuals under 18 years of age. We do not knowingly collect personal data from minors."
+    },
+    "section12": {
+      "title": "12. Changes to This Policy",
+      "content": "We may update this Privacy Policy periodically. Significant changes will be communicated through the platform and you will be asked to accept the updated version."
+    },
+    "section13": {
+      "title": "13. Contact",
+      "content": "For questions about this Privacy Policy or to exercise your rights, please contact us:",
+      "items": [
+        "General email: legal@getraze.co",
+        "Privacy and data: privacy@getraze.co"
+      ]
+    }
+  }
+}

@@ -218,6 +218,12 @@ try {
   console.error('❌ Error loading auth routes:', error.message);
 }
 
+try {
+  app.use('/api/terms', require('./routes/terms'));
+  console.log('✅ Terms routes loaded');
+} catch (error) {
+  console.error('❌ Error loading terms routes:', error.message);
+}
 
 // ================================
 // BILLING ROUTES (MUST BE BEFORE KNOWLEDGE ROUTES)

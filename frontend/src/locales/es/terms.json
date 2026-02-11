@@ -1,0 +1,189 @@
+{
+  "modal": {
+    "title": "Terminos de Uso y Politica de Privacidad",
+    "subtitle": "Para continuar usando GetRaze, lea y acepte nuestros terminos actualizados.",
+    "tabTerms": "Terminos de Uso",
+    "tabPrivacy": "Politica de Privacidad",
+    "checkboxLabel": "He leido y acepto los Terminos de Uso y la Politica de Privacidad",
+    "acceptButton": "Aceptar y Continuar",
+    "accepting": "Procesando...",
+    "errorGeneric": "Error al aceptar los terminos. Intentelo de nuevo.",
+    "lastUpdated": "Ultima actualizacion: Febrero de 2026"
+  },
+  "termsOfUse": {
+    "title": "Terminos de Uso",
+    "section1": {
+      "title": "1. Aceptacion de los Terminos",
+      "content": "Al acceder y utilizar la plataforma GetRaze (\"Servicio\"), usted acepta estar vinculado por estos Terminos de Uso. Si no esta de acuerdo con alguna parte de estos terminos, no utilice el Servicio. El uso continuado de la plataforma despues de cambios en los terminos constituye su aceptacion de las modificaciones."
+    },
+    "section2": {
+      "title": "2. Descripcion del Servicio",
+      "content": "GetRaze es una plataforma de inteligencia artificial para prospeccion y engagement multicanal. El Servicio ofrece herramientas para busqueda de leads, automatizacion de contacto en multiples canales (LinkedIn, email, entre otros) y gestion de relaciones con prospectos, utilizando agentes de IA para optimizar el proceso de ventas."
+    },
+    "section3": {
+      "title": "3. Naturaleza de Intermediacion",
+      "content": "GetRaze actua exclusivamente como intermediario entre usted y los servicios oficiales de las plataformas integradas (como LinkedIn, Meta, entre otros). NO almacenamos datos de estas redes sociales en nuestros servidores. Todas las acciones realizadas a traves de GetRaze se ejecutan mediante las APIs e interfaces oficiales de estos servicios, respetando sus terminos de uso y politicas."
+    },
+    "section4": {
+      "title": "4. Cuentas de Usuario",
+      "content": "Para utilizar el Servicio, debe crear una cuenta proporcionando informacion precisa y actualizada. Usted es responsable de:",
+      "items": [
+        "Mantener la seguridad de su contrasena y credenciales de acceso",
+        "Todas las actividades realizadas en su cuenta",
+        "Notificar inmediatamente a GetRaze sobre cualquier uso no autorizado",
+        "Mantener la informacion de su cuenta actualizada"
+      ]
+    },
+    "section5": {
+      "title": "5. Uso Aceptable",
+      "content": "Usted acepta NO utilizar el Servicio para:",
+      "items": [
+        "Violar leyes o regulaciones aplicables",
+        "Enviar spam o comunicaciones masivas no solicitadas",
+        "Recopilar informacion personal sin base legal adecuada",
+        "Interferir o interrumpir el funcionamiento del Servicio",
+        "Intentar obtener acceso no autorizado a cualquier parte del Servicio",
+        "Utilizar el Servicio para fines ilegales o no autorizados",
+        "Violar los terminos de uso de las plataformas integradas (LinkedIn, Meta, etc.)"
+      ]
+    },
+    "section6": {
+      "title": "6. Creditos y Suscripcion",
+      "content": "El Servicio opera con un sistema de creditos y planes de suscripcion. Los limites de creditos y las funcionalidades incluidas en cada plan pueden cambiar periodicamente. Le notificaremos sobre cambios significativos con antelacion razonable. Todos los pagos se procesan de forma segura por nuestros proveedores de pago."
+    },
+    "section7": {
+      "title": "7. Sin Permanencia",
+      "content": "GetRaze NO exige fidelidad ni permanencia minima. Puede cancelar su suscripcion en cualquier momento, sin multas ni penalidades. Despues de la cancelacion, su acceso al Servicio permanecera activo hasta el final del periodo ya pagado."
+    },
+    "section8": {
+      "title": "8. Propiedad Intelectual",
+      "content": "El Servicio, incluyendo su contenido original, funcionalidades, tecnologia y diseno, es propiedad exclusiva de GetRaze y sus licenciantes. El Servicio esta protegido por leyes de derechos de autor, marcas registradas y otras leyes de propiedad intelectual."
+    },
+    "section9": {
+      "title": "9. Limitacion de Responsabilidad",
+      "content": "GetRaze no sera responsable por danos indirectos, incidentales, especiales, consecuenciales o punitivos, incluyendo perdida de beneficios, datos u otras perdidas intangibles resultantes del uso o imposibilidad de uso del Servicio. GetRaze no se responsabiliza por acciones tomadas por las plataformas integradas (como restricciones de cuenta en LinkedIn) como resultado del uso del Servicio."
+    },
+    "section10": {
+      "title": "10. Rescision",
+      "content": "Podemos suspender o terminar su acceso al Servicio inmediatamente, sin previo aviso, en caso de violacion de estos Terminos. Usted tambien puede cerrar su cuenta en cualquier momento. Despues de la terminacion, sus datos seran retenidos por 30 dias y luego eliminados permanentemente."
+    },
+    "section11": {
+      "title": "11. Cambios en los Terminos",
+      "content": "Nos reservamos el derecho de modificar estos Terminos en cualquier momento. Los cambios significativos seran comunicados a traves de la plataforma. El uso continuado del Servicio despues de los cambios constituye su aceptacion de los nuevos terminos."
+    },
+    "section12": {
+      "title": "12. Ley Aplicable",
+      "content": "Estos Terminos se rigen por las leyes de la Republica Federativa de Brasil, incluyendo la Ley General de Proteccion de Datos (LGPD - Ley No. 13.709/2018). Cualquier disputa sera sometida a la jurisdiccion de los tribunales de la sede de GetRaze."
+    },
+    "section13": {
+      "title": "13. Contacto",
+      "content": "Para preguntas sobre estos Terminos, contactenos en legal@getraze.co."
+    }
+  },
+  "privacyPolicy": {
+    "title": "Politica de Privacidad",
+    "section1": {
+      "title": "1. Introduccion",
+      "content": "GetRaze (\"nosotros\") esta comprometida con la proteccion de su privacidad. Esta Politica de Privacidad explica como recopilamos, usamos y protegemos su informacion cuando utiliza nuestra plataforma, en cumplimiento con la Ley General de Proteccion de Datos de Brasil (LGPD)."
+    },
+    "section2": {
+      "title": "2. Datos que Recopilamos",
+      "content": "Recopilamos los siguientes tipos de datos:",
+      "subtitle1": "Datos de la Cuenta",
+      "items1": [
+        "Nombre y direccion de correo electronico",
+        "Credenciales de acceso (contrasena encriptada)",
+        "Informacion de la empresa",
+        "Datos de facturacion y pago"
+      ],
+      "subtitle2": "Datos de Uso",
+      "items2": [
+        "Registros de acceso (direccion IP, tipo de navegador)",
+        "Informacion del dispositivo",
+        "Patrones de uso y preferencias de la plataforma",
+        "Registros de actividad para auditoria"
+      ]
+    },
+    "section3": {
+      "title": "3. Lo que NO Recopilamos",
+      "content": "GetRaze actua como intermediario de los servicios oficiales de las plataformas integradas. NO almacenamos en nuestros servidores:",
+      "items": [
+        "Datos de perfiles de redes sociales de terceros",
+        "Mensajes o conversaciones de plataformas externas",
+        "Credenciales de acceso a redes sociales de terceros",
+        "Datos personales de leads o prospectos fuera del contexto de la plataforma"
+      ],
+      "note": "Todas las interacciones con plataformas externas se realizan en tiempo real a traves de conexiones seguras y autorizadas, sin retencion permanente de estos datos."
+    },
+    "section4": {
+      "title": "4. Como Usamos sus Datos",
+      "content": "Utilizamos la informacion recopilada para:",
+      "items": [
+        "Proporcionar y mantener el Servicio funcionando",
+        "Procesar transacciones y enviar informacion relacionada",
+        "Enviar comunicaciones administrativas y actualizaciones del Servicio",
+        "Responder a solicitudes de soporte",
+        "Mejorar y personalizar la experiencia del usuario",
+        "Analizar el uso para mejorar el Servicio",
+        "Proteger contra actividades fraudulentas o ilegales"
+      ]
+    },
+    "section5": {
+      "title": "5. Seguridad de los Datos",
+      "content": "Implementamos medidas tecnicas y organizativas robustas para proteger su informacion personal. Nuestra infraestructura posee certificacion SOC 2 Type II y cumple con el GDPR (Reglamento General de Proteccion de Datos europeo), garantizando los mas altos estandares de seguridad y proteccion de datos."
+    },
+    "section6": {
+      "title": "6. Comparticion de Datos",
+      "content": "Podemos compartir su informacion solo con:",
+      "items": [
+        "Proveedores de servicios esenciales para la operacion de la plataforma (procesamiento de pagos, alojamiento)",
+        "Autoridades legales cuando lo exija la ley",
+        "Socios comerciales, solo con su consentimiento explicito"
+      ],
+      "note": "Nunca vendemos sus datos personales a terceros."
+    },
+    "section7": {
+      "title": "7. Retencion de Datos",
+      "content": "Retenemos su informacion personal durante el tiempo necesario para cumplir los propositos descritos en esta Politica. Despues de la cancelacion de la cuenta, sus datos se mantendran por 30 dias para posible reactivacion y luego se eliminaran permanentemente."
+    },
+    "section8": {
+      "title": "8. Sus Derechos (LGPD)",
+      "content": "De acuerdo con la Ley General de Proteccion de Datos, usted tiene derecho a:",
+      "items": [
+        "Confirmacion de la existencia de tratamiento de sus datos",
+        "Acceso a sus datos personales",
+        "Correccion de datos incompletos, inexactos o desactualizados",
+        "Anonimizacion, bloqueo o eliminacion de datos innecesarios",
+        "Portabilidad de los datos a otro proveedor",
+        "Eliminacion de los datos tratados con su consentimiento",
+        "Informacion sobre la comparticion de sus datos",
+        "Revocacion del consentimiento en cualquier momento"
+      ],
+      "note": "Para ejercer cualquiera de estos derechos, contactenos en privacy@getraze.co."
+    },
+    "section9": {
+      "title": "9. Transferencias Internacionales",
+      "content": "Su informacion puede ser transferida y procesada en paises diferentes al suyo. Garantizamos que las salvaguardas adecuadas estan en vigor para dichas transferencias, en cumplimiento con la LGPD y las regulaciones internacionales aplicables."
+    },
+    "section10": {
+      "title": "10. Cookies",
+      "content": "Utilizamos cookies y tecnologias similares para mantener su sesion activa, recordar sus preferencias y mejorar la experiencia en la plataforma. Puede gestionar la configuracion de cookies en su navegador."
+    },
+    "section11": {
+      "title": "11. Privacidad de Menores",
+      "content": "El Servicio no esta destinado a menores de 18 anos. No recopilamos intencionalmente datos personales de menores."
+    },
+    "section12": {
+      "title": "12. Cambios en esta Politica",
+      "content": "Podemos actualizar esta Politica de Privacidad periodicamente. Los cambios significativos seran comunicados a traves de la plataforma y se le solicitara aceptar la version actualizada."
+    },
+    "section13": {
+      "title": "13. Contacto",
+      "content": "Para preguntas sobre esta Politica de Privacidad o para ejercer sus derechos, contactenos:",
+      "items": [
+        "Correo general: legal@getraze.co",
+        "Privacidad y datos: privacy@getraze.co"
+      ]
+    }
+  }
+}

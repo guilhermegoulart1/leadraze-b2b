@@ -166,9 +166,9 @@ const getProfile = async (req, res) => {
   try {
     // Get user with LinkedIn accounts
     const user = await db.query(`
-      SELECT 
-        u.id, u.email, u.name, u.company, u.role, u.subscription_tier, 
-        u.avatar_url, u.created_at,
+      SELECT
+        u.id, u.email, u.name, u.company, u.role, u.subscription_tier,
+        u.avatar_url, u.created_at, u.terms_accepted_at, u.terms_version,
         json_agg(
           json_build_object(
             'id', la.id,

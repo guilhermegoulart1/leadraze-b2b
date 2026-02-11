@@ -39,6 +39,7 @@ import enPartner from './locales/en/partner.json';
 import enOnboarding from './locales/en/onboarding.json';
 import enNotifications from './locales/en/notifications.json';
 import enInstagram from './locales/en/instagram.json';
+import enTerms from './locales/en/terms.json';
 
 // Import translations - Portuguese
 import ptCommon from './locales/pt/common.json';
@@ -77,6 +78,7 @@ import ptPartner from './locales/pt/partner.json';
 import ptOnboarding from './locales/pt/onboarding.json';
 import ptNotifications from './locales/pt/notifications.json';
 import ptInstagram from './locales/pt/instagram.json';
+import ptTerms from './locales/pt/terms.json';
 
 // Import translations - Spanish
 import esCommon from './locales/es/common.json';
@@ -115,6 +117,7 @@ import esPartner from './locales/es/partner.json';
 import esOnboarding from './locales/es/onboarding.json';
 import esNotifications from './locales/es/notifications.json';
 import esInstagram from './locales/es/instagram.json';
+import esTerms from './locales/es/terms.json';
 
 // Translation resources
 const resources = {
@@ -155,6 +158,7 @@ const resources = {
     onboarding: enOnboarding,
     notifications: enNotifications,
     instagram: enInstagram,
+    terms: enTerms,
   },
   pt: {
     common: ptCommon,
@@ -193,6 +197,7 @@ const resources = {
     onboarding: ptOnboarding,
     notifications: ptNotifications,
     instagram: ptInstagram,
+    terms: ptTerms,
   },
   es: {
     common: esCommon,
@@ -231,6 +236,7 @@ const resources = {
     onboarding: esOnboarding,
     notifications: esNotifications,
     instagram: esInstagram,
+    terms: esTerms,
   },
 };
 
@@ -247,7 +253,7 @@ i18n
     ns: [
       'common', 'auth', 'navigation', 'dashboard', 'campaigns', 'leads', 'contacts',
       'agents', 'aiagents', 'users', 'linkedinaccounts', 'analytics', 'conversations',
-      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines', 'insights', 'next', 'partner', 'onboarding', 'notifications', 'instagram'
+      'activationagents', 'activationcampaigns', 'search', 'googlemaps', 'settings', 'linkedin', 'modals', 'billing', 'emailSettings', 'websiteAgents', 'tasks', 'hire', 'knowledge', 'secretAgent', 'products', 'secretAgentCoaching', 'pipelines', 'insights', 'next', 'partner', 'onboarding', 'notifications', 'instagram', 'terms'
     ],
 
     // Language detection configuration

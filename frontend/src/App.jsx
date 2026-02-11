@@ -75,6 +75,7 @@ import ImpersonationBanner from './components/ImpersonationBanner';
 // Layout
 import Layout from './components/Layout';
 import SubscriptionBlockOverlay from './components/SubscriptionBlockOverlay';
+import TermsAcceptanceModal from './components/TermsAcceptanceModal';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowPasswordChange = false }) => {
@@ -244,6 +245,7 @@ function App() {
         <ThemeProvider>
           <BillingProvider>
             <ImpersonationBanner />
+            <TermsAcceptanceModal />
             <AppRoutes />
           </BillingProvider>
         </ThemeProvider>

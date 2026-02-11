@@ -100,6 +100,18 @@ class ApiService {
     localStorage.removeItem('user');
   }
 
+  // ================================
+  // TERMS
+  // ================================
+
+  async acceptTerms(version) {
+    return this.post('/terms/accept', { version });
+  }
+
+  async getTermsStatus() {
+    return this.get('/terms/status');
+  }
+
   async validateResetToken(token) {
     return this.request(`/auth/validate-reset-token?token=${token}`);
   }
