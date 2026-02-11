@@ -12,6 +12,7 @@
 
 const { followUpQueue } = require('../queues');
 const db = require('../config/database');
+const unipileClient = require('../config/unipile');
 const workflowExecutionService = require('../services/workflowExecutionService');
 const workflowStateService = require('../services/workflowStateService');
 const workflowLogService = require('../services/workflowLogService');
@@ -85,6 +86,64 @@ async function handleResumeWorkflow(conversationId, resumeNodeId) {
     'timer_completed',
     { resumeNodeId: resumeNodeId || state.resumeNodeId }
   );
+
+  // If workflow generated a response, send it via Unipile
+  const responses = result.allResponses?.length > 0 ? result.allResponses : (result.response ? [result.response] : []);
+
+  if (responses.length > 0) {
+    // Check if already sent by an action node
+    const sentByAction = result.executedNodes?.some(
+      n => n.nodeType === 'action' && n.result?.result?.sent === true
+    );
+
+    if (!sentByAction) {
+      // Get conversation data for sending
+      const convData = await db.query(
+        `SELECT c.id, la.unipile_account_id, ct.linkedin_profile_id as lead_unipile_id
+         FROM conversations c
+         LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
+         LEFT JOIN contacts ct ON c.contact_id = ct.id
+         WHERE c.id = $1`,
+        [conversationId]
+      );
+      const conv = convData.rows[0];
+
+      if (conv?.unipile_account_id && conv?.lead_unipile_id) {
+        for (const response of responses) {
+          if (!response) continue;
+
+          console.log(`📤 [ResumeWorkflow] Sending response (${response.length} chars) via Unipile...`);
+
+          await unipileClient.messaging.send({
+            account_id: conv.unipile_account_id,
+            user_id: conv.lead_unipile_id,
+            text: response
+          });
+
+          await db.insert('messages', {
+            conversation_id: conversationId,
+            sender_type: 'ai',
+            content: response,
+            message_type: 'text',
+            sent_at: new Date(),
+            created_at: new Date()
+          });
+
+          await db.update('conversations', {
+            last_message_at: new Date(),
+            last_message_preview: response.substring(0, 100),
+            updated_at: new Date()
+          }, { id: conversationId });
+
+          console.log(`✅ [ResumeWorkflow] Message sent and saved`);
+        }
+      } else {
+        console.error(`❌ [ResumeWorkflow] Missing Unipile config: account=${conv?.unipile_account_id}, lead=${conv?.lead_unipile_id}`);
+      }
+    } else {
+      console.log(`✅ [ResumeWorkflow] Response already sent by action node`);
+    }
+  }
 
   return {
     success: true,

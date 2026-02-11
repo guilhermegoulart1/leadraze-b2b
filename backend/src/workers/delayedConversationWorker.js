@@ -49,6 +49,7 @@ async function getConversationData(conversationId) {
       ct.profile_url,
       ct.headline,
       ct.about as summary,
+      ct.linkedin_profile_id as lead_unipile_id,
       c.name as campaign_name,
       c.ai_agent_id,
       c.linkedin_account_id,
@@ -186,7 +187,7 @@ async function processDelayedConversation(job) {
 
         await unipileClient.messaging.send({
           account_id: convData.unipile_account_id,
-          user_id: conversation.unipile_chat_id,
+          user_id: convData.lead_unipile_id,
           text: workflowResult.response
         });
 
