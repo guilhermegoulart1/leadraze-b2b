@@ -22,10 +22,37 @@ const acceptTerms = async (req, res) => {
       throw new ValidationError('Invalid terms version');
     }
 
+    const now = new Date();
+
+    // Buscar dados do usuario para o log
+    const user = await db.findOne('users', { id: userId });
+    const isReAccept = user.terms_version !== null && user.terms_version !== version;
+
+    // Atualizar usuario
     await db.update('users', {
-      terms_accepted_at: new Date(),
+      terms_accepted_at: now,
       terms_version: version
     }, { id: userId });
+
+    // Gravar audit log completo
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+      || req.headers['x-real-ip']
+      || req.connection?.remoteAddress
+      || req.ip;
+
+    await db.insert('terms_acceptance_logs', {
+      user_id: userId,
+      account_id: req.user.account_id || req.user.accountId || null,
+      terms_version: version,
+      accepted_at: now,
+      ip_address: ipAddress || null,
+      user_agent: req.headers['user-agent'] || null,
+      email: user.email,
+      user_name: user.name,
+      action: isReAccept ? 're-accept' : 'accept'
+    });
+
+    console.log(`[TERMS] ${isReAccept ? '🔄' : '✅'} User ${user.email} ${isReAccept ? 're-accepted' : 'accepted'} terms v${version} from IP ${ipAddress}`);
 
     const updatedUser = await db.findOne('users', { id: userId });
     const { password_hash, ...userWithoutPassword } = updatedUser;
