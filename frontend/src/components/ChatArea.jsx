@@ -1336,6 +1336,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
               // Antes também checava message.type === 'outgoing' que vinha da Unipile
               const isUser = message.sender_type === 'user';
               const isAI = message.sender_type === 'ai';
+              const isOutgoing = isUser || isAI; // Ambos são mensagens enviadas pela conta LinkedIn
               const isEmailChannel = conversation?.channel === 'email' ||
                                      conversation?.source === 'email' ||
                                      message.channel === 'email';
@@ -1346,9 +1347,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   <EmailMessage
                     key={message.id || index}
                     message={message}
-                    isOutgoing={isUser}
-                    senderName={isUser ? (conversation?.account_name || t('chatArea.you')) : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
-                    senderType={isUser ? 'user' : (isAI ? 'ai' : 'lead')}
+                    isOutgoing={isOutgoing}
+                    senderName={isOutgoing ? (conversation?.account_name || t('chatArea.you')) : conversation?.lead_name}
+                    senderType={isOutgoing ? 'user' : 'lead'}
                     timestamp={message.sent_at || message.date}
                   />
                 );
@@ -1361,16 +1362,16 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                   className="flex w-full px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
                 >
                   <div
-                    className={`flex items-start gap-3 w-full ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+                    className={`flex items-start gap-3 w-full ${isOutgoing ? 'flex-row-reverse' : 'flex-row'}`}
                     onContextMenu={(e) => handleMessageContextMenu(e, message.id)}
                   >
                     {/* Avatar com foto */}
                     {(() => {
-                      const photoUrl = isUser
+                      const photoUrl = isOutgoing
                         ? (conversation?.account_picture || currentUser?.profile_picture || currentUser?.avatar_url)
                         : conversation?.lead_picture;
-                      const name = isUser ? (conversation?.account_name || currentUser?.name) : (isAI ? 'IA' : conversation?.lead_name);
-                      const bgColor = isUser ? 'bg-purple-600' : isAI ? 'bg-green-600' : 'bg-blue-600';
+                      const name = isOutgoing ? (conversation?.account_name || currentUser?.name) : conversation?.lead_name;
+                      const bgColor = isOutgoing ? 'bg-purple-600' : 'bg-blue-600';
 
                       return (
                         <div className="relative w-10 h-10 flex-shrink-0">
@@ -1383,13 +1384,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                             />
                           )}
                           <div className={`${photoUrl ? 'hidden' : ''} w-10 h-10 rounded-full ${bgColor} flex items-center justify-center`}>
-                            {isAI ? (
-                              <Bot className="w-5 h-5 text-white" />
-                            ) : (
-                              <span className="text-white text-sm font-semibold">
-                                {name?.charAt(0)?.toUpperCase() || (isUser ? 'U' : 'L')}
-                              </span>
-                            )}
+                            <span className="text-white text-sm font-semibold">
+                              {name?.charAt(0)?.toUpperCase() || (isOutgoing ? 'U' : 'L')}
+                            </span>
                           </div>
                         </div>
                       );
@@ -1398,21 +1395,21 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     {/* Message Content - RocketChat Style */}
                     <div className="flex-1 min-w-0">
                       {/* Header: Nome + Timestamp */}
-                      <div className={`flex items-center gap-2 mb-1 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`flex items-center gap-2 mb-1 ${isOutgoing ? 'flex-row-reverse' : 'flex-row'}`}>
                         <span className={`text-sm font-semibold ${
-                          isUser
+                          isOutgoing
                             ? 'text-purple-600 dark:text-purple-400'
-                            : isAI
-                            ? 'text-green-600 dark:text-green-400'
                             : 'text-blue-600 dark:text-blue-400'
                         }`}>
-                          {isUser ? (conversation?.account_name || t('chatArea.you')) : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
+                          {isOutgoing
+                            ? (isAI ? `${conversation?.account_name || t('chatArea.you')} · ${t('chatArea.ai')}` : (conversation?.account_name || t('chatArea.you')))
+                            : conversation?.lead_name}
                         </span>
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           {formatMessageTime(message.sent_at || message.date)}
                         </span>
                         {/* LinkedIn Badge: InMail ou Sponsored */}
-                        {message.linkedin_category && !isUser && (
+                        {message.linkedin_category && !isOutgoing && (
                           <span className={`text-xs flex items-center gap-1 ${
                             message.linkedin_category === 'inmail'
                               ? 'text-blue-600 dark:text-blue-400'
@@ -1439,7 +1436,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                       </div>
 
                       {/* Message Content */}
-                      <div className={`${isUser ? 'text-right' : 'text-left'}`}>
+                      <div className={`${isOutgoing ? 'text-right' : 'text-left'}`}>
                         {/* Texto da mensagem */}
                         {/* Esconder mensagem da Unipile quando há attachments de mídia */}
                         {(() => {
@@ -1459,10 +1456,8 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                           if (messageText) {
                             return (
                               <div className={`inline-block max-w-[85%] px-3 py-2 rounded-2xl ${
-                                isUser
+                                isOutgoing
                                   ? 'bg-purple-600/20 dark:bg-purple-500/20'
-                                  : isAI
-                                  ? 'bg-green-600/10 dark:bg-green-500/15'
                                   : 'bg-gray-200 dark:bg-gray-700/50'
                               }`}>
                                 <p className="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a:hover]:text-blue-800 dark:[&_a:hover]:text-blue-300">
