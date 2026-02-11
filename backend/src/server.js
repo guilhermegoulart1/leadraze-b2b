@@ -67,6 +67,13 @@ async function startServer() {
     });
     console.log('✅ LinkedIn invite system active (Bull queue - delayed jobs + hourly expiration)');
 
+    // ✅ Register repeatable job for daily invite scheduling (every 3 hours)
+    await linkedinInviteQueue.add('schedule-daily-invites', {}, {
+      repeat: { every: 3 * 60 * 60 * 1000 },
+      jobId: 'daily-invite-scheduler'
+    });
+    console.log('✅ Daily invite scheduler active (every 3 hours - schedules pending invites)');
+
     // ✅ Start Invitation Polling Worker
     invitationPollingWorker.startProcessor();
     console.log('✅ Invitation polling worker started (polls for received invitations every 4h)');

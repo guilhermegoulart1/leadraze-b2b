@@ -27,6 +27,15 @@ const log = {
   divider: () => console.log(`${LOG_PREFIX} ═══════════════════════════════════════════════════════════`),
 };
 
+const SCHED_PREFIX = '📅 [DAILY-SCHEDULE]';
+const schedLog = {
+  info: (msg, data) => console.log(`${SCHED_PREFIX} ${msg}`, data || ''),
+  success: (msg, data) => console.log(`${SCHED_PREFIX} ✅ ${msg}`, data || ''),
+  warn: (msg, data) => console.warn(`${SCHED_PREFIX} ⚠️ ${msg}`, data || ''),
+  error: (msg, data) => console.error(`${SCHED_PREFIX} ❌ ${msg}`, data || ''),
+  divider: () => console.log(`${SCHED_PREFIX} ═══════════════════════════════════════════════════════════`),
+};
+
 const EXP_PREFIX = '⏰ [EXPIRATION]';
 const expLog = {
   info: (msg, data) => console.log(`${EXP_PREFIX} ${msg}`, data || ''),
@@ -479,6 +488,84 @@ async function processExpiredInvites() {
 }
 
 // ====================================
+// DAILY INVITE SCHEDULER
+// ====================================
+
+/**
+ * Get all active campaigns that have pending invites in the queue
+ */
+async function getActiveCampaignsWithPendingInvites() {
+  const result = await db.query(
+    `SELECT DISTINCT
+       c.id as campaign_id,
+       c.account_id,
+       c.name as campaign_name,
+       COUNT(ciq.id) as pending_count
+     FROM campaigns c
+     JOIN campaign_invite_queue ciq ON ciq.campaign_id = c.id
+     WHERE c.status = 'active'
+       AND c.automation_active = true
+       AND ciq.status = 'pending'
+     GROUP BY c.id, c.account_id, c.name
+     ORDER BY c.created_at ASC`
+  );
+  return result.rows;
+}
+
+/**
+ * Schedule pending invites for all active campaigns (called by Bull repeatable job)
+ */
+async function processDailyScheduling() {
+  schedLog.divider();
+  schedLog.info('AGENDAMENTO AUTOMÁTICO DE CONVITES');
+  schedLog.info(`Timestamp: ${new Date().toISOString()}`);
+
+  const campaigns = await getActiveCampaignsWithPendingInvites();
+
+  if (campaigns.length === 0) {
+    schedLog.info('Nenhuma campanha precisa de agendamento');
+    schedLog.divider();
+    return { totalScheduled: 0, campaignsProcessed: 0 };
+  }
+
+  schedLog.info(`Encontradas ${campaigns.length} campanhas com convites pendentes`);
+
+  let totalScheduled = 0;
+  let errorCount = 0;
+
+  for (const campaign of campaigns) {
+    try {
+      const result = await inviteQueueService.scheduleInvitesForToday(
+        campaign.campaign_id,
+        campaign.account_id
+      );
+
+      if (result.scheduled > 0) {
+        schedLog.success(
+          `"${campaign.campaign_name}": ${result.scheduled} agendados (${result.remaining || 0} restantes)`
+        );
+        totalScheduled += result.scheduled;
+      } else {
+        schedLog.info(`"${campaign.campaign_name}": ${result.message || 'Nenhum agendado'}`);
+      }
+    } catch (error) {
+      errorCount++;
+      schedLog.error(`"${campaign.campaign_name}" falhou: ${error.message}`);
+    }
+
+    // Small delay between campaigns
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  schedLog.success(
+    `Concluído: ${totalScheduled} convites agendados, ${campaigns.length} campanhas processadas, ${errorCount} erros`
+  );
+  schedLog.divider();
+
+  return { totalScheduled, campaignsProcessed: campaigns.length, errorCount };
+}
+
+// ====================================
 // REGISTER BULL PROCESSORS
 // ====================================
 
@@ -490,6 +577,11 @@ linkedinInviteQueue.process('send-invite', 1, async (job) => {
 // Expiration check processor (repeatable job)
 linkedinInviteQueue.process('check-expirations', async (job) => {
   return await processExpiredInvites();
+});
+
+// Daily invite scheduler processor (repeatable job - every 3 hours)
+linkedinInviteQueue.process('schedule-daily-invites', async (job) => {
+  return await processDailyScheduling();
 });
 
 // ====================================
@@ -521,5 +613,6 @@ linkedinInviteQueue.on('stalled', (job) => {
 module.exports = {
   processInvite,
   processExpiredInvites,
+  processDailyScheduling,
   withdrawInvite
 };
