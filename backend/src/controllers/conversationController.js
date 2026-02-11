@@ -906,6 +906,12 @@ const sendMessage = async (req, res) => {
 
     } catch (unipileError) {
       console.error('❌ Erro ao enviar via Unipile:', unipileError.message);
+      if (unipileError.response?.data) {
+        console.error('❌ Detalhes do erro Unipile:', JSON.stringify(unipileError.response.data));
+      }
+      if (unipileError.response?.status === 422) {
+        throw new ValidationError('Não é possível enviar mensagem nesta conversa (Sponsored/InMail)');
+      }
       throw new UnipileError('Failed to send message via Unipile');
     }
 

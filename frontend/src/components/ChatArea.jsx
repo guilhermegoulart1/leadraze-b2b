@@ -30,6 +30,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
+  const [sendError, setSendError] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDownloading, setIsDownloading] = useState({});
   // Estado para modal de visualização de imagem
@@ -336,7 +337,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
     try {
       setIsSending(true);
-      setError(null);
+      setSendError(null);
 
       // Create a File object from the blob
       const audioFile = new File([audioBlob], `audio_${Date.now()}.webm`, {
@@ -363,7 +364,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (err) {
       console.error('Error sending audio:', err);
-      setError(t('chatArea.failedSendMessage'));
+      setSendError(err.message || t('chatArea.failedSendMessage'));
     } finally {
       setIsSending(false);
     }
@@ -509,7 +510,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
 
     try {
       setIsSending(true);
-      setError(null);
+      setSendError(null);
 
       const response = await api.sendMessage(conversationId, newMessage.trim(), selectedFiles);
 
@@ -543,7 +544,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      setError(t('chatArea.failedSendMessage'));
+      setSendError(error.message || t('chatArea.failedSendMessage'));
     } finally {
       setIsSending(false);
     }
@@ -1740,11 +1741,11 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
         // Regular chat input for other channels
         return (
           <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
-            {error && (
+            {sendError && (
               <div className="mb-3 px-4 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
                 <AlertCircle className="w-4 h-4" />
-                {error}
-                <button onClick={() => setError(null)} className="ml-auto">
+                {sendError}
+                <button onClick={() => setSendError(null)} className="ml-auto">
                   <X className="w-4 h-4" />
                 </button>
               </div>
