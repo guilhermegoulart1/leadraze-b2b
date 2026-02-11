@@ -1259,6 +1259,7 @@ async function handleNewRelation(payload) {
     }
 
     // Busca campaign_contact com convite enviado (invite_sent)
+    // Use campaign_invite_queue to match the correct sender account, with fallback to campaigns.linkedin_account_id
     const campaignContactQuery = `
       SELECT cc.id as campaign_contact_id, cc.contact_id, cc.campaign_id, cc.linkedin_profile_id,
              ct.name as contact_name, ct.profile_url as contact_profile_url,
@@ -1269,8 +1270,13 @@ async function handleNewRelation(payload) {
       JOIN contacts ct ON ct.id = cc.contact_id
       JOIN campaigns c ON c.id = cc.campaign_id
       LEFT JOIN ai_agents aa ON c.ai_agent_id = aa.id
+      LEFT JOIN campaign_invite_queue ciq ON ciq.campaign_contact_id = cc.id AND ciq.status = 'sent'
       WHERE cc.status = 'invite_sent'
-      AND c.linkedin_account_id = $1
+      AND (
+        ciq.linkedin_account_id = $1
+        OR (ciq.id IS NULL AND c.linkedin_account_id = $1)
+        OR EXISTS (SELECT 1 FROM campaign_linkedin_accounts cla WHERE cla.campaign_id = c.id AND cla.linkedin_account_id = $1 AND cla.is_active = true)
+      )
       AND (
         cc.linkedin_profile_id = $2
         OR cc.linkedin_profile_id = $3

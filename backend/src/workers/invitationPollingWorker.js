@@ -393,7 +393,8 @@ async function checkAcceptedSentInvitations(accounts) {
           const relItems = relData?.items || [];
 
           for (const rel of relItems) {
-            const relProviderId = rel.provider_id || rel.id;
+            // Unipile returns member_id as the LinkedIn profile ID (ACoAAA... format)
+            const relProviderId = rel.member_id || rel.provider_id || rel.id;
             if (relProviderId) {
               relationsSet.add(relProviderId);
               if (candidateIds.has(relProviderId)) {
@@ -439,15 +440,19 @@ async function checkAcceptedSentInvitations(accounts) {
           const relData = relationsMap.get(candidate.linkedin_profile_id) || {};
 
           // Construct payload compatible with handleNewRelation()
-          const publicId = relData.public_identifier || relData.username || candidate.public_identifier || null;
+          // Unipile relation fields: public_identifier, public_profile_url, first_name, last_name, profile_picture_url
+          const publicId = relData.public_identifier || candidate.public_identifier || null;
+          const fullName = (relData.first_name && relData.last_name)
+            ? `${relData.first_name} ${relData.last_name}`
+            : (relData.name || relData.full_name || candidate.contact_name);
           const payload = {
             account_id: unipileAccountId,
             user_provider_id: candidate.linkedin_profile_id,
             user_public_identifier: publicId,
-            user_profile_url: relData.profile_url
+            user_profile_url: relData.public_profile_url || relData.profile_url
               || (publicId ? `https://www.linkedin.com/in/${publicId}` : null),
-            user_full_name: relData.name || relData.full_name || candidate.contact_name,
-            user_picture_url: relData.profile_picture || relData.profile_picture_url || relData.picture_url || null
+            user_full_name: fullName,
+            user_picture_url: relData.profile_picture_url || relData.profile_picture || null
           };
 
           const result = await handleNewRelation(payload);
