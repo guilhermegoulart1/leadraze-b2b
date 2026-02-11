@@ -499,6 +499,8 @@ const getConversation = async (req, res) => {
         camp.id as campaign_id,
         la.linkedin_username,
         la.unipile_account_id,
+        la.profile_name as account_name,
+        la.profile_picture as account_picture,
         ai.name as ai_agent_name,
         assigned_user.name as assigned_user_name,
         s.id as sector_id,

@@ -1347,7 +1347,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     key={message.id || index}
                     message={message}
                     isOutgoing={isUser}
-                    senderName={isUser ? t('chatArea.you') : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
+                    senderName={isUser ? (conversation?.account_name || t('chatArea.you')) : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
                     senderType={isUser ? 'user' : (isAI ? 'ai' : 'lead')}
                     timestamp={message.sent_at || message.date}
                   />
@@ -1367,9 +1367,9 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                     {/* Avatar com foto */}
                     {(() => {
                       const photoUrl = isUser
-                        ? (currentUser?.profile_picture || currentUser?.avatar_url)
+                        ? (conversation?.account_picture || currentUser?.profile_picture || currentUser?.avatar_url)
                         : conversation?.lead_picture;
-                      const name = isUser ? currentUser?.name : (isAI ? 'IA' : conversation?.lead_name);
+                      const name = isUser ? (conversation?.account_name || currentUser?.name) : (isAI ? 'IA' : conversation?.lead_name);
                       const bgColor = isUser ? 'bg-purple-600' : isAI ? 'bg-green-600' : 'bg-blue-600';
 
                       return (
@@ -1406,7 +1406,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                             ? 'text-green-600 dark:text-green-400'
                             : 'text-blue-600 dark:text-blue-400'
                         }`}>
-                          {isUser ? t('chatArea.you') : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
+                          {isUser ? (conversation?.account_name || t('chatArea.you')) : (isAI ? t('chatArea.ai') : conversation?.lead_name)}
                         </span>
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           {formatMessageTime(message.sent_at || message.date)}

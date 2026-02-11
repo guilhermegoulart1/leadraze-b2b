@@ -70,6 +70,23 @@ async function main() {
       }
     }
 
+    // Actually test the send
+    console.log('\n--- Testing actual send ---');
+    try {
+      const sendResult = await unipileClient.messaging.send({
+        account_id: conv.unipile_account_id,
+        user_id: conv.lead_unipile_id,
+        text: 'Olá Gabriel, obrigado por aceitar meu convite de conexão!'
+      });
+      console.log('✅ Send SUCCESS:', JSON.stringify(sendResult, null, 2));
+    } catch (sendErr) {
+      console.error('❌ Send FAILED:', sendErr.message);
+      console.error('Error code:', sendErr.code);
+      console.error('Error response:', JSON.stringify(sendErr.response?.data || sendErr.response?.status || 'no response data'));
+      console.error('Full error keys:', Object.keys(sendErr));
+      if (sendErr.stack) console.error('Stack:', sendErr.stack.split('\n').slice(0, 5).join('\n'));
+    }
+
     process.exit(0);
   } catch (err) {
     console.error('\n❌ ERROR:', err.message);
