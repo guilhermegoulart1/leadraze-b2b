@@ -711,11 +711,13 @@ try {
   require('./workers/webhookWorker');
   require('./workers/linkedinInviteWorker');
   require('./workers/delayedConversationWorker');
+  require('./workers/followUpWorker');
 
   console.log('✅ Workers initialized successfully');
   console.log('   - Webhook Worker: processing incoming webhooks from Unipile');
   console.log('   - LinkedIn Invite Worker: processing invite sending');
   console.log('   - Delayed Conversation Worker: processing automated conversation starters');
+  console.log('   - Follow-Up Worker: processing workflow resumes and follow-up flows');
 } catch (workerError) {
   console.error('❌ Error initializing workers:', workerError.message);
   console.error('   Some background jobs may not process correctly');

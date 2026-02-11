@@ -508,7 +508,7 @@ async function buildFollowUpContext(conversationId, agentId) {
       la.unipile_account_id
      FROM conversations c
      LEFT JOIN opportunities o ON c.opportunity_id = o.id
-     LEFT JOIN contacts ct ON o.contact_id = ct.id
+     LEFT JOIN contacts ct ON ct.id = COALESCE(c.contact_id, o.contact_id)
      LEFT JOIN linkedin_accounts la ON c.linkedin_account_id = la.id
      WHERE c.id = $1`,
     [conversationId]
