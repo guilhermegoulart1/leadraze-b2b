@@ -350,7 +350,7 @@ async function processInviteAccepted(params) {
       user_id: campaign.user_id,
       linkedin_account_id: linkedin_account_id,
       ai_agent_id: aiAgent?.id || null,
-      status: 'active',
+      status: 'ai_active',
       ai_active: true,
       manual_control_taken: false,
       is_connection: true,

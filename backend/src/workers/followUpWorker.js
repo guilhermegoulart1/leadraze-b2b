@@ -56,6 +56,11 @@ async function processFollowUpJob(job) {
 async function handleResumeWorkflow(conversationId, resumeNodeId) {
   console.log(`▶️ Resuming workflow for conversation ${conversationId}`);
 
+  // Check if conversation is still eligible (AI active, not in manual mode)
+  if (!await isConversationEligible(conversationId)) {
+    return { success: false, reason: 'conversation_not_eligible' };
+  }
+
   // Get current workflow state
   const state = await workflowStateService.getWorkflowState(conversationId);
 
@@ -744,7 +749,8 @@ async function cancelScheduledJobs(conversationId) {
       if (job.data.conversationId === conversationId &&
           (job.data.type === 'follow_up_flow' ||
            job.data.type === 'follow_up_flow_resume' ||
-           job.data.type === 'check_no_response')) {
+           job.data.type === 'check_no_response' ||
+           job.data.type === 'resume_workflow')) {
         await job.remove();
         cancelledCount++;
         console.log(`✅ Cancelled job ${job.id} (${job.data.type})`);

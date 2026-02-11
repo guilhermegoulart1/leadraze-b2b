@@ -1139,15 +1139,26 @@ const takeControl = async (req, res) => {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar para modo manual
+    // Atualizar para modo manual (desativar IA e marcar controle manual)
     const updateQuery = `
       UPDATE conversations
-      SET status = 'manual', ai_paused_at = NOW(), updated_at = NOW()
+      SET status = 'manual', ai_active = false, manual_control_taken = true, ai_paused_at = NOW(), updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `;
 
     const result = await db.query(updateQuery, [id]);
+
+    // Cancelar todos os jobs agendados (follow-up flows, no_response checks, etc.)
+    try {
+      const { cancelScheduledJobs } = require('../workers/followUpWorker');
+      const cancelled = await cancelScheduledJobs(id);
+      if (cancelled > 0) {
+        console.log(`🛑 [TAKE-CONTROL] Cancelled ${cancelled} scheduled job(s) for conversation ${id}`);
+      }
+    } catch (cancelErr) {
+      console.error(`⚠️ [TAKE-CONTROL] Error cancelling scheduled jobs:`, cancelErr.message);
+    }
 
     console.log('✅ Controle manual ativado, IA pausada');
 
@@ -1186,10 +1197,10 @@ const releaseControl = async (req, res) => {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar para modo IA
+    // Atualizar para modo IA (reativar IA e desmarcar controle manual)
     const updateQuery = `
       UPDATE conversations
-      SET status = 'ai_active', ai_paused_at = NULL, updated_at = NOW()
+      SET status = 'ai_active', ai_active = true, manual_control_taken = false, ai_paused_at = NULL, updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `;
@@ -1245,25 +1256,38 @@ const updateStatus = async (req, res) => {
 
     if (status === 'manual') {
       updateQuery = `UPDATE conversations
-         SET status = $1, ai_paused_at = NOW(), closed_at = NULL, updated_at = NOW()
+         SET status = $1, ai_active = false, manual_control_taken = true, ai_paused_at = NOW(), closed_at = NULL, updated_at = NOW()
          WHERE id = $2
          RETURNING *`;
       message = 'AI paused. Manual mode activated.';
     } else if (status === 'closed') {
       updateQuery = `UPDATE conversations
-         SET status = $1, closed_at = NOW(), updated_at = NOW()
+         SET status = $1, ai_active = false, closed_at = NOW(), updated_at = NOW()
          WHERE id = $2
          RETURNING *`;
       message = 'Conversation closed successfully.';
     } else {
       updateQuery = `UPDATE conversations
-         SET status = $1, ai_paused_at = NULL, closed_at = NULL, updated_at = NOW()
+         SET status = $1, ai_active = true, manual_control_taken = false, ai_paused_at = NULL, closed_at = NULL, updated_at = NOW()
          WHERE id = $2
          RETURNING *`;
       message = 'AI activated. Manual mode disabled.';
     }
 
     const result = await db.query(updateQuery, [status, id]);
+
+    // Cancelar todos os jobs agendados quando mudar para manual ou closed
+    if (status === 'manual' || status === 'closed') {
+      try {
+        const { cancelScheduledJobs } = require('../workers/followUpWorker');
+        const cancelled = await cancelScheduledJobs(id);
+        if (cancelled > 0) {
+          console.log(`🛑 [STATUS] Cancelled ${cancelled} scheduled job(s) for conversation ${id}`);
+        }
+      } catch (cancelErr) {
+        console.error(`⚠️ [STATUS] Error cancelling scheduled jobs:`, cancelErr.message);
+      }
+    }
 
     console.log('✅ Status atualizado');
 
@@ -1479,15 +1503,26 @@ const closeConversation = async (req, res) => {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar para status 'closed'
+    // Atualizar para status 'closed' (desativar IA)
     const updateQuery = `
       UPDATE conversations
-      SET status = 'closed', closed_at = NOW(), updated_at = NOW()
+      SET status = 'closed', ai_active = false, closed_at = NOW(), updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `;
 
     const result = await db.query(updateQuery, [id]);
+
+    // Cancelar todos os jobs agendados
+    try {
+      const { cancelScheduledJobs } = require('../workers/followUpWorker');
+      const cancelled = await cancelScheduledJobs(id);
+      if (cancelled > 0) {
+        console.log(`🛑 [CLOSE] Cancelled ${cancelled} scheduled job(s) for conversation ${id}`);
+      }
+    } catch (cancelErr) {
+      console.error(`⚠️ [CLOSE] Error cancelling scheduled jobs:`, cancelErr.message);
+    }
 
     console.log('✅ Conversa fechada');
 
@@ -1532,14 +1567,14 @@ const reopenConversation = async (req, res) => {
       throw new NotFoundError('Conversation not found');
     }
 
-    // Atualizar status e limpar closed_at
+    // Atualizar status e limpar closed_at (sincronizar ai_active/manual_control_taken)
     const updateQuery = status === 'manual'
       ? `UPDATE conversations
-         SET status = $1, closed_at = NULL, ai_paused_at = NOW(), updated_at = NOW()
+         SET status = $1, ai_active = false, manual_control_taken = true, closed_at = NULL, ai_paused_at = NOW(), updated_at = NOW()
          WHERE id = $2
          RETURNING *`
       : `UPDATE conversations
-         SET status = $1, closed_at = NULL, ai_paused_at = NULL, updated_at = NOW()
+         SET status = $1, ai_active = true, manual_control_taken = false, closed_at = NULL, ai_paused_at = NULL, updated_at = NOW()
          WHERE id = $2
          RETURNING *`;
 
