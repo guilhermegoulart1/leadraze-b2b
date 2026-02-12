@@ -1402,7 +1402,7 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                             : 'text-blue-600 dark:text-blue-400'
                         }`}>
                           {isOutgoing
-                            ? (isAI ? `${conversation?.account_name || t('chatArea.you')} · ${t('chatArea.ai')}` : (conversation?.account_name || t('chatArea.you')))
+                            ? (conversation?.account_name || t('chatArea.you'))
                             : conversation?.lead_name}
                         </span>
                         <span className="text-xs text-gray-400 dark:text-gray-500">
