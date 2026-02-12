@@ -7,6 +7,7 @@ import {
   Lightbulb, Info, Plus, Trash2
 } from 'lucide-react';
 import api from '../services/api';
+import OnboardingProgress from '../components/OnboardingProgress';
 
 const OnboardingPage = () => {
   const { t } = useTranslation('onboarding');
@@ -17,6 +18,7 @@ const OnboardingPage = () => {
   const [saving, setSaving] = useState(false);
   const [onboardingId, setOnboardingId] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [checklistData, setChecklistData] = useState(null);
   const [fieldErrors, setFieldErrors] = useState([]);
 
   // Estados para adicionar FAQ e Objeções
@@ -135,6 +137,15 @@ const OnboardingPage = () => {
 
         if (onboarding.status === 'completed' || onboarding.status === 'reviewed') {
           setIsCompleted(true);
+          // Load checklist progress
+          try {
+            const checklistRes = await api.getChecklistProgress();
+            if (checklistRes.success) {
+              setChecklistData(checklistRes.data);
+            }
+          } catch (err) {
+            console.error('Error loading checklist:', err);
+          }
         }
 
         setFormData({
@@ -364,6 +375,16 @@ const OnboardingPage = () => {
   }
 
   if (isCompleted) {
+    // If checklist is still pending, show progress view
+    if (checklistData && !checklistData.checklistComplete) {
+      return (
+        <div className="max-w-2xl mx-auto py-8 px-4">
+          <OnboardingProgress data={checklistData} inline={true} />
+        </div>
+      );
+    }
+
+    // Checklist 100% complete or no data yet - show success page
     return (
       <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">

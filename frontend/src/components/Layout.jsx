@@ -33,6 +33,7 @@ const Layout = () => {
   const [unreadNotifications, setUnreadNotifications] = useState(0); // System notifications
   const [notifications, setNotifications] = useState([]); // Notification list
   const [needsOnboarding, setNeedsOnboarding] = useState(false); // Onboarding pending
+  const [onboardingFormDone, setOnboardingFormDone] = useState(false); // Form filled, checklist pending
 
   const isActive = (path) => location.pathname === path;
 
@@ -71,8 +72,10 @@ const Layout = () => {
         // Needs onboarding if form not done OR checklist not 100%
         if (!data.formCompleted || !data.checklistComplete) {
           setNeedsOnboarding(true);
+          setOnboardingFormDone(data.formCompleted);
         } else {
           setNeedsOnboarding(false);
+          setOnboardingFormDone(true);
         }
       }
     } catch (error) {
@@ -236,7 +239,7 @@ const Layout = () => {
 
   const navItems = [
     // Onboarding - aparece só quando não está completo
-    ...(needsOnboarding ? [{ path: '/onboarding', label: 'Onboarding', icon: ClipboardList, isOnboarding: true }] : []),
+    ...(needsOnboarding ? [{ path: '/onboarding', label: 'Onboarding', icon: ClipboardList, isOnboarding: true, isOnboardingProgress: onboardingFormDone }] : []),
 
     { path: '/', labelKey: 'menu.dashboard', icon: Home, section: null },
 
@@ -396,14 +399,16 @@ const Layout = () => {
                 className={`
                   flex items-center ${isCollapsed ? 'justify-center px-2' : 'space-x-2.5 px-3'} py-2.5 rounded-lg transition-all mb-0.5 relative group
                   ${item.isOnboarding
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800 animate-pulse'
+                    ? item.isOnboardingProgress
+                      ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium border border-purple-200 dark:border-purple-800'
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800 animate-pulse'
                     : active
                       ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-purple-600 dark:hover:text-purple-400'
                   }
                 `}
               >
-                <Icon className={`w-4 h-4 flex-shrink-0 ${item.isOnboarding ? 'animate-bounce' : ''}`} />
+                <Icon className={`w-4 h-4 flex-shrink-0 ${item.isOnboarding && !item.isOnboardingProgress ? 'animate-bounce' : ''}`} />
                 {!isCollapsed && (
                   <>
                     <span className="text-sm flex-1">{label}</span>
@@ -419,17 +424,20 @@ const Layout = () => {
                     {item.badge > 0 && (
                       <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm" />
                     )}
-                    {item.isOnboarding && (
+                    {item.isOnboarding && !item.isOnboardingProgress && (
                       <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-sm animate-ping" />
                     )}
-                    <div className={`absolute left-full ml-2 px-2 py-1 ${item.isOnboarding ? 'bg-red-600' : 'bg-gray-900 dark:bg-gray-700'} text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-150 z-50 shadow-lg`}>
+                    {item.isOnboarding && item.isOnboardingProgress && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-purple-500 rounded-full shadow-sm" />
+                    )}
+                    <div className={`absolute left-full ml-2 px-2 py-1 ${item.isOnboarding ? (item.isOnboardingProgress ? 'bg-purple-600' : 'bg-red-600') : 'bg-gray-900 dark:bg-gray-700'} text-white text-xs rounded-md whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-150 z-50 shadow-lg`}>
                       {label}
                       {item.badge > 0 && (
                         <span className="ml-2 px-1.5 py-0.5 bg-red-500 rounded-full text-[10px] font-bold">
                           {item.badge > 99 ? '99+' : item.badge}
                         </span>
                       )}
-                      <div className={`absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent ${item.isOnboarding ? 'border-r-red-600' : 'border-r-gray-900 dark:border-r-gray-700'}`} />
+                      <div className={`absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent ${item.isOnboarding ? (item.isOnboardingProgress ? 'border-r-purple-600' : 'border-r-red-600') : 'border-r-gray-900 dark:border-r-gray-700'}`} />
                     </div>
                   </>
                 )}
