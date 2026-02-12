@@ -422,7 +422,7 @@ const Layout = () => {
                   `}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="text-sm flex-1">{label}</span>}
+                  {!isCollapsed && <span className="text-sm flex-1 text-left">{label}</span>}
                   {isCollapsed && (
                     <>
                       {item.isOnboarding && item.isOnboardingProgress && (
