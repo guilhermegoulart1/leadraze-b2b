@@ -3,13 +3,25 @@ import { useTranslation } from 'react-i18next';
 import {
   ClipboardList, Filter, Eye, CheckCircle, Loader2, X,
   Building2, Users, MessageSquare, Phone, Mail, Calendar,
-  Globe, Briefcase, Target, Clock, Download, FileText
+  Globe, Briefcase, Target, Clock, Download, FileText,
+  ListChecks, ChevronDown, ChevronRight, CheckCircle2, Circle,
+  Rocket, Settings, FlaskConical, Wrench, Zap
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import api from '../services/api';
 
+const STAGE_ICONS = {
+  kickoff: Rocket,
+  configuracao: Settings,
+  testes: FlaskConical,
+  revisao: Users,
+  ajustes: Wrench,
+  golive: Zap
+};
+
 const OnboardingAdminPage = () => {
-  const { t } = useTranslation('onboarding');
+  const { t, i18n } = useTranslation('onboarding');
+  const lang = i18n.language?.startsWith('pt') ? 'pt' : i18n.language?.startsWith('es') ? 'es' : 'en';
 
   const [onboardings, setOnboardings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +36,13 @@ const OnboardingAdminPage = () => {
     total: 0,
     pages: 1
   });
+
+  // Checklist tab state
+  const [modalTab, setModalTab] = useState('responses');
+  const [checklistData, setChecklistData] = useState(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [expandedStages, setExpandedStages] = useState({});
+  const [togglingTask, setTogglingTask] = useState(null);
 
   useEffect(() => {
     loadOnboardings();
@@ -56,11 +75,93 @@ const OnboardingAdminPage = () => {
       const response = await api.getOnboardingById(id);
       if (response.success) {
         setSelectedOnboarding(response.data.onboarding);
+        setModalTab('responses');
+        setChecklistData(null);
+        setExpandedStages({});
         setShowModal(true);
       }
     } catch (error) {
       console.error('Error loading onboarding details:', error);
     }
+  };
+
+  const loadChecklist = async (onboardingId) => {
+    try {
+      setChecklistLoading(true);
+      const response = await api.getAdminChecklist(onboardingId);
+      if (response.success) {
+        setChecklistData(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading checklist:', error);
+    } finally {
+      setChecklistLoading(false);
+    }
+  };
+
+  const handleTabChange = (tab) => {
+    setModalTab(tab);
+    if (tab === 'checklist' && !checklistData && selectedOnboarding) {
+      loadChecklist(selectedOnboarding.id);
+    }
+  };
+
+  const toggleChecklistTask = async (taskKey) => {
+    if (!selectedOnboarding || togglingTask) return;
+    try {
+      setTogglingTask(taskKey);
+      const response = await api.toggleChecklistTask(selectedOnboarding.id, taskKey);
+      if (response.success) {
+        // Optimistic update
+        setChecklistData(prev => {
+          if (!prev) return prev;
+          const newStages = prev.stages.map(stage => ({
+            ...stage,
+            tasks: stage.tasks.map(task => {
+              if (task.key === taskKey) {
+                const nowCompleted = response.data.action === 'completed';
+                return {
+                  ...task,
+                  completed: nowCompleted,
+                  completed_at: nowCompleted ? new Date().toISOString() : null,
+                  completed_by_name: nowCompleted ? 'You' : null
+                };
+              }
+              return task;
+            }),
+            completedTasks: stage.tasks.reduce((acc, task) => {
+              if (task.key === taskKey) {
+                return acc + (response.data.action === 'completed' ? 1 : 0);
+              }
+              return acc + (task.completed ? 1 : 0);
+            }, 0),
+            percentage: Math.round(
+              (stage.tasks.reduce((acc, task) => {
+                if (task.key === taskKey) {
+                  return acc + (response.data.action === 'completed' ? 1 : 0);
+                }
+                return acc + (task.completed ? 1 : 0);
+              }, 0) / stage.totalTasks) * 100
+            )
+          }));
+          return {
+            ...prev,
+            stages: newStages,
+            completedTasks: response.data.completedTasks,
+            percentage: response.data.percentage,
+            checklistComplete: response.data.checklistComplete
+          };
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling task:', error);
+    } finally {
+      setTogglingTask(null);
+    }
+  };
+
+  const toggleStageExpand = (stageKey) => {
+    setExpandedStages(prev => ({ ...prev, [stageKey]: !prev[stageKey] }));
   };
 
   const markAsReviewed = async (id) => {
@@ -456,28 +557,199 @@ const OnboardingAdminPage = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {t('admin.modal.title')}
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedOnboarding.company_name || selectedOnboarding.account_name}
-                </p>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {t('admin.modal.title')}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {selectedOnboarding.company_name || selectedOnboarding.account_name}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {getStatusBadge(selectedOnboarding.status)}
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                {getStatusBadge(selectedOnboarding.status)}
+              {/* Tabs */}
+              <div className="flex gap-1">
                 <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  onClick={() => handleTabChange('responses')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    modalTab === 'responses'
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                      : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400'
+                  }`}
                 >
-                  <X className="w-5 h-5" />
+                  <ClipboardList className="w-4 h-4" />
+                  {t('admin.tabs.responses')}
+                </button>
+                <button
+                  onClick={() => handleTabChange('checklist')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    modalTab === 'checklist'
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                      : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-400'
+                  }`}
+                >
+                  <ListChecks className="w-4 h-4" />
+                  {t('admin.tabs.checklist')}
+                  {checklistData && (
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
+                      checklistData.checklistComplete
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                    }`}>
+                      {checklistData.percentage}%
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+            {/* CHECKLIST TAB */}
+            {modalTab === 'checklist' && (
+              checklistLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                </div>
+              ) : checklistData ? (
+                <div className="space-y-4">
+                  {/* Overall Progress */}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {t('checklist.overallProgress')}
+                      </span>
+                      <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                        {checklistData.percentage}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-purple-600 to-indigo-600 h-3 rounded-full transition-all duration-500"
+                        style={{ width: `${checklistData.percentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {checklistData.completedTasks}/{checklistData.totalTasks} {t('checklist.tasksCompleted')}
+                    </p>
+                  </div>
+
+                  {/* Stages */}
+                  {checklistData.stages.map(stage => {
+                    const StageIcon = STAGE_ICONS[stage.key] || Circle;
+                    const isExpanded = expandedStages[stage.key] !== false; // default expanded
+                    const isComplete = stage.completedTasks === stage.totalTasks;
+                    const hasProgress = stage.completedTasks > 0;
+
+                    return (
+                      <div key={stage.key} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => toggleStageExpand(stage.key)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isComplete
+                              ? 'bg-green-100 dark:bg-green-900/30'
+                              : hasProgress
+                                ? 'bg-purple-100 dark:bg-purple-900/30'
+                                : 'bg-gray-100 dark:bg-gray-700'
+                          }`}>
+                            <StageIcon className={`w-4 h-4 ${
+                              isComplete
+                                ? 'text-green-600 dark:text-green-400'
+                                : hasProgress
+                                  ? 'text-purple-600 dark:text-purple-400'
+                                  : 'text-gray-400'
+                            }`} />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-gray-400">
+                                {t('checklist.stage')} {stage.stage}
+                              </span>
+                              {isComplete && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                            </div>
+                            <p className="font-medium text-gray-900 dark:text-white text-sm">
+                              {stage[`title_${lang}`]}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500">
+                              {stage.completedTasks}/{stage.totalTasks}
+                            </span>
+                            <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-purple-500'}`}
+                                style={{ width: `${stage.percentage}%` }}
+                              />
+                            </div>
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-400" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                            )}
+                          </div>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="border-t border-gray-100 dark:border-gray-700 divide-y divide-gray-50 dark:divide-gray-700/50">
+                            {stage.tasks.map(task => (
+                              <div
+                                key={task.key}
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                              >
+                                <button
+                                  onClick={() => toggleChecklistTask(task.key)}
+                                  disabled={togglingTask === task.key}
+                                  className="flex-shrink-0 disabled:opacity-50"
+                                >
+                                  {togglingTask === task.key ? (
+                                    <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+                                  ) : task.completed ? (
+                                    <CheckCircle2 className="w-5 h-5 text-green-500 hover:text-green-600 cursor-pointer" />
+                                  ) : (
+                                    <Circle className="w-5 h-5 text-gray-300 dark:text-gray-600 hover:text-purple-400 cursor-pointer" />
+                                  )}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <span className={`text-sm ${
+                                    task.completed
+                                      ? 'text-gray-400 dark:text-gray-500'
+                                      : 'text-gray-700 dark:text-gray-300'
+                                  }`}>
+                                    {task[`title_${lang}`]}
+                                  </span>
+                                </div>
+                                {task.completed && task.completed_at && (
+                                  <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                                    {formatDate(task.completed_at)}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null
+            )}
+
+            {/* RESPONSES TAB */}
+            {modalTab === 'responses' && (
+              <>
               {/* Section 1: Company */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
@@ -701,6 +973,9 @@ const OnboardingAdminPage = () => {
                   </div>
                 </div>
               </div>
+            </>
+            )}
+
             </div>
 
             {/* Modal Footer */}

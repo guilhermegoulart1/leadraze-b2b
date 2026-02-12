@@ -214,10 +214,25 @@
       "section4": "Información Final",
       "contact": "Contacto"
     },
+    "tabs": {
+      "responses": "Respuestas",
+      "checklist": "Checklist"
+    },
     "empty": "No se encontraron onboardings",
     "reviewedSuccess": "Onboarding marcado como revisado",
     "exportCSV": "Exportar CSV",
     "exportPDF": "Exportar PDF",
     "exportError": "Error al exportar. Intente nuevamente."
+  },
+  "checklist": {
+    "clientTitle": "Progreso del Onboarding",
+    "clientSubtitle": "Sigue el avance de la configuración de tus agentes de IA",
+    "alertTitle": "Tu onboarding está en progreso",
+    "overallProgress": "Progreso General",
+    "complete": "completado",
+    "viewProgress": "Ver Progreso",
+    "stage": "Etapa",
+    "tasksCompleted": "tareas completadas",
+    "close": "Cerrar"
   }
 }

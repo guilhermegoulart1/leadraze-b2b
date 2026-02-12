@@ -214,10 +214,25 @@
       "section4": "Final Information",
       "contact": "Contact"
     },
+    "tabs": {
+      "responses": "Responses",
+      "checklist": "Checklist"
+    },
     "empty": "No onboarding found",
     "reviewedSuccess": "Onboarding marked as reviewed",
     "exportCSV": "Export CSV",
     "exportPDF": "Export PDF",
     "exportError": "Error exporting. Please try again."
+  },
+  "checklist": {
+    "clientTitle": "Onboarding Progress",
+    "clientSubtitle": "Track the progress of your AI agents setup",
+    "alertTitle": "Your onboarding is in progress",
+    "overallProgress": "Overall Progress",
+    "complete": "complete",
+    "viewProgress": "View Progress",
+    "stage": "Stage",
+    "tasksCompleted": "tasks completed",
+    "close": "Close"
   }
 }

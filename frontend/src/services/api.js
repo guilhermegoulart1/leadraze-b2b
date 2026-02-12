@@ -3972,6 +3972,25 @@ class ApiService {
     return { success: true };
   }
 
+  // ===================================
+  // ONBOARDING CHECKLIST
+  // ===================================
+
+  async getChecklistProgress() {
+    return this.request('/onboarding/checklist');
+  }
+
+  async getAdminChecklist(onboardingId) {
+    return this.request(`/onboarding/admin/${onboardingId}/checklist`);
+  }
+
+  async toggleChecklistTask(onboardingId, taskKey) {
+    return this.request(`/onboarding/admin/${onboardingId}/checklist`, {
+      method: 'PUT',
+      body: JSON.stringify({ task_key: taskKey }),
+    });
+  }
+
   // =====================
   // Variables API
   // =====================

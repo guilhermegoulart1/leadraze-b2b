@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const notificationService = require('../services/notificationService');
 const emailService = require('../services/emailService');
+const { ONBOARDING_STAGES, ALL_TASK_KEYS, TOTAL_TASKS } = require('../config/onboardingTasks');
 
 /**
  * Get onboarding for the current account
@@ -545,6 +546,270 @@ exports.exportOnboardingCSV = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao exportar onboarding',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get checklist progress for the current account (client view)
+ * Returns stages + tasks with completed status (no timestamps)
+ */
+exports.getChecklistProgress = async (req, res) => {
+  try {
+    const accountId = req.user.account_id;
+
+    // Get latest onboarding for this account
+    const onboardingResult = await db.query(
+      `SELECT id, status FROM onboarding_responses WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [accountId]
+    );
+
+    const onboarding = onboardingResult.rows[0];
+
+    // If no onboarding or form not completed
+    if (!onboarding || (onboarding.status !== 'completed' && onboarding.status !== 'reviewed')) {
+      return res.json({
+        success: true,
+        data: {
+          formCompleted: false,
+          checklistComplete: false,
+          percentage: 0,
+          stages: []
+        }
+      });
+    }
+
+    // Get completions
+    const completionsResult = await db.query(
+      `SELECT task_key FROM onboarding_task_completions WHERE onboarding_id = $1`,
+      [onboarding.id]
+    );
+    const completedKeys = new Set(completionsResult.rows.map(r => r.task_key));
+
+    // Build response with stages and tasks (no timestamps for client)
+    const stages = ONBOARDING_STAGES.map(stage => {
+      const tasks = stage.tasks.map(task => ({
+        key: task.key,
+        title_pt: task.title_pt,
+        title_en: task.title_en,
+        title_es: task.title_es,
+        completed: completedKeys.has(task.key)
+      }));
+
+      const completedCount = tasks.filter(t => t.completed).length;
+
+      return {
+        stage: stage.stage,
+        key: stage.key,
+        title_pt: stage.title_pt,
+        title_en: stage.title_en,
+        title_es: stage.title_es,
+        description_pt: stage.description_pt,
+        description_en: stage.description_en,
+        description_es: stage.description_es,
+        totalTasks: tasks.length,
+        completedTasks: completedCount,
+        percentage: tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0,
+        tasks
+      };
+    });
+
+    const totalCompleted = completedKeys.size;
+    const percentage = TOTAL_TASKS > 0 ? Math.round((totalCompleted / TOTAL_TASKS) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        formCompleted: true,
+        checklistComplete: totalCompleted === TOTAL_TASKS,
+        percentage,
+        totalTasks: TOTAL_TASKS,
+        completedTasks: totalCompleted,
+        stages
+      }
+    });
+  } catch (error) {
+    console.error('Error getting checklist progress:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar progresso do checklist',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get admin checklist for a specific onboarding (with timestamps)
+ */
+exports.getAdminChecklist = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify onboarding exists
+    const onboardingResult = await db.query(
+      `SELECT id, status FROM onboarding_responses WHERE id = $1`,
+      [id]
+    );
+
+    if (onboardingResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Onboarding não encontrado'
+      });
+    }
+
+    // Get completions with user info
+    const completionsResult = await db.query(
+      `SELECT c.task_key, c.completed_at, u.name as completed_by_name
+       FROM onboarding_task_completions c
+       JOIN users u ON c.completed_by = u.id
+       WHERE c.onboarding_id = $1`,
+      [id]
+    );
+
+    const completionsMap = {};
+    completionsResult.rows.forEach(r => {
+      completionsMap[r.task_key] = {
+        completed_at: r.completed_at,
+        completed_by_name: r.completed_by_name
+      };
+    });
+
+    // Build response with stages, tasks, and timestamps
+    const stages = ONBOARDING_STAGES.map(stage => {
+      const tasks = stage.tasks.map(task => {
+        const completion = completionsMap[task.key];
+        return {
+          key: task.key,
+          title_pt: task.title_pt,
+          title_en: task.title_en,
+          title_es: task.title_es,
+          completed: !!completion,
+          completed_at: completion ? completion.completed_at : null,
+          completed_by_name: completion ? completion.completed_by_name : null
+        };
+      });
+
+      const completedCount = tasks.filter(t => t.completed).length;
+
+      return {
+        stage: stage.stage,
+        key: stage.key,
+        title_pt: stage.title_pt,
+        title_en: stage.title_en,
+        title_es: stage.title_es,
+        description_pt: stage.description_pt,
+        description_en: stage.description_en,
+        description_es: stage.description_es,
+        totalTasks: tasks.length,
+        completedTasks: completedCount,
+        percentage: tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0,
+        tasks
+      };
+    });
+
+    const totalCompleted = Object.keys(completionsMap).length;
+    const percentage = TOTAL_TASKS > 0 ? Math.round((totalCompleted / TOTAL_TASKS) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        percentage,
+        totalTasks: TOTAL_TASKS,
+        completedTasks: totalCompleted,
+        checklistComplete: totalCompleted === TOTAL_TASKS,
+        stages
+      }
+    });
+  } catch (error) {
+    console.error('Error getting admin checklist:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar checklist',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Toggle a checklist task (admin only)
+ * If completed → uncomplete, if not → complete
+ */
+exports.toggleChecklistTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { task_key } = req.body;
+    const adminUserId = req.user.id;
+
+    // Validate task_key
+    if (!task_key || !ALL_TASK_KEYS.includes(task_key)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Task key inválida'
+      });
+    }
+
+    // Verify onboarding exists
+    const onboardingResult = await db.query(
+      `SELECT id FROM onboarding_responses WHERE id = $1`,
+      [id]
+    );
+
+    if (onboardingResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Onboarding não encontrado'
+      });
+    }
+
+    // Check if already completed
+    const existingResult = await db.query(
+      `SELECT id FROM onboarding_task_completions WHERE onboarding_id = $1 AND task_key = $2`,
+      [id, task_key]
+    );
+
+    let action;
+    if (existingResult.rows.length > 0) {
+      // Uncomplete: delete
+      await db.query(
+        `DELETE FROM onboarding_task_completions WHERE onboarding_id = $1 AND task_key = $2`,
+        [id, task_key]
+      );
+      action = 'uncompleted';
+    } else {
+      // Complete: insert
+      await db.query(
+        `INSERT INTO onboarding_task_completions (onboarding_id, task_key, completed_by) VALUES ($1, $2, $3)`,
+        [id, task_key, adminUserId]
+      );
+      action = 'completed';
+    }
+
+    // Return updated count
+    const countResult = await db.query(
+      `SELECT COUNT(*) FROM onboarding_task_completions WHERE onboarding_id = $1`,
+      [id]
+    );
+    const completedTasks = parseInt(countResult.rows[0].count);
+    const percentage = TOTAL_TASKS > 0 ? Math.round((completedTasks / TOTAL_TASKS) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        task_key,
+        action,
+        completedTasks,
+        totalTasks: TOTAL_TASKS,
+        percentage,
+        checklistComplete: completedTasks === TOTAL_TASKS
+      }
+    });
+  } catch (error) {
+    console.error('Error toggling checklist task:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar tarefa do checklist',
       error: error.message
     });
   }

@@ -52,10 +52,11 @@ const Layout = () => {
     checkOnboardingStatus();
   }, []);
 
-  // ✅ Escutar evento de onboarding completado
+  // ✅ Escutar evento de onboarding completado (form submitted)
   useEffect(() => {
     const handleOnboardingCompleted = () => {
-      setNeedsOnboarding(false);
+      // Re-check: form is done but checklist may still be pending
+      checkOnboardingStatus();
     };
 
     window.addEventListener('onboarding-completed', handleOnboardingCompleted);
@@ -64,10 +65,11 @@ const Layout = () => {
 
   const checkOnboardingStatus = async () => {
     try {
-      const response = await api.getOnboarding();
+      const response = await api.getChecklistProgress();
       if (response.success) {
-        const onboarding = response.data.onboarding;
-        if (!onboarding || (onboarding.status !== 'completed' && onboarding.status !== 'reviewed')) {
+        const data = response.data;
+        // Needs onboarding if form not done OR checklist not 100%
+        if (!data.formCompleted || !data.checklistComplete) {
           setNeedsOnboarding(true);
         } else {
           setNeedsOnboarding(false);
