@@ -513,6 +513,35 @@ async function getActiveCampaignsWithPendingInvites() {
 }
 
 /**
+ * Get active campaigns that have approved contacts but NO pending/scheduled queue entries.
+ * These are "orphaned" campaigns that were reactivated without going through
+ * startCampaign/resumeCampaign endpoints (e.g. via direct DB update or deploy fix).
+ */
+async function getActiveCampaignsNeedingQueueRecreation() {
+  const result = await db.query(
+    `SELECT c.id as campaign_id, c.account_id, c.name as campaign_name,
+            approved_counts.approved_count
+     FROM campaigns c
+     JOIN campaign_review_config crc ON crc.campaign_id = c.id
+     JOIN LATERAL (
+       SELECT COUNT(*) as approved_count
+       FROM campaign_contacts cc
+       WHERE cc.campaign_id = c.id AND cc.status = 'approved'
+     ) approved_counts ON true
+     WHERE c.status = 'active'
+       AND c.automation_active = true
+       AND crc.is_reviewed = true
+       AND approved_counts.approved_count > 0
+       AND NOT EXISTS (
+         SELECT 1 FROM campaign_invite_queue ciq
+         WHERE ciq.campaign_id = c.id AND ciq.status IN ('pending', 'scheduled')
+       )
+     ORDER BY c.created_at ASC`
+  );
+  return result.rows;
+}
+
+/**
  * Schedule pending invites for all active campaigns (called by Bull repeatable job)
  */
 async function processDailyScheduling() {
@@ -520,6 +549,39 @@ async function processDailyScheduling() {
   schedLog.info('AGENDAMENTO AUTOMÁTICO DE CONVITES');
   schedLog.info(`Timestamp: ${new Date().toISOString()}`);
 
+  // ─── AUTO-RECOVERY: campanhas ativas sem fila pendente ───
+  try {
+    const orphanedCampaigns = await getActiveCampaignsNeedingQueueRecreation();
+
+    if (orphanedCampaigns.length > 0) {
+      schedLog.warn(`🔄 AUTO-RECOVERY: Encontradas ${orphanedCampaigns.length} campanhas órfãs (ativas sem fila pendente)`);
+
+      for (const camp of orphanedCampaigns) {
+        try {
+          schedLog.info(`🔄 AUTO-RECOVERY: Recriando fila para "${camp.campaign_name}" (${camp.campaign_id}) - ${camp.approved_count} contatos aprovados`);
+
+          const queueResult = await inviteQueueService.createInviteQueue(
+            camp.campaign_id,
+            camp.account_id
+          );
+
+          schedLog.success(
+            `🔄 AUTO-RECOVERY: "${camp.campaign_name}" recuperada - ${queueResult.totalQueued} na fila, ${queueResult.scheduledToday} agendados para hoje`
+          );
+        } catch (recoveryError) {
+          schedLog.error(
+            `🔄 AUTO-RECOVERY: Falha ao recuperar "${camp.campaign_name}" (${camp.campaign_id}): ${recoveryError.message}`
+          );
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  } catch (detectionError) {
+    schedLog.error(`🔄 AUTO-RECOVERY: Erro na detecção de campanhas órfãs: ${detectionError.message}`);
+  }
+
+  // ─── SCHEDULING NORMAL ───
   const campaigns = await getActiveCampaignsWithPendingInvites();
 
   if (campaigns.length === 0) {
