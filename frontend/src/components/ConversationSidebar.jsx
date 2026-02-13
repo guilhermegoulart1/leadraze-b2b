@@ -2,19 +2,17 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Search, Clock, MessageSquare, Trash2, CheckCircle, Filter, UserCircle, Building2,
-  MessageCircle, Linkedin, Instagram, Send, Mail, Briefcase
+  Clock, MessageSquare, Trash2, CheckCircle, Filter, UserCircle, Building2, Briefcase
 } from 'lucide-react';
 import QuickViewTabs from './QuickViewTabs';
 import FiltersPopover from './FiltersPopover';
 import ActiveFilterPills from './ActiveFilterPills';
+import { getChannelInfo } from '../utils/channelUtils';
 
 const ConversationSidebar = ({
   conversations = [],
   selectedId,
   onSelect,
-  searchQuery,
-  onSearchChange,
   statusFilter,
   onStatusFilterChange,
   stats,
@@ -28,6 +26,7 @@ const ConversationSidebar = ({
   onAdvancedFiltersChange,
   users = [],
   tags = [],
+  accounts = [],
   activeFilters = [],
   onRemoveFilter,
   onClearAllFilters,
@@ -74,20 +73,6 @@ const ConversationSidebar = ({
     return date.toLocaleDateString(i18n.language, { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Mapeamento de canal para ícone e cor
-  const getChannelInfo = (providerType) => {
-    const channels = {
-      WHATSAPP: { icon: MessageCircle, color: 'bg-green-500', label: 'WhatsApp' },
-      LINKEDIN: { icon: Linkedin, color: 'bg-blue-600', label: 'LinkedIn' },
-      INSTAGRAM: { icon: Instagram, color: 'bg-pink-500', label: 'Instagram' },
-      TELEGRAM: { icon: Send, color: 'bg-sky-500', label: 'Telegram' },
-      MAIL: { icon: Mail, color: 'bg-gray-500', label: 'Email' },
-      GOOGLE: { icon: Mail, color: 'bg-red-500', label: 'Gmail' },
-      OUTLOOK: { icon: Mail, color: 'bg-blue-500', label: 'Outlook' },
-    };
-    return channels[providerType] || null;
-  };
-
   // Calcular contagem de filtros ativos
   const activeFiltersCount = activeFilters.length;
 
@@ -95,18 +80,6 @@ const ConversationSidebar = ({
     <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
-          <input
-            type="text"
-            placeholder={t('search.placeholder')}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7229f7] focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
-          />
-        </div>
-
         {/* Quick Views - Pills Horizontais */}
         <div className="mb-3">
           <QuickViewTabs
@@ -143,6 +116,7 @@ const ConversationSidebar = ({
                 onChange={onAdvancedFiltersChange}
                 users={users}
                 tags={tags}
+                accounts={accounts}
                 onClear={onClearAllFilters}
                 onClose={onToggleFilters}
               />
@@ -172,12 +146,12 @@ const ConversationSidebar = ({
           <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
             <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
             <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-              {searchQuery || activeFiltersCount > 0
+              {activeFiltersCount > 0
                 ? t('search.noResults')
                 : t('messages.noConversations')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {searchQuery || activeFiltersCount > 0
+              {activeFiltersCount > 0
                 ? t('search.tryDifferent')
                 : t('messages.startFirst')}
             </p>
@@ -272,6 +246,21 @@ const ConversationSidebar = ({
                         </>
                       )}
                     </div>
+
+                    {/* Account/Channel name */}
+                    {conversation.account_name && (() => {
+                      const channelInfo = getChannelInfo(conversation.provider_type);
+                      if (!channelInfo) return null;
+                      const ChannelIcon = channelInfo.icon;
+                      return (
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <ChannelIcon className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                            {conversation.account_name}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {conversation.last_message_preview && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">

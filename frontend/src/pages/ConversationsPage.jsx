@@ -18,7 +18,6 @@ const ConversationsPage = ({ isGroupMode = false }) => {
   const [conversations, setConversations] = useState([]);
   const [filteredConversations, setFilteredConversations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('mine'); // Default: minhas conversas
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [showDetailsPanel, setShowDetailsPanel] = useState(true);
@@ -35,10 +34,12 @@ const ConversationsPage = ({ isGroupMode = false }) => {
     mode: 'all', // all | ai | manual
     assignedUserId: null,
     period: 'all',
-    tags: []
+    tags: [],
+    accountIds: []
   });
   const [users, setUsers] = useState([]);
   const [tags, setTags] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]);
 
   // Estado para o modal unificado de contato
@@ -52,11 +53,12 @@ const ConversationsPage = ({ isGroupMode = false }) => {
     loadStats();
     loadUsers();
     loadTags();
+    loadAccounts();
   }, [isGroupMode]);
 
   useEffect(() => {
     filterConversations();
-  }, [searchQuery, statusFilter, conversations, advancedFilters, user]);
+  }, [statusFilter, conversations, advancedFilters, user]);
 
   // ✅ Realtime: Escutar atualizações de conversas em tempo real via Ably
   useEffect(() => {
@@ -226,6 +228,15 @@ const ConversationsPage = ({ isGroupMode = false }) => {
     }
   };
 
+  const loadAccounts = async () => {
+    try {
+      const response = await api.getLinkedInAccounts();
+      setAccounts(response.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar contas:', error);
+    }
+  };
+
   // Função chamada quando uma conversa é atualizada (atribuição, tags, etc)
   const handleConversationUpdated = async (options = {}) => {
     await Promise.all([
@@ -308,11 +319,10 @@ const ConversationsPage = ({ isGroupMode = false }) => {
       );
     }
 
-    // 6. Search query
-    if (searchQuery) {
+    // 6. Advanced filters - Accounts/Channels
+    if (advancedFilters.accountIds.length > 0) {
       filtered = filtered.filter(c =>
-        c.lead_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.lead_company?.toLowerCase().includes(searchQuery.toLowerCase())
+        advancedFilters.accountIds.includes(c.linkedin_account_id)
       );
     }
 
@@ -376,6 +386,16 @@ const ConversationsPage = ({ isGroupMode = false }) => {
       });
     }
 
+    // Accounts filter
+    if (advancedFilters.accountIds.length > 0) {
+      const selectedAccounts = accounts.filter(acc => advancedFilters.accountIds.includes(acc.id));
+      const accountNames = selectedAccounts.map(acc => acc.profile_name || acc.channel_name || acc.id).join(', ');
+      filters.push({
+        key: 'accountIds',
+        label: `${t('activeFilters.accounts', 'Contas')}: ${accountNames}`
+      });
+    }
+
     setActiveFilters(filters);
   };
 
@@ -391,6 +411,8 @@ const ConversationsPage = ({ isGroupMode = false }) => {
       newFilters.period = 'all';
     } else if (filterKey === 'tags') {
       newFilters.tags = [];
+    } else if (filterKey === 'accountIds') {
+      newFilters.accountIds = [];
     }
 
     setAdvancedFilters(newFilters);
@@ -402,7 +424,8 @@ const ConversationsPage = ({ isGroupMode = false }) => {
       mode: 'all',
       assignedUserId: null,
       period: 'all',
-      tags: []
+      tags: [],
+      accountIds: []
     });
     setActiveFilters([]);
   };
@@ -534,8 +557,6 @@ const ConversationsPage = ({ isGroupMode = false }) => {
         conversations={loading ? [] : filteredConversations}
         selectedId={selectedConversationId}
         onSelect={handleSelectConversation}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         stats={stats}
@@ -549,6 +570,7 @@ const ConversationsPage = ({ isGroupMode = false }) => {
         onAdvancedFiltersChange={setAdvancedFilters}
         users={users}
         tags={tags}
+        accounts={accounts}
         activeFilters={activeFilters}
         onRemoveFilter={handleRemoveFilter}
         onClearAllFilters={handleClearAllFilters}

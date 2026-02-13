@@ -1,12 +1,14 @@
-import React, { useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useRef, useEffect, useMemo } from 'react';
+import { X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getChannelInfo } from '../utils/channelUtils';
 
 export default function FiltersPopover({
   filters,
   onChange,
   users = [],
   tags = [],
+  accounts = [],
   onClear,
   onClose
 }) {
@@ -82,6 +84,35 @@ export default function FiltersPopover({
     };
 
     return colors[color] || colors.gray;
+  };
+
+  const handleAccountToggle = (accountId) => {
+    const currentIds = filters.accountIds || [];
+    const newAccountIds = currentIds.includes(accountId)
+      ? currentIds.filter(id => id !== accountId)
+      : [...currentIds, accountId];
+    onChange({ ...filters, accountIds: newAccountIds });
+  };
+
+  const groupedAccounts = useMemo(() => {
+    return accounts.reduce((acc, account) => {
+      const provider = account.provider_type || 'OTHER';
+      if (!acc[provider]) acc[provider] = [];
+      acc[provider].push(account);
+      return acc;
+    }, {});
+  }, [accounts]);
+
+  const providerLabels = {
+    LINKEDIN: 'LinkedIn',
+    WHATSAPP: 'WhatsApp',
+    INSTAGRAM: 'Instagram',
+    TELEGRAM: 'Telegram',
+    GOOGLE: 'Gmail',
+    OUTLOOK: 'Outlook',
+    MAIL: 'Email',
+    MESSENGER: 'Messenger',
+    TWITTER: 'Twitter'
   };
 
   return (
@@ -183,6 +214,56 @@ export default function FiltersPopover({
                   {tag.name}
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Canais/Contas */}
+        {accounts.length > 0 && (
+          <div>
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">
+              {t('filters.accounts', 'Canais/Contas')}
+            </label>
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {Object.entries(groupedAccounts).map(([provider, providerAccounts]) => {
+                const channelInfo = getChannelInfo(provider);
+                return (
+                  <div key={provider}>
+                    <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1">
+                      {providerLabels[provider] || provider}
+                    </div>
+                    <div className="space-y-0.5">
+                      {providerAccounts.map(account => {
+                        const isSelected = (filters.accountIds || []).includes(account.id);
+                        const ChannelIcon = channelInfo?.icon;
+                        return (
+                          <button
+                            key={account.id}
+                            onClick={() => handleAccountToggle(account.id)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
+                              isSelected
+                                ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            {ChannelIcon && (
+                              <div className={`w-4 h-4 ${channelInfo.color} rounded-full flex items-center justify-center flex-shrink-0`}>
+                                <ChannelIcon className="w-2.5 h-2.5 text-white" />
+                              </div>
+                            )}
+                            <span className="truncate flex-1 text-left">
+                              {account.profile_name || account.channel_name || account.channel_identifier}
+                            </span>
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
