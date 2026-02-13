@@ -22,6 +22,10 @@ const MAX_RECONNECTION_ATTEMPTS = 5;
 const listeners = {
   new_message: [],
   message_read: [],
+  message_edited: [],
+  message_deleted: [],
+  message_delivered: [],
+  message_reaction: [],
   conversation_updated: [],
   new_conversation: [],
   // Secret Agent events
@@ -173,6 +177,14 @@ function subscribeToAccountChannel(accountId) {
     listeners.new_conversation.forEach(callback => callback(message.data));
   });
 
+  accountChannel.subscribe('message_edited', (message) => {
+    listeners.message_edited.forEach(callback => callback(message.data));
+  });
+
+  accountChannel.subscribe('message_deleted', (message) => {
+    listeners.message_deleted.forEach(callback => callback(message.data));
+  });
+
   // Secret Agent Investigation events
   accountChannel.subscribe('investigation_queued', (message) => {
     console.log('Ably: investigation_queued received', message.data);
@@ -290,6 +302,22 @@ export function joinConversation(conversationId) {
     console.log('Ably: message_read received', message.data);
     listeners.message_read.forEach(callback => callback(message.data));
   });
+
+  conversationChannel.subscribe('message_edited', (message) => {
+    listeners.message_edited.forEach(callback => callback(message.data));
+  });
+
+  conversationChannel.subscribe('message_deleted', (message) => {
+    listeners.message_deleted.forEach(callback => callback(message.data));
+  });
+
+  conversationChannel.subscribe('message_delivered', (message) => {
+    listeners.message_delivered.forEach(callback => callback(message.data));
+  });
+
+  conversationChannel.subscribe('message_reaction', (message) => {
+    listeners.message_reaction.forEach(callback => callback(message.data));
+  });
 }
 
 /**
@@ -334,6 +362,26 @@ export function onNewConversation(callback) {
   return () => {
     listeners.new_conversation = listeners.new_conversation.filter(cb => cb !== callback);
   };
+}
+
+export function onMessageEdited(callback) {
+  listeners.message_edited.push(callback);
+  return () => { listeners.message_edited = listeners.message_edited.filter(cb => cb !== callback); };
+}
+
+export function onMessageDeleted(callback) {
+  listeners.message_deleted.push(callback);
+  return () => { listeners.message_deleted = listeners.message_deleted.filter(cb => cb !== callback); };
+}
+
+export function onMessageDelivered(callback) {
+  listeners.message_delivered.push(callback);
+  return () => { listeners.message_delivered = listeners.message_delivered.filter(cb => cb !== callback); };
+}
+
+export function onMessageReaction(callback) {
+  listeners.message_reaction.push(callback);
+  return () => { listeners.message_reaction = listeners.message_reaction.filter(cb => cb !== callback); };
 }
 
 // ============================================
@@ -431,6 +479,10 @@ export function onAccountConnected(callback) {
 export function removeAllListeners() {
   listeners.new_message = [];
   listeners.message_read = [];
+  listeners.message_edited = [];
+  listeners.message_deleted = [];
+  listeners.message_delivered = [];
+  listeners.message_reaction = [];
   listeners.conversation_updated = [];
   listeners.new_conversation = [];
   // Secret Agent events
@@ -466,6 +518,10 @@ export default {
   onMessageRead,
   onConversationUpdated,
   onNewConversation,
+  onMessageEdited,
+  onMessageDeleted,
+  onMessageDelivered,
+  onMessageReaction,
   // Secret Agent events
   onInvestigationQueued,
   onInvestigationStarted,

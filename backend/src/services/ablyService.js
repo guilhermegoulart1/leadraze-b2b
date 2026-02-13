@@ -15,6 +15,10 @@ const CHANNELS = {
   // Conversations & Messages
   NEW_MESSAGE: 'new_message',
   MESSAGE_READ: 'message_read',
+  MESSAGE_EDITED: 'message_edited',
+  MESSAGE_DELETED: 'message_deleted',
+  MESSAGE_DELIVERED: 'message_delivered',
+  MESSAGE_REACTION: 'message_reaction',
   CONVERSATION_UPDATED: 'conversation_updated',
   NEW_CONVERSATION: 'new_conversation',
 
@@ -189,6 +193,40 @@ function publishNewConversation(data) {
   publishToChannel(`account:${data.accountId}`, CHANNELS.NEW_CONVERSATION, data);
 }
 
+/**
+ * Publish message edited event
+ * @param {Object} data - { accountId, conversationId, messageId, unipileMessageId, newContent }
+ */
+function publishMessageEdited(data) {
+  publishToChannel(`conversation:${data.conversationId}`, CHANNELS.MESSAGE_EDITED, data);
+  publishToChannel(`account:${data.accountId}`, CHANNELS.MESSAGE_EDITED, data);
+}
+
+/**
+ * Publish message deleted event
+ * @param {Object} data - { accountId, conversationId, messageId, unipileMessageId }
+ */
+function publishMessageDeleted(data) {
+  publishToChannel(`conversation:${data.conversationId}`, CHANNELS.MESSAGE_DELETED, data);
+  publishToChannel(`account:${data.accountId}`, CHANNELS.MESSAGE_DELETED, data);
+}
+
+/**
+ * Publish message delivered event
+ * @param {Object} data - { accountId, conversationId, messageId, unipileMessageId, deliveredAt }
+ */
+function publishMessageDelivered(data) {
+  publishToChannel(`conversation:${data.conversationId}`, CHANNELS.MESSAGE_DELIVERED, data);
+}
+
+/**
+ * Publish message reaction event
+ * @param {Object} data - { accountId, conversationId, messageId, unipileMessageId, reaction, reactorName, reactorId }
+ */
+function publishMessageReaction(data) {
+  publishToChannel(`conversation:${data.conversationId}`, CHANNELS.MESSAGE_REACTION, data);
+}
+
 // ============================================
 // Secret Agent Investigation Events
 // ============================================
@@ -331,6 +369,10 @@ module.exports = {
   // Message events
   publishNewMessage,
   publishMessageRead,
+  publishMessageEdited,
+  publishMessageDeleted,
+  publishMessageDelivered,
+  publishMessageReaction,
   publishConversationUpdated,
   publishNewConversation,
   // Secret Agent events

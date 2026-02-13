@@ -191,7 +191,12 @@
     "tasks": "tarefas",
     "quickRepliesSection": "RESPOSTAS RÁPIDAS",
     "roadmapsSection": "ROADMAPS",
-    "slackStyleHint": "↑↓ navegar • Enter ou Tab selecionar • Esc fechar"
+    "slackStyleHint": "↑↓ navegar • Enter ou Tab selecionar • Esc fechar",
+    "messageEdited": "(editada)",
+    "messageDeleted": "Mensagem deletada",
+    "messageDelivered": "Entregue",
+    "messageRead": "Lido",
+    "messageSent": "Enviado"
   },
   "details": {
     "selectConversation": "Selecione uma conversa",

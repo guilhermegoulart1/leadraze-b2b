@@ -9,7 +9,7 @@ import {
   Play, Pause, Sparkles, Copy, Forward, Mic, Square, Trash2, Map, MessageSquare
 } from 'lucide-react';
 import api from '../services/api';
-import { joinConversation, leaveConversation, onNewMessage } from '../services/ably';
+import { joinConversation, leaveConversation, onNewMessage, onMessageEdited, onMessageDeleted, onMessageDelivered, onMessageReaction } from '../services/ably';
 import EmailComposer from './EmailComposer';
 import EmailMessage from './EmailMessage';
 import SecretAgentModal from './SecretAgentModal';
@@ -162,10 +162,54 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
     // Escutar novas mensagens via Ably
     const unsubscribe = onNewMessage((data) => handleNewMessage(data, 'Ably'));
 
-    // Cleanup: sair da sala e remover listener
+    // Escutar mensagem editada
+    const unsubEdited = onMessageEdited((data) => {
+      if (String(data.conversationId) !== String(conversationId)) return;
+      setMessages(prev => prev.map(msg =>
+        (msg.id === data.messageId || msg.unipile_message_id === data.unipileMessageId)
+          ? { ...msg, content: data.newContent, is_edited: true }
+          : msg
+      ));
+    });
+
+    // Escutar mensagem deletada
+    const unsubDeleted = onMessageDeleted((data) => {
+      if (String(data.conversationId) !== String(conversationId)) return;
+      setMessages(prev => prev.map(msg =>
+        (msg.id === data.messageId || msg.unipile_message_id === data.unipileMessageId)
+          ? { ...msg, content: '[Mensagem deletada]', deleted_at: new Date().toISOString() }
+          : msg
+      ));
+    });
+
+    // Escutar mensagem entregue (delivery receipt)
+    const unsubDelivered = onMessageDelivered((data) => {
+      if (String(data.conversationId) !== String(conversationId)) return;
+      setMessages(prev => prev.map(msg =>
+        (msg.id === data.messageId || msg.unipile_message_id === data.unipileMessageId)
+          ? { ...msg, delivered_at: data.deliveredAt }
+          : msg
+      ));
+    });
+
+    // Escutar reação a mensagem
+    const unsubReaction = onMessageReaction((data) => {
+      if (String(data.conversationId) !== String(conversationId)) return;
+      setMessages(prev => prev.map(msg =>
+        (msg.id === data.messageId || msg.unipile_message_id === data.unipileMessageId)
+          ? { ...msg, reactions: [...(msg.reactions || []), { type: data.reaction, name: data.reactorName }] }
+          : msg
+      ));
+    });
+
+    // Cleanup: sair da sala e remover listeners
     return () => {
       leaveConversation(conversationId);
       unsubscribe();
+      unsubEdited();
+      unsubDeleted();
+      unsubDelivered();
+      unsubReaction();
     };
   }, [conversationId]);
 
@@ -1408,6 +1452,20 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           {formatMessageTime(message.sent_at || message.date)}
                         </span>
+                        {/* Indicador de mensagem editada */}
+                        {message.is_edited && (
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 italic">
+                            {t('message.edited', '(editada)')}
+                          </span>
+                        )}
+                        {/* Status de entrega para mensagens enviadas */}
+                        {isOutgoing && message.sender_type === 'user' && (
+                          <span className={`text-[10px] ml-0.5 ${
+                            message.read_at ? 'text-blue-500' : message.delivered_at ? 'text-gray-400 dark:text-gray-500' : 'text-gray-300 dark:text-gray-600'
+                          }`}>
+                            {message.read_at ? '✓✓' : message.delivered_at ? '✓✓' : '✓'}
+                          </span>
+                        )}
                         {/* LinkedIn Badge: InMail ou Sponsored */}
                         {message.linkedin_category && !isOutgoing && (
                           <span className={`text-xs flex items-center gap-1 ${
@@ -1454,14 +1512,19 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                           }
 
                           if (messageText) {
+                            const isDeleted = !!message.deleted_at;
                             return (
                               <div className={`inline-block max-w-[85%] px-3 py-2 rounded-2xl ${
                                 isOutgoing
                                   ? 'bg-purple-600/20 dark:bg-purple-500/20'
                                   : 'bg-gray-200 dark:bg-gray-700/50'
-                              }`}>
-                                <p className="text-sm whitespace-pre-wrap text-gray-900 dark:text-gray-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a:hover]:text-blue-800 dark:[&_a:hover]:text-blue-300">
-                                  {linkifyText(messageText)}
+                              } ${isDeleted ? 'opacity-60' : ''}`}>
+                                <p className={`text-sm whitespace-pre-wrap ${
+                                  isDeleted
+                                    ? 'text-gray-400 dark:text-gray-500 italic'
+                                    : 'text-gray-900 dark:text-gray-100 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_a:hover]:text-blue-800 dark:[&_a:hover]:text-blue-300'
+                                }`}>
+                                  {isDeleted ? `🚫 ${messageText}` : linkifyText(messageText)}
                                 </p>
                               </div>
                             );
@@ -1675,6 +1738,22 @@ const ChatArea = ({ conversationId, onToggleDetails, showDetailsPanel, onConvers
                                 </div>
                               );
                             })}
+                          </div>
+                        )}
+                        {/* Reações à mensagem */}
+                        {message.reactions && message.reactions.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {Object.entries(
+                              message.reactions.reduce((acc, r) => {
+                                const key = r.type || r.reaction_type || '👍';
+                                acc[key] = (acc[key] || 0) + 1;
+                                return acc;
+                              }, {})
+                            ).map(([type, count]) => (
+                              <span key={type} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                {type}{count > 1 && ` ${count}`}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>

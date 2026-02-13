@@ -554,8 +554,9 @@ class ApiService {
     });
   }
 
-  async getConversationStats() {
-    return this.request('/conversations/stats');
+  async getConversationStats(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/conversations/stats${query ? `?${query}` : ''}`);
   }
 
   // Get assignable users for conversations (no users:view permission required)

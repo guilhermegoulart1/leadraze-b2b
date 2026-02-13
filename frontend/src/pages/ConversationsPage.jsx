@@ -4,14 +4,14 @@ import { useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { onConversationUpdated, onNewConversation, onNewMessage } from '../services/ably';
+import { onConversationUpdated, onNewConversation, onNewMessage, onMessageEdited, onMessageDeleted } from '../services/ably';
 import ConversationSidebar from '../components/ConversationSidebar';
 import ChatArea from '../components/ChatArea';
 import DetailsPanel from '../components/DetailsPanel';
 import UnifiedContactModal from '../components/UnifiedContactModal';
 import QuickCreateOpportunityModal from '../components/QuickCreateOpportunityModal';
 
-const ConversationsPage = () => {
+const ConversationsPage = ({ isGroupMode = false }) => {
   const { t } = useTranslation(['conversations', 'common']);
   const { refreshUnreadCount } = useOutletContext();
   const { user } = useAuth();
@@ -52,7 +52,7 @@ const ConversationsPage = () => {
     loadStats();
     loadUsers();
     loadTags();
-  }, []);
+  }, [isGroupMode]);
 
   useEffect(() => {
     filterConversations();
@@ -85,6 +85,10 @@ const ConversationsPage = () => {
     // Handler para nova conversa
     const handleNewConversation = (data, source) => {
       console.log(`ConversationsPage: new_conversation via ${source}`, data);
+
+      // Filtrar por modo: só adicionar se bate com o tipo da página (grupo vs individual)
+      const convIsGroup = data.conversation?.is_group || false;
+      if (convIsGroup !== isGroupMode) return;
 
       // Verificar se já existe (evitar duplicatas)
       setConversations(prev => {
@@ -141,18 +145,39 @@ const ConversationsPage = () => {
     const unsubscribeNew = onNewConversation((data) => handleNewConversation(data, 'Ably'));
     const unsubscribeMessage = onNewMessage((data) => handleNewMessage(data, 'Ably'));
 
+    // Atualizar preview na sidebar quando mensagem é editada
+    const unsubscribeEdited = onMessageEdited((data) => {
+      setConversations(prev => prev.map(conv =>
+        String(conv.id) === String(data.conversationId)
+          ? { ...conv, last_message_preview: data.newContent }
+          : conv
+      ));
+    });
+
+    // Atualizar preview na sidebar quando mensagem é deletada
+    const unsubscribeDeleted = onMessageDeleted((data) => {
+      setConversations(prev => prev.map(conv =>
+        String(conv.id) === String(data.conversationId)
+          ? { ...conv, last_message_preview: '[Mensagem deletada]' }
+          : conv
+      ));
+    });
+
     // Cleanup
     return () => {
       unsubscribeUpdated();
       unsubscribeNew();
       unsubscribeMessage();
+      unsubscribeEdited();
+      unsubscribeDeleted();
     };
-  }, [refreshUnreadCount]);
+  }, [refreshUnreadCount, isGroupMode]);
 
   const loadConversations = async () => {
     try {
       setLoading(true);
-      const response = await api.getConversations({ limit: 100 });
+      const params = { limit: 100, is_group: isGroupMode ? 'true' : 'false' };
+      const response = await api.getConversations(params);
 
       if (response.success) {
         setConversations(response.data.conversations || []);
@@ -166,7 +191,7 @@ const ConversationsPage = () => {
 
   const loadStats = async () => {
     try {
-      const response = await api.getConversationStats();
+      const response = await api.getConversationStats({ is_group: isGroupMode ? 'true' : 'false' });
       if (response.success) {
         setStats({
           mine: response.data.mine || 0,
@@ -527,6 +552,7 @@ const ConversationsPage = () => {
         activeFilters={activeFilters}
         onRemoveFilter={handleRemoveFilter}
         onClearAllFilters={handleClearAllFilters}
+        isGroupMode={isGroupMode}
       />
 
       {/* Chat Area - Centro */}

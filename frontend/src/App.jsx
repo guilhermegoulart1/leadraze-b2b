@@ -180,6 +180,7 @@ function AppRoutes() {
         <Route path="leads" element={<Navigate to="/pipelines" replace />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="conversations" element={<ConversationsPage />} />
+        <Route path="whatsapp-groups" element={<ConversationsPage isGroupMode={true} />} />
         <Route path="insights" element={<InsightsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="activation-agents" element={<ActivationAgentsPage />} />

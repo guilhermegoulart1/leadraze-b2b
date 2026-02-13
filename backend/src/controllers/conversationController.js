@@ -186,6 +186,7 @@ const getConversations = async (req, res) => {
       linkedin_account_id,
       opportunity_id,
       search,
+      is_group,
       page = 1,
       limit = 50
     } = req.query;
@@ -293,6 +294,13 @@ const getConversations = async (req, res) => {
     if (search) {
       whereConditions.push(`(c.name ILIKE $${paramIndex} OR opp_contact.name ILIKE $${paramIndex} OR c.phone ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // Filtro por tipo: grupo ou individual
+    if (is_group !== undefined) {
+      whereConditions.push(`conv.is_group = $${paramIndex}`);
+      queryParams.push(is_group === 'true');
       paramIndex++;
     }
 
@@ -1443,11 +1451,20 @@ const getConversationStats = async (req, res) => {
       paramIndex += channelFilter.params.length;
     }
 
+    // Filtro opcional por tipo: grupo ou individual
+    const { is_group } = req.query;
+    let isGroupFilter = '';
+    if (is_group !== undefined) {
+      isGroupFilter = `AND conv.is_group = $${paramIndex}`;
+      queryParams.push(is_group === 'true');
+      paramIndex++;
+    }
+
     // Total de conversas
     const totalQuery = `
       SELECT COUNT(*) as total
       FROM conversations conv
-      WHERE conv.account_id = $1 ${userIdFilter} ${sectorFilter} ${channelFilterSQL}
+      WHERE conv.account_id = $1 ${userIdFilter} ${sectorFilter} ${channelFilterSQL} ${isGroupFilter}
     `;
     const totalResult = await db.query(totalQuery, queryParams);
 
@@ -1463,6 +1480,7 @@ const getConversationStats = async (req, res) => {
         AND conv.status != 'closed'
         ${sectorFilter}
         ${channelFilterSQL}
+        ${isGroupFilter}
     `;
     const mineResult = await db.query(mineQuery, mineQueryParams);
 
@@ -1476,6 +1494,7 @@ const getConversationStats = async (req, res) => {
         AND conv.status != 'closed'
         ${sectorFilter}
         ${channelFilterSQL}
+        ${isGroupFilter}
     `;
     const unassignedResult = await db.query(unassignedQuery, queryParams);
 
@@ -1488,16 +1507,47 @@ const getConversationStats = async (req, res) => {
         AND conv.status = 'closed'
         ${sectorFilter}
         ${channelFilterSQL}
+        ${isGroupFilter}
     `;
     const closedResult = await db.query(closedQuery, queryParams);
 
-    // Conversas com mensagens não lidas
+    // Conversas com mensagens não lidas (total)
     const unreadQuery = `
       SELECT COUNT(*) as unread_conversations
       FROM conversations conv
-      WHERE conv.account_id = $1 ${userIdFilter} AND conv.unread_count > 0 ${sectorFilter} ${channelFilterSQL}
+      WHERE conv.account_id = $1 ${userIdFilter} AND conv.unread_count > 0 ${sectorFilter} ${channelFilterSQL} ${isGroupFilter}
     `;
     const unreadResult = await db.query(unreadQuery, queryParams);
+
+    // Contagens separadas de não-lidos para badges do menu (só quando sem filtro is_group)
+    let unreadIndividual = 0;
+    let unreadGroups = 0;
+    let hasGroupsEnabled = false;
+
+    if (is_group === undefined) {
+      const unreadIndividualQuery = `
+        SELECT COUNT(*) as count FROM conversations conv
+        WHERE conv.account_id = $1 ${userIdFilter} AND conv.unread_count > 0 AND conv.is_group = false ${sectorFilter} ${channelFilterSQL}
+      `;
+      const unreadIndividualResult = await db.query(unreadIndividualQuery, queryParams);
+      unreadIndividual = parseInt(unreadIndividualResult.rows[0].count);
+
+      const unreadGroupsQuery = `
+        SELECT COUNT(*) as count FROM conversations conv
+        WHERE conv.account_id = $1 ${userIdFilter} AND conv.unread_count > 0 AND conv.is_group = true ${sectorFilter} ${channelFilterSQL}
+      `;
+      const unreadGroupsResult = await db.query(unreadGroupsQuery, queryParams);
+      unreadGroups = parseInt(unreadGroupsResult.rows[0].count);
+
+      // Verificar se algum canal WhatsApp tem grupos habilitados (ignore_groups = false)
+      const groupsEnabledQuery = `
+        SELECT COUNT(*) as count FROM linkedin_accounts
+        WHERE account_id = $1 AND provider_type = 'WHATSAPP' AND status = 'active'
+        AND (channel_settings->>'ignore_groups')::boolean = false
+      `;
+      const groupsEnabledResult = await db.query(groupsEnabledQuery, [accountId]);
+      hasGroupsEnabled = parseInt(groupsEnabledResult.rows[0].count) > 0;
+    }
 
     // Organizar dados
     const stats = {
@@ -1505,7 +1555,10 @@ const getConversationStats = async (req, res) => {
       all: parseInt(totalResult.rows[0].total),
       unassigned: parseInt(unassignedResult.rows[0].count),
       closed: parseInt(closedResult.rows[0].count),
-      unread_conversations: parseInt(unreadResult.rows[0].unread_conversations)
+      unread_conversations: parseInt(unreadResult.rows[0].unread_conversations),
+      unread_individual: unreadIndividual,
+      unread_groups: unreadGroups,
+      has_groups_enabled: hasGroupsEnabled
     };
 
     console.log('✅ Estatísticas calculadas:', stats);

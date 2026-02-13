@@ -30,7 +30,8 @@ const ConversationSidebar = ({
   tags = [],
   activeFilters = [],
   onRemoveFilter,
-  onClearAllFilters
+  onClearAllFilters,
+  isGroupMode = false
 }) => {
   const { t, i18n } = useTranslation('conversations');
 
@@ -237,8 +238,8 @@ const ConversationSidebar = ({
                             ? conversation.group_name
                             : conversation.lead_name}
                         </h3>
-                        {/* Badge de grupo */}
-                        {conversation.is_group && (
+                        {/* Badge de grupo - só mostra quando não está na página de grupos */}
+                        {!isGroupMode && conversation.is_group && (
                           <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full flex-shrink-0">
                             {t('sidebar.group')}
                           </span>

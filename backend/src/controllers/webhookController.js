@@ -6,7 +6,7 @@ const conversationAutomationService = require('../services/conversationAutomatio
 const conversationSummaryService = require('../services/conversationSummaryService');
 const { addWebhookJob, isWebhookProcessed } = require('../queues/webhookQueue');
 const { scheduleDelayedConversation, cancelDelayedConversation } = require('../workers/delayedConversationWorker');
-const { publishNewMessage, publishNewConversation, publishAccountDisconnected } = require('../services/ablyService');
+const { publishNewMessage, publishNewConversation, publishAccountDisconnected, publishMessageEdited, publishMessageDeleted, publishMessageDelivered, publishMessageReaction } = require('../services/ablyService');
 const notificationService = require('../services/notificationService');
 const unipileClient = require('../config/unipile');
 const storageService = require('../services/storageService');
@@ -1536,18 +1536,44 @@ async function handleNewRelation(payload) {
 async function handleMessageReaction(payload) {
   console.log('👍 Processando reação a mensagem');
 
-  const { account_id, message_id, reaction } = payload;
+  const { account_id, message_id, reaction, sender } = payload;
 
   if (!account_id || !message_id) {
     return { handled: false, reason: 'Missing required fields' };
   }
 
   try {
-    // TODO: Implementar salvamento de reações em tabela message_reactions
-    console.log('⚠️ Reação recebida mas não implementado salvamento ainda');
-    console.log('Reaction data:', reaction);
+    // Buscar mensagem
+    const msg = await db.findOne('messages', { unipile_message_id: message_id });
+    if (!msg) return { handled: false, reason: 'Message not found' };
 
-    return { handled: true, message: 'Reaction logged but not persisted yet' };
+    const conv = await db.findOne('conversations', { id: msg.conversation_id });
+    if (!conv) return { handled: false, reason: 'Conversation not found' };
+
+    const reactorId = sender?.id || sender?.attendee_id || 'unknown';
+    const reactorName = sender?.name || sender?.display_name || '';
+    const reactionType = reaction?.type || reaction?.emoji || reaction || '👍';
+
+    // Upsert reação (ON CONFLICT ignora duplicata)
+    await db.query(`
+      INSERT INTO message_reactions (message_id, conversation_id, reactor_name, reactor_id, reaction_type)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (message_id, reactor_id, reaction_type) DO NOTHING
+    `, [msg.id, msg.conversation_id, reactorName, reactorId, reactionType]);
+
+    console.log(`✅ Reação '${reactionType}' salva para mensagem ${msg.id}`);
+
+    publishMessageReaction({
+      accountId: conv.account_id,
+      conversationId: msg.conversation_id,
+      messageId: msg.id,
+      unipileMessageId: message_id,
+      reaction: reactionType,
+      reactorName,
+      reactorId
+    });
+
+    return { handled: true };
   } catch (error) {
     console.error('❌ Erro ao processar reação:', error);
     return { handled: false, reason: error.message };
@@ -1601,14 +1627,30 @@ async function handleMessageEdited(payload) {
   }
 
   try {
-    // Atualizar mensagem no banco
+    const newContent = message?.text || '';
+
+    // Atualizar mensagem no banco com flag is_edited
     const result = await db.query(
-      'UPDATE messages SET content = $1, updated_at = NOW() WHERE unipile_message_id = $2',
-      [message?.text || '', message_id]
+      'UPDATE messages SET content = $1, updated_at = NOW(), is_edited = true WHERE unipile_message_id = $2 RETURNING id, conversation_id',
+      [newContent, message_id]
     );
 
-    console.log('✅ Mensagem atualizada');
+    if (result.rowCount > 0) {
+      const msg = result.rows[0];
+      const conv = await db.findOne('conversations', { id: msg.conversation_id });
+      if (conv) {
+        publishMessageEdited({
+          accountId: conv.account_id,
+          conversationId: msg.conversation_id,
+          messageId: msg.id,
+          unipileMessageId: message_id,
+          newContent
+        });
+        console.log(`📡 Ably: Evento message_edited emitido para conversa ${msg.conversation_id}`);
+      }
+    }
 
+    console.log('✅ Mensagem atualizada');
     return { handled: true, updated: result.rowCount > 0 };
   } catch (error) {
     console.error('❌ Erro ao processar mensagem editada:', error);
@@ -1631,12 +1673,26 @@ async function handleMessageDeleted(payload) {
   try {
     // Soft delete - marcar como deletada sem remover do banco
     const result = await db.query(
-      'UPDATE messages SET content = \'[Mensagem deletada]\', deleted_at = NOW() WHERE unipile_message_id = $1',
+      `UPDATE messages SET content = '[Mensagem deletada]', deleted_at = NOW()
+       WHERE unipile_message_id = $1 RETURNING id, conversation_id`,
       [message_id]
     );
 
-    console.log('✅ Mensagem marcada como deletada (soft delete)');
+    if (result.rowCount > 0) {
+      const msg = result.rows[0];
+      const conv = await db.findOne('conversations', { id: msg.conversation_id });
+      if (conv) {
+        publishMessageDeleted({
+          accountId: conv.account_id,
+          conversationId: msg.conversation_id,
+          messageId: msg.id,
+          unipileMessageId: message_id
+        });
+        console.log(`📡 Ably: Evento message_deleted emitido para conversa ${msg.conversation_id}`);
+      }
+    }
 
+    console.log('✅ Mensagem marcada como deletada (soft delete)');
     return { handled: true, deleted: result.rowCount > 0 };
   } catch (error) {
     console.error('❌ Erro ao processar mensagem deletada:', error);
@@ -1657,10 +1713,28 @@ async function handleMessageDelivered(payload) {
   }
 
   try {
-    // TODO: Adicionar coluna delivered_at na tabela messages
-    console.log('⚠️ Mensagem entregue mas não implementado salvamento ainda');
+    const result = await db.query(
+      'UPDATE messages SET delivered_at = NOW() WHERE unipile_message_id = $1 RETURNING id, conversation_id',
+      [message_id]
+    );
 
-    return { handled: true, message: 'Delivery status logged but not persisted yet' };
+    if (result.rowCount > 0) {
+      const msg = result.rows[0];
+      const conv = await db.findOne('conversations', { id: msg.conversation_id });
+      if (conv) {
+        publishMessageDelivered({
+          accountId: conv.account_id,
+          conversationId: msg.conversation_id,
+          messageId: msg.id,
+          unipileMessageId: message_id,
+          deliveredAt: new Date().toISOString()
+        });
+        console.log(`📡 Ably: Evento message_delivered emitido para conversa ${msg.conversation_id}`);
+      }
+    }
+
+    console.log('✅ Mensagem marcada como entregue');
+    return { handled: true, delivered: result.rowCount > 0 };
   } catch (error) {
     console.error('❌ Erro ao processar mensagem entregue:', error);
     return { handled: false, reason: error.message };

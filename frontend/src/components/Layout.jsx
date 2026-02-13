@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, Search, Award, BarChart3, MessageCircle,
+  Home, Search, Award, BarChart3, MessageCircle, MessagesSquare,
   Bot, Lightbulb, LogOut,
   ChevronLeft, ChevronRight, Bell, User,
   ChevronDown, Users, Shield, Lock, Linkedin, MapPin, CreditCard,
@@ -31,6 +31,8 @@ const Layout = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0); // Real data from API
+  const [unreadGroups, setUnreadGroups] = useState(0); // Unread group conversations
+  const [showGroupsMenu, setShowGroupsMenu] = useState(false); // Show groups menu item
   const [unreadNotifications, setUnreadNotifications] = useState(0); // System notifications
   const [notifications, setNotifications] = useState([]); // Notification list
   const [needsOnboarding, setNeedsOnboarding] = useState(false); // Onboarding pending
@@ -95,9 +97,9 @@ const Layout = () => {
     loadConversationStats();
   }, []);
 
-  // Atualizar quando navega para a página de conversas
+  // Atualizar quando navega para a página de conversas ou grupos
   useEffect(() => {
-    if (location.pathname === '/conversations') {
+    if (location.pathname === '/conversations' || location.pathname === '/whatsapp-groups') {
       loadConversationStats();
     }
   }, [location.pathname]);
@@ -106,7 +108,9 @@ const Layout = () => {
     try {
       const response = await api.getConversationStats();
       if (response.success) {
-        setUnreadMessages(response.data.unread_conversations || 0);
+        setUnreadMessages(response.data.unread_individual || 0);
+        setUnreadGroups(response.data.unread_groups || 0);
+        setShowGroupsMenu(response.data.has_groups_enabled || false);
       }
     } catch (error) {
       console.error('Erro ao carregar estatísticas de conversas:', error);
@@ -261,6 +265,7 @@ const Layout = () => {
     { path: '/pipelines', labelKey: 'menu.pipeline', icon: BarChart3 },
     { path: '/tasks', labelKey: 'menu.tasks', icon: CheckSquare },
     { path: '/conversations', labelKey: 'menu.conversations', icon: MessageCircle, badge: unreadMessages },
+    ...(showGroupsMenu ? [{ path: '/whatsapp-groups', labelKey: 'menu.whatsappGroups', icon: MessagesSquare, badge: unreadGroups }] : []),
     { path: '/contacts', labelKey: 'menu.contacts', icon: Users },
 
     // CAMPANHAS
@@ -640,18 +645,23 @@ const Layout = () => {
             </a>
 
             {/* Conversations Notification */}
-            <button
-              onClick={() => navigate('/conversations')}
-              className="relative p-2 hover:bg-purple-600 rounded-lg transition-colors"
-              title={unreadMessages > 0 ? `${unreadMessages} nova${unreadMessages > 1 ? 's' : ''} conversa${unreadMessages > 1 ? 's' : ''}` : 'Conversas'}
-            >
-              <MessageCircle className="w-5 h-5 text-white" />
-              {unreadMessages > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg border-2 border-purple-700">
-                  {unreadMessages > 99 ? '99+' : unreadMessages}
-                </span>
-              )}
-            </button>
+            {(() => {
+              const totalUnread = unreadMessages + unreadGroups;
+              return (
+                <button
+                  onClick={() => navigate('/conversations')}
+                  className="relative p-2 hover:bg-purple-600 rounded-lg transition-colors"
+                  title={totalUnread > 0 ? `${totalUnread} nova${totalUnread > 1 ? 's' : ''} conversa${totalUnread > 1 ? 's' : ''}` : 'Conversas'}
+                >
+                  <MessageCircle className="w-5 h-5 text-white" />
+                  {totalUnread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg border-2 border-purple-700">
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
 
             {/* System Notifications */}
             <div className="relative">
